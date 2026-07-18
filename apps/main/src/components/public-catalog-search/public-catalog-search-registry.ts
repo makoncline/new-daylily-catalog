@@ -280,11 +280,94 @@ export const PUBLIC_CATALOG_SEARCH_SECTION_DEFINITIONS: SectionDef[] = [
   },
 ];
 
+const CULTIVAR_FACET_FILTERS: FilterDef[] = [
+  {
+    id: "hybridizer",
+    label: "Hybridizer",
+    sectionId: "registration",
+    kind: "facet",
+    facetKey: "hybridizer",
+    testId: "advanced-filter-hybridizer",
+  },
+  {
+    id: "award",
+    label: "Awards",
+    sectionId: "registration",
+    kind: "facet",
+    facetKey: "award",
+    testId: "advanced-filter-award",
+  },
+  {
+    id: "flowerShow",
+    label: "Flower Show",
+    sectionId: "details",
+    kind: "facet",
+    facetKey: "flowerShow",
+    testId: "advanced-filter-flower-show",
+  },
+  {
+    id: "sculptedType",
+    label: "Sculpted type",
+    sectionId: "details",
+    kind: "facet",
+    facetKey: "sculptedType",
+    testId: "advanced-filter-sculpted-type",
+  },
+];
+
+const CULTIVAR_FACET_FILTER_BY_ID = new Map(
+  CULTIVAR_FACET_FILTERS.map((definition) => [definition.id, definition]),
+);
+
+export const PUBLIC_CATALOG_SEARCH_CULTIVAR_SECTION_DEFINITIONS: SectionDef[] =
+  PUBLIC_CATALOG_SEARCH_SECTION_DEFINITIONS.map((section) => {
+    if (section.id === "registration") {
+      const award = CULTIVAR_FACET_FILTER_BY_ID.get("award")!;
+      const hybridizer = CULTIVAR_FACET_FILTER_BY_ID.get("hybridizer")!;
+
+      return {
+        ...section,
+        groups: section.groups.map((group) => ({
+          ...group,
+          filterIds: group.filterIds.flatMap((filterId) =>
+            filterId === "hybridizer" ? ["hybridizer", "award"] : [filterId],
+          ),
+        })),
+        filters: [
+          ...section.filters.map((filter) =>
+            filter.id === "hybridizer" ? hybridizer : filter,
+          ),
+          award,
+        ],
+      };
+    }
+
+    if (section.id === "details") {
+      const flowerShow = CULTIVAR_FACET_FILTER_BY_ID.get("flowerShow")!;
+      const sculptedType = CULTIVAR_FACET_FILTER_BY_ID.get("sculptedType")!;
+
+      return {
+        ...section,
+        groups: section.groups.map((group, index) => ({
+          ...group,
+          filterIds:
+            index === 0
+              ? ["flowerShow", "sculptedType", ...group.filterIds]
+              : group.filterIds,
+        })),
+        filters: [flowerShow, sculptedType, ...section.filters],
+      };
+    }
+
+    return section;
+  });
+
 const PUBLIC_CATALOG_SEARCH_FILTERS = [
   ...PUBLIC_CATALOG_SEARCH_TOOLBAR_FILTERS,
   ...PUBLIC_CATALOG_SEARCH_SECTION_DEFINITIONS.flatMap(
     (section) => section.filters,
   ),
+  ...CULTIVAR_FACET_FILTERS,
 ];
 
 const FILTER_BY_ID = new Map(
@@ -295,12 +378,16 @@ const FILTER_BY_ID = new Map(
 );
 
 interface CatalogSearchAhsFacetValues {
+  awardNames?: string | null;
   bloomHabit?: string | null;
   bloomSeason?: string | null;
+  flowerShow?: string | null;
   form?: string | null;
   ploidy?: string | null;
   foliageType?: string | null;
   fragrance?: string | null;
+  hybridizer?: string | null;
+  sculptedTypes?: string | null;
 }
 
 interface CatalogSearchFacetRow {
@@ -315,12 +402,16 @@ const FACET_VALUE_GETTERS: Record<
   keyof PublicCatalogSearchFacetOptions,
   (listing: CatalogSearchFacetRow) => string | null | undefined
 > = {
+  award: (listing) => listing.ahsListing?.awardNames,
   bloomHabit: (listing) => listing.ahsListing?.bloomHabit,
   bloomSeason: (listing) => listing.ahsListing?.bloomSeason,
+  flowerShow: (listing) => listing.ahsListing?.flowerShow,
   form: (listing) => listing.ahsListing?.form,
   ploidy: (listing) => listing.ahsListing?.ploidy,
   foliageType: (listing) => listing.ahsListing?.foliageType,
   fragrance: (listing) => listing.ahsListing?.fragrance,
+  hybridizer: (listing) => listing.ahsListing?.hybridizer,
+  sculptedType: (listing) => listing.ahsListing?.sculptedTypes,
 };
 
 function formatRangeNumber(value: number) {
@@ -370,16 +461,6 @@ export function getPublicCatalogSearchFilterDefinition(
   return FILTER_BY_ID.get(id) ?? null;
 }
 
-function getPublicCatalogSearchSectionDefinition(
-  id: PublicCatalogSearchSectionDefinition["id"],
-): PublicCatalogSearchSectionDefinition | null {
-  return (
-    PUBLIC_CATALOG_SEARCH_SECTION_DEFINITIONS.find(
-      (section) => section.id === id,
-    ) ?? null
-  );
-}
-
 export function getPublicCatalogSearchFilterColumn<TData>(
   table: Table<TData>,
   definition: PublicCatalogSearchFilterDefinition,
@@ -395,6 +476,8 @@ export function getPublicCatalogSearchFacetOptionsForDefinition(
   switch (definition.facetKey) {
     case "lists":
       return listOptions;
+    case "award":
+      return facetOptions.award;
     case "bloomHabit":
       return facetOptions.bloomHabit;
     case "bloomSeason":
@@ -407,6 +490,12 @@ export function getPublicCatalogSearchFacetOptionsForDefinition(
       return facetOptions.foliageType;
     case "fragrance":
       return facetOptions.fragrance;
+    case "flowerShow":
+      return facetOptions.flowerShow;
+    case "hybridizer":
+      return facetOptions.hybridizer;
+    case "sculptedType":
+      return facetOptions.sculptedType;
     default:
       return [];
   }
@@ -469,12 +558,16 @@ export function buildPublicCatalogSearchFacetOptions<
   };
 
   return {
+    award: buildFacetOptions(FACET_VALUE_GETTERS.award),
     bloomHabit: buildFacetOptions(FACET_VALUE_GETTERS.bloomHabit),
     bloomSeason: buildFacetOptions(FACET_VALUE_GETTERS.bloomSeason),
+    flowerShow: buildFacetOptions(FACET_VALUE_GETTERS.flowerShow),
     form: buildFacetOptions(FACET_VALUE_GETTERS.form, splitFormFacetValue),
     ploidy: buildFacetOptions(FACET_VALUE_GETTERS.ploidy),
     foliageType: buildFacetOptions(FACET_VALUE_GETTERS.foliageType),
     fragrance: buildFacetOptions(FACET_VALUE_GETTERS.fragrance),
+    hybridizer: buildFacetOptions(FACET_VALUE_GETTERS.hybridizer),
+    sculptedType: buildFacetOptions(FACET_VALUE_GETTERS.sculptedType),
   };
 }
 
@@ -517,13 +610,8 @@ function countPublicCatalogSearchActiveFilters<TData>(
 
 export function countPublicCatalogSearchSectionFilters<TData>(
   table: Table<TData>,
-  sectionId: PublicCatalogSearchSectionDefinition["id"],
+  section: PublicCatalogSearchSectionDefinition,
 ) {
-  const section = getPublicCatalogSearchSectionDefinition(sectionId);
-  if (!section) {
-    return 0;
-  }
-
   return countPublicCatalogSearchActiveFilters(
     table,
     section.filters.map((filter) => filter.id),

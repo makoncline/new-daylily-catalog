@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { ChevronDown, ChevronUp, CircleHelp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -19,7 +18,6 @@ import {
 import {
   Field,
   FieldContent,
-  FieldDescription,
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
@@ -34,6 +32,12 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   columnIndexToLabel,
   getHeaderRowSummary,
 } from "@/lib/catalog-importer";
@@ -46,6 +50,36 @@ import type { CatalogImporterWorkbenchController } from "@/app/(public)/catalog-
 
 interface CatalogImporterMappingProps {
   controller: CatalogImporterWorkbenchController;
+  onDone?: () => void;
+}
+
+function MappingHelp({
+  description,
+  label,
+}: {
+  description: string;
+  label: string;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Tooltip open={open} onOpenChange={setOpen}>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-label={`About ${label}`}
+          aria-expanded={open}
+          onClick={() => setOpen((isOpen) => !isOpen)}
+          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring inline-flex size-5 shrink-0 items-center justify-center rounded-sm focus-visible:ring-2 focus-visible:outline-none"
+        >
+          <CircleHelp className="size-3.5" aria-hidden="true" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-64 text-pretty">
+        {description}
+      </TooltipContent>
+    </Tooltip>
+  );
 }
 
 function MappingField({
@@ -56,19 +90,24 @@ function MappingField({
   definition: CatalogImporterMappingFieldDefinition;
 }) {
   const selectId = `catalog-importer-map-${definition.field}`;
-  const descriptionId = `${selectId}-description`;
   const value = controller.mapping[definition.field];
 
   return (
     <Field className="gap-2">
-      <FieldLabel htmlFor={selectId}>
-        {definition.label}
-        {definition.required ? (
-          <span className="text-destructive" aria-hidden="true">
-            *
-          </span>
-        ) : null}
-      </FieldLabel>
+      <div className="flex items-center gap-1.5">
+        <FieldLabel htmlFor={selectId}>
+          {definition.label}
+          {definition.required ? (
+            <span className="text-destructive" aria-hidden="true">
+              *
+            </span>
+          ) : null}
+        </FieldLabel>
+        <MappingHelp
+          label={definition.label}
+          description={definition.description}
+        />
+      </div>
       <FieldContent>
         <Select
           value={value === null ? "none" : String(value)}
@@ -79,13 +118,13 @@ function MappingField({
             )
           }
         >
-          <SelectTrigger id={selectId} aria-describedby={descriptionId}>
+          <SelectTrigger id={selectId}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectGroup>
               <SelectItem value="none">
-                {definition.required ? "Select a column" : "Do not import"}
+                {definition.required ? "Select a column" : "Do not include"}
               </SelectItem>
               {controller.sourceColumns.map((column) => (
                 <SelectItem key={column.index} value={String(column.index)}>
@@ -96,16 +135,16 @@ function MappingField({
             </SelectGroup>
           </SelectContent>
         </Select>
-        <FieldDescription id={descriptionId}>
-          {definition.description}
-        </FieldDescription>
       </FieldContent>
     </Field>
   );
 }
 
-function SpreadsheetPreview({ controller }: CatalogImporterMappingProps) {
-  const [open, setOpen] = useState(true);
+function SpreadsheetPreview({
+  controller,
+  defaultOpen = true,
+}: CatalogImporterMappingProps & { defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
@@ -155,9 +194,8 @@ function SpreadsheetPreview({ controller }: CatalogImporterMappingProps) {
                     >
                       Row
                     </th>
-                    {Array.from(
-                      { length: controller.sourcePreviewColumnCount },
-                      (_, columnIndex) => (
+                    {controller.sourcePreviewColumnIndexes.map(
+                      (columnIndex) => (
                         <th
                           key={columnIndex}
                           scope="col"
@@ -185,9 +223,8 @@ function SpreadsheetPreview({ controller }: CatalogImporterMappingProps) {
                       >
                         {rowIndex + 1}
                       </th>
-                      {Array.from(
-                        { length: controller.sourcePreviewColumnCount },
-                        (_, columnIndex) => (
+                      {controller.sourcePreviewColumnIndexes.map(
+                        (columnIndex) => (
                           <td
                             key={columnIndex}
                             className="max-w-72 border-r border-b px-3 py-2 align-top last:border-r-0"
@@ -214,6 +251,7 @@ function SpreadsheetPreview({ controller }: CatalogImporterMappingProps) {
 
 export function CatalogImporterMapping({
   controller,
+  onDone,
 }: CatalogImporterMappingProps) {
   if (!controller.selectedSheet) {
     return null;
@@ -232,127 +270,112 @@ export function CatalogImporterMapping({
     >
       <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(22rem,0.65fr)]">
         <div className="order-2 min-w-0 lg:order-1">
-          <SpreadsheetPreview controller={controller} />
+          <SpreadsheetPreview controller={controller} defaultOpen={!onDone} />
         </div>
 
         <Card className="order-1 shadow-sm lg:order-2">
-          <CardHeader>
-            <CardTitle
-              id="catalog-importer-mapping-heading"
-              role="heading"
-              aria-level={2}
-            >
-              Map your columns
-            </CardTitle>
-            <CardDescription>
-              Confirm which workbook columns become listing fields. Only
-              cultivar name is required.
-            </CardDescription>
+          <CardHeader className="flex-row items-start justify-between gap-4 space-y-0">
+            <div className="space-y-1.5">
+              <CardTitle
+                id="catalog-importer-mapping-heading"
+                role="heading"
+                aria-level={2}
+              >
+                Map your columns
+              </CardTitle>
+              <CardDescription>
+                Confirm which workbook columns become listing fields. Only
+                cultivar name is required.
+              </CardDescription>
+            </div>
+            {onDone ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onDone}
+              >
+                Preview catalog
+              </Button>
+            ) : null}
           </CardHeader>
-          <CardContent>
-            <FieldGroup className="gap-5">
-              <Field className="gap-2">
-                <FieldLabel htmlFor="catalog-importer-header-row">
-                  Header row
-                </FieldLabel>
-                <FieldContent>
-                  <Select
-                    value={
-                      controller.headerRowIndex === null
-                        ? "none"
-                        : String(controller.headerRowIndex)
-                    }
-                    onValueChange={controller.handleHeaderChange}
-                  >
-                    <SelectTrigger
-                      id="catalog-importer-header-row"
-                      aria-describedby="catalog-importer-header-description"
+          <CardContent className="space-y-5">
+            <TooltipProvider delayDuration={200}>
+              <FieldGroup className="gap-5">
+                <Field className="gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <FieldLabel htmlFor="catalog-importer-header-row">
+                      Header row
+                    </FieldLabel>
+                    <MappingHelp
+                      label="Header row"
+                      description="Pick the row that contains labels such as Name, Price, or Description."
+                    />
+                  </div>
+                  <FieldContent>
+                    <Select
+                      value={
+                        controller.headerRowIndex === null
+                          ? "none"
+                          : String(controller.headerRowIndex)
+                      }
+                      onValueChange={controller.handleHeaderChange}
                     >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        <SelectItem value="none">
-                          No header row — use column letters
-                        </SelectItem>
-                        {controller.selectedSheet.rows
-                          .slice(0, 12)
-                          .map((row, rowIndex) => (
-                            <SelectItem key={rowIndex} value={String(rowIndex)}>
-                              {getHeaderRowSummary(row, rowIndex)}
-                            </SelectItem>
-                          ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                  <FieldDescription id="catalog-importer-header-description">
-                    Pick the row that contains labels such as Name, Price, or
-                    Description.
-                  </FieldDescription>
-                </FieldContent>
-              </Field>
+                      <SelectTrigger id="catalog-importer-header-row">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectItem value="none">
+                            No header row — use column letters
+                          </SelectItem>
+                          {controller.selectedSheet.rows
+                            .slice(0, 12)
+                            .map((row, rowIndex) => (
+                              <SelectItem
+                                key={rowIndex}
+                                value={String(rowIndex)}
+                              >
+                                {getHeaderRowSummary(row, rowIndex)}
+                              </SelectItem>
+                            ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </FieldContent>
+                </Field>
 
-              {CATALOG_IMPORTER_MAPPING_FIELDS.map((definition) => (
-                <MappingField
-                  key={definition.field}
-                  controller={controller}
-                  definition={definition}
+                {CATALOG_IMPORTER_MAPPING_FIELDS.map((definition) => (
+                  <MappingField
+                    key={definition.field}
+                    controller={controller}
+                    definition={definition}
+                  />
+                ))}
+              </FieldGroup>
+            </TooltipProvider>
+
+            {controller.matchingProgress ? (
+              <div className="space-y-2">
+                <div className="text-muted-foreground flex items-center justify-between gap-4 text-xs">
+                  <span className="flex items-center gap-2">
+                    <Spinner />
+                    Checking cultivar names
+                  </span>
+                  <span className="tabular-nums">
+                    {controller.matchingProgress.processed.toLocaleString()} /{" "}
+                    {controller.matchingProgress.total.toLocaleString()}
+                  </span>
+                </div>
+                <Progress
+                  value={progressValue}
+                  aria-label="Cultivar matching progress"
                 />
-              ))}
-            </FieldGroup>
+              </div>
+            ) : null}
           </CardContent>
         </Card>
       </div>
-
-      <Card className="shadow-sm">
-        <CardContent className="flex flex-col gap-4 p-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="secondary">
-              {controller.draftRows.length.toLocaleString()} rows
-            </Badge>
-            {controller.skippedCount > 0 ? (
-              <Badge variant="outline">
-                {controller.skippedCount.toLocaleString()} skipped
-              </Badge>
-            ) : null}
-            {controller.duplicateCount > 0 ? (
-              <Badge variant="outline">
-                {controller.duplicateCount.toLocaleString()} duplicates
-              </Badge>
-            ) : null}
-            {controller.warningCount > 0 ? (
-              <Badge variant="outline">
-                {controller.warningCount.toLocaleString()} values need review
-              </Badge>
-            ) : null}
-          </div>
-
-          {controller.matchingProgress ? (
-            <div className="min-w-0 space-y-2 lg:w-80">
-              <div className="text-muted-foreground flex items-center justify-between gap-4 text-xs">
-                <span className="flex items-center gap-2">
-                  <Spinner />
-                  Checking cultivar names
-                </span>
-                <span className="tabular-nums">
-                  {controller.matchingProgress.processed.toLocaleString()} /{" "}
-                  {controller.matchingProgress.total.toLocaleString()}
-                </span>
-              </div>
-              <Progress
-                value={progressValue}
-                aria-label="Cultivar matching progress"
-              />
-            </div>
-          ) : controller.matchedRows ? (
-            <p className="text-muted-foreground text-sm">
-              {controller.mode === "public"
-                ? `${controller.matchedRows.length.toLocaleString()} confident matches ready`
-                : "Matching complete. Review uncertain names below."}
-            </p>
-          ) : null}
-        </CardContent>
-      </Card>
     </section>
   );
 }

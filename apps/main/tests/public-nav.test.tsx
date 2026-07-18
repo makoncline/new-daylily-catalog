@@ -31,7 +31,7 @@ describe("PublicHeader", () => {
       name: "Search cultivars",
     });
     const importerLinks = screen.getAllByRole("link", {
-      name: "Clean a list",
+      name: "Import a catalog",
     });
     const growersLinks = screen.getAllByRole("link", { name: "For growers" });
 
@@ -106,7 +106,7 @@ describe("PublicHeader", () => {
       screen.queryByRole("link", { name: "Search cultivars" }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("link", { name: "Clean a list" }),
+      screen.queryByRole("link", { name: "Import a catalog" }),
     ).not.toBeInTheDocument();
   });
 

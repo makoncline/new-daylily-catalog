@@ -66,6 +66,28 @@ describe("public cultivar match route", () => {
     });
   });
 
+  it("accepts saved cultivar reference IDs alongside names", async () => {
+    matchCultivarNamesMock.mockResolvedValue([]);
+    const { POST } = await import("@/app/api/v1/cultivars/match/route");
+    const response = await POST(
+      new Request("https://daylilycatalog.com/api/v1/cultivars/match", {
+        body: JSON.stringify({
+          cultivarReferenceIds: ["cultivar-1", null],
+          includeCandidates: true,
+          names: ["Seller spelling", "Second"],
+        }),
+        method: "POST",
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(matchCultivarNamesMock).toHaveBeenCalledWith({
+      cultivarReferenceIds: ["cultivar-1", null],
+      includeCandidates: true,
+      names: ["Seller spelling", "Second"],
+    });
+  });
+
   it("returns read-only exact matches without accepting the rest of the file", async () => {
     matchCultivarNamesMock.mockResolvedValue([
       {

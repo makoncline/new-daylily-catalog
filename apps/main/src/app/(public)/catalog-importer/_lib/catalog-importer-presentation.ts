@@ -137,11 +137,17 @@ export function getRowIssues(row: CatalogImportRow) {
   if (row.imageUrlWarning) {
     issues.push(`Image URL could not be used: ${row.imageUrlWarning}`);
   }
+  if (row.cultivarReferenceIdWarning) {
+    issues.push(
+      `Daylily Catalog ID was not found: ${row.cultivarReferenceIdWarning}`,
+    );
+  }
 
   return issues;
 }
 
 export function getDownloadFileName(fileName: string) {
+  const extension = fileName.toLowerCase().endsWith(".csv") ? "csv" : "xlsx";
   const baseName = fileName.replace(/\.[^.]+$/, "");
   const safeName =
     baseName
@@ -150,5 +156,5 @@ export function getDownloadFileName(fileName: string) {
       .replace(/^-+|-+$/g, "")
       .toLowerCase() || "daylily-catalog";
 
-  return `${safeName}-cleaned.csv`;
+  return `${safeName}-daylily-catalog.${extension}`;
 }

@@ -1,6 +1,7 @@
+import { del, get, set } from "idb-keyval";
 import {
-  CATALOG_IMPORT_DRAFT_MAX_LENGTH,
   CATALOG_IMPORT_DRAFT_STORAGE_KEY,
+  CATALOG_IMPORT_LEGACY_DRAFT_STORAGE_KEY,
 } from "@/config/catalog-importer";
 import type {
   CatalogColumnMapping,
@@ -8,29 +9,33 @@ import type {
   ParsedSpreadsheet,
 } from "@/lib/catalog-importer";
 
-export type CatalogImporterMode = "public" | "pro";
-
 export interface CatalogImporterDraft {
   activeReviewRowId: string | null;
   headerRowIndex: number | null;
   mapping: CatalogColumnMapping;
   matchedRows: CatalogImportRow[] | null;
   matchedRowsKey: string | null;
-  mode: CatalogImporterMode;
   parsedSpreadsheet: ParsedSpreadsheet | null;
-  reviewQuery: string;
   selectedSheetIndex: number;
-  version: 1;
+  version: 2;
 }
 
-type DraftStorage = Pick<Storage, "getItem" | "removeItem" | "setItem">;
+export interface DraftStorage {
+  delete: (key: string) => Promise<void>;
+  get: (key: string) => Promise<unknown>;
+  set: (key: string, value: unknown) => Promise<void>;
+}
 
-function getStorage(storage?: DraftStorage | null) {
+function getStorage(storage?: DraftStorage | null): DraftStorage | null {
   if (storage) {
     return storage;
   }
 
-  return typeof window === "undefined" ? null : window.localStorage;
+  if (typeof window === "undefined" || typeof indexedDB === "undefined") {
+    return null;
+  }
+
+  return { delete: del, get, set };
 }
 
 function isCatalogImporterDraft(value: unknown): value is CatalogImporterDraft {
@@ -40,8 +45,7 @@ function isCatalogImporterDraft(value: unknown): value is CatalogImporterDraft {
 
   const draft = value as Partial<CatalogImporterDraft>;
   return (
-    draft.version === 1 &&
-    (draft.mode === "public" || draft.mode === "pro") &&
+    draft.version === 2 &&
     Number.isInteger(draft.selectedSheetIndex) &&
     (draft.parsedSpreadsheet === null ||
       (typeof draft.parsedSpreadsheet?.fileName === "string" &&
@@ -51,29 +55,114 @@ function isCatalogImporterDraft(value: unknown): value is CatalogImporterDraft {
   );
 }
 
-export function readCatalogImporterDraft(
+function migrateLegacyDraft(value: unknown): CatalogImporterDraft | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const draft = value as Record<string, unknown>;
+  const mapping = draft.mapping as Partial<CatalogColumnMapping> | undefined;
+  const parsedSpreadsheet = draft.parsedSpreadsheet as
+    | ParsedSpreadsheet
+    | null
+    | undefined;
+
+  if (
+    draft.version !== 1 ||
+    !Number.isInteger(draft.selectedSheetIndex) ||
+    !mapping ||
+    (parsedSpreadsheet !== null &&
+      (typeof parsedSpreadsheet?.fileName !== "string" ||
+        !Array.isArray(parsedSpreadsheet.sheets)))
+  ) {
+    return null;
+  }
+
+  const matchedRows = Array.isArray(draft.matchedRows)
+    ? (draft.matchedRows as CatalogImportRow[]).map((row) => ({
+        ...row,
+        cultivarReferenceIdWarning: row.cultivarReferenceIdWarning ?? null,
+        duplicateAccepted: row.duplicateAccepted ?? false,
+        removed: row.removed ?? false,
+        sourceCultivarReferenceId: row.sourceCultivarReferenceId ?? "",
+      }))
+    : null;
+
+  return {
+    activeReviewRowId:
+      typeof draft.activeReviewRowId === "string"
+        ? draft.activeReviewRowId
+        : null,
+    headerRowIndex:
+      typeof draft.headerRowIndex === "number" ? draft.headerRowIndex : null,
+    mapping: {
+      cultivarReferenceId: null,
+      description:
+        typeof mapping.description === "number" ? mapping.description : null,
+      imageUrl: typeof mapping.imageUrl === "number" ? mapping.imageUrl : null,
+      price: typeof mapping.price === "number" ? mapping.price : null,
+      privateNote:
+        typeof mapping.privateNote === "number" ? mapping.privateNote : null,
+      title: typeof mapping.title === "number" ? mapping.title : null,
+    },
+    matchedRows,
+    matchedRowsKey:
+      typeof draft.matchedRowsKey === "string" ? draft.matchedRowsKey : null,
+    parsedSpreadsheet: parsedSpreadsheet ?? null,
+    selectedSheetIndex: draft.selectedSheetIndex as number,
+    version: 2,
+  };
+}
+
+export async function migrateLegacyCatalogImporterDraft(storage: DraftStorage) {
+  try {
+    const rawValue = window.localStorage.getItem(
+      CATALOG_IMPORT_LEGACY_DRAFT_STORAGE_KEY,
+    );
+    if (!rawValue) {
+      return null;
+    }
+
+    const draft = migrateLegacyDraft(JSON.parse(rawValue) as unknown);
+    if (!draft) {
+      window.localStorage.removeItem(CATALOG_IMPORT_LEGACY_DRAFT_STORAGE_KEY);
+      return null;
+    }
+
+    await storage.set(CATALOG_IMPORT_DRAFT_STORAGE_KEY, draft);
+    window.localStorage.removeItem(CATALOG_IMPORT_LEGACY_DRAFT_STORAGE_KEY);
+    return draft;
+  } catch {
+    return null;
+  }
+}
+
+export async function readCatalogImporterDraft(
   storage?: DraftStorage | null,
-): CatalogImporterDraft | null {
+): Promise<CatalogImporterDraft | null> {
   const selectedStorage = getStorage(storage);
   if (!selectedStorage) {
     return null;
   }
 
   try {
-    const rawValue = selectedStorage.getItem(CATALOG_IMPORT_DRAFT_STORAGE_KEY);
-    if (!rawValue) {
-      return null;
-    }
-
-    const draft = JSON.parse(rawValue) as unknown;
+    const draft = await selectedStorage.get(CATALOG_IMPORT_DRAFT_STORAGE_KEY);
     if (isCatalogImporterDraft(draft)) {
       return draft;
     }
 
-    selectedStorage.removeItem(CATALOG_IMPORT_DRAFT_STORAGE_KEY);
+    if (!storage) {
+      const legacyDraft =
+        await migrateLegacyCatalogImporterDraft(selectedStorage);
+      if (legacyDraft) {
+        return legacyDraft;
+      }
+    }
+
+    await selectedStorage.delete(CATALOG_IMPORT_DRAFT_STORAGE_KEY);
   } catch {
     try {
-      selectedStorage.removeItem(CATALOG_IMPORT_DRAFT_STORAGE_KEY);
+      await selectedStorage.delete(CATALOG_IMPORT_DRAFT_STORAGE_KEY);
     } catch {
       // The page can still run without browser persistence.
     }
@@ -82,35 +171,37 @@ export function readCatalogImporterDraft(
   return null;
 }
 
-export function writeCatalogImporterDraft(
+export async function writeCatalogImporterDraft(
   draft: CatalogImporterDraft,
   storage?: DraftStorage | null,
-): "saved" | "too-large" | "unavailable" {
+): Promise<"saved" | "unavailable"> {
   const selectedStorage = getStorage(storage);
   if (!selectedStorage) {
     return "unavailable";
   }
 
   try {
-    const rawValue = JSON.stringify(draft);
-    if (rawValue.length > CATALOG_IMPORT_DRAFT_MAX_LENGTH) {
-      return "too-large";
-    }
-    selectedStorage.setItem(CATALOG_IMPORT_DRAFT_STORAGE_KEY, rawValue);
+    await selectedStorage.set(CATALOG_IMPORT_DRAFT_STORAGE_KEY, draft);
     return "saved";
   } catch {
     return "unavailable";
   }
 }
 
-export function clearCatalogImporterDraft(storage?: DraftStorage | null) {
+export async function clearCatalogImporterDraft(
+  storage?: DraftStorage | null,
+): Promise<boolean> {
   const selectedStorage = getStorage(storage);
   if (!selectedStorage) {
     return false;
   }
 
   try {
-    selectedStorage.removeItem(CATALOG_IMPORT_DRAFT_STORAGE_KEY);
+    await selectedStorage.delete(CATALOG_IMPORT_DRAFT_STORAGE_KEY);
+    if (!storage && typeof window !== "undefined") {
+      window.localStorage.removeItem(CATALOG_IMPORT_DRAFT_STORAGE_KEY);
+      window.localStorage.removeItem(CATALOG_IMPORT_LEGACY_DRAFT_STORAGE_KEY);
+    }
     return true;
   } catch {
     return false;

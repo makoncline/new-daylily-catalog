@@ -26,7 +26,11 @@ import {
 import type { CatalogImporterWorkbenchController } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
 import type { CatalogImportRow } from "@/lib/catalog-importer";
 
-type CatalogImporterIssueType = "duplicate" | "image-url" | "price";
+type CatalogImporterIssueType =
+  | "cultivar-reference-id"
+  | "duplicate"
+  | "image-url"
+  | "price";
 
 interface CatalogImporterRowIssue {
   id: string;
@@ -80,9 +84,51 @@ function getIssues(rows: CatalogImportRow[]) {
     if (row.imageUrlWarning) {
       issues.push({ id: `${row.id}:image-url`, row, type: "image-url" });
     }
+    if (row.cultivarReferenceIdWarning) {
+      issues.push({
+        id: `${row.id}:cultivar-reference-id`,
+        row,
+        type: "cultivar-reference-id",
+      });
+    }
 
     return issues;
   });
+}
+
+function CultivarReferenceIssue({
+  controller,
+  row,
+  sourceCells,
+}: {
+  controller: CatalogImporterWorkbenchController;
+  row: CatalogImportRow;
+  sourceCells: CatalogImporterSourceCell[];
+}) {
+  return (
+    <div className="space-y-5">
+      <CatalogImporterSourceRow row={row} sourceCells={sourceCells} />
+
+      <div className="max-w-xl space-y-3">
+        <div>
+          <h3 className="font-semibold">Saved cultivar link was not found</h3>
+          <p className="text-muted-foreground mt-1 text-sm">
+            The spreadsheet contains Daylily Catalog ID{" "}
+            <span className="text-foreground font-mono">
+              {row.cultivarReferenceIdWarning}
+            </span>
+            , but it is no longer available.
+          </p>
+        </div>
+        <Button
+          type="button"
+          onClick={() => controller.clearCultivarReferenceIdIssue(row.id)}
+        >
+          Match by name
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 function parsePrice(value: string) {
@@ -371,14 +417,18 @@ export function CatalogImporterIssues({
     setActiveIssueId(issues[nextIndex]?.id ?? null);
   };
 
-  const activeRow =
-    activeIssue && activeIssue.type !== "duplicate" ? activeIssue.row : null;
+  if (!activeIssue) {
+    return null;
+  }
+
+  const activeRow = activeIssue.type !== "duplicate" ? activeIssue.row : null;
   const activeSourceCells = activeRow
     ? controller.getSourceCellsForRow(activeRow)
     : [];
 
   return (
     <Card
+      id="catalog-importer-issues"
       role="region"
       aria-labelledby="catalog-importer-issues-heading"
       className="min-w-0 overflow-hidden shadow-sm"
@@ -393,59 +443,63 @@ export function CatalogImporterIssues({
             Issues
           </CardTitle>
           <CardDescription className="tabular-nums" aria-live="polite">
-            {issues.length === 0
-              ? "No spreadsheet issues remaining."
-              : `${issues.length.toLocaleString()} issue${issues.length === 1 ? "" : "s"} remaining · ${(activeIndex + 1).toLocaleString()} of ${issues.length.toLocaleString()}`}
+            {issues.length.toLocaleString()} issue
+            {issues.length === 1 ? "" : "s"} remaining ·{" "}
+            {(activeIndex + 1).toLocaleString()} of{" "}
+            {issues.length.toLocaleString()}
           </CardDescription>
         </div>
 
-        {issues.length > 0 ? (
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              aria-label="Previous issue"
-              disabled={issues.length < 2}
-              onClick={() => moveIssue(-1)}
-            >
-              <ChevronLeft className="size-4" />
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              aria-label="Next issue"
-              disabled={issues.length < 2}
-              onClick={() => moveIssue(1)}
-            >
-              <ChevronRight className="size-4" />
-            </Button>
-          </div>
-        ) : null}
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            aria-label="Previous issue"
+            disabled={issues.length < 2}
+            onClick={() => moveIssue(-1)}
+          >
+            <ChevronLeft className="size-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            aria-label="Next issue"
+            disabled={issues.length < 2}
+            onClick={() => moveIssue(1)}
+          >
+            <ChevronRight className="size-4" />
+          </Button>
+        </div>
       </CardHeader>
 
-      {activeIssue ? (
-        <CardContent className="p-4 lg:p-6">
-          {activeIssue.type === "duplicate" ? (
-            <DuplicateIssue controller={controller} rows={activeIssue.rows} />
-          ) : activeIssue.type === "price" ? (
-            <PriceIssue
-              key={activeIssue.id}
-              controller={controller}
-              row={activeIssue.row}
-              sourceCells={activeSourceCells}
-            />
-          ) : activeIssue.type === "image-url" ? (
-            <ImageUrlIssue
-              key={activeIssue.id}
-              controller={controller}
-              row={activeIssue.row}
-              sourceCells={activeSourceCells}
-            />
-          ) : null}
-        </CardContent>
-      ) : null}
+      <CardContent className="p-4 lg:p-6">
+        {activeIssue.type === "duplicate" ? (
+          <DuplicateIssue controller={controller} rows={activeIssue.rows} />
+        ) : activeIssue.type === "price" ? (
+          <PriceIssue
+            key={activeIssue.id}
+            controller={controller}
+            row={activeIssue.row}
+            sourceCells={activeSourceCells}
+          />
+        ) : activeIssue.type === "cultivar-reference-id" ? (
+          <CultivarReferenceIssue
+            key={activeIssue.id}
+            controller={controller}
+            row={activeIssue.row}
+            sourceCells={activeSourceCells}
+          />
+        ) : activeIssue.type === "image-url" ? (
+          <ImageUrlIssue
+            key={activeIssue.id}
+            controller={controller}
+            row={activeIssue.row}
+            sourceCells={activeSourceCells}
+          />
+        ) : null}
+      </CardContent>
     </Card>
   );
 }

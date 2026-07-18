@@ -3,9 +3,11 @@
 import { useCallback } from "react";
 import { type FileRejection, useDropzone } from "react-dropzone";
 import {
+  Download,
   FileSpreadsheet,
+  ListFilter,
   RotateCcw,
-  ShieldCheck,
+  Sparkles,
   UploadCloud,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -25,7 +27,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { MAX_CATALOG_IMPORT_FILE_BYTES } from "@/lib/catalog-importer-file";
 import { cn } from "@/lib/utils";
 import type { CatalogImporterWorkbenchController } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
@@ -39,6 +40,7 @@ const ACCEPTED_FILES = {
 
 interface CatalogImporterUploadProps {
   controller: CatalogImporterWorkbenchController;
+  onEditMapping?: () => void;
 }
 
 function getRejectionMessage(rejections: FileRejection[]) {
@@ -54,6 +56,7 @@ function getRejectionMessage(rejections: FileRejection[]) {
 
 export function CatalogImporterUpload({
   controller,
+  onEditMapping,
 }: CatalogImporterUploadProps) {
   const onDropAccepted = useCallback(
     (files: File[]) => {
@@ -106,12 +109,13 @@ export function CatalogImporterUpload({
               </span>
               <Select
                 value={String(controller.selectedSheetIndex)}
-                onValueChange={(value) =>
+                onValueChange={(value) => {
                   controller.configureSheet(
                     controller.parsedSpreadsheet!,
                     Number(value),
-                  )
-                }
+                  );
+                  onEditMapping?.();
+                }}
               >
                 <SelectTrigger
                   className="h-8 min-w-0 flex-1 lg:w-56"
@@ -134,34 +138,18 @@ export function CatalogImporterUpload({
               </Select>
             </div>
 
-            <ToggleGroup
-              aria-label="Importer mode"
-              onValueChange={controller.handleModeChange}
-              size="sm"
-              type="single"
-              value={controller.mode}
-              variant="outline"
-            >
-              <ToggleGroupItem value="public">Public sample</ToggleGroupItem>
-              <ToggleGroupItem value="pro">Pro workflow</ToggleGroupItem>
-            </ToggleGroup>
-
-            <div
-              {...getRootProps({
-                "aria-label": "Replace spreadsheet",
-                className:
-                  "border-input bg-background hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring inline-flex h-8 cursor-pointer items-center justify-center gap-2 rounded-md border px-3 text-xs font-medium shadow-sm transition-colors focus-visible:ring-1 focus-visible:outline-none aria-disabled:pointer-events-none aria-disabled:opacity-50",
-                role: "button",
-              })}
-            >
-              <input {...getInputProps()} />
-              {controller.readingFile ? (
-                <Spinner />
-              ) : (
-                <UploadCloud className="size-4" />
-              )}
-              Replace
-            </div>
+            {onEditMapping ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8"
+                onClick={onEditMapping}
+              >
+                <ListFilter className="size-4" />
+                Edit columns
+              </Button>
+            ) : null}
 
             <Button
               type="button"
@@ -183,11 +171,10 @@ export function CatalogImporterUpload({
     <Card className="overflow-hidden shadow-sm">
       <CardHeader className="pb-4">
         <CardTitle role="heading" aria-level={2}>
-          Upload your spreadsheet
+          Start with a spreadsheet
         </CardTitle>
         <CardDescription>
-          Start with an XLSX or CSV file. We will help identify its columns
-          before matching cultivar names.
+          Choose an XLSX or CSV file containing the listings for your catalog.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -222,11 +209,23 @@ export function CatalogImporterUpload({
           </p>
         </div>
 
-        <div className="text-muted-foreground flex items-center gap-2 text-xs">
-          <ShieldCheck className="size-4 shrink-0" />
-          <span>
-            Your workbook stays local; cultivar names are sent for matching.
-          </span>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={controller.downloadTemplate}
+          >
+            <Download className="size-4" />
+            Download template
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={controller.loadSampleCatalog}
+          >
+            <Sparkles className="size-4" />
+            Use sample catalog
+          </Button>
         </div>
       </CardContent>
     </Card>

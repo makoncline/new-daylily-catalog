@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { RotateCcw, Search } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -205,31 +205,6 @@ export function CatalogImporterMatchSheet({
     [controller, onOpenChange, row],
   );
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (
-        event.repeat ||
-        isTypingTarget(event.target) ||
-        !/^[1-9]$/.test(event.key)
-      ) {
-        return;
-      }
-
-      const candidate = keyboardCandidates[Number(event.key) - 1];
-      if (candidate) {
-        event.preventDefault();
-        chooseCandidate(candidate);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [chooseCandidate, keyboardCandidates, open]);
-
   const resetSearch = useCallback(() => {
     if (!row) {
       return;
@@ -251,6 +226,21 @@ export function CatalogImporterMatchSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         className="w-full max-w-none overflow-y-auto p-0 sm:max-w-3xl"
+        onKeyDown={(event) => {
+          if (
+            event.repeat ||
+            isTypingTarget(event.target) ||
+            !/^[1-9]$/.test(event.key)
+          ) {
+            return;
+          }
+
+          const candidate = keyboardCandidates[Number(event.key) - 1];
+          if (candidate) {
+            event.preventDefault();
+            chooseCandidate(candidate);
+          }
+        }}
         onOpenAutoFocus={() => {
           void loadCloseMatches(row);
         }}

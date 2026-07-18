@@ -12,18 +12,24 @@ function candidate(name: string, confidence: number) {
   const normalizedName = normalizeName(name);
 
   return {
+    bloomHabit: "Reblooms",
     bloomSizeIn: 5,
     bloomSeason: "Midseason",
+    branches: 4,
+    budCount: 18,
     color: "Golden yellow",
     confidence,
     cultivarReferenceId: `cultivar-${normalizedName.replaceAll(" ", "-")}`,
     displayName: name,
+    foliageType: "Dormant",
     form: "Single",
+    fragrance: "Fragrant",
     hybridizer: "Example",
     imageAsset: null,
     imageUrl: null,
     listingCount: 0,
     normalizedName,
+    parentage: "Seedling x Example Parent",
     ploidy: "Diploid",
     rebloom: true,
     scapeHeightIn: 24,
@@ -71,12 +77,14 @@ function sampleCsv() {
   ].join("\n");
 }
 
-async function openImporter(page: Page, viewport: typeof desktop) {
+async function openCleaner(page: Page, viewport: typeof desktop) {
   await page.setViewportSize(viewport);
   await mockCultivarMatches(page);
   await page.goto("/catalog-importer");
   await expect(
-    page.getByRole("heading", { name: "Clean a daylily spreadsheet" }),
+    page.getByRole("heading", {
+      name: "Free daylily catalog spreadsheet cleaner",
+    }),
   ).toBeVisible();
 }
 
@@ -86,53 +94,66 @@ async function uploadSpreadsheet(page: Page) {
     mimeType: "text/csv",
     buffer: Buffer.from(sampleCsv()),
   });
+  await page.getByRole("button", { name: "Preview catalog" }).click();
   await expect(
-    page.getByRole("heading", { name: "Matches", exact: true }),
+    page.getByRole("heading", { name: "Your catalog is taking shape" }),
   ).toBeVisible();
 }
 
 async function openReviewQuiz(page: Page) {
-  await page.getByText("Pro workflow", { exact: true }).click();
-  await expect(
-    page.getByRole("heading", { name: "Matches", exact: true }),
-  ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Match unmatched names" }),
   ).toBeVisible();
 }
 
 test("Desktop importer upload", async ({ page }) => {
-  await openImporter(page, desktop);
+  await openCleaner(page, desktop);
   await captureAtlasState(page, "catalog-importer-desktop-upload");
 });
 
 test("Mobile importer upload", async ({ page }) => {
-  await openImporter(page, mobile);
+  await openCleaner(page, mobile);
   await captureAtlasState(page, "catalog-importer-mobile-upload");
 });
 
 test("Desktop importer results", async ({ page }) => {
-  await openImporter(page, desktop);
+  await openCleaner(page, desktop);
   await uploadSpreadsheet(page);
   await captureAtlasState(page, "catalog-importer-desktop-results");
 });
 
 test("Mobile importer results", async ({ page }) => {
-  await openImporter(page, mobile);
+  await openCleaner(page, mobile);
   await uploadSpreadsheet(page);
   await captureAtlasState(page, "catalog-importer-mobile-results");
 });
 
 test("Desktop importer review", async ({ page }) => {
-  await openImporter(page, desktop);
+  await openCleaner(page, desktop);
   await uploadSpreadsheet(page);
   await openReviewQuiz(page);
   await captureAtlasState(page, "catalog-importer-desktop-review");
 });
 
 test("Mobile importer review", async ({ page }) => {
-  await openImporter(page, mobile);
+  await openCleaner(page, mobile);
   await uploadSpreadsheet(page);
   await openReviewQuiz(page);
   await captureAtlasState(page, "catalog-importer-mobile-review");
+});
+
+test("Desktop importer preview", async ({ page }) => {
+  await openCleaner(page, desktop);
+  await uploadSpreadsheet(page);
+  await page.locator("#catalog-importer-preview").scrollIntoViewIfNeeded();
+  await page.getByRole("switch", { name: "Advanced" }).click();
+  await captureAtlasState(page, "catalog-importer-desktop-preview");
+});
+
+test("Mobile importer preview", async ({ page }) => {
+  await openCleaner(page, mobile);
+  await uploadSpreadsheet(page);
+  await page.locator("#catalog-importer-preview").scrollIntoViewIfNeeded();
+  await page.getByRole("switch", { name: "Advanced" }).click();
+  await captureAtlasState(page, "catalog-importer-mobile-preview");
 });

@@ -22,6 +22,7 @@ export interface SourceColumn {
 }
 
 export interface CatalogColumnMapping {
+  cultivarReferenceId: number | null;
   description: number | null;
   imageUrl: number | null;
   price: number | null;
@@ -30,13 +31,20 @@ export interface CatalogColumnMapping {
 }
 
 export interface CultivarMatchCandidate {
+  awardNames?: string | null;
+  bloomHabit?: string | null;
   bloomSizeIn: number | null;
   bloomSeason: string | null;
+  branches?: number | null;
+  budCount?: number | null;
   color: string | null;
   confidence: number;
   cultivarReferenceId: string;
   displayName: string;
+  foliageType?: string | null;
+  flowerShow?: string | null;
   form: string | null;
+  fragrance?: string | null;
   hybridizer: string | null;
   imageAsset: {
     blurUrl: string | null;
@@ -49,16 +57,20 @@ export interface CultivarMatchCandidate {
   imageUrl: string | null;
   listingCount: number;
   normalizedName: string;
+  parentage?: string | null;
   ploidy: string | null;
   rebloom: boolean | null;
   scapeHeightIn: number | null;
+  sculptedTypes?: string | null;
   year: number | null;
 }
 
 export interface CultivarNameMatchResult {
   candidates: CultivarMatchCandidate[];
   exactMatch: CultivarMatchCandidate | null;
+  inputCultivarReferenceId?: string | null;
   inputName: string;
+  invalidCultivarReferenceId?: string | null;
   normalizedInput: string | null;
 }
 
@@ -74,14 +86,14 @@ export function getAutomaticCultivarMatch(
 
 export function applyAutomaticCultivarMatches({
   automaticMatches,
-  limit,
-  matchedOnly,
+  cultivarReferenceMatches = new Map(),
+  invalidCultivarReferenceIds = new Set(),
   rows,
   suggestedMatches,
 }: {
   automaticMatches: ReadonlyMap<string, CultivarMatchCandidate>;
-  limit?: number;
-  matchedOnly: boolean;
+  cultivarReferenceMatches?: ReadonlyMap<string, CultivarMatchCandidate>;
+  invalidCultivarReferenceIds?: ReadonlySet<string>;
   rows: CatalogImportRow[];
   suggestedMatches?: ReadonlyMap<string, CultivarMatchCandidate>;
 }) {
@@ -89,9 +101,34 @@ export function applyAutomaticCultivarMatches({
 
   for (const row of rows) {
     if (row.skipped) {
-      if (!matchedOnly) {
-        nextRows.push(row);
-      }
+      nextRows.push(row);
+      continue;
+    }
+
+    const cultivarReferenceMatch = row.sourceCultivarReferenceId
+      ? cultivarReferenceMatches.get(row.sourceCultivarReferenceId)
+      : null;
+    if (cultivarReferenceMatch) {
+      nextRows.push({
+        ...row,
+        cultivarReferenceIdWarning: null,
+        match: cultivarReferenceMatch,
+        matchStatus: "exact",
+        suggestedMatch: cultivarReferenceMatch,
+      });
+      continue;
+    }
+    if (
+      row.sourceCultivarReferenceId &&
+      invalidCultivarReferenceIds.has(row.sourceCultivarReferenceId)
+    ) {
+      nextRows.push({
+        ...row,
+        cultivarReferenceIdWarning: row.sourceCultivarReferenceId,
+        match: null,
+        matchStatus: "unmatched",
+        suggestedMatch: null,
+      });
       continue;
     }
 
@@ -106,16 +143,12 @@ export function applyAutomaticCultivarMatches({
         matchStatus: automaticMatch.confidence === 100 ? "exact" : "selected",
         suggestedMatch,
       });
-    } else if (!matchedOnly) {
+    } else {
       nextRows.push({ ...row, suggestedMatch });
-    }
-
-    if (limit !== undefined && nextRows.length >= limit) {
-      break;
     }
   }
 
-  return nextRows;
+  return assignCatalogImportDuplicateGroups(nextRows);
 }
 
 export type CatalogImportMatchStatus =
@@ -125,7 +158,9 @@ export type CatalogImportMatchStatus =
   | "unmatched";
 
 export interface CatalogImportRow {
+  cultivarReferenceIdWarning: string | null;
   description: string;
+  duplicateAccepted: boolean;
   duplicateOfSourceRow: number | null;
   id: string;
   imageUrl: string;
@@ -135,7 +170,9 @@ export interface CatalogImportRow {
   price: number | null;
   priceWarning: string | null;
   privateNote: string;
+  removed: boolean;
   skipped: boolean;
+  sourceCultivarReferenceId: string;
   sourceImageUrl: string;
   sourcePrice: string;
   sourceRow: number;
@@ -144,7 +181,47 @@ export interface CatalogImportRow {
   title: string;
 }
 
+function getDuplicateGroupKey(row: CatalogImportRow) {
+  if (row.match?.cultivarReferenceId) {
+    return `cultivar:${row.match.cultivarReferenceId}`;
+  }
+
+  const normalizedTitle = normalizeCultivarName(row.title);
+  return normalizedTitle ? `name:${normalizedTitle}` : null;
+}
+
+export function assignCatalogImportDuplicateGroups(rows: CatalogImportRow[]) {
+  const firstRowByGroup = new Map<string, CatalogImportRow>();
+
+  return rows.map((row) => {
+    if (row.skipped || row.removed) {
+      return { ...row, duplicateOfSourceRow: null };
+    }
+
+    const groupKey = getDuplicateGroupKey(row);
+    const firstRow = groupKey ? (firstRowByGroup.get(groupKey) ?? null) : null;
+    const duplicateOfSourceRow =
+      firstRow && !(firstRow.duplicateAccepted && row.duplicateAccepted)
+        ? firstRow.sourceRow
+        : null;
+
+    if (groupKey && firstRow === null) {
+      firstRowByGroup.set(groupKey, row);
+    }
+
+    return row.duplicateOfSourceRow === duplicateOfSourceRow
+      ? row
+      : { ...row, duplicateOfSourceRow };
+  });
+}
+
 const HEADER_PATTERNS = {
+  cultivarReferenceId: [
+    /^daylily catalog id$/,
+    /^cultivar reference id$/,
+    /^cultivarreferenceid$/,
+    /^daylily catalog cultivar id$/,
+  ],
   description: [
     /^description$/,
     /^desc$/,
@@ -185,8 +262,12 @@ const CATALOG_IMPORT_TEMPLATE_HEADERS = [
   "private note",
   "image url",
 ] as const;
-const PUBLIC_CULTIVAR_BASE_URL = "https://daylilycatalog.com/cultivar";
-
+const CATALOG_ENRICHMENT_HEADERS = {
+  cultivarReferenceId: "Daylily Catalog ID",
+  registeredCultivarName: "registeredCultivarName",
+  cultivarUrl: "cultivarUrl",
+} as const;
+const DAYLILY_CATALOG_BASE_URL = "https://daylilycatalog.com";
 function isBlankCell(cell: SpreadsheetCell | undefined) {
   return cell === null || cell === undefined || cellToText(cell).length === 0;
 }
@@ -347,6 +428,14 @@ function parsePriceValue(value: SpreadsheetCell | undefined) {
       : { price: null, source, warning: source };
   }
 
+  if (
+    ["-", "—", "n/a", "na", "nfs", "not for sale", "sold"].includes(
+      source.toLowerCase(),
+    )
+  ) {
+    return { price: null, source, warning: null };
+  }
+
   const normalized = source.replaceAll(",", "").replace(/^\$/, "").trim();
   if (!/^\d+(?:\.\d+)?$/.test(normalized)) {
     return { price: null, source, warning: source };
@@ -423,11 +512,12 @@ export function suggestColumnMapping(
       ? []
       : columns.map((column) => column.label.trim().toLowerCase());
   const isCatalogImportTemplate =
-    templateHeaders.length === CATALOG_IMPORT_TEMPLATE_HEADERS.length &&
+    templateHeaders.length >= CATALOG_IMPORT_TEMPLATE_HEADERS.length &&
     CATALOG_IMPORT_TEMPLATE_HEADERS.every(
       (header, index) => templateHeaders[index] === header,
     );
   const mapping: CatalogColumnMapping = {
+    cultivarReferenceId: findHeaderMappedColumn("cultivarReferenceId", columns),
     description: isCatalogImportTemplate
       ? findHeaderMappedColumn("description", columns)
       : null,
@@ -518,7 +608,6 @@ export function createCatalogImportRows({
 
   const dataStart = headerRowIndex === null ? 0 : headerRowIndex + 1;
   const result: CatalogImportRow[] = [];
-  const firstSourceRowByNormalizedTitle = new Map<string, number>();
 
   for (let rowIndex = dataStart; rowIndex < rows.length; rowIndex += 1) {
     const row = rows[rowIndex] ?? [];
@@ -542,15 +631,11 @@ export function createCatalogImportRows({
       mapping.description === null ? "" : cellToText(row[mapping.description]);
     const sourcePrivateNote =
       mapping.privateNote === null ? "" : cellToText(row[mapping.privateNote]);
+    const sourceCultivarReferenceId =
+      mapping.cultivarReferenceId === null
+        ? ""
+        : cellToText(row[mapping.cultivarReferenceId]);
     const sourceRow = rowIndex + 1;
-    const normalizedTitle = normalizeCultivarName(title);
-    const duplicateOfSourceRow = normalizedTitle
-      ? (firstSourceRowByNormalizedTitle.get(normalizedTitle) ?? null)
-      : null;
-
-    if (normalizedTitle && duplicateOfSourceRow === null) {
-      firstSourceRowByNormalizedTitle.set(normalizedTitle, sourceRow);
-    }
 
     const hasMappedDetails = Boolean(
       price.source || description || sourcePrivateNote || image.source,
@@ -558,8 +643,10 @@ export function createCatalogImportRows({
     const skipped = SECTION_HEADING_PATTERN.test(title) && !hasMappedDetails;
 
     result.push({
+      cultivarReferenceIdWarning: null,
       description,
-      duplicateOfSourceRow,
+      duplicateAccepted: false,
+      duplicateOfSourceRow: null,
       id: `source-row-${sourceRow}`,
       imageUrl: image.imageUrl,
       imageUrlWarning: image.warning,
@@ -568,7 +655,9 @@ export function createCatalogImportRows({
       price: price.price,
       priceWarning: price.warning,
       privateNote: sourcePrivateNote,
+      removed: false,
       skipped,
+      sourceCultivarReferenceId,
       sourceImageUrl: image.source,
       sourcePrice: price.source,
       sourceRow,
@@ -578,43 +667,156 @@ export function createCatalogImportRows({
     });
   }
 
-  return result;
+  return assignCatalogImportDuplicateGroups(result);
 }
 
-function escapeCsv(value: string | number | null) {
+export function escapeCsv(value: SpreadsheetCell | undefined) {
   const stringValue = value === null ? "" : String(value);
   return /[",\n\r]/.test(stringValue)
     ? `"${stringValue.replaceAll('"', '""')}"`
     : stringValue;
 }
 
-export function createCatalogImportCsv(rows: CatalogImportRow[]) {
-  const headers = [
-    "name",
-    "price",
-    "description",
-    "privateNote",
-    "cultivarReferenceId",
-    "cultivarUrl",
-  ];
-  const csvRows = rows
-    .filter((row) => !row.skipped)
-    .map((row) => {
-      const outputTitle = row.match?.displayName ?? row.title;
-      const cultivarSegment = toCultivarRouteSegment(row.match?.normalizedName);
-      return [
-        outputTitle,
-        row.price,
-        row.description,
-        row.privateNote,
-        row.match?.cultivarReferenceId ?? "",
-        cultivarSegment ? `${PUBLIC_CULTIVAR_BASE_URL}/${cultivarSegment}` : "",
-      ]
-        .map((value) => escapeCsv(value === "" ? "" : value))
-        .join(",");
-    });
+function cloneSheetRows(rows: SpreadsheetCell[][]) {
+  return rows.map((row) => [...row]);
+}
 
-  return [headers.join(","), ...csvRows].join("\r\n");
+function getMaxColumnCount(rows: SpreadsheetCell[][]) {
+  return rows.reduce((largest, row) => Math.max(largest, row.length), 0);
+}
+
+function ensureEnrichmentColumns(
+  rows: SpreadsheetCell[][],
+  headerRowIndex: number,
+) {
+  const headerRow = rows[headerRowIndex] ?? [];
+  rows[headerRowIndex] = headerRow;
+  let nextColumnIndex = getMaxColumnCount(rows);
+
+  return Object.fromEntries(
+    Object.entries(CATALOG_ENRICHMENT_HEADERS).map(([field, header]) => {
+      const canonicalIndex = headerRow.findIndex(
+        (cell) => cellToText(cell).toLowerCase() === header.toLowerCase(),
+      );
+      const legacyIndex =
+        field === "cultivarReferenceId"
+          ? headerRow.findIndex(
+              (cell) =>
+                getHeaderMatchScore("cultivarReferenceId", cellToText(cell)) >=
+                0,
+            )
+          : -1;
+      const existingIndex = canonicalIndex >= 0 ? canonicalIndex : legacyIndex;
+      const index = existingIndex >= 0 ? existingIndex : nextColumnIndex++;
+      headerRow[index] = header;
+      return [field, index];
+    }),
+  ) as Record<keyof typeof CATALOG_ENRICHMENT_HEADERS, number>;
+}
+
+export function getCultivarUrl(candidate: CultivarMatchCandidate | null) {
+  const segment = toCultivarRouteSegment(candidate?.normalizedName);
+  return segment ? `${DAYLILY_CATALOG_BASE_URL}/cultivar/${segment}` : "";
+}
+
+export function createCatalogEnrichedSpreadsheet({
+  headerRowIndex,
+  mapping,
+  matchedRows,
+  parsedSpreadsheet,
+  selectedSheetIndex,
+}: {
+  headerRowIndex: number | null;
+  mapping: CatalogColumnMapping;
+  matchedRows: CatalogImportRow[];
+  parsedSpreadsheet: ParsedSpreadsheet;
+  selectedSheetIndex: number;
+}): ParsedSpreadsheet {
+  const sheets = parsedSpreadsheet.sheets.map((sheet) => ({
+    ...sheet,
+    rows: cloneSheetRows(sheet.rows),
+  }));
+  const selectedSheet = sheets[selectedSheetIndex];
+  if (!selectedSheet) {
+    return { ...parsedSpreadsheet, sheets };
+  }
+
+  const originalRows = selectedSheet.rows;
+  let outputHeaderRowIndex = headerRowIndex;
+  let insertedHeaderRow = false;
+
+  if (outputHeaderRowIndex === null) {
+    const firstRow = originalRows[0] ?? [];
+    const firstRowIsBlank = firstRow.every((cell) => isBlankCell(cell));
+    if (firstRowIsBlank) {
+      outputHeaderRowIndex = 0;
+      const sourceColumnCount = getMaxColumnCount(originalRows);
+      originalRows[0] = Array.from(
+        { length: sourceColumnCount },
+        (_, index) => `Column ${columnIndexToLabel(index)}`,
+      );
+    } else {
+      const sourceColumnCount = getMaxColumnCount(originalRows);
+      originalRows.unshift(
+        Array.from(
+          { length: sourceColumnCount },
+          (_, index) => `Column ${columnIndexToLabel(index)}`,
+        ),
+      );
+      outputHeaderRowIndex = 0;
+      insertedHeaderRow = true;
+    }
+  }
+
+  const enrichmentColumns = ensureEnrichmentColumns(
+    originalRows,
+    outputHeaderRowIndex,
+  );
+  const removedSourceRows = new Set(
+    matchedRows.filter((row) => row.removed).map((row) => row.sourceRow),
+  );
+
+  for (const row of matchedRows) {
+    if (row.removed) {
+      continue;
+    }
+
+    const outputRowIndex = row.sourceRow - 1 + (insertedHeaderRow ? 1 : 0);
+    const outputRow = originalRows[outputRowIndex] ?? [];
+    originalRows[outputRowIndex] = outputRow;
+
+    if (mapping.price !== null && row.priceWarning === null) {
+      outputRow[mapping.price] = row.price ?? "";
+    }
+    if (mapping.imageUrl !== null && row.imageUrlWarning === null) {
+      outputRow[mapping.imageUrl] = row.imageUrl;
+    }
+
+    outputRow[enrichmentColumns.cultivarReferenceId] =
+      row.match?.cultivarReferenceId ?? row.sourceCultivarReferenceId;
+    outputRow[enrichmentColumns.registeredCultivarName] =
+      row.match?.displayName ?? "";
+    outputRow[enrichmentColumns.cultivarUrl] = getCultivarUrl(row.match);
+  }
+
+  selectedSheet.rows = originalRows.filter((_, outputRowIndex) => {
+    if (outputRowIndex === outputHeaderRowIndex) {
+      return true;
+    }
+    const sourceRow = outputRowIndex + 1 - (insertedHeaderRow ? 1 : 0);
+    return !removedSourceRows.has(sourceRow);
+  });
+
+  return {
+    ...parsedSpreadsheet,
+    sheets,
+  };
+}
+
+export function createSpreadsheetCsv(rows: SpreadsheetCell[][]) {
+  return rows
+    .map((row) => row.map((value) => escapeCsv(value)).join(","))
+    .join("\r\n");
 }
 
 export function createCatalogImportTemplateCsv() {
@@ -630,6 +832,78 @@ export function createCatalogImportTemplateCsv() {
       .map(escapeCsv)
       .join(","),
   ].join("\r\n");
+}
+
+export function createCatalogImportSampleSpreadsheet(): ParsedSpreadsheet {
+  return {
+    fileName: "Sample daylily catalog.csv",
+    sheets: [
+      {
+        name: "Sample catalog",
+        rows: [
+          ["name", "price", "description", "private note", "image url"],
+          [
+            "Stella de Oro",
+            "12.00",
+            "Golden yellow rebloomer",
+            "Front border",
+            "",
+          ],
+          [
+            "Happy Returns",
+            "15.00",
+            "Soft yellow fragrant flowers",
+            "Display row",
+            "",
+          ],
+          [
+            "Ruby Spider",
+            "18.00",
+            "Large ruby red unusual form",
+            "North bed",
+            "",
+          ],
+          [
+            "Primal Scream",
+            "20.00",
+            "Bright tangerine unusual form",
+            "Feature bed",
+            "",
+          ],
+          ["Orange Velvet", "16.00", "Rich orange self", "South border", ""],
+          [
+            "Action Figure",
+            "24.00",
+            "Pleated sculpted form",
+            "New introductions",
+            "",
+          ],
+          [
+            "My Favorite Martian",
+            "28.00",
+            "Cristate extra-large bloom",
+            "Seedling garden",
+            "",
+          ],
+          [
+            "Vanguard 2",
+            "22.00",
+            "Name needs confirmation",
+            "Holding area",
+            "",
+          ],
+          ["Stella de Oro", "10.00", "Second-size division", "Pot row", ""],
+          [
+            "Aerial Art",
+            "two for $30",
+            "Graceful unusual form",
+            "Price needs cleanup",
+            "",
+          ],
+        ],
+      },
+    ],
+  };
 }
 
 export function getHeaderRowSummary(

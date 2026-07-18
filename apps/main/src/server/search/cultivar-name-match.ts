@@ -22,20 +22,29 @@ export const MAX_CULTIVAR_MATCH_NAMES = 250;
 export const MAX_CULTIVAR_MATCH_NAME_LENGTH = 160;
 
 interface CultivarMatchRow {
+  awardNames: string | null;
+  bloomHabit: string | null;
   bloomSizeIn: number | null;
   bloomSeason: string | null;
+  branches: number | null;
+  budCount: number | null;
   color: string | null;
   cultivarReferenceId: string;
   displayName: string;
+  foliageType: string | null;
+  flowerShow: string | null;
   form: string | null;
+  fragrance: string | null;
   hybridizer: string | null;
   imageAsset: CultivarMatchCandidate["imageAsset"];
   imageUrl: string | null;
   listingCount: number;
   normalizedName: string;
+  parentage: string | null;
   ploidy: string | null;
   rebloom: boolean | null;
   scapeHeightIn: number | null;
+  sculptedTypes: string | null;
   year: number | null;
 }
 
@@ -72,12 +81,19 @@ function toMatchRow(row: Record<string, unknown>): CultivarMatchRow {
   );
 
   return {
+    awardNames: toStringOrNull(row.awardNames),
+    bloomHabit: toStringOrNull(row.bloomHabit),
     bloomSizeIn: typeof row.bloomSizeIn === "number" ? row.bloomSizeIn : null,
     bloomSeason: toStringOrNull(row.bloomSeason),
+    branches: typeof row.branches === "number" ? row.branches : null,
+    budCount: typeof row.budCount === "number" ? row.budCount : null,
     color: toStringOrNull(row.color),
     cultivarReferenceId: toRequiredString(row.cultivarReferenceId),
     displayName: toRequiredString(row.displayName),
+    foliageType: toStringOrNull(row.foliageType),
+    flowerShow: toStringOrNull(row.flowerShow),
     form: toStringOrNull(row.form),
+    fragrance: toStringOrNull(row.fragrance),
     hybridizer: toStringOrNull(row.hybridizer),
     imageAsset:
       usesGeneratedImage && generatedImageAssetId
@@ -93,10 +109,12 @@ function toMatchRow(row: Record<string, unknown>): CultivarMatchRow {
     imageUrl: usesGeneratedImage ? generatedImageUrl : fallbackImageUrl,
     listingCount: typeof row.listingCount === "number" ? row.listingCount : 0,
     normalizedName: toRequiredString(row.normalizedName),
+    parentage: toStringOrNull(row.parentage),
     ploidy: toStringOrNull(row.ploidy),
     rebloom: row.rebloom === null ? null : Boolean(row.rebloom),
     scapeHeightIn:
       typeof row.scapeHeightIn === "number" ? row.scapeHeightIn : null,
+    sculptedTypes: toStringOrNull(row.sculptedTypes),
     year: typeof row.yearInt === "number" ? row.yearInt : null,
   };
 }
@@ -106,21 +124,30 @@ function toCandidate(
   confidence: number,
 ): CultivarMatchCandidate {
   return {
+    awardNames: row.awardNames,
+    bloomHabit: row.bloomHabit,
     bloomSizeIn: row.bloomSizeIn,
     bloomSeason: row.bloomSeason,
+    branches: row.branches,
+    budCount: row.budCount,
     color: row.color,
     confidence,
     cultivarReferenceId: row.cultivarReferenceId,
     displayName: row.displayName,
+    foliageType: row.foliageType,
+    flowerShow: row.flowerShow,
     form: row.form,
+    fragrance: row.fragrance,
     hybridizer: row.hybridizer,
     imageAsset: row.imageAsset,
     imageUrl: row.imageUrl,
     listingCount: row.listingCount,
     normalizedName: row.normalizedName,
+    parentage: row.parentage,
     ploidy: row.ploidy,
     rebloom: row.rebloom,
     scapeHeightIn: row.scapeHeightIn,
+    sculptedTypes: row.sculptedTypes,
     year: row.year,
   };
 }
@@ -161,13 +188,22 @@ async function getPotentialMatches(
           i.normalizedName,
           i.displayName,
           i.hybridizer,
+          i.awardNames,
           i.yearInt,
           i.scapeHeightIn,
           i.bloomSizeIn,
+          i.budCount,
+          i.branches,
           i.bloomSeason,
+          i.bloomHabit,
           i.form,
+          i.flowerShow,
+          i.sculptedTypes,
           i.ploidy,
+          i.foliageType,
+          i.fragrance,
           i.color,
+          i.parentage,
           i.rebloom,
           i.imageUrl,
           i.generatedImageAssetId,
@@ -201,13 +237,22 @@ async function getPotentialMatches(
           normalizedName,
           displayName,
           hybridizer,
+          awardNames,
           yearInt,
           scapeHeightIn,
           bloomSizeIn,
+          budCount,
+          branches,
           bloomSeason,
+          bloomHabit,
           form,
+          flowerShow,
+          sculptedTypes,
           ploidy,
+          foliageType,
+          fragrance,
           color,
+          parentage,
           rebloom,
           imageUrl,
           generatedImageAssetId,
@@ -245,9 +290,11 @@ async function getPotentialMatches(
 }
 
 export async function matchCultivarNames({
+  cultivarReferenceIds,
   includeCandidates,
   names,
 }: {
+  cultivarReferenceIds?: Array<string | null>;
   includeCandidates: boolean;
   names: string[];
 }): Promise<CultivarNameMatchResult[]> {
@@ -269,6 +316,7 @@ export async function matchCultivarNames({
 
   try {
     const exactMatches = new Map<string, CultivarMatchRow>();
+    const referenceMatches = new Map<string, CultivarMatchRow>();
 
     if (normalizedNames.length > 0) {
       const exactResult = await client.execute({
@@ -279,13 +327,22 @@ export async function matchCultivarNames({
             normalizedName,
             displayName,
             hybridizer,
+            awardNames,
             yearInt,
             scapeHeightIn,
             bloomSizeIn,
+            budCount,
+            branches,
             bloomSeason,
+            bloomHabit,
             form,
+            flowerShow,
+            sculptedTypes,
             ploidy,
+            foliageType,
+            fragrance,
             color,
+            parentage,
             rebloom,
             imageUrl,
             generatedImageAssetId,
@@ -306,25 +363,90 @@ export async function matchCultivarNames({
       }
     }
 
+    const uniqueReferenceIds = [
+      ...new Set(
+        (cultivarReferenceIds ?? []).filter((value): value is string =>
+          Boolean(value),
+        ),
+      ),
+    ];
+    if (uniqueReferenceIds.length > 0) {
+      const referenceResult = await client.execute({
+        args: uniqueReferenceIds,
+        sql: `
+          SELECT
+            cultivarReferenceId,
+            normalizedName,
+            displayName,
+            hybridizer,
+            awardNames,
+            yearInt,
+            scapeHeightIn,
+            bloomSizeIn,
+            budCount,
+            branches,
+            bloomSeason,
+            bloomHabit,
+            form,
+            flowerShow,
+            sculptedTypes,
+            ploidy,
+            foliageType,
+            fragrance,
+            color,
+            parentage,
+            rebloom,
+            imageUrl,
+            generatedImageAssetId,
+            generatedImageUrl,
+            generatedOriginalUrl,
+            generatedThumbUrl,
+            generatedBlurUrl,
+            fallbackImageUrl,
+            listingCount
+          FROM CultivarSearchIndex
+          WHERE cultivarReferenceId IN (${uniqueReferenceIds.map(() => "?").join(", ")})
+        `,
+      });
+
+      for (const row of referenceResult.rows) {
+        const matchRow = toMatchRow(row);
+        referenceMatches.set(matchRow.cultivarReferenceId, matchRow);
+      }
+    }
+
     const results: CultivarNameMatchResult[] = [];
 
-    for (const inputName of names) {
+    for (const [index, inputName] of names.entries()) {
       const normalizedInput = normalizeCultivarName(inputName);
-      const exactRow = normalizedInput
-        ? (exactMatches.get(normalizedInput) ?? null)
+      const inputCultivarReferenceId = cultivarReferenceIds?.[index] ?? null;
+      const referenceRow = inputCultivarReferenceId
+        ? (referenceMatches.get(inputCultivarReferenceId) ?? null)
         : null;
+      const exactRow = inputCultivarReferenceId
+        ? referenceRow
+        : normalizedInput
+          ? (exactMatches.get(normalizedInput) ?? null)
+          : null;
       const exactMatch = exactRow ? toCandidate(exactRow, 100) : null;
       const candidates =
-        includeCandidates && !exactMatch
-          ? await getPotentialMatches(client, inputName)
-          : exactMatch
-            ? [exactMatch]
-            : [];
+        inputCultivarReferenceId && !exactMatch
+          ? []
+          : includeCandidates && !exactMatch
+            ? await getPotentialMatches(client, inputName)
+            : exactMatch
+              ? [exactMatch]
+              : [];
 
       results.push({
         candidates,
         exactMatch,
+        inputCultivarReferenceId,
         inputName,
+        invalidCultivarReferenceId:
+          inputCultivarReferenceId && !exactMatch
+            ? inputCultivarReferenceId
+            : null,
         normalizedInput,
       });
     }

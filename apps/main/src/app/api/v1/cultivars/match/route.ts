@@ -14,6 +14,7 @@ import { PublicSearchIndexUnavailableError } from "@/server/search/public-search
 export const runtime = "nodejs";
 
 interface MatchRequestBody {
+  cultivarReferenceIds?: unknown;
   includeCandidates?: unknown;
   names?: unknown;
 }
@@ -53,7 +54,40 @@ function getValidatedBody(body: MatchRequestBody) {
   }
 
   const includeCandidates = body.includeCandidates === true;
-  return { includeCandidates, names } as const;
+  if (body.cultivarReferenceIds === undefined) {
+    return { includeCandidates, names } as const;
+  }
+  if (
+    !Array.isArray(body.cultivarReferenceIds) ||
+    body.cultivarReferenceIds.length !== names.length
+  ) {
+    return {
+      error:
+        "cultivarReferenceIds must be an array with one value for every cultivar name.",
+    } as const;
+  }
+
+  const cultivarReferenceIds: Array<string | null> = [];
+  for (const value of body.cultivarReferenceIds) {
+    if (value === null || value === "") {
+      cultivarReferenceIds.push(null);
+      continue;
+    }
+    if (typeof value !== "string") {
+      return {
+        error: "Every cultivar reference ID must be a string or null.",
+      } as const;
+    }
+    const cultivarReferenceId = value.trim();
+    if (!cultivarReferenceId || cultivarReferenceId.length > 200) {
+      return {
+        error: "Cultivar reference IDs must be 1-200 characters.",
+      } as const;
+    }
+    cultivarReferenceIds.push(cultivarReferenceId);
+  }
+
+  return { cultivarReferenceIds, includeCandidates, names } as const;
 }
 
 export async function POST(request: Request) {

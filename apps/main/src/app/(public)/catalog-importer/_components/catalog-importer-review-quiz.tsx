@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { type KeyboardEvent, useCallback, useMemo, useRef } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -53,6 +53,7 @@ export function CatalogImporterReviewQuiz({
   const searchCandidateResult = controller.searchCandidateResult;
   const searchCandidates = controller.searchCandidates;
   const setReviewQuery = controller.setReviewQuery;
+  const skipReviewRow = controller.skipReviewRow;
   const closeCandidates = useMemo(
     () =>
       closeCandidateResult && closeCandidateResult.rowId === activeRow?.id
@@ -108,51 +109,34 @@ export function CatalogImporterReviewQuiz({
     resetCandidateSearch(activeRow);
   }, [activeRow, resetCandidateSearch]);
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (
-        event.repeat ||
-        isTypingTarget(event.target) ||
-        document.querySelector('[role="dialog"]')
-      ) {
-        return;
-      }
+  const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.repeat || isTypingTarget(event.target)) {
+      return;
+    }
 
-      if (/^[1-9]$/.test(event.key)) {
-        const candidate = keyboardCandidates[Number(event.key) - 1];
-        if (candidate) {
-          event.preventDefault();
-          chooseCandidate(candidate);
-        }
-        return;
-      }
-
-      if (event.key === "ArrowLeft") {
+    if (/^[1-9]$/.test(event.key)) {
+      const candidate = keyboardCandidates[Number(event.key) - 1];
+      if (candidate) {
         event.preventDefault();
-        moveReviewRow(-1);
-      } else if (event.key === "ArrowRight") {
-        event.preventDefault();
-        moveReviewRow(1);
+        chooseCandidate(candidate);
       }
-    };
+      return;
+    }
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [chooseCandidate, keyboardCandidates, moveReviewRow]);
+    if (event.key.toLowerCase() === "x") {
+      event.preventDefault();
+      skipReviewRow();
+    } else if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      moveReviewRow(-1);
+    } else if (event.key === "ArrowRight") {
+      event.preventDefault();
+      moveReviewRow(1);
+    }
+  };
 
   if (!activeRow) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle role="heading" aria-level={2}>
-            Review complete
-          </CardTitle>
-          <CardDescription>
-            Every uncertain name has been matched or skipped.
-          </CardDescription>
-        </CardHeader>
-      </Card>
-    );
+    return null;
   }
 
   const activePosition = controller.activeReviewIndex + 1;
@@ -161,7 +145,10 @@ export function CatalogImporterReviewQuiz({
       id="catalog-importer-review-quiz"
       role="region"
       aria-labelledby="catalog-importer-review-heading"
-      className="overflow-hidden"
+      aria-keyshortcuts="1 2 3 4 5 6 7 8 9 X ArrowLeft ArrowRight"
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
+      className="focus-visible:ring-ring overflow-hidden outline-none focus-visible:ring-2"
     >
       <CardHeader className="gap-4 border-b lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
         <div className="space-y-1">
@@ -184,6 +171,7 @@ export function CatalogImporterReviewQuiz({
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-muted-foreground hidden text-xs lg:inline">
             <kbd className="font-mono">1–9</kbd> choose ·{" "}
+            <kbd className="font-mono">X</kbd> skip ·{" "}
             <kbd className="font-mono">← →</kbd> move
           </span>
           <Button
@@ -206,14 +194,6 @@ export function CatalogImporterReviewQuiz({
           >
             <ChevronRight className="size-4" />
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={controller.skipReviewRow}
-          >
-            <SkipForward className="size-4" />
-            Skip
-          </Button>
         </div>
       </CardHeader>
 
@@ -223,12 +203,37 @@ export function CatalogImporterReviewQuiz({
           sourceCells={controller.activeReviewSourceCells}
         />
 
-        <div className="space-y-3">
-          <div>
-            <h3 className="font-semibold">Close matches</h3>
-            <p className="text-muted-foreground text-sm">
-              Best matches for {activeRow.title}.
-            </p>
+        <section
+          aria-labelledby="catalog-importer-close-matches-heading"
+          className="space-y-3"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3
+                id="catalog-importer-close-matches-heading"
+                className="font-semibold"
+              >
+                Close matches
+              </h3>
+              <p className="text-muted-foreground text-sm">
+                Best matches for {activeRow.title}.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              aria-keyshortcuts="X"
+              onClick={skipReviewRow}
+            >
+              <SkipForward className="size-4" />
+              Skip
+              <kbd
+                aria-hidden="true"
+                className="bg-muted rounded px-1.5 py-0.5 font-mono text-xs"
+              >
+                X
+              </kbd>
+            </Button>
           </div>
 
           {closeCandidateResult?.error &&
@@ -257,7 +262,7 @@ export function CatalogImporterReviewQuiz({
               onChoose={chooseCandidate}
             />
           ) : null}
-        </div>
+        </section>
 
         <div className="space-y-3 border-t pt-5">
           <div>

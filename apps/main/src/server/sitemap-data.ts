@@ -23,11 +23,18 @@ export async function getMainSitemapEntries(baseUrl: string) {
   ];
 
   if (isPublicCultivarSearchEnabled()) {
-    entries.push({
-      url: `${baseUrl}/cultivars`,
-      changeFrequency: "weekly",
-      priority: 0.9,
-    });
+    entries.push(
+      {
+        url: `${baseUrl}/cultivars`,
+        changeFrequency: "weekly",
+        priority: 0.9,
+      },
+      {
+        url: `${baseUrl}/catalog-importer`,
+        changeFrequency: "monthly",
+        priority: 0.8,
+      },
+    );
   }
 
   const [catalogs, listings] = await Promise.all([

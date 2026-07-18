@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   applyAutomaticCultivarMatches,
-  createCatalogImportCsv,
+  assignCatalogImportDuplicateGroups,
+  createCatalogEnrichedSpreadsheet,
   createCatalogImportRows,
+  createCatalogImportSampleSpreadsheet,
   createCatalogImportTemplateCsv,
   detectHeaderRow,
   getAutomaticCultivarMatch,
@@ -50,7 +52,36 @@ describe("catalog importer normalization", () => {
     });
   });
 
-  it("maps a wide headed sheet to the listing fields and exports canonical matches", () => {
+  it("treats common not-for-sale markers as a blank price", () => {
+    const importedRows = createCatalogImportRows({
+      headerRowIndex: 0,
+      mapping: {
+        cultivarReferenceId: null,
+        description: null,
+        imageUrl: null,
+        price: 1,
+        privateNote: null,
+        title: 0,
+      },
+      rows: [
+        ["name", "price"],
+        ["A.W. Shucks", "NFS"],
+        ["Abilene Sunrise", "not for sale"],
+      ],
+    });
+
+    expect(
+      importedRows.map((row) => ({
+        price: row.price,
+        priceWarning: row.priceWarning,
+      })),
+    ).toEqual([
+      { price: null, priceWarning: null },
+      { price: null, priceWarning: null },
+    ]);
+  });
+
+  it("preserves a wide workbook and appends canonical cultivar links", () => {
     const header = Array.from<SpreadsheetCell>({ length: 17 }).fill(null);
     header[3] = "Cultivar";
     header[12] = "Description";
@@ -89,7 +120,19 @@ describe("catalog importer normalization", () => {
       },
       matchStatus: "selected" as const,
     }));
-    const csv = createCatalogImportCsv(matchedRows);
+    const enriched = createCatalogEnrichedSpreadsheet({
+      headerRowIndex,
+      mapping: { ...mapping, description: 12, price: 16 },
+      matchedRows,
+      parsedSpreadsheet: {
+        fileName: "seller-list.xlsx",
+        sheets: [
+          { name: "Inventory", rows },
+          { name: "Notes", rows: [["Keep this sheet"], ["Seller notes"]] },
+        ],
+      },
+      selectedSheetIndex: 0,
+    });
 
     expect(headerRowIndex).toBe(0);
     expect(mapping).toMatchObject({
@@ -97,12 +140,62 @@ describe("catalog importer normalization", () => {
       price: null,
       title: 3,
     });
-    expect(csv).toBe(
+    expect(enriched.sheets[0]?.rows).toEqual([
       [
-        "name,price,description,privateNote,cultivarReferenceId,cultivarUrl",
-        'A. W. Shucks,25,"Spider, dark red",,cultivar-1,https://daylilycatalog.com/cultivar/a~2e-w~2e-shucks',
-      ].join("\r\n"),
-    );
+        ...header,
+        "Daylily Catalog ID",
+        "registeredCultivarName",
+        "cultivarUrl",
+      ],
+      [
+        ...data,
+        "cultivar-1",
+        "A. W. Shucks",
+        "https://daylilycatalog.com/cultivar/a~2e-w~2e-shucks",
+      ],
+    ]);
+    expect(enriched.sheets[1]).toEqual({
+      name: "Notes",
+      rows: [["Keep this sheet"], ["Seller notes"]],
+    });
+  });
+
+  it("clears an invalid source price when the user leaves the repaired price blank", () => {
+    const rows: SpreadsheetCell[][] = [
+      ["name", "price"],
+      ["Aerial Art", "two for $30"],
+    ];
+    const mapping = {
+      cultivarReferenceId: null,
+      description: null,
+      imageUrl: null,
+      price: 1,
+      privateNote: null,
+      title: 0,
+    };
+    const [importedRow] = createCatalogImportRows({
+      headerRowIndex: 0,
+      mapping,
+      rows,
+    });
+    const enriched = createCatalogEnrichedSpreadsheet({
+      headerRowIndex: 0,
+      mapping,
+      matchedRows: [
+        {
+          ...importedRow!,
+          price: null,
+          priceWarning: null,
+        },
+      ],
+      parsedSpreadsheet: {
+        fileName: "seller-list.csv",
+        sheets: [{ name: "CSV", rows }],
+      },
+      selectedSheetIndex: 0,
+    });
+
+    expect(enriched.sheets[0]?.rows[1]?.[1]).toBe("");
   });
 
   it("maps every field in the downloadable template", () => {
@@ -114,6 +207,7 @@ describe("catalog importer normalization", () => {
 
     expect(headerRowIndex).toBe(0);
     expect(mapping).toEqual({
+      cultivarReferenceId: null,
       description: 2,
       imageUrl: 4,
       price: 1,
@@ -121,6 +215,71 @@ describe("catalog importer normalization", () => {
       title: 0,
     });
   });
+
+  it("provides a ready-to-map sample catalog with review and issue examples", () => {
+    const spreadsheet = createCatalogImportSampleSpreadsheet();
+    const rows = spreadsheet.sheets[0]?.rows ?? [];
+    const headerRowIndex = detectHeaderRow(rows);
+    const mapping = suggestColumnMapping(rows, headerRowIndex);
+    const importedRows = createCatalogImportRows({
+      headerRowIndex,
+      mapping,
+      rows,
+    });
+
+    expect(spreadsheet.fileName).toBe("Sample daylily catalog.csv");
+    expect(mapping).toEqual({
+      cultivarReferenceId: null,
+      description: 2,
+      imageUrl: 4,
+      price: 1,
+      privateNote: 3,
+      title: 0,
+    });
+    expect(importedRows).toHaveLength(10);
+    expect(importedRows.some((row) => row.title === "Vanguard 2")).toBe(true);
+    expect(importedRows.some((row) => row.priceWarning !== null)).toBe(true);
+    expect(importedRows.some((row) => row.duplicateOfSourceRow !== null)).toBe(
+      true,
+    );
+  });
+
+  it.each(["Daylily Catalog ID", "cultivarReferenceId"])(
+    "restores mappings from the %s column when an enriched template is uploaded again",
+    (idHeader) => {
+      const rows: SpreadsheetCell[][] = [
+        [
+          "name",
+          "price",
+          "description",
+          "private note",
+          "image url",
+          idHeader,
+          "registeredCultivarName",
+          "cultivarUrl",
+        ],
+        [
+          "Stella de Oro",
+          12,
+          "Golden yellow",
+          "Front garden",
+          "",
+          "cultivar-1",
+          "Stella de Oro",
+          "https://daylilycatalog.com/cultivar/stella-de-oro",
+        ],
+      ];
+
+      expect(suggestColumnMapping(rows, 0)).toEqual({
+        cultivarReferenceId: 5,
+        description: 2,
+        imageUrl: 4,
+        price: 1,
+        privateNote: 3,
+        title: 0,
+      });
+    },
+  );
 
   it("does not mistake a labeled registration year for a listing price", () => {
     const rows: SpreadsheetCell[][] = [
@@ -208,59 +367,63 @@ describe("catalog importer normalization", () => {
     ).toBeNull();
   });
 
-  it("builds a bounded public sample from confidently matched rows only", () => {
+  it("groups possible duplicates by linked cultivar ID", () => {
     const rows = createCatalogImportRows({
       headerRowIndex: 0,
       mapping: {
+        cultivarReferenceId: null,
         description: null,
         imageUrl: null,
         price: null,
         privateNote: null,
         title: 0,
       },
-      rows: [["name"], ["First"], ["Second"], ["Third"]],
+      rows: [["name"], ["A W Shucks"], ["A.W. Shucks plant two"]],
     });
     const match = {
       bloomSizeIn: null,
       bloomSeason: null,
       color: null,
-      confidence: 96,
-      cultivarReferenceId: "cultivar-2",
-      displayName: "Second",
+      confidence: 100,
+      cultivarReferenceId: "cultivar-aw-shucks",
+      displayName: "A.W. Shucks",
       form: null,
       hybridizer: null,
       imageAsset: null,
       imageUrl: null,
       listingCount: 0,
-      normalizedName: "second",
+      normalizedName: "a.w. shucks",
       ploidy: null,
       rebloom: null,
       scapeHeightIn: null,
       year: null,
     };
 
+    const grouped = assignCatalogImportDuplicateGroups(
+      rows.map((row) => ({ ...row, match })),
+    );
+
+    expect(grouped[0]?.duplicateOfSourceRow).toBeNull();
+    expect(grouped[1]?.duplicateOfSourceRow).toBe(2);
+
+    const accepted = grouped.map((row) => ({
+      ...row,
+      duplicateAccepted: true,
+      duplicateOfSourceRow: null,
+    }));
+
     expect(
-      applyAutomaticCultivarMatches({
-        automaticMatches: new Map([
-          ["second", match],
-          ["third", { ...match, cultivarReferenceId: "cultivar-3" }],
-        ]),
-        limit: 1,
-        matchedOnly: true,
-        rows,
-      }),
-    ).toMatchObject([
-      {
-        match: { cultivarReferenceId: "cultivar-2" },
-        title: "Second",
-      },
-    ]);
+      assignCatalogImportDuplicateGroups(accepted).every(
+        (row) => row.duplicateOfSourceRow === null,
+      ),
+    ).toBe(true);
   });
 
   it("keeps the best candidate for rows that still need review", () => {
     const [row] = createCatalogImportRows({
       headerRowIndex: 0,
       mapping: {
+        cultivarReferenceId: null,
         description: null,
         imageUrl: null,
         price: null,
@@ -291,7 +454,6 @@ describe("catalog importer normalization", () => {
     expect(
       applyAutomaticCultivarMatches({
         automaticMatches: new Map(),
-        matchedOnly: false,
         rows: [row!],
         suggestedMatches: new Map([["vanguard 2", suggestion]]),
       }),
@@ -305,5 +467,139 @@ describe("catalog importer normalization", () => {
         },
       },
     ]);
+  });
+
+  it("restores a saved cultivar reference ID before matching by name", () => {
+    const rows: SpreadsheetCell[][] = [
+      ["name", "Daylily Catalog ID"],
+      ["A seller spelling", "cultivar-saved"],
+    ];
+    const mapping = suggestColumnMapping(rows, 0);
+    const [row] = createCatalogImportRows({
+      headerRowIndex: 0,
+      mapping,
+      rows,
+    });
+    const savedMatch = {
+      bloomSizeIn: null,
+      bloomSeason: null,
+      color: null,
+      confidence: 100,
+      cultivarReferenceId: "cultivar-saved",
+      displayName: "Registered Name",
+      form: null,
+      hybridizer: null,
+      imageAsset: null,
+      imageUrl: null,
+      listingCount: 0,
+      normalizedName: "registered name",
+      ploidy: null,
+      rebloom: null,
+      scapeHeightIn: null,
+      year: null,
+    };
+
+    expect(mapping.cultivarReferenceId).toBe(1);
+    expect(
+      applyAutomaticCultivarMatches({
+        automaticMatches: new Map(),
+        cultivarReferenceMatches: new Map([["cultivar-saved", savedMatch]]),
+        rows: [row!],
+      }),
+    ).toMatchObject([
+      {
+        cultivarReferenceIdWarning: null,
+        match: {
+          cultivarReferenceId: "cultivar-saved",
+          displayName: "Registered Name",
+        },
+        sourceCultivarReferenceId: "cultivar-saved",
+      },
+    ]);
+  });
+
+  it("flags an unknown saved cultivar ID instead of replacing it by name", () => {
+    const [row] = createCatalogImportRows({
+      headerRowIndex: 0,
+      mapping: {
+        cultivarReferenceId: 1,
+        description: null,
+        imageUrl: null,
+        price: null,
+        privateNote: null,
+        title: 0,
+      },
+      rows: [
+        ["name", "cultivarReferenceId"],
+        ["A.W. Shucks", "missing-id"],
+      ],
+    });
+
+    expect(
+      applyAutomaticCultivarMatches({
+        automaticMatches: new Map([
+          [
+            "a w shucks",
+            {
+              bloomSizeIn: null,
+              bloomSeason: null,
+              color: null,
+              confidence: 100,
+              cultivarReferenceId: "different-id",
+              displayName: "A.W. Shucks",
+              form: null,
+              hybridizer: null,
+              imageAsset: null,
+              imageUrl: null,
+              listingCount: 0,
+              normalizedName: "a w shucks",
+              ploidy: null,
+              rebloom: null,
+              scapeHeightIn: null,
+              year: null,
+            },
+          ],
+        ]),
+        invalidCultivarReferenceIds: new Set(["missing-id"]),
+        rows: [row!],
+      }),
+    ).toMatchObject([
+      {
+        cultivarReferenceIdWarning: "missing-id",
+        match: null,
+        matchStatus: "unmatched",
+      },
+    ]);
+  });
+
+  it("keeps an unknown saved cultivar ID in a progress download", () => {
+    const rows: SpreadsheetCell[][] = [
+      ["name", "Daylily Catalog ID"],
+      ["A.W. Shucks", "missing-id"],
+    ];
+    const mapping = suggestColumnMapping(rows, 0);
+    const [row] = createCatalogImportRows({
+      headerRowIndex: 0,
+      mapping,
+      rows,
+    });
+    const [unresolvedRow] = applyAutomaticCultivarMatches({
+      automaticMatches: new Map(),
+      invalidCultivarReferenceIds: new Set(["missing-id"]),
+      rows: [row!],
+    });
+
+    const enriched = createCatalogEnrichedSpreadsheet({
+      headerRowIndex: 0,
+      mapping,
+      matchedRows: [unresolvedRow!],
+      parsedSpreadsheet: {
+        fileName: "catalog.xlsx",
+        sheets: [{ name: "Catalog", rows }],
+      },
+      selectedSheetIndex: 0,
+    });
+
+    expect(enriched.sheets[0]?.rows[1]?.[1]).toBe("missing-id");
   });
 });

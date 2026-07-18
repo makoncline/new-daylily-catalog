@@ -1,17 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { capturePosthogEvent } from "@/lib/analytics/posthog";
 import {
-  CATALOG_IMPORT_PRO_MATCH_BATCH_SIZE,
-  CATALOG_IMPORT_PUBLIC_MATCH_BATCH_SIZE,
-  CATALOG_IMPORT_PUBLIC_SAMPLE_ROW_LIMIT,
+  CATALOG_IMPORT_MATCH_BATCH_SIZE,
+  CATALOG_IMPORT_PREVIEW_ROW_COUNT,
 } from "@/config/catalog-importer";
 import {
   applyAutomaticCultivarMatches,
+  assignCatalogImportDuplicateGroups,
   cellToText,
   columnIndexToLabel,
-  createCatalogImportCsv,
+  createCatalogEnrichedSpreadsheet,
   createCatalogImportRows,
+  createCatalogImportSampleSpreadsheet,
   createCatalogImportTemplateCsv,
   detectHeaderRow,
   getAutomaticCultivarMatch,
@@ -26,11 +28,13 @@ import type {
 } from "@/lib/catalog-importer";
 import {
   clearCatalogImporterDraft,
-  readCatalogImporterDraft,
   writeCatalogImporterDraft,
 } from "@/lib/catalog-importer-draft";
-import type { CatalogImporterMode } from "@/lib/catalog-importer-draft";
-import { parseCatalogImportFile } from "@/lib/catalog-importer-file";
+import type { CatalogImporterDraft } from "@/lib/catalog-importer-draft";
+import {
+  downloadCatalogImportFile,
+  parseCatalogImportFile,
+} from "@/lib/catalog-importer-file";
 import { requestCultivarMatches } from "@/lib/catalog-importer-match-client";
 import { getCultivarMatchConfidence } from "@/lib/cultivar-match-score";
 import { normalizeCultivarName } from "@/lib/utils/cultivar-utils";
@@ -44,12 +48,63 @@ import type {
 } from "@/app/(public)/catalog-importer/_lib/catalog-importer-presentation";
 
 const EMPTY_MAPPING: CatalogColumnMapping = {
+  cultivarReferenceId: null,
   description: null,
   imageUrl: null,
   price: null,
   privateNote: null,
   title: null,
 };
+
+function getCatalogImportFileType(fileName: string) {
+  const extension = fileName.split(".").pop()?.toLowerCase();
+  return extension === "csv" || extension === "xlsx" ? extension : "unknown";
+}
+
+function getCatalogImportTelemetryCounts(rows: CatalogImportRow[]) {
+  const activeRows = rows.filter((row) => !row.skipped);
+  const duplicateIssueCount = new Set(
+    activeRows
+      .filter((row) => row.duplicateOfSourceRow !== null)
+      .map((row) => row.duplicateOfSourceRow),
+  ).size;
+
+  return {
+    issue_count:
+      duplicateIssueCount +
+      activeRows.filter((row) => row.priceWarning !== null).length +
+      activeRows.filter((row) => row.imageUrlWarning !== null).length +
+      activeRows.filter((row) => row.cultivarReferenceIdWarning !== null)
+        .length,
+    matched_count: activeRows.filter((row) => row.match !== null).length,
+    review_count: activeRows.filter(
+      (row) => row.match === null && row.matchStatus === "pending",
+    ).length,
+    row_count: activeRows.length,
+  };
+}
+
+function getCatalogMatchKey({
+  fileName,
+  headerRowIndex,
+  mapping,
+  rowCount,
+  sheetName,
+}: {
+  fileName: string | null;
+  headerRowIndex: number | null;
+  mapping: CatalogColumnMapping;
+  rowCount: number;
+  sheetName: string | null;
+}) {
+  return JSON.stringify({
+    fileName,
+    headerRowIndex,
+    mapping,
+    rowCount,
+    sheetName,
+  });
+}
 
 function downloadTextFile({
   contents,
@@ -69,64 +124,111 @@ function downloadTextFile({
   URL.revokeObjectURL(url);
 }
 
+function getPopulatedColumnIndexes(
+  rows: ParsedSpreadsheet["sheets"][number]["rows"],
+) {
+  const indexes = new Set<number>();
+  for (const row of rows) {
+    for (let index = 0; index < row.length; index += 1) {
+      if (cellToText(row[index])) {
+        indexes.add(index);
+      }
+    }
+  }
+
+  return [...indexes].sort((left, right) => left - right);
+}
+
 function removeRowFromDuplicateGroup(rows: CatalogImportRow[], rowId: string) {
   const removedRow = rows.find((row) => row.id === rowId);
-  const normalizedTitle = removedRow
-    ? normalizeCultivarName(removedRow.title)
-    : null;
-  if (!removedRow || !normalizedTitle) {
+  if (!removedRow) {
     return rows;
   }
 
-  let firstRetainedSourceRow: number | null = null;
-  return rows.map((row) => {
-    if (row.id === rowId) {
-      return { ...row, duplicateOfSourceRow: null, skipped: true };
-    }
-    if (row.skipped || normalizeCultivarName(row.title) !== normalizedTitle) {
-      return row;
-    }
-
-    const duplicateOfSourceRow = firstRetainedSourceRow;
-    firstRetainedSourceRow ??= row.sourceRow;
-    return row.duplicateOfSourceRow === duplicateOfSourceRow
-      ? row
-      : { ...row, duplicateOfSourceRow };
-  });
+  return assignCatalogImportDuplicateGroups(
+    rows.map((row) =>
+      row.id === rowId
+        ? {
+            ...row,
+            duplicateOfSourceRow: null,
+            removed: true,
+            skipped: true,
+          }
+        : row,
+    ),
+  );
 }
 
-export function useCatalogImporterWorkbench() {
-  const [mode, setMode] = useState<CatalogImporterMode>("public");
+export function useCatalogImporterWorkbench(
+  initialDraft: CatalogImporterDraft | null = null,
+) {
+  const initialReviewRow =
+    initialDraft?.matchedRows?.find(
+      (row) =>
+        row.id === initialDraft.activeReviewRowId &&
+        !row.skipped &&
+        row.match === null &&
+        row.matchStatus === "pending",
+    ) ??
+    initialDraft?.matchedRows?.find(
+      (row) =>
+        !row.skipped && row.match === null && row.matchStatus === "pending",
+    ) ??
+    null;
   const [parsedSpreadsheet, setParsedSpreadsheet] =
-    useState<ParsedSpreadsheet | null>(null);
-  const [selectedSheetIndex, setSelectedSheetIndex] = useState(0);
-  const [headerRowIndex, setHeaderRowIndex] = useState<number | null>(null);
-  const [mapping, setMapping] = useState<CatalogColumnMapping>(EMPTY_MAPPING);
+    useState<ParsedSpreadsheet | null>(initialDraft?.parsedSpreadsheet ?? null);
+  const [selectedSheetIndex, setSelectedSheetIndex] = useState(
+    initialDraft?.selectedSheetIndex ?? 0,
+  );
+  const [headerRowIndex, setHeaderRowIndex] = useState<number | null>(
+    initialDraft?.headerRowIndex ?? null,
+  );
+  const [mapping, setMapping] = useState<CatalogColumnMapping>(
+    initialDraft?.mapping ?? EMPTY_MAPPING,
+  );
   const [fileError, setFileError] = useState<string | null>(null);
   const [readingFile, setReadingFile] = useState(false);
+  const [downloadingResults, setDownloadingResults] = useState(false);
   const [matchedRows, setMatchedRows] = useState<CatalogImportRow[] | null>(
-    null,
+    initialDraft?.matchedRows ?? null,
   );
-  const [matchedRowsKey, setMatchedRowsKey] = useState<string | null>(null);
+  const [matchedRowsKey, setMatchedRowsKey] = useState<string | null>(
+    initialDraft?.matchedRowsKey ?? null,
+  );
   const [matchingProgress, setMatchingProgress] = useState<{
     processed: number;
     total: number;
   } | null>(null);
   const [matchError, setMatchError] = useState<string | null>(null);
   const [activeReviewRowId, setActiveReviewRowId] = useState<string | null>(
-    null,
+    initialDraft?.activeReviewRowId ?? null,
   );
   const [reviewQuery, setReviewQuery] = useState("");
   const [candidateResult, setCandidateResult] =
-    useState<CatalogImporterCandidateResult | null>(null);
+    useState<CatalogImporterCandidateResult | null>(() =>
+      initialReviewRow
+        ? {
+            candidates: initialReviewRow.suggestedMatch
+              ? [initialReviewRow.suggestedMatch]
+              : [],
+            error: null,
+            loading: false,
+            query: initialReviewRow.title,
+            rowId: initialReviewRow.id,
+          }
+        : null,
+    );
   const [searchCandidateResult, setSearchCandidateResult] =
     useState<CatalogImporterCandidateResult | null>(null);
-  const [storageReady, setStorageReady] = useState(false);
+  const [restoredDraft, setRestoredDraft] = useState(initialDraft !== null);
   const [storageWarning, setStorageWarning] = useState<string | null>(null);
   const [liveAnnouncement, setLiveAnnouncement] = useState("");
-  const candidateRequestId = useRef(0);
   const exactMatchRequestId = useRef(0);
+  const exactMatchAbortController = useRef<AbortController | null>(null);
+  const closeCandidateRequestId = useRef(0);
   const searchCandidateRequestId = useRef(0);
+  const draftWriteChain = useRef(Promise.resolve());
+  const previewTracked = useRef(initialDraft?.matchedRows != null);
 
   const selectedSheet = parsedSpreadsheet?.sheets[selectedSheetIndex] ?? null;
   const sourceColumns = useMemo(
@@ -134,51 +236,23 @@ export function useCatalogImporterWorkbench() {
       selectedSheet ? getSourceColumns(selectedSheet.rows, headerRowIndex) : [],
     [headerRowIndex, selectedSheet],
   );
-  const draftRows = useMemo(
-    () =>
-      selectedSheet
-        ? createCatalogImportRows({
-            headerRowIndex,
-            mapping,
-            rows: selectedSheet.rows,
-          })
-        : [],
-    [headerRowIndex, mapping, selectedSheet],
-  );
-  const currentMatchKey = useMemo(
-    () =>
-      JSON.stringify({
-        fileName: parsedSpreadsheet?.fileName ?? null,
-        headerRowIndex,
-        mapping,
-        mode,
-        rowCount: selectedSheet?.rows.length ?? 0,
-        sheetName: selectedSheet?.name ?? null,
-      }),
-    [
-      headerRowIndex,
-      mapping,
-      mode,
-      parsedSpreadsheet?.fileName,
-      selectedSheet?.name,
-      selectedSheet?.rows.length,
-    ],
-  );
-  const sourcePreviewRows = selectedSheet?.rows.slice(0, 10) ?? [];
-  const sourcePreviewColumnCount = sourcePreviewRows.reduce(
-    (largest, row) => Math.max(largest, row.length),
-    0,
-  );
-  const activeReviewRow =
-    matchedRows?.find((row) => row.id === activeReviewRowId) ?? null;
-  const sourceColumnCount = useMemo(
-    () =>
-      selectedSheet?.rows.reduce(
-        (largest, row) => Math.max(largest, row.length),
-        0,
-      ) ?? 0,
-    [selectedSheet],
-  );
+  const sourcePreviewRows =
+    selectedSheet?.rows.slice(0, CATALOG_IMPORT_PREVIEW_ROW_COUNT) ?? [];
+  const sourcePreviewColumnIndexes =
+    getPopulatedColumnIndexes(sourcePreviewRows);
+  const populatedSourceColumnIndexes = useMemo(() => {
+    const indexes = new Set<number>();
+
+    for (const row of selectedSheet?.rows ?? []) {
+      for (let columnIndex = 0; columnIndex < row.length; columnIndex += 1) {
+        if (cellToText(row[columnIndex])) {
+          indexes.add(columnIndex);
+        }
+      }
+    }
+
+    return [...indexes].sort((left, right) => left - right);
+  }, [selectedSheet]);
   const getSourceCellsForRow = useCallback(
     (row: CatalogImportRow) => {
       if (!selectedSheet) {
@@ -189,32 +263,20 @@ export function useCatalogImporterWorkbench() {
       const headerRow =
         headerRowIndex === null ? null : selectedSheet.rows[headerRowIndex];
 
-      return Array.from({ length: sourceColumnCount }, (_, columnIndex) => ({
-        column: columnIndexToLabel(columnIndex),
-        label:
-          (headerRow ? cellToText(headerRow[columnIndex]) : "") ||
-          `Column ${columnIndexToLabel(columnIndex)}`,
-        value: cellToText(sourceRow[columnIndex]),
-      }));
-    },
-    [headerRowIndex, selectedSheet, sourceColumnCount],
-  );
-  const activeReviewSourceCells = useMemo(() => {
-    if (!activeReviewRow) {
-      return [];
-    }
+      return populatedSourceColumnIndexes.map((columnIndex) => {
+        const column = columnIndexToLabel(columnIndex);
 
-    return getSourceCellsForRow(activeReviewRow);
-  }, [activeReviewRow, getSourceCellsForRow]);
-  const skippedCount = draftRows.filter((row) => row.skipped).length;
-  const duplicateCount = draftRows.filter(
-    (row) => row.duplicateOfSourceRow !== null && !row.skipped,
-  ).length;
-  const warningCount = draftRows.filter(
-    (row) =>
-      !row.skipped &&
-      (row.priceWarning !== null || row.imageUrlWarning !== null),
-  ).length;
+        return {
+          column,
+          label:
+            (headerRow ? cellToText(headerRow[columnIndex]) : "") ||
+            `Column ${column}`,
+          value: cellToText(sourceRow[columnIndex]),
+        };
+      });
+    },
+    [headerRowIndex, populatedSourceColumnIndexes, selectedSheet],
+  );
   const resultRows = useMemo(
     () => matchedRows?.filter((row) => !row.skipped) ?? [],
     [matchedRows],
@@ -227,211 +289,377 @@ export function useCatalogImporterWorkbench() {
       ) ?? [],
     [matchedRows],
   );
+  const activeReviewRow =
+    reviewRows.find((row) => row.id === activeReviewRowId) ??
+    reviewRows[0] ??
+    null;
+  const activeReviewSourceCells = useMemo(() => {
+    if (!activeReviewRow) {
+      return [];
+    }
+
+    return getSourceCellsForRow(activeReviewRow);
+  }, [activeReviewRow, getSourceCellsForRow]);
+  const matchedCount = resultRows.filter((row) => row.match !== null).length;
+  const unmatchedCount = resultRows.filter(
+    (row) => row.match === null && row.matchStatus === "unmatched",
+  ).length;
+  const duplicateIssueCount = new Set(
+    resultRows
+      .filter((row) => row.duplicateOfSourceRow !== null)
+      .map((row) => row.duplicateOfSourceRow),
+  ).size;
+  const issueCount =
+    duplicateIssueCount +
+    resultRows.filter((row) => row.priceWarning !== null).length +
+    resultRows.filter((row) => row.imageUrlWarning !== null).length +
+    resultRows.filter((row) => row.cultivarReferenceIdWarning !== null).length;
   const activeReviewIndex = activeReviewRow
     ? reviewRows.findIndex((row) => row.id === activeReviewRow.id)
     : -1;
-  const currentStep: "upload" | "map" | "review" = !parsedSpreadsheet
-    ? "upload"
-    : matchedRows === null
-      ? "map"
-      : "review";
 
-  useEffect(() => {
-    const draft = readCatalogImporterDraft();
-    if (draft) {
-      setMode(draft.mode);
-      setParsedSpreadsheet(draft.parsedSpreadsheet);
-      setSelectedSheetIndex(draft.selectedSheetIndex);
-      setHeaderRowIndex(draft.headerRowIndex);
-      setMapping(draft.mapping);
-      setMatchedRows(draft.matchedRows);
-      setMatchedRowsKey(draft.matchedRowsKey);
-      setActiveReviewRowId(draft.activeReviewRowId);
-      setReviewQuery(draft.reviewQuery);
+  const loadCandidates = useCallback(async (row: CatalogImportRow) => {
+    const requestId = closeCandidateRequestId.current + 1;
+    closeCandidateRequestId.current = requestId;
+    setCandidateResult({
+      candidates: [],
+      error: null,
+      loading: true,
+      query: row.title,
+      rowId: row.id,
+    });
+
+    try {
+      const [result] = await requestCultivarMatches({
+        includeCandidates: true,
+        names: [row.title],
+      });
+      if (closeCandidateRequestId.current !== requestId) {
+        return;
+      }
+
+      setCandidateResult({
+        candidates: result?.candidates ?? [],
+        error: null,
+        loading: false,
+        query: row.title,
+        rowId: row.id,
+      });
+    } catch (error) {
+      if (closeCandidateRequestId.current !== requestId) {
+        return;
+      }
+
+      setCandidateResult({
+        candidates: [],
+        error: getErrorMessage(error),
+        loading: false,
+        query: row.title,
+        rowId: row.id,
+      });
     }
-    setStorageReady(true);
   }, []);
 
-  useEffect(() => {
-    if (!storageReady) {
-      return;
-    }
-    if (!parsedSpreadsheet) {
-      clearCatalogImporterDraft();
-      setStorageWarning(null);
-      return;
-    }
+  const persistDraft = useCallback(
+    (overrides: Partial<Omit<CatalogImporterDraft, "version">> = {}) => {
+      const draft: CatalogImporterDraft = {
+        activeReviewRowId,
+        headerRowIndex,
+        mapping,
+        matchedRows,
+        matchedRowsKey,
+        parsedSpreadsheet,
+        selectedSheetIndex,
+        ...overrides,
+        version: 2,
+      };
 
-    const result = writeCatalogImporterDraft({
+      draftWriteChain.current = draftWriteChain.current.then(async () => {
+        if (!draft.parsedSpreadsheet) {
+          await clearCatalogImporterDraft();
+          setStorageWarning(null);
+          return;
+        }
+
+        const result = await writeCatalogImporterDraft(draft);
+        setStorageWarning(
+          result === "unavailable"
+            ? "Browser progress could not be saved on this device."
+            : null,
+        );
+      });
+
+      return draftWriteChain.current;
+    },
+    [
       activeReviewRowId,
       headerRowIndex,
       mapping,
       matchedRows,
       matchedRowsKey,
-      mode,
       parsedSpreadsheet,
-      reviewQuery,
       selectedSheetIndex,
-      version: 1,
-    });
+    ],
+  );
 
-    setStorageWarning(
-      result === "too-large"
-        ? "This workbook is too large to restore after a refresh. It will remain available while this page stays open."
-        : result === "unavailable"
-          ? "Browser progress could not be saved on this device."
-          : null,
-    );
-  }, [
-    activeReviewRowId,
-    headerRowIndex,
-    mapping,
-    matchedRows,
-    matchedRowsKey,
-    mode,
-    parsedSpreadsheet,
-    reviewQuery,
-    selectedSheetIndex,
-    storageReady,
-  ]);
+  const saveMatchedRows = useCallback(
+    (
+      nextRows: CatalogImportRow[],
+      nextActiveReviewRowId = activeReviewRowId,
+    ) => {
+      setMatchedRows(nextRows);
+      void persistDraft({
+        activeReviewRowId: nextActiveReviewRowId,
+        matchedRows: nextRows,
+      });
+    },
+    [activeReviewRowId, persistDraft],
+  );
 
-  useEffect(() => {
-    if (!storageReady) {
-      return;
-    }
+  const matchSpreadsheet = useCallback(
+    async ({
+      headerRowIndex: nextHeaderRowIndex,
+      mapping: nextMapping,
+      selectedSheetIndex: nextSheetIndex,
+      spreadsheet,
+    }: {
+      headerRowIndex: number | null;
+      mapping: CatalogColumnMapping;
+      selectedSheetIndex: number;
+      spreadsheet: ParsedSpreadsheet;
+    }) => {
+      const sheet = spreadsheet.sheets[nextSheetIndex];
+      if (!sheet || nextMapping.title === null) {
+        setMatchedRows(null);
+        setMatchedRowsKey(null);
+        setMatchingProgress(null);
+        await persistDraft({
+          activeReviewRowId: null,
+          headerRowIndex: nextHeaderRowIndex,
+          mapping: nextMapping,
+          matchedRows: null,
+          matchedRowsKey: null,
+          parsedSpreadsheet: spreadsheet,
+          selectedSheetIndex: nextSheetIndex,
+        });
+        return;
+      }
 
-    const rowsToMatch = draftRows.filter((row) => !row.skipped);
-    if (mapping.title === null || rowsToMatch.length === 0) {
+      const rows = createCatalogImportRows({
+        headerRowIndex: nextHeaderRowIndex,
+        mapping: nextMapping,
+        rows: sheet.rows,
+      });
+      const rowsToMatch = rows.filter((row) => !row.skipped);
+      if (rowsToMatch.length === 0) {
+        setMatchedRows(rows);
+        setMatchedRowsKey(null);
+        setMatchingProgress(null);
+        await persistDraft({
+          activeReviewRowId: null,
+          headerRowIndex: nextHeaderRowIndex,
+          mapping: nextMapping,
+          matchedRows: rows,
+          matchedRowsKey: null,
+          parsedSpreadsheet: spreadsheet,
+          selectedSheetIndex: nextSheetIndex,
+        });
+        return;
+      }
+
+      const uniqueInputs = [
+        ...new Map(
+          rowsToMatch.map((row) => [
+            row.sourceCultivarReferenceId
+              ? `id:${row.sourceCultivarReferenceId}`
+              : `name:${normalizeCultivarName(row.title) ?? row.title}`,
+            {
+              cultivarReferenceId: row.sourceCultivarReferenceId || null,
+              name: row.title,
+            },
+          ]),
+        ).values(),
+      ];
+      const nextMatchKey = getCatalogMatchKey({
+        fileName: spreadsheet.fileName,
+        headerRowIndex: nextHeaderRowIndex,
+        mapping: nextMapping,
+        rowCount: sheet.rows.length,
+        sheetName: sheet.name,
+      });
+      const requestId = exactMatchRequestId.current + 1;
+      const controller = new AbortController();
+      exactMatchRequestId.current = requestId;
+      exactMatchAbortController.current?.abort();
+      exactMatchAbortController.current = controller;
       setMatchedRows(null);
       setMatchedRowsKey(null);
-      setMatchingProgress(null);
-      return;
-    }
-    if (matchedRows !== null && matchedRowsKey === currentMatchKey) {
-      return;
-    }
+      setMatchError(null);
+      setMatchingProgress({ processed: 0, total: uniqueInputs.length });
+      setActiveReviewRowId(null);
+      setReviewQuery("");
+      closeCandidateRequestId.current += 1;
+      setCandidateResult(null);
+      setSearchCandidateResult(null);
 
-    const uniqueNames = [
-      ...new Map(
-        rowsToMatch.map((row) => [
-          normalizeCultivarName(row.title) ?? row.title,
-          row.title,
-        ]),
-      ).values(),
-    ];
-    const requestId = exactMatchRequestId.current + 1;
-    const controller = new AbortController();
-    exactMatchRequestId.current = requestId;
-    setMatchedRows(null);
-    setMatchedRowsKey(null);
-    setMatchError(null);
-    setMatchingProgress({ processed: 0, total: uniqueNames.length });
-    setActiveReviewRowId(null);
-    setReviewQuery("");
-    setCandidateResult(null);
-    setSearchCandidateResult(null);
+      await persistDraft({
+        activeReviewRowId: null,
+        headerRowIndex: nextHeaderRowIndex,
+        mapping: nextMapping,
+        matchedRows: null,
+        matchedRowsKey: null,
+        parsedSpreadsheet: spreadsheet,
+        selectedSheetIndex: nextSheetIndex,
+      });
+      if (exactMatchRequestId.current !== requestId) {
+        return;
+      }
 
-    const timeout = window.setTimeout(() => {
-      void (async () => {
-        const automaticMatches = new Map<string, CultivarMatchCandidate>();
-        const suggestedMatches = new Map<string, CultivarMatchCandidate>();
-        const batchSize =
-          mode === "public"
-            ? CATALOG_IMPORT_PUBLIC_MATCH_BATCH_SIZE
-            : CATALOG_IMPORT_PRO_MATCH_BATCH_SIZE;
+      const automaticMatches = new Map<string, CultivarMatchCandidate>();
+      const cultivarReferenceMatches = new Map<
+        string,
+        CultivarMatchCandidate
+      >();
+      const invalidCultivarReferenceIds = new Set<string>();
+      const suggestedMatches = new Map<string, CultivarMatchCandidate>();
 
-        try {
-          for (let start = 0; start < uniqueNames.length; start += batchSize) {
-            const batch = uniqueNames.slice(start, start + batchSize);
-            const results = await requestCultivarMatches({
-              includeCandidates: true,
-              names: batch,
-              signal: controller.signal,
-            });
-
-            if (exactMatchRequestId.current !== requestId) {
-              return;
-            }
-
-            for (const result of results) {
-              const automaticMatch = getAutomaticCultivarMatch(result);
-              const suggestedMatch = result.candidates[0];
-              if (result.normalizedInput && suggestedMatch) {
-                suggestedMatches.set(result.normalizedInput, suggestedMatch);
-              }
-              if (result.normalizedInput && automaticMatch) {
-                automaticMatches.set(result.normalizedInput, automaticMatch);
-              }
-            }
-
-            setMatchingProgress({
-              processed: Math.min(start + batch.length, uniqueNames.length),
-              total: uniqueNames.length,
-            });
-
-            if (
-              mode === "public" &&
-              applyAutomaticCultivarMatches({
-                automaticMatches,
-                limit: CATALOG_IMPORT_PUBLIC_SAMPLE_ROW_LIMIT,
-                matchedOnly: true,
-                rows: draftRows,
-                suggestedMatches,
-              }).length >= CATALOG_IMPORT_PUBLIC_SAMPLE_ROW_LIMIT
-            ) {
-              break;
-            }
-          }
-
-          const nextRows = applyAutomaticCultivarMatches({
-            automaticMatches,
-            limit:
-              mode === "public"
-                ? CATALOG_IMPORT_PUBLIC_SAMPLE_ROW_LIMIT
-                : undefined,
-            matchedOnly: mode === "public",
-            rows: draftRows,
-            suggestedMatches,
+      try {
+        for (
+          let start = 0;
+          start < uniqueInputs.length;
+          start += CATALOG_IMPORT_MATCH_BATCH_SIZE
+        ) {
+          const batch = uniqueInputs.slice(
+            start,
+            start + CATALOG_IMPORT_MATCH_BATCH_SIZE,
+          );
+          const results = await requestCultivarMatches({
+            cultivarReferenceIds: batch.map(
+              (input) => input.cultivarReferenceId,
+            ),
+            includeCandidates: true,
+            names: batch.map((input) => input.name),
+            signal: controller.signal,
           });
 
           if (exactMatchRequestId.current !== requestId) {
             return;
           }
 
-          setMatchedRows(nextRows);
-          setMatchedRowsKey(currentMatchKey);
-          setMatchingProgress(null);
-        } catch (error) {
-          if (
-            controller.signal.aborted ||
-            exactMatchRequestId.current !== requestId
-          ) {
-            return;
+          for (const result of results) {
+            if (result.inputCultivarReferenceId) {
+              if (result.exactMatch) {
+                cultivarReferenceMatches.set(
+                  result.inputCultivarReferenceId,
+                  result.exactMatch,
+                );
+              } else if (result.invalidCultivarReferenceId) {
+                invalidCultivarReferenceIds.add(
+                  result.invalidCultivarReferenceId,
+                );
+              }
+              continue;
+            }
+
+            const automaticMatch = getAutomaticCultivarMatch(result);
+            const suggestedMatch = result.candidates[0];
+            if (result.normalizedInput && suggestedMatch) {
+              suggestedMatches.set(result.normalizedInput, suggestedMatch);
+            }
+            if (result.normalizedInput && automaticMatch) {
+              automaticMatches.set(result.normalizedInput, automaticMatch);
+            }
           }
 
-          setMatchError(getErrorMessage(error));
-          setMatchingProgress(null);
+          setMatchingProgress({
+            processed: Math.min(start + batch.length, uniqueInputs.length),
+            total: uniqueInputs.length,
+          });
         }
-      })();
-    }, 150);
 
-    return () => {
-      window.clearTimeout(timeout);
-      controller.abort();
-    };
+        const nextRows = applyAutomaticCultivarMatches({
+          automaticMatches,
+          cultivarReferenceMatches,
+          invalidCultivarReferenceIds,
+          rows,
+          suggestedMatches,
+        });
+
+        if (exactMatchRequestId.current !== requestId) {
+          return;
+        }
+
+        const nextReviewRow =
+          nextRows.find(
+            (row) =>
+              !row.skipped &&
+              row.match === null &&
+              row.matchStatus === "pending",
+          ) ?? null;
+        setMatchedRows(nextRows);
+        setMatchedRowsKey(nextMatchKey);
+        setActiveReviewRowId(nextReviewRow?.id ?? null);
+        setReviewQuery(nextReviewRow?.sourceTitle ?? "");
+        setMatchingProgress(null);
+        if (!previewTracked.current) {
+          previewTracked.current = true;
+          capturePosthogEvent("catalog_import_previewed", {
+            file_type: getCatalogImportFileType(spreadsheet.fileName),
+            sheet_count: spreadsheet.sheets.length,
+            ...getCatalogImportTelemetryCounts(nextRows),
+          });
+        }
+        if (nextReviewRow) {
+          void loadCandidates(nextReviewRow);
+        }
+        await persistDraft({
+          activeReviewRowId: nextReviewRow?.id ?? null,
+          headerRowIndex: nextHeaderRowIndex,
+          mapping: nextMapping,
+          matchedRows: nextRows,
+          matchedRowsKey: nextMatchKey,
+          parsedSpreadsheet: spreadsheet,
+          selectedSheetIndex: nextSheetIndex,
+        });
+      } catch (error) {
+        if (
+          controller.signal.aborted ||
+          exactMatchRequestId.current !== requestId
+        ) {
+          return;
+        }
+
+        setMatchError(getErrorMessage(error));
+        setMatchingProgress(null);
+      }
+    },
+    [loadCandidates, persistDraft],
+  );
+
+  const retryMatching = useCallback(() => {
+    if (!parsedSpreadsheet) {
+      return;
+    }
+
+    void matchSpreadsheet({
+      headerRowIndex,
+      mapping,
+      selectedSheetIndex,
+      spreadsheet: parsedSpreadsheet,
+    });
   }, [
-    currentMatchKey,
-    draftRows,
-    mapping.title,
-    matchedRows,
-    matchedRowsKey,
-    mode,
-    storageReady,
+    headerRowIndex,
+    mapping,
+    matchSpreadsheet,
+    parsedSpreadsheet,
+    selectedSheetIndex,
   ]);
 
   const resetMatches = useCallback(() => {
     exactMatchRequestId.current += 1;
-    candidateRequestId.current += 1;
+    exactMatchAbortController.current?.abort();
+    exactMatchAbortController.current = null;
+    closeCandidateRequestId.current += 1;
     searchCandidateRequestId.current += 1;
     setMatchedRows(null);
     setMatchedRowsKey(null);
@@ -444,8 +672,16 @@ export function useCatalogImporterWorkbench() {
   }, []);
 
   const resetImporter = useCallback(() => {
-    clearCatalogImporterDraft();
-    setMode("public");
+    void persistDraft({
+      activeReviewRowId: null,
+      headerRowIndex: null,
+      mapping: EMPTY_MAPPING,
+      matchedRows: null,
+      matchedRowsKey: null,
+      parsedSpreadsheet: null,
+      selectedSheetIndex: 0,
+    });
+    setRestoredDraft(false);
     setParsedSpreadsheet(null);
     setSelectedSheetIndex(0);
     setHeaderRowIndex(null);
@@ -454,19 +690,9 @@ export function useCatalogImporterWorkbench() {
     setReadingFile(false);
     resetMatches();
     setStorageWarning(null);
-    setLiveAnnouncement("Importer reset.");
-  }, [resetMatches]);
-
-  const handleModeChange = useCallback(
-    (nextMode: string) => {
-      if (nextMode !== "public" && nextMode !== "pro") {
-        return;
-      }
-      setMode(nextMode);
-      resetMatches();
-    },
-    [resetMatches],
-  );
+    setLiveAnnouncement("Cleaner reset.");
+    previewTracked.current = false;
+  }, [persistDraft, resetMatches]);
 
   const configureSheet = useCallback(
     (spreadsheet: ParsedSpreadsheet, sheetIndex: number) => {
@@ -484,11 +710,17 @@ export function useCatalogImporterWorkbench() {
       );
 
       setSelectedSheetIndex(sheetIndex);
+      setRestoredDraft(false);
       setHeaderRowIndex(nextHeaderRowIndex);
       setMapping(nextMapping);
-      resetMatches();
+      void matchSpreadsheet({
+        headerRowIndex: nextHeaderRowIndex,
+        mapping: nextMapping,
+        selectedSheetIndex: sheetIndex,
+        spreadsheet,
+      });
     },
-    [resetMatches],
+    [matchSpreadsheet],
   );
 
   const loadFile = useCallback(
@@ -498,6 +730,16 @@ export function useCatalogImporterWorkbench() {
 
       try {
         const spreadsheet = await parseCatalogImportFile(file);
+        previewTracked.current = false;
+        capturePosthogEvent("catalog_import_started", {
+          file_type: getCatalogImportFileType(spreadsheet.fileName),
+          row_count: spreadsheet.sheets.reduce(
+            (total, sheet) => total + sheet.rows.length,
+            0,
+          ),
+          sheet_count: spreadsheet.sheets.length,
+          source: "upload",
+        });
         setParsedSpreadsheet(spreadsheet);
         configureSheet(spreadsheet, 0);
         setLiveAnnouncement(
@@ -511,6 +753,24 @@ export function useCatalogImporterWorkbench() {
     },
     [configureSheet],
   );
+
+  const loadSampleCatalog = useCallback(() => {
+    const spreadsheet = createCatalogImportSampleSpreadsheet();
+    previewTracked.current = false;
+    capturePosthogEvent("catalog_import_started", {
+      file_type: getCatalogImportFileType(spreadsheet.fileName),
+      row_count: spreadsheet.sheets.reduce(
+        (total, sheet) => total + sheet.rows.length,
+        0,
+      ),
+      sheet_count: spreadsheet.sheets.length,
+      source: "sample",
+    });
+    setFileError(null);
+    setParsedSpreadsheet(spreadsheet);
+    configureSheet(spreadsheet, 0);
+    setLiveAnnouncement("Sample daylily catalog loaded.");
+  }, [configureSheet]);
 
   const rejectFile = useCallback((message: string) => {
     setFileError(message);
@@ -536,70 +796,41 @@ export function useCatalogImporterWorkbench() {
 
       setHeaderRowIndex(nextHeaderRowIndex);
       setMapping(nextMapping);
-      resetMatches();
+      void matchSpreadsheet({
+        headerRowIndex: nextHeaderRowIndex,
+        mapping: nextMapping,
+        selectedSheetIndex,
+        spreadsheet: parsedSpreadsheet!,
+      });
     },
-    [resetMatches, selectedSheet],
+    [matchSpreadsheet, parsedSpreadsheet, selectedSheet, selectedSheetIndex],
   );
 
   const handleMappingChange = useCallback(
     (field: CatalogImporterMappingField, value: number | null) => {
-      setMapping((currentMapping) => ({
-        ...currentMapping,
-        [field]: value,
-      }));
-      resetMatches();
-    },
-    [resetMatches],
-  );
-
-  const loadCandidates = useCallback(
-    async (row: CatalogImportRow, query: string) => {
-      const trimmedQuery = query.trim();
-      if (!trimmedQuery) {
+      if (!parsedSpreadsheet) {
         return;
       }
 
-      const requestId = candidateRequestId.current + 1;
-      candidateRequestId.current = requestId;
-      setCandidateResult({
-        candidates: [],
-        error: null,
-        loading: true,
-        query: trimmedQuery,
-        rowId: row.id,
+      const nextMapping = {
+        ...mapping,
+        [field]: value,
+      };
+      setMapping(nextMapping);
+      void matchSpreadsheet({
+        headerRowIndex,
+        mapping: nextMapping,
+        selectedSheetIndex,
+        spreadsheet: parsedSpreadsheet,
       });
-
-      try {
-        const [result] = await requestCultivarMatches({
-          includeCandidates: true,
-          names: [trimmedQuery],
-        });
-        if (candidateRequestId.current !== requestId) {
-          return;
-        }
-
-        setCandidateResult({
-          candidates: result?.candidates ?? [],
-          error: null,
-          loading: false,
-          query: trimmedQuery,
-          rowId: row.id,
-        });
-      } catch (error) {
-        if (candidateRequestId.current !== requestId) {
-          return;
-        }
-
-        setCandidateResult({
-          candidates: [],
-          error: getErrorMessage(error),
-          loading: false,
-          query: trimmedQuery,
-          rowId: row.id,
-        });
-      }
     },
-    [],
+    [
+      headerRowIndex,
+      mapping,
+      matchSpreadsheet,
+      parsedSpreadsheet,
+      selectedSheetIndex,
+    ],
   );
 
   const searchCandidates = useCallback(
@@ -663,45 +894,15 @@ export function useCatalogImporterWorkbench() {
       searchCandidateRequestId.current += 1;
       setActiveReviewRowId(row.id);
       setReviewQuery(row.sourceTitle);
+      void loadCandidates(row);
       setSearchCandidateResult(null);
       setLiveAnnouncement(
         `Reviewing source row ${row.sourceRow}: ${row.title}.`,
       );
-      void loadCandidates(row, row.title);
+      void persistDraft({ activeReviewRowId: row.id });
     },
-    [loadCandidates],
+    [loadCandidates, persistDraft],
   );
-
-  useEffect(() => {
-    if (reviewRows.length === 0) {
-      if (activeReviewRowId !== null) {
-        setActiveReviewRowId(null);
-        setReviewQuery("");
-        setCandidateResult(null);
-        setSearchCandidateResult(null);
-      }
-      return;
-    }
-
-    const activeRow =
-      reviewRows.find((row) => row.id === activeReviewRowId) ?? reviewRows[0]!;
-
-    if (activeRow.id !== activeReviewRowId) {
-      openReviewRow(activeRow);
-      return;
-    }
-
-    if (candidateResult?.rowId !== activeRow.id) {
-      setReviewQuery(activeRow.sourceTitle);
-      void loadCandidates(activeRow, activeRow.title);
-    }
-  }, [
-    activeReviewRowId,
-    candidateResult?.rowId,
-    loadCandidates,
-    openReviewRow,
-    reviewRows,
-  ]);
 
   const moveReviewRow = useCallback(
     (direction: -1 | 1) => {
@@ -746,8 +947,18 @@ export function useCatalogImporterWorkbench() {
               },
             }
           : update;
-      const nextRows = matchedRows.map((row) =>
-        row.id === rowId ? { ...row, ...normalizedUpdate } : row,
+      const nextRows = assignCatalogImportDuplicateGroups(
+        matchedRows.map((row) =>
+          row.id === rowId
+            ? {
+                ...row,
+                ...normalizedUpdate,
+                duplicateAccepted: normalizedUpdate.match
+                  ? false
+                  : row.duplicateAccepted,
+              }
+            : row,
+        ),
       );
       const previousReviewRows = matchedRows.filter(
         (row) =>
@@ -765,8 +976,6 @@ export function useCatalogImporterWorkbench() {
         nextReviewRows[reviewedIndex % Math.max(nextReviewRows.length, 1)] ??
         null;
 
-      setMatchedRows(nextRows);
-      setCandidateResult(null);
       searchCandidateRequestId.current += 1;
       setSearchCandidateResult(null);
 
@@ -782,16 +991,19 @@ export function useCatalogImporterWorkbench() {
         );
         setActiveReviewRowId(nextReviewRow.id);
         setReviewQuery(nextReviewRow.sourceTitle);
-        void loadCandidates(nextReviewRow, nextReviewRow.title);
+        void loadCandidates(nextReviewRow);
       } else {
+        closeCandidateRequestId.current += 1;
+        setCandidateResult(null);
         setActiveReviewRowId(null);
         setReviewQuery("");
         setLiveAnnouncement(
           `${reviewedRow?.title ?? "Row"} ${action}. Manual review is complete.`,
         );
       }
+      saveMatchedRows(nextRows, nextReviewRow?.id ?? null);
     },
-    [loadCandidates, matchedRows],
+    [loadCandidates, matchedRows, saveMatchedRows],
   );
 
   const skipReviewRow = useCallback(() => {
@@ -808,121 +1020,196 @@ export function useCatalogImporterWorkbench() {
 
   const selectRowMatch = useCallback(
     (rowId: string, match: CultivarMatchCandidate) => {
-      setMatchedRows(
-        (currentRows) =>
-          currentRows?.map((row) =>
-            row.id === rowId
-              ? {
-                  ...row,
-                  match: {
-                    ...match,
-                    confidence: getCultivarMatchConfidence(
-                      row.title,
-                      match.displayName,
-                    ),
-                  },
-                  matchStatus: "selected",
-                  skipped: false,
-                }
-              : row,
-          ) ?? null,
+      if (!matchedRows) {
+        return;
+      }
+
+      const nextRows = assignCatalogImportDuplicateGroups(
+        matchedRows.map((row) =>
+          row.id === rowId
+            ? {
+                ...row,
+                match: {
+                  ...match,
+                  confidence: getCultivarMatchConfidence(
+                    row.title,
+                    match.displayName,
+                  ),
+                },
+                duplicateAccepted: false,
+                matchStatus: "selected",
+                skipped: false,
+              }
+            : row,
+        ),
       );
+      saveMatchedRows(nextRows);
       setLiveAnnouncement(`Match changed to ${match.displayName}.`);
     },
-    [],
+    [matchedRows, saveMatchedRows],
   );
 
   const removeDuplicateRow = useCallback(
     (rowId: string) => {
-      const removedRow = matchedRows?.find((row) => row.id === rowId);
+      if (!matchedRows) {
+        return;
+      }
+      const removedRow = matchedRows.find((row) => row.id === rowId);
       if (!removedRow) {
         return;
       }
 
-      setMatchedRows((currentRows) =>
-        currentRows ? removeRowFromDuplicateGroup(currentRows, rowId) : null,
-      );
+      saveMatchedRows(removeRowFromDuplicateGroup(matchedRows, rowId));
       setLiveAnnouncement(`Source row ${removedRow.sourceRow} removed.`);
     },
-    [matchedRows],
+    [matchedRows, saveMatchedRows],
   );
 
-  const keepDuplicateRows = useCallback((rowIds: string[]) => {
-    const retainedIds = new Set(rowIds);
-    if (retainedIds.size === 0) {
-      return;
-    }
+  const keepDuplicateRows = useCallback(
+    (rowIds: string[]) => {
+      const retainedIds = new Set(rowIds);
+      if (retainedIds.size === 0 || !matchedRows) {
+        return;
+      }
 
-    setMatchedRows(
-      (currentRows) =>
-        currentRows?.map((row) =>
-          retainedIds.has(row.id) && row.duplicateOfSourceRow !== null
-            ? { ...row, duplicateOfSourceRow: null }
-            : row,
-        ) ?? null,
-    );
-    setLiveAnnouncement(
-      `${retainedIds.size.toLocaleString()} duplicate listings kept.`,
-    );
-  }, []);
+      const nextRows = matchedRows.map((row) =>
+        retainedIds.has(row.id)
+          ? {
+              ...row,
+              duplicateAccepted: true,
+              duplicateOfSourceRow: null,
+            }
+          : row,
+      );
+      saveMatchedRows(nextRows);
+      setLiveAnnouncement(
+        `${retainedIds.size.toLocaleString()} duplicate listings kept.`,
+      );
+    },
+    [matchedRows, saveMatchedRows],
+  );
 
   const resolvePriceIssue = useCallback(
     (rowId: string, price: number | null) => {
-      const resolvedRow = matchedRows?.find((row) => row.id === rowId);
+      if (!matchedRows) {
+        return;
+      }
+      const resolvedRow = matchedRows.find((row) => row.id === rowId);
       if (!resolvedRow) {
         return;
       }
 
-      setMatchedRows(
-        (currentRows) =>
-          currentRows?.map((row) =>
-            row.id === rowId ? { ...row, price, priceWarning: null } : row,
-          ) ?? null,
+      saveMatchedRows(
+        matchedRows.map((row) =>
+          row.id === rowId ? { ...row, price, priceWarning: null } : row,
+        ),
       );
       setLiveAnnouncement(
         `Price issue resolved for source row ${resolvedRow.sourceRow}.`,
       );
     },
-    [matchedRows],
+    [matchedRows, saveMatchedRows],
   );
 
   const resolveImageUrlIssue = useCallback(
     (rowId: string, imageUrl: string) => {
-      const resolvedRow = matchedRows?.find((row) => row.id === rowId);
+      if (!matchedRows) {
+        return;
+      }
+      const resolvedRow = matchedRows.find((row) => row.id === rowId);
       if (!resolvedRow) {
         return;
       }
 
-      setMatchedRows(
-        (currentRows) =>
-          currentRows?.map((row) =>
-            row.id === rowId
-              ? { ...row, imageUrl, imageUrlWarning: null }
-              : row,
-          ) ?? null,
+      saveMatchedRows(
+        matchedRows.map((row) =>
+          row.id === rowId ? { ...row, imageUrl, imageUrlWarning: null } : row,
+        ),
       );
       setLiveAnnouncement(
         `Image URL issue resolved for source row ${resolvedRow.sourceRow}.`,
       );
     },
-    [matchedRows],
+    [matchedRows, saveMatchedRows],
   );
 
-  const downloadResults = useCallback(() => {
+  const clearCultivarReferenceIdIssue = useCallback(
+    (rowId: string) => {
+      if (!matchedRows) {
+        return;
+      }
+      const resolvedRow = matchedRows.find((row) => row.id === rowId);
+      if (!resolvedRow) {
+        return;
+      }
+
+      const nextRows = assignCatalogImportDuplicateGroups(
+        matchedRows.map((row) =>
+          row.id === rowId
+            ? {
+                ...row,
+                cultivarReferenceIdWarning: null,
+                duplicateAccepted: false,
+                match: null,
+                matchStatus: "pending",
+                sourceCultivarReferenceId: "",
+              }
+            : row,
+        ),
+      );
+      const nextReviewRow = nextRows.find((row) => row.id === rowId);
+      setActiveReviewRowId(rowId);
+      setReviewQuery(resolvedRow.sourceTitle);
+      if (nextReviewRow) {
+        void loadCandidates(nextReviewRow);
+      }
+      saveMatchedRows(nextRows, rowId);
+      setLiveAnnouncement(
+        `Saved cultivar ID cleared for source row ${resolvedRow.sourceRow}. Match it by name.`,
+      );
+    },
+    [loadCandidates, matchedRows, saveMatchedRows],
+  );
+
+  const downloadResults = useCallback(async () => {
     if (!parsedSpreadsheet || !matchedRows) {
       return;
     }
 
-    downloadTextFile({
-      contents: createCatalogImportCsv(matchedRows),
-      fileName: getDownloadFileName(parsedSpreadsheet.fileName),
-    });
-  }, [matchedRows, parsedSpreadsheet]);
+    setDownloadingResults(true);
+    try {
+      const fileName = getDownloadFileName(parsedSpreadsheet.fileName);
+      const spreadsheet = createCatalogEnrichedSpreadsheet({
+        headerRowIndex,
+        mapping,
+        matchedRows,
+        parsedSpreadsheet,
+        selectedSheetIndex,
+      });
+      await downloadCatalogImportFile({ fileName, spreadsheet });
+      capturePosthogEvent("catalog_import_downloaded", {
+        file_type: getCatalogImportFileType(parsedSpreadsheet.fileName),
+        sheet_count: parsedSpreadsheet.sheets.length,
+        ...getCatalogImportTelemetryCounts(matchedRows),
+      });
+      setLiveAnnouncement(`${fileName} downloaded.`);
+    } catch (error) {
+      setMatchError(getErrorMessage(error));
+    } finally {
+      setDownloadingResults(false);
+    }
+  }, [
+    headerRowIndex,
+    mapping,
+    matchedRows,
+    parsedSpreadsheet,
+    selectedSheetIndex,
+  ]);
 
   const downloadTemplate = useCallback(() => {
     downloadTextFile({
       contents: createCatalogImportTemplateCsv(),
-      fileName: "daylily-catalog-import-template.csv",
+      fileName: "daylily-clean-list-template.csv",
     });
   }, []);
 
@@ -930,32 +1217,34 @@ export function useCatalogImporterWorkbench() {
     activeReviewRow,
     activeReviewSourceCells,
     candidateResult,
+    clearCultivarReferenceIdIssue,
     configureSheet,
-    currentStep,
     downloadResults,
+    downloadingResults,
     downloadTemplate,
-    draftRows,
-    duplicateCount,
     fileError,
     finishReviewRow,
     getSourceCellsForRow,
     handleHeaderChange,
     handleMappingChange,
-    handleModeChange,
     headerRowIndex,
+    issueCount,
     liveAnnouncement,
-    loadCandidates,
     loadFile,
+    loadSampleCatalog,
     mapping,
+    matchedCount,
     matchedRows,
+    matchedRowsKey,
     matchError,
     matchingProgress,
-    mode,
     moveReviewRow,
     openReviewRow,
     parsedSpreadsheet,
     readingFile,
     rejectFile,
+    restoredDraft,
+    retryMatching,
     keepDuplicateRows,
     removeDuplicateRow,
     resetImporter,
@@ -973,12 +1262,11 @@ export function useCatalogImporterWorkbench() {
     selectedSheetIndex,
     setReviewQuery,
     skipReviewRow,
-    skippedCount,
     sourceColumns,
-    sourcePreviewColumnCount,
+    sourcePreviewColumnIndexes,
     sourcePreviewRows,
     storageWarning,
-    warningCount,
+    unmatchedCount,
   };
 }
 

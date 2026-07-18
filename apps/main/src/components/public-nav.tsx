@@ -98,7 +98,7 @@ export function PublicHeader() {
                       isCatalogImporterActive && activeNavClassName,
                     )}
                   >
-                    Clean a list
+                    Import a catalog
                   </Link>
                 </li>
               </>
@@ -159,7 +159,7 @@ export function PublicHeader() {
                   isCatalogImporterActive && activeNavClassName,
                 )}
               >
-                Clean a list
+                Import a catalog
               </Link>
             </>
           ) : null}

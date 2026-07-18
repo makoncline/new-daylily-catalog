@@ -252,9 +252,9 @@ export const ATLAS_FLOWS = [
   {
     id: "catalog-importer",
     audience: "public",
-    title: "Clean and match a catalog spreadsheet",
+    title: "Prepare a daylily catalog spreadsheet",
     description:
-      "Upload a spreadsheet, map listing fields, inspect matched rows, and resolve an uncertain cultivar at desktop and mobile sizes.",
+      "Start from a spreadsheet, link registered cultivars, resolve catalog issues, preview the catalog, and download the prepared workbook.",
     tests: {
       unit: [],
       integration: [
@@ -266,35 +266,35 @@ export const ATLAS_FLOWS = [
     },
     steps: [
       {
-        title: "Choose a spreadsheet",
+        title: "Start from a spreadsheet",
         states: [
           importerState(
             "catalog-importer-desktop-upload",
-            "Desktop importer upload",
-            "The public spreadsheet dropzone and workflow stages on desktop.",
+            "Desktop catalog upload",
+            "The spreadsheet starting point for catalog preparation on desktop.",
             "/catalog-importer",
           ),
           importerState(
             "catalog-importer-mobile-upload",
-            "Mobile importer upload",
+            "Mobile catalog upload",
             "The same upload state at phone width.",
             "/catalog-importer",
           ),
         ],
       },
       {
-        title: "Map and inspect rows",
+        title: "Inspect catalog matches",
         states: [
           importerState(
             "catalog-importer-desktop-results",
-            "Desktop importer results",
-            "A mapped workbook and dashboard-style matched-results table.",
+            "Desktop catalog matches",
+            "A mapped workbook, workflow overview, matched rows, and prepared-file download.",
             "/catalog-importer",
             false,
           ),
           importerState(
             "catalog-importer-mobile-results",
-            "Mobile importer results",
+            "Mobile catalog matches",
             "Mapped fields and matched rows within the phone-width workspace.",
             "/catalog-importer",
             false,
@@ -302,19 +302,38 @@ export const ATLAS_FLOWS = [
         ],
       },
       {
-        title: "Resolve an uncertain match",
+        title: "Resolve uncertain matches",
         states: [
           importerState(
             "catalog-importer-desktop-review",
-            "Desktop importer review",
-            "The Pro review sheet with a suggested registered cultivar.",
+            "Desktop catalog review",
+            "The review workspace with a suggested registered cultivar.",
             "/catalog-importer",
             false,
           ),
           importerState(
             "catalog-importer-mobile-review",
-            "Mobile importer review",
-            "The full-width mobile review sheet and stacked candidate card.",
+            "Mobile catalog review",
+            "The phone-width review workspace and compact candidate choice.",
+            "/catalog-importer",
+            false,
+          ),
+        ],
+      },
+      {
+        title: "Preview the catalog",
+        states: [
+          importerState(
+            "catalog-importer-desktop-preview",
+            "Desktop catalog preview",
+            "The searchable catalog preview and collection analysis on desktop.",
+            "/catalog-importer",
+            false,
+          ),
+          importerState(
+            "catalog-importer-mobile-preview",
+            "Mobile catalog preview",
+            "The searchable catalog preview and prepared-workbook download at phone width.",
             "/catalog-importer",
             false,
           ),
