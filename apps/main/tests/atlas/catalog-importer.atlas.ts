@@ -94,7 +94,7 @@ async function uploadSpreadsheet(page: Page) {
     mimeType: "text/csv",
     buffer: Buffer.from(sampleCsv()),
   });
-  await page.getByRole("button", { name: "Preview catalog" }).click();
+  await page.getByRole("button", { name: "Build catalog preview" }).click();
   await expect(
     page.getByRole("heading", { name: "Your catalog is taking shape" }),
   ).toBeVisible();

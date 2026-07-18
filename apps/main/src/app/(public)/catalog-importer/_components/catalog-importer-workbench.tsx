@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useState } from "react";
 import { CircleAlert, Info } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -16,44 +16,17 @@ export function CatalogImporterWorkbench({
   initialDraft?: CatalogImporterDraft | null;
 }) {
   const controller = useCatalogImporterWorkbench(initialDraft);
-  const [collapsedMappingKey, setCollapsedMappingKey] = useState<string | null>(
-    null,
-  );
   const [mappingOpened, setMappingOpened] = useState(false);
-  const editingMapping =
-    controller.matchedRows === null ||
-    mappingOpened ||
-    (!controller.restoredDraft &&
-      collapsedMappingKey !== controller.matchedRowsKey);
-  const retryMatching = controller.retryMatching;
-  const resumedIncompleteDraft = useRef(false);
-  const resumeIncompleteDraft = useCallback(
-    (node: HTMLDivElement | null) => {
-      if (
-        !node ||
-        resumedIncompleteDraft.current ||
-        !initialDraft?.parsedSpreadsheet ||
-        initialDraft.matchedRows !== null ||
-        initialDraft.mapping.title === null
-      ) {
-        return;
-      }
-
-      resumedIncompleteDraft.current = true;
-      retryMatching();
-    },
-    [initialDraft, retryMatching],
-  );
+  const editingMapping = controller.matchedRows === null || mappingOpened;
 
   return (
-    <div ref={resumeIncompleteDraft}>
+    <div>
       <div className="space-y-4">
         <CatalogImporterUpload
           controller={controller}
           onEditMapping={
             controller.matchedRows
               ? () => {
-                  setCollapsedMappingKey(null);
                   setMappingOpened(true);
                 }
               : undefined
@@ -79,14 +52,10 @@ export function CatalogImporterWorkbench({
         {controller.selectedSheet && editingMapping ? (
           <CatalogImporterMapping
             controller={controller}
-            onDone={
-              controller.matchedRows
-                ? () => {
-                    setCollapsedMappingKey(controller.matchedRowsKey);
-                    setMappingOpened(false);
-                  }
-                : undefined
-            }
+            onSubmit={() => {
+              setMappingOpened(false);
+              controller.buildCatalogPreview();
+            }}
           />
         ) : null}
 
@@ -111,7 +80,7 @@ export function CatalogImporterWorkbench({
                 type="button"
                 size="sm"
                 variant="outline"
-                onClick={retryMatching}
+                onClick={controller.buildCatalogPreview}
               >
                 Try again
               </Button>

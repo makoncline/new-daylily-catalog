@@ -221,7 +221,6 @@ export function useCatalogImporterWorkbench(
     );
   const [searchCandidateResult, setSearchCandidateResult] =
     useState<CatalogImporterCandidateResult | null>(null);
-  const [restoredDraft, setRestoredDraft] = useState(initialDraft !== null);
   const [storageWarning, setStorageWarning] = useState<string | null>(null);
   const [liveAnnouncement, setLiveAnnouncement] = useState("");
   const exactMatchRequestId = useRef(0);
@@ -637,7 +636,7 @@ export function useCatalogImporterWorkbench(
     [loadCandidates, persistDraft],
   );
 
-  const retryMatching = useCallback(() => {
+  const buildCatalogPreview = useCallback(() => {
     if (!parsedSpreadsheet) {
       return;
     }
@@ -682,7 +681,6 @@ export function useCatalogImporterWorkbench(
       parsedSpreadsheet: null,
       selectedSheetIndex: 0,
     });
-    setRestoredDraft(false);
     setParsedSpreadsheet(null);
     setSelectedSheetIndex(0);
     setHeaderRowIndex(null);
@@ -712,17 +710,20 @@ export function useCatalogImporterWorkbench(
       );
 
       setSelectedSheetIndex(sheetIndex);
-      setRestoredDraft(false);
       setHeaderRowIndex(nextHeaderRowIndex);
       setMapping(nextMapping);
-      void matchSpreadsheet({
+      resetMatches();
+      void persistDraft({
+        activeReviewRowId: null,
         headerRowIndex: nextHeaderRowIndex,
         mapping: nextMapping,
+        matchedRows: null,
+        matchedRowsKey: null,
+        parsedSpreadsheet: spreadsheet,
         selectedSheetIndex: sheetIndex,
-        spreadsheet,
       });
     },
-    [matchSpreadsheet],
+    [persistDraft, resetMatches],
   );
 
   const loadFile = useCallback(
@@ -798,14 +799,24 @@ export function useCatalogImporterWorkbench(
 
       setHeaderRowIndex(nextHeaderRowIndex);
       setMapping(nextMapping);
-      void matchSpreadsheet({
+      resetMatches();
+      void persistDraft({
+        activeReviewRowId: null,
         headerRowIndex: nextHeaderRowIndex,
         mapping: nextMapping,
+        matchedRows: null,
+        matchedRowsKey: null,
+        parsedSpreadsheet,
         selectedSheetIndex,
-        spreadsheet: parsedSpreadsheet!,
       });
     },
-    [matchSpreadsheet, parsedSpreadsheet, selectedSheet, selectedSheetIndex],
+    [
+      parsedSpreadsheet,
+      persistDraft,
+      resetMatches,
+      selectedSheet,
+      selectedSheetIndex,
+    ],
   );
 
   const handleMappingChange = useCallback(
@@ -819,18 +830,23 @@ export function useCatalogImporterWorkbench(
         [field]: value,
       };
       setMapping(nextMapping);
-      void matchSpreadsheet({
+      resetMatches();
+      void persistDraft({
+        activeReviewRowId: null,
         headerRowIndex,
         mapping: nextMapping,
+        matchedRows: null,
+        matchedRowsKey: null,
+        parsedSpreadsheet,
         selectedSheetIndex,
-        spreadsheet: parsedSpreadsheet,
       });
     },
     [
       headerRowIndex,
       mapping,
-      matchSpreadsheet,
       parsedSpreadsheet,
+      persistDraft,
+      resetMatches,
       selectedSheetIndex,
     ],
   );
@@ -1219,6 +1235,7 @@ export function useCatalogImporterWorkbench(
   return {
     activeReviewRow,
     activeReviewSourceCells,
+    buildCatalogPreview,
     candidateResult,
     clearCultivarReferenceIdIssue,
     configureSheet,
@@ -1247,8 +1264,6 @@ export function useCatalogImporterWorkbench(
     parsedSpreadsheet,
     readingFile,
     rejectFile,
-    restoredDraft,
-    retryMatching,
     keepDuplicateRows,
     removeDuplicateRow,
     resetImporter,

@@ -69,6 +69,9 @@ describe("CatalogImporterWorkbench", () => {
     render(<CatalogImporterWorkbench />);
 
     fireEvent.click(screen.getByRole("button", { name: "Use sample catalog" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Build catalog preview" }),
+    );
 
     await waitFor(() => {
       expect(capturePosthogEventMock).toHaveBeenCalledWith(
@@ -105,6 +108,15 @@ describe("CatalogImporterWorkbench", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Use sample catalog" }));
 
+    expect(requestCultivarMatchesMock).not.toHaveBeenCalled();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Build catalog preview" }),
+    );
+    expect(
+      await screen.findByRole("status", {
+        name: "Building catalog preview",
+      }),
+    ).toBeVisible();
     await waitFor(() =>
       expect(requestCultivarMatchesMock).toHaveBeenCalledOnce(),
     );
@@ -123,7 +135,7 @@ describe("CatalogImporterWorkbench", () => {
     });
   });
 
-  it("resumes an incomplete draft and retries a failed match", async () => {
+  it("restores an incomplete draft and retries a failed match", async () => {
     const spreadsheet = createCatalogImportSampleSpreadsheet();
     const initialDraft: CatalogImporterDraft = {
       activeReviewRowId: null,
@@ -148,6 +160,10 @@ describe("CatalogImporterWorkbench", () => {
 
     render(<CatalogImporterWorkbench initialDraft={initialDraft} />);
 
+    expect(requestCultivarMatchesMock).not.toHaveBeenCalled();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Build catalog preview" }),
+    );
     expect(
       await screen.findByRole("heading", {
         name: "Cultivar matching did not finish",
@@ -175,7 +191,7 @@ describe("CatalogImporterWorkbench", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Use sample catalog" }));
     fireEvent.click(
-      await screen.findByRole("button", { name: "Preview catalog" }),
+      await screen.findByRole("button", { name: "Build catalog preview" }),
     );
     const downloadButton = await screen.findByRole("button", {
       name: "Download prepared spreadsheet",

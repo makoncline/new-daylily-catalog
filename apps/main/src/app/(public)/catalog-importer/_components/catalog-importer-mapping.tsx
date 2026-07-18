@@ -50,7 +50,7 @@ import type { CatalogImporterWorkbenchController } from "@/app/(public)/catalog-
 
 interface CatalogImporterMappingProps {
   controller: CatalogImporterWorkbenchController;
-  onDone?: () => void;
+  onSubmit: () => void;
 }
 
 function MappingHelp({
@@ -110,6 +110,7 @@ function MappingField({
       </div>
       <FieldContent>
         <Select
+          disabled={controller.matchingProgress !== null}
           value={value === null ? "none" : String(value)}
           onValueChange={(nextValue) =>
             controller.handleMappingChange(
@@ -143,7 +144,9 @@ function MappingField({
 function SpreadsheetPreview({
   controller,
   defaultOpen = true,
-}: CatalogImporterMappingProps & { defaultOpen?: boolean }) {
+}: Pick<CatalogImporterMappingProps, "controller"> & {
+  defaultOpen?: boolean;
+}) {
   const [open, setOpen] = useState(defaultOpen);
 
   return (
@@ -251,7 +254,7 @@ function SpreadsheetPreview({
 
 export function CatalogImporterMapping({
   controller,
-  onDone,
+  onSubmit,
 }: CatalogImporterMappingProps) {
   if (!controller.selectedSheet) {
     return null;
@@ -270,7 +273,10 @@ export function CatalogImporterMapping({
     >
       <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(22rem,0.65fr)]">
         <div className="order-2 min-w-0 lg:order-1">
-          <SpreadsheetPreview controller={controller} defaultOpen={!onDone} />
+          <SpreadsheetPreview
+            controller={controller}
+            defaultOpen={controller.matchedRows === null}
+          />
         </div>
 
         <Card className="order-1 shadow-sm lg:order-2">
@@ -288,16 +294,6 @@ export function CatalogImporterMapping({
                 cultivar name is required.
               </CardDescription>
             </div>
-            {onDone ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={onDone}
-              >
-                Preview catalog
-              </Button>
-            ) : null}
           </CardHeader>
           <CardContent className="space-y-5">
             <TooltipProvider delayDuration={200}>
@@ -314,6 +310,7 @@ export function CatalogImporterMapping({
                   </div>
                   <FieldContent>
                     <Select
+                      disabled={controller.matchingProgress !== null}
                       value={
                         controller.headerRowIndex === null
                           ? "none"
@@ -356,11 +353,15 @@ export function CatalogImporterMapping({
             </TooltipProvider>
 
             {controller.matchingProgress ? (
-              <div className="space-y-2">
+              <div
+                className="space-y-2 rounded-lg border p-4"
+                role="status"
+                aria-label="Building catalog preview"
+              >
                 <div className="text-muted-foreground flex items-center justify-between gap-4 text-xs">
                   <span className="flex items-center gap-2">
                     <Spinner />
-                    Checking cultivar names
+                    Thinking through your catalog…
                   </span>
                   <span className="tabular-nums">
                     {controller.matchingProgress.processed.toLocaleString()} /{" "}
@@ -373,6 +374,20 @@ export function CatalogImporterMapping({
                 />
               </div>
             ) : null}
+
+            <Button
+              type="button"
+              className="w-full"
+              disabled={
+                controller.mapping.title === null ||
+                controller.matchingProgress !== null
+              }
+              onClick={onSubmit}
+            >
+              {controller.matchingProgress
+                ? "Building catalog preview…"
+                : "Build catalog preview"}
+            </Button>
           </CardContent>
         </Card>
       </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -401,30 +401,10 @@ export function CatalogImporterIssues({
     () => getIssues(controller.resultRows),
     [controller.resultRows],
   );
-  const [activeIssueId, setActiveIssueId] = useState<string | null>(null);
-  const activeIssue =
-    issues.find((issue) => issue.id === activeIssueId) ?? issues[0] ?? null;
-  const activeIndex = activeIssue
-    ? issues.findIndex((issue) => issue.id === activeIssue.id)
-    : -1;
 
-  const moveIssue = (direction: -1 | 1) => {
-    if (issues.length < 2) {
-      return;
-    }
-    const nextIndex =
-      (Math.max(activeIndex, 0) + direction + issues.length) % issues.length;
-    setActiveIssueId(issues[nextIndex]?.id ?? null);
-  };
-
-  if (!activeIssue) {
+  if (issues.length === 0) {
     return null;
   }
-
-  const activeRow = activeIssue.type !== "duplicate" ? activeIssue.row : null;
-  const activeSourceCells = activeRow
-    ? controller.getSourceCellsForRow(activeRow)
-    : [];
 
   return (
     <Card
@@ -433,7 +413,7 @@ export function CatalogImporterIssues({
       aria-labelledby="catalog-importer-issues-heading"
       className="min-w-0 overflow-hidden shadow-sm"
     >
-      <CardHeader className="gap-4 border-b sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+      <CardHeader className="border-b">
         <div className="space-y-1">
           <CardTitle
             id="catalog-importer-issues-heading"
@@ -444,61 +424,44 @@ export function CatalogImporterIssues({
           </CardTitle>
           <CardDescription className="tabular-nums" aria-live="polite">
             {issues.length.toLocaleString()} issue
-            {issues.length === 1 ? "" : "s"} remaining ·{" "}
-            {(activeIndex + 1).toLocaleString()} of{" "}
-            {issues.length.toLocaleString()}
+            {issues.length === 1 ? "" : "s"} remaining
           </CardDescription>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            aria-label="Previous issue"
-            disabled={issues.length < 2}
-            onClick={() => moveIssue(-1)}
-          >
-            <ChevronLeft className="size-4" />
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            aria-label="Next issue"
-            disabled={issues.length < 2}
-            onClick={() => moveIssue(1)}
-          >
-            <ChevronRight className="size-4" />
-          </Button>
         </div>
       </CardHeader>
 
-      <CardContent className="p-4 lg:p-6">
-        {activeIssue.type === "duplicate" ? (
-          <DuplicateIssue controller={controller} rows={activeIssue.rows} />
-        ) : activeIssue.type === "price" ? (
-          <PriceIssue
-            key={activeIssue.id}
-            controller={controller}
-            row={activeIssue.row}
-            sourceCells={activeSourceCells}
-          />
-        ) : activeIssue.type === "cultivar-reference-id" ? (
-          <CultivarReferenceIssue
-            key={activeIssue.id}
-            controller={controller}
-            row={activeIssue.row}
-            sourceCells={activeSourceCells}
-          />
-        ) : activeIssue.type === "image-url" ? (
-          <ImageUrlIssue
-            key={activeIssue.id}
-            controller={controller}
-            row={activeIssue.row}
-            sourceCells={activeSourceCells}
-          />
-        ) : null}
+      <CardContent className="divide-y p-0">
+        {issues.map((issue) => {
+          const sourceCells =
+            issue.type === "duplicate"
+              ? []
+              : controller.getSourceCellsForRow(issue.row);
+
+          return (
+            <div key={issue.id} className="min-w-0 p-4 lg:p-6">
+              {issue.type === "duplicate" ? (
+                <DuplicateIssue controller={controller} rows={issue.rows} />
+              ) : issue.type === "price" ? (
+                <PriceIssue
+                  controller={controller}
+                  row={issue.row}
+                  sourceCells={sourceCells}
+                />
+              ) : issue.type === "cultivar-reference-id" ? (
+                <CultivarReferenceIssue
+                  controller={controller}
+                  row={issue.row}
+                  sourceCells={sourceCells}
+                />
+              ) : issue.type === "image-url" ? (
+                <ImageUrlIssue
+                  controller={controller}
+                  row={issue.row}
+                  sourceCells={sourceCells}
+                />
+              ) : null}
+            </div>
+          );
+        })}
       </CardContent>
     </Card>
   );

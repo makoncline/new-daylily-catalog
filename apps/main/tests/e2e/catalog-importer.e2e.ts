@@ -159,9 +159,7 @@ async function uploadSample(page: Page, rowCount = 25) {
 }
 
 test.describe("catalog importer", () => {
-  test("prepares, restores, and downloads a spreadsheet", async ({
-    page,
-  }) => {
+  test("prepares, restores, and downloads a spreadsheet", async ({ page }) => {
     test.slow();
     await mockCultivarMatches(page);
     await page.goto("/catalog-importer");
@@ -211,7 +209,7 @@ test.describe("catalog importer", () => {
     await expect(
       page.getByRole("region", { name: "Your catalog is taking shape" }),
     ).toHaveCount(0);
-    await page.getByRole("button", { name: "Preview catalog" }).click();
+    await page.getByRole("button", { name: "Build catalog preview" }).click();
 
     await expect(
       page.getByRole("heading", { name: "Matches", exact: true }),
@@ -230,15 +228,13 @@ test.describe("catalog importer", () => {
     );
 
     const issuesRegion = page.getByRole("region", { name: "Issues" });
-    await expect(issuesRegion).toContainText("3 issues remaining · 1 of 3");
+    await expect(issuesRegion).toContainText("3 issues remaining");
     await expect(
       issuesRegion.getByRole("heading", { name: "Correct the price" }),
     ).toBeVisible();
-    await issuesRegion.getByRole("button", { name: "Next issue" }).click();
     await expect(
       issuesRegion.getByRole("heading", { name: "Correct the image URL" }),
     ).toBeVisible();
-    await issuesRegion.getByRole("button", { name: "Next issue" }).click();
     await expect(
       issuesRegion.getByRole("heading", {
         name: "Multiple listings for Daylily 10",
@@ -255,12 +251,12 @@ test.describe("catalog importer", () => {
       duplicateRows.getByRole("button", { name: "Remove row 12" }),
     ).toBeVisible();
     await issuesRegion.getByRole("button", { name: "Keep all" }).click();
-    await expect(issuesRegion).toContainText("2 issues remaining · 1 of 2");
+    await expect(issuesRegion).toContainText("2 issues remaining");
 
     const correctedPrice = issuesRegion.getByLabel("Correct the price");
     await correctedPrice.fill("12.50");
     await issuesRegion.getByRole("button", { name: "Save price" }).click();
-    await expect(issuesRegion).toContainText("1 issue remaining · 1 of 1");
+    await expect(issuesRegion).toContainText("1 issue remaining");
 
     const correctedImageUrl = issuesRegion.getByLabel("Correct the image URL");
     await correctedImageUrl.fill("https://example.com/daylily.jpg");
@@ -370,7 +366,7 @@ test.describe("catalog importer", () => {
     await page.goto("/catalog-importer");
 
     await page.getByRole("button", { name: "Use sample catalog" }).click();
-    await page.getByRole("button", { name: "Preview catalog" }).click();
+    await page.getByRole("button", { name: "Build catalog preview" }).click();
 
     await expect(
       page.getByText("Sample daylily catalog.csv", { exact: true }),
@@ -390,7 +386,7 @@ test.describe("catalog importer", () => {
     await mockCultivarMatches(page);
     await page.goto("/catalog-importer");
     await uploadSample(page, 13);
-    await page.getByRole("button", { name: "Preview catalog" }).click();
+    await page.getByRole("button", { name: "Build catalog preview" }).click();
 
     await expect(
       page.getByRole("heading", { name: "Your catalog is taking shape" }),
