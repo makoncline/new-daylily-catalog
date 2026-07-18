@@ -73,7 +73,7 @@ export function Editor({
         },
         placeholder: "Type something...",
         inlineToolbar: true,
-        readOnly: readOnly,
+        readOnly: false,
         data: initialContentRef.current,
         tools: {
           header: {
@@ -91,6 +91,18 @@ export function Editor({
       });
 
       editorRef.current = editor;
+
+      if (readOnly) {
+        void editor.isReady
+          .then(() => {
+            if (isCancelled || editorRef.current !== editor) {
+              return;
+            }
+
+            return editor.readOnly.toggle(true);
+          })
+          .catch(() => undefined);
+      }
     })();
 
     return () => {
