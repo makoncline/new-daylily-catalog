@@ -45,6 +45,27 @@ function customTextCell(label: string): TagRow["cells"][number] {
   };
 }
 
+function legacyDefaultCell(
+  fieldId: TagRow["cells"][number]["fieldId"],
+  textAlign: TagRow["cells"][number]["textAlign"],
+  overrides: Partial<TagRow["cells"][number]> = {},
+): TagRow["cells"][number] {
+  return {
+    fieldId,
+    width: 1,
+    textAlign,
+    fontSize: 16,
+    overflow: false,
+    fit: true,
+    wrap: false,
+    bold: false,
+    italic: false,
+    underline: false,
+    label: "",
+    ...overrides,
+  };
+}
+
 describe("tag designer model", () => {
   it("keeps resolved cell ids unique for repeated free-text cells", () => {
     const rows = buildResolvedRowsForListing(listing, [
@@ -94,6 +115,47 @@ describe("tag designer model", () => {
       expect.objectContaining({ fit: true, overflow: false, wrap: false }),
       expect.objectContaining({ fit: true, overflow: false, wrap: false }),
     ]);
+  });
+
+  it("migrates the previous default rows to Garden ID without resetting controls", () => {
+    const migrated = sanitizeTagDesignerState({
+      sizePresetId: "card-2x3.5",
+      customWidthInches: 4.25,
+      customHeightInches: 1.5,
+      showQrCode: false,
+      rows: [
+        {
+          id: "d0",
+          cells: [
+            legacyDefaultCell("title", "center", {
+              fontSize: 22,
+              bold: true,
+            }),
+          ],
+        },
+        {
+          id: "d1",
+          cells: [
+            legacyDefaultCell("hybridizer", "center"),
+            legacyDefaultCell("year", "left"),
+            legacyDefaultCell("ploidy", "center"),
+          ],
+        },
+      ],
+    });
+    const gardenId = BUILTIN_TAG_LAYOUT_TEMPLATES.find(
+      (template) => template.name === "Garden ID",
+    )!;
+
+    expect(createLayoutSignature(migrated)).toBe(
+      createLayoutSignature(gardenId.layout),
+    );
+    expect(migrated).toMatchObject({
+      sizePresetId: "card-2x3.5",
+      customWidthInches: 4.25,
+      customHeightInches: 1.5,
+      showQrCode: false,
+    });
   });
 
   it("parses line sizes and space-between columns without wrapping", () => {

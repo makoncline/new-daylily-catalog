@@ -355,6 +355,23 @@ const SALE_TAG_TEMPLATE =
 const GROWER_DETAILS_TEMPLATE =
   "# {{title}}\n## {{hybridizerYear}}\n{{ploidy}} | {{foliageType}}\nBloom {{bloomSize}} | Scape {{scapeHeight}}\n- Season {{bloomSeason}} | Habit {{bloomHabit}}";
 
+const LEGACY_DEFAULT_ROWS: TagRow[] = [
+  {
+    id: "legacy-default-title",
+    cells: [createTemplateCell("title")],
+  },
+  {
+    id: "legacy-default-details",
+    cells: [
+      createTemplateCell("hybridizer", { textAlign: "center" }),
+      createTemplateCell("year"),
+      createTemplateCell("ploidy", { textAlign: "center" }),
+    ],
+  },
+];
+const LEGACY_DEFAULT_ROWS_SIGNATURE =
+  createRowsLayoutSignature(LEGACY_DEFAULT_ROWS);
+
 function createBuiltinTemplateRows(idPrefix: string, template: string) {
   return createRowsFromTagTextTemplate(template).map((row, index) => ({
     ...row,
@@ -887,6 +904,10 @@ export function sanitizeTagDesignerState(
   const rows = (state.rows as Partial<TagRow>[])
     .map((r) => sanitizeRow(r))
     .filter((r): r is TagRow => r !== null);
+  const migratedRows =
+    createRowsLayoutSignature(rows) === LEGACY_DEFAULT_ROWS_SIGNATURE
+      ? DEFAULT_TAG_DESIGNER_STATE.rows
+      : rows;
 
   return {
     sizePresetId: presetExists
@@ -908,7 +929,8 @@ export function sanitizeTagDesignerState(
       typeof state.showQrCode === "boolean"
         ? state.showQrCode
         : DEFAULT_TAG_DESIGNER_STATE.showQrCode,
-    rows: rows.length > 0 ? rows : DEFAULT_TAG_DESIGNER_STATE.rows,
+    rows:
+      migratedRows.length > 0 ? migratedRows : DEFAULT_TAG_DESIGNER_STATE.rows,
   };
 }
 
@@ -1056,10 +1078,9 @@ export function resolveSheetMetrics(
   };
 }
 
-export function createLayoutSignature(layout: TagDesignerState) {
-  const normalized = sanitizeTagDesignerState(layout);
-  return JSON.stringify({
-    rows: normalized.rows.map((row) => ({
+function createRowsLayoutSignature(rows: TagRow[]) {
+  return JSON.stringify(
+    rows.map((row) => ({
       isSpacer: Boolean(row.isSpacer),
       cells: row.cells.map((cell) => ({
         fieldId: cell.fieldId,
@@ -1075,7 +1096,11 @@ export function createLayoutSignature(layout: TagDesignerState) {
         label: cell.label,
       })),
     })),
-  });
+  );
+}
+
+export function createLayoutSignature(layout: TagDesignerState) {
+  return createRowsLayoutSignature(sanitizeTagDesignerState(layout).rows);
 }
 
 export function sanitizeStoredTemplate(
