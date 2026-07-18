@@ -7,6 +7,7 @@ import {
   diagnosticLineFromPlaywrightConsole,
 } from "../../scripts/atlas-browser-diagnostics.mjs";
 import { getAtlasState } from "../../scripts/atlas-flows.mjs";
+import { prepareAtlasCapture } from "./atlas-capture-readiness";
 export { expect };
 
 export const test = base.extend<{ atlasBrowserDiagnostics: void }>({
@@ -117,19 +118,6 @@ export async function captureAtlasState(page: Page, stateId: string) {
   if (!captureDirectory) throw new Error("ATLAS_CAPTURE_DIR is required.");
   const stateItem = getAtlasState(stateId) as { capture: string };
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.evaluate(async () => {
-    await document.fonts.ready;
-    const images = [...document.images];
-    await Promise.all(
-      images.map(async (image) => {
-        try {
-          await image.decode();
-        } catch {
-          // Broken images are still allowed to reach their rendered fallback.
-        }
-      }),
-    );
-  });
   await expect(page.locator("body")).not.toBeEmpty();
   await expect(
     page.locator("[data-nextjs-dialog], #webpack-dev-server-client-overlay"),
@@ -144,6 +132,7 @@ export async function captureAtlasState(page: Page, stateId: string) {
   await expandVerticalScrollContainers(target);
 
   try {
+    await prepareAtlasCapture(page, interactionSurface);
     const devicePixelRatio = await page.evaluate(() => window.devicePixelRatio);
     const expectedHeight = interactionSurface
       ? ((await interactionSurface.boundingBox())?.height ?? 0) *
