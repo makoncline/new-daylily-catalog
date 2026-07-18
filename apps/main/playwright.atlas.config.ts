@@ -52,6 +52,7 @@ export default defineConfig({
         "listing-media.atlas.ts",
         "list-management.atlas.ts",
         "profile-management.atlas.ts",
+        "tag-printing.atlas.ts",
       ],
       dependencies: ["member-auth"],
       use: { storageState: authState },
