@@ -6,7 +6,11 @@ import {
   splitFormFacetValue,
 } from "@/components/public-catalog-search/public-catalog-search-filter-utils";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { getCultivarImage } from "@/app/(public)/catalog-importer/_lib/catalog-importer-presentation";
+import {
+  getAwardCode,
+  getAwardDisplayName,
+  getCultivarImage,
+} from "@/app/(public)/catalog-importer/_lib/catalog-importer-presentation";
 import type {
   CatalogImportRow,
   CultivarMatchCandidate,
@@ -56,8 +60,9 @@ const ANALYSIS_FACETS: AnalysisFacet[] = [
     label: "Award winning",
     title: "Top awards",
     value: "awards",
-    filterValue: (label) => [label],
-    values: (match) => splitFacetValue(match.awardNames),
+    filterValue: (label) => [getAwardCode(label)],
+    values: (match) =>
+      splitFacetValue(match.awardNames).map(getAwardDisplayName),
   },
   {
     filterId: "ploidy",
@@ -259,23 +264,18 @@ export function CatalogImporterAnalysis({
                         value: selected.facet.filterValue(label),
                       })
                     }
-                    className={
-                      largestCount === 1
-                        ? "focus-visible:ring-ring flex items-center justify-between gap-3 rounded-sm outline-none hover:opacity-80 focus-visible:ring-2"
-                        : "focus-visible:ring-ring grid grid-cols-[minmax(6rem,11rem)_minmax(4rem,1fr)_auto] items-center gap-3 rounded-sm outline-none hover:opacity-80 focus-visible:ring-2"
-                    }
+                    className="focus-visible:ring-ring grid grid-cols-[minmax(6rem,11rem)_minmax(4rem,1fr)_auto] items-center gap-3 rounded-sm outline-none hover:opacity-80 focus-visible:ring-2"
                   >
                     <span className="truncate font-medium" title={label}>
                       {label}
                     </span>
-                    {largestCount > 1 ? (
-                      <span className="bg-muted h-2.5 overflow-hidden rounded-full">
-                        <span
-                          className="bg-primary block h-full min-w-1 rounded-full"
-                          style={{ width: `${(count / largestCount) * 100}%` }}
-                        />
-                      </span>
-                    ) : null}
+                    <span className="bg-muted h-2.5 overflow-hidden rounded-full">
+                      <span
+                        data-testid="catalog-analysis-bar"
+                        className="bg-primary block h-full min-w-1 rounded-full"
+                        style={{ width: `${(count / largestCount) * 100}%` }}
+                      />
+                    </span>
                     <span className="text-muted-foreground text-right tabular-nums">
                       {count.toLocaleString()}{" "}
                       {count === 1 ? "cultivar" : "cultivars"}

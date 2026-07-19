@@ -1,19 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 import {
   type ColumnFiltersState,
   type OnChangeFn,
   useReactTable,
 } from "@tanstack/react-table";
-import {
-  ArrowUp,
-  ChevronDown,
-  ExternalLink,
-  ImageIcon,
-  Link2,
-} from "lucide-react";
+import { ArrowUp, ChevronDown, ImageIcon, Info, Link2 } from "lucide-react";
 import { ImageGallery } from "@/components/image-gallery";
 import { ImagePlaceholder } from "@/components/image-placeholder";
 import type { OptimizedImageSource } from "@/components/optimized-image";
@@ -24,6 +17,7 @@ import {
   createPublicCatalogSearchColumns,
 } from "@/components/public-catalog-search/public-catalog-search-columns";
 import { buildPublicCatalogSearchFacetOptions } from "@/components/public-catalog-search/public-catalog-search-registry";
+import { splitFacetValue } from "@/components/public-catalog-search/public-catalog-search-filter-utils";
 import type {
   PublicCatalogSearchFacetOption,
   PublicCatalogSearchMode,
@@ -37,6 +31,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -44,11 +45,12 @@ import {
 } from "@/components/ui/tooltip";
 import {
   getCandidateMeta,
+  getAwardDisplayName,
   getCultivarImage,
   getCultivarTraitSummary,
 } from "@/app/(public)/catalog-importer/_lib/catalog-importer-presentation";
 import type { CatalogImporterWorkbenchController } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
-import { getCultivarUrl, type CatalogImportRow } from "@/lib/catalog-importer";
+import type { CatalogImportRow } from "@/lib/catalog-importer";
 import { defaultTableConfig } from "@/lib/table-config";
 import { cn, formatPrice } from "@/lib/utils";
 
@@ -183,6 +185,8 @@ export function CatalogImporterCatalogPreview({
 }) {
   const [mode, setMode] = useState<PublicCatalogSearchMode>("basic");
   const [panelCollapsed, setPanelCollapsed] = useState(false);
+  const [detailsRowId, setDetailsRowId] = useState<string | null>(null);
+  const [listingAreaScrolled, setListingAreaScrolled] = useState(false);
   const listingAreaRef = useRef<HTMLDivElement>(null);
 
   const linkedRows = useMemo(
@@ -273,6 +277,8 @@ export function CatalogImporterCatalogPreview({
     .getPaginationRowModel()
     .rows.map((row) => row.original.importRow);
   const canShowMore = visiblePreviewRows.length < filteredRows.length;
+  const detailsRow =
+    controller.includedRows.find((row) => row.id === detailsRowId) ?? null;
 
   function returnToListingTop() {
     const listingArea = listingAreaRef.current;
@@ -303,24 +309,16 @@ export function CatalogImporterCatalogPreview({
         >
           Your catalog preview
         </h2>
-        <p className="text-muted-foreground text-sm">
-          A customer-facing preview of the cultivars linked so far.
-        </p>
       </div>
 
       {controller.counts.pendingCultivarDecisionCount > 0 ? (
         <div className="flex flex-col gap-3 border-y py-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-muted-foreground text-sm">
             {controller.counts.pendingCultivarDecisionCount.toLocaleString()}{" "}
-            additional{" "}
             {controller.counts.pendingCultivarDecisionCount === 1
-              ? "listing is"
-              : "listings are"}{" "}
-            waiting for a cultivar decision. Link{" "}
-            {controller.counts.pendingCultivarDecisionCount === 1
-              ? "it"
-              : "them"}{" "}
-            to add reference photos and cultivar details.
+              ? "listing needs"
+              : "listings need"}{" "}
+            a cultivar match before appearing here.
           </p>
           <Button asChild variant="outline" size="sm" className="shrink-0">
             <a href="#catalog-importer-review-quiz">Review names</a>
@@ -350,21 +348,22 @@ export function CatalogImporterCatalogPreview({
 
         {filteredRows.length > 0 ? (
           <div className="min-w-0">
-            <div className="pointer-events-none sticky top-0 z-20 mx-2 flex h-0 translate-y-[calc(100vh-8rem)] items-center justify-between gap-3">
-              <span className="bg-background/95 text-muted-foreground rounded-full border px-3 py-2 text-xs tabular-nums shadow-sm backdrop-blur">
+            <div className="mb-2 flex min-h-8 items-center justify-between gap-3">
+              <span className="text-muted-foreground text-xs tabular-nums">
                 Showing {visiblePreviewRows.length.toLocaleString()} of{" "}
                 {filteredRows.length.toLocaleString()}
               </span>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="bg-background/95 pointer-events-auto hidden rounded-full shadow-md backdrop-blur lg:inline-flex"
-                onClick={returnToListingTop}
-              >
-                <ArrowUp aria-hidden="true" className="size-4" />
-                Return to top
-              </Button>
+              {listingAreaScrolled ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={returnToListingTop}
+                >
+                  <ArrowUp aria-hidden="true" className="size-4" />
+                  Return to top
+                </Button>
+              ) : null}
             </div>
 
             <div
@@ -372,7 +371,10 @@ export function CatalogImporterCatalogPreview({
               role="region"
               aria-label="Catalog listings"
               tabIndex={0}
-              className="max-h-[52rem] scroll-mt-24 overflow-y-auto overscroll-contain pr-1 outline-none lg:max-h-[69rem] lg:pr-2 xl:max-h-[62rem]"
+              onScroll={(event) =>
+                setListingAreaScrolled(event.currentTarget.scrollTop > 24)
+              }
+              className="bg-muted/10 max-h-[52rem] scroll-mt-24 overflow-y-auto border-y py-3 pr-1 outline-none [scrollbar-gutter:stable] lg:max-h-[69rem] lg:pr-2 xl:max-h-[62rem]"
             >
               <TooltipProvider delayDuration={250}>
                 <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
@@ -412,7 +414,7 @@ export function CatalogImporterCatalogPreview({
                           ) : (
                             <ImagePlaceholder />
                           )}
-                          {imageLabel ? (
+                          {row.imageUrl && imageLabel ? (
                             <span className="bg-background/90 text-muted-foreground absolute top-2 left-2 rounded px-2 py-1 text-[0.6875rem] shadow-sm backdrop-blur">
                               {imageLabel}
                             </span>
@@ -422,19 +424,15 @@ export function CatalogImporterCatalogPreview({
                               {formatPrice(row.price)}
                             </span>
                           ) : null}
-                          <Link
-                            href={getCultivarUrl(match)}
-                            target="_blank"
-                            rel="noreferrer"
-                            aria-label={`Open ${match.displayName} cultivar page`}
-                            title="Open cultivar page"
+                          <button
+                            type="button"
+                            aria-label={`View details for ${match.displayName}`}
+                            title="View details"
                             className="bg-background/90 text-foreground hover:bg-background focus-visible:ring-ring absolute right-2 bottom-2 flex size-10 items-center justify-center rounded-full border shadow-sm backdrop-blur outline-none focus-visible:ring-2 sm:size-8"
+                            onClick={() => setDetailsRowId(row.id)}
                           >
-                            <ExternalLink
-                              aria-hidden="true"
-                              className="size-3.5"
-                            />
-                          </Link>
+                            <Info aria-hidden="true" className="size-3.5" />
+                          </button>
                         </div>
                         <div className="space-y-2 p-3">
                           <div className="flex items-start gap-2">
@@ -511,6 +509,89 @@ export function CatalogImporterCatalogPreview({
           </div>
         )}
       </div>
+
+      <CatalogPreviewDetailsSheet
+        row={detailsRow}
+        onOpenChange={(open) => {
+          if (!open) setDetailsRowId(null);
+        }}
+      />
     </section>
+  );
+}
+
+function CatalogPreviewDetailsSheet({
+  row,
+  onOpenChange,
+}: {
+  row: CatalogImportRow | null;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const match = row?.match ?? null;
+  const image = row ? getCatalogPreviewImage(row) : null;
+  const imageLabel = row ? getCatalogPreviewImageLabel(row) : null;
+  const description = row ? getCatalogPreviewDescription(row) : "";
+
+  return (
+    <Sheet open={row !== null} onOpenChange={onOpenChange}>
+      <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
+        {row && match ? (
+          <div className="space-y-5">
+            <SheetHeader className="pr-8">
+              <SheetTitle>{match.displayName}</SheetTitle>
+              <SheetDescription>
+                {getCandidateMeta(match) || "Registered cultivar"}
+              </SheetDescription>
+            </SheetHeader>
+
+            {image ? (
+              <OptimizedImage
+                image={image}
+                variant="display"
+                size="full"
+                alt={`${match.displayName} — ${imageLabel ?? "Cultivar photo"}`}
+                className="rounded-lg"
+              />
+            ) : (
+              <div className="overflow-hidden rounded-lg">
+                <ImagePlaceholder />
+              </div>
+            )}
+
+            <div className="flex items-center justify-between gap-4">
+              <p className="font-medium">{match.displayName}</p>
+              {row.price !== null ? (
+                <p className="font-semibold">{formatPrice(row.price)}</p>
+              ) : null}
+            </div>
+
+            {description ? (
+              <p className="text-muted-foreground text-sm leading-relaxed">
+                {description}
+              </p>
+            ) : null}
+
+            {getCultivarTraitSummary(match).length > 0 ? (
+              <p className="text-muted-foreground border-t pt-4 text-sm">
+                {getCultivarTraitSummary(match).join(" · ")}
+              </p>
+            ) : null}
+
+            {splitFacetValue(match.awardNames).length > 0 ? (
+              <div className="border-t pt-4">
+                <p className="text-xs font-medium tracking-wide uppercase">
+                  Awards
+                </p>
+                <p className="text-muted-foreground mt-1 text-sm">
+                  {splitFacetValue(match.awardNames)
+                    .map(getAwardDisplayName)
+                    .join(" · ")}
+                </p>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </SheetContent>
+    </Sheet>
   );
 }

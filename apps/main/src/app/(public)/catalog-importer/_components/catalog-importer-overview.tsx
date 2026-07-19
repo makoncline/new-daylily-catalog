@@ -1,7 +1,5 @@
 "use client";
 
-import { ArrowDown, Check, LockKeyhole } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import type { CatalogImporterWorkbenchController } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
 
 function countLabel(count: number, singular: string, plural = `${singular}s`) {
@@ -71,22 +69,6 @@ export function CatalogImporterOverview({
         : `registration years ${enrichment.registrationYearMin}–${enrichment.registrationYearMax}`
       : null,
   ].filter((detail): detail is string => detail !== null);
-  const nextAction =
-    counts.reviewQueueCount > 0
-      ? {
-          href: "#catalog-importer-review-quiz",
-          label: `Review ${countLabel(counts.reviewQueueCount, "name")}`,
-        }
-      : counts.issueCount > 0
-        ? {
-            href: "#catalog-importer-issues",
-            label: `Fix ${countLabel(counts.issueCount, "data item")}`,
-          }
-        : {
-            href: "#catalog-importer-download",
-            label: "Download prepared workbook",
-          };
-
   return (
     <section
       id="catalog-importer-summary"
@@ -108,11 +90,6 @@ export function CatalogImporterOverview({
         {enrichmentDetails.length > 0
           ? `Matching unlocked ${joinList(enrichmentDetails)}${collectionDetails.length > 0 ? ` across ${joinList(collectionDetails)}` : ""}.`
           : "Linking cultivar identities will add reference photos, registry details, and searchable attributes."}
-      </p>
-
-      <p className="text-muted-foreground mt-3 flex items-center gap-2 text-xs">
-        <LockKeyhole aria-hidden="true" className="size-3.5" />
-        Private browser preview · Nothing has been published
       </p>
 
       <dl className="mt-7 grid border-y sm:grid-cols-5 sm:divide-x">
@@ -142,47 +119,6 @@ export function CatalogImporterOverview({
           testId="pending-decision-count"
         />
       </dl>
-
-      <div className="mt-7 grid gap-5 border-b pb-7 sm:grid-cols-2 sm:gap-8">
-        <div>
-          <h3 className="text-sm font-medium">From your spreadsheet</h3>
-          <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
-            Names, prices, descriptions, private notes, and seller images.
-          </p>
-        </div>
-        <div>
-          <h3 className="text-sm font-medium">Added by Daylily Catalog</h3>
-          <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
-            Registered identity, reference photos, hybridizer, year, awards,
-            bloom details, and searchable cultivar attributes.
-          </p>
-        </div>
-      </div>
-
-      {counts.pendingCultivarDecisionCount > 0 ? (
-        <p className="text-muted-foreground mt-5 max-w-3xl text-sm">
-          {countLabel(counts.pendingCultivarDecisionCount, "listing")}{" "}
-          {counts.pendingCultivarDecisionCount === 1 ? "is" : "are"} waiting for
-          a cultivar decision, so{" "}
-          {counts.pendingCultivarDecisionCount === 1 ? "it is" : "they are"} not
-          yet enriched or included in the preview and insights.
-        </p>
-      ) : null}
-
-      <div className="mt-6 flex flex-wrap gap-3">
-        <Button asChild>
-          <a href="#catalog-importer-preview">
-            Explore your catalog
-            <ArrowDown aria-hidden="true" className="size-4" />
-          </a>
-        </Button>
-        <Button asChild variant="outline">
-          <a href={nextAction.href}>
-            {nextAction.label}
-            <Check aria-hidden="true" className="size-4" />
-          </a>
-        </Button>
-      </div>
     </section>
   );
 }

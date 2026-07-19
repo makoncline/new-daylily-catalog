@@ -107,6 +107,39 @@ export function getCultivarTraitSummary(candidate: CultivarMatchCandidate) {
   ].filter((value): value is string => Boolean(value));
 }
 
+const AWARD_DISPLAY_NAME_BY_CODE: Record<string, string> = {
+  AM: "Award of Merit",
+  ATG: "Annie T. Giles Award",
+  DCS: "Don C. Stevens Award",
+  DFM: "Donn Fischer Memorial Cup",
+  ELD: "Extra Large Diameter",
+  ESB: "Early Season Bloom",
+  Foster: "Eugene S. Foster Award",
+  FSC: "Florida Sunshine Cup",
+  GDAA: "Georgia Doubles Appreciation Award",
+  HM: "Honorable Mention",
+  IM: "Ida Munson Award",
+  "Junior Citation": "Junior Citation",
+  "L/W": "Lambert-Webster / Lenington All-American Awards",
+  "NRS/UFA": "Ned Roberts Spider / Unusual Form Award",
+  PC: "President's Cup",
+  RWMJA: "R. W. Munson Jr. Award",
+  Spider: "Harris Olson Spider Award",
+  Stout: "Stout Silver Medal",
+};
+
+export function getAwardDisplayName(code: string) {
+  return AWARD_DISPLAY_NAME_BY_CODE[code] ?? code;
+}
+
+export function getAwardCode(displayName: string) {
+  return (
+    Object.entries(AWARD_DISPLAY_NAME_BY_CODE).find(
+      ([, label]) => label === displayName,
+    )?.[0] ?? displayName
+  );
+}
+
 export function getRowIssues(row: CatalogImportRow) {
   const issues: string[] = [];
 

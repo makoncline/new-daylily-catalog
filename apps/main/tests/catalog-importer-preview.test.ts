@@ -5,6 +5,10 @@ import {
   getCatalogPreviewImageLabel,
   isCatalogPreviewRow,
 } from "@/app/(public)/catalog-importer/_components/catalog-importer-catalog-preview";
+import {
+  getAwardCode,
+  getAwardDisplayName,
+} from "@/app/(public)/catalog-importer/_lib/catalog-importer-presentation";
 import type { CatalogImportRow } from "@/lib/catalog-importer";
 
 function previewRow(
@@ -62,6 +66,14 @@ function previewRow(
 }
 
 describe("catalog importer preview content", () => {
+  it("shows readable award names while preserving filter codes", () => {
+    const displayName = "Lambert-Webster / Lenington All-American Awards";
+
+    expect(getAwardDisplayName("L/W")).toBe(displayName);
+    expect(getAwardCode(displayName)).toBe("L/W");
+    expect(getAwardDisplayName("Future award")).toBe("Future award");
+  });
+
   it("uses seller fields first and cultivar reference data as fallback", () => {
     const row = previewRow();
 

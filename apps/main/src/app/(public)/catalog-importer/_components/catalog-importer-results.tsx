@@ -5,6 +5,16 @@ import type { ColumnFiltersState, OnChangeFn } from "@tanstack/react-table";
 import { CircleAlert, Download, Undo2 } from "lucide-react";
 import { SellerIntentLink } from "@/components/seller-intent-link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -117,7 +127,8 @@ function getDownloadLabel(controller: CatalogImporterWorkbenchController) {
 
 function CatalogImporterWorkspaceNavigation({
   controller,
-}: CatalogImporterResultsProps) {
+  onDownload,
+}: CatalogImporterResultsProps & { onDownload: () => void }) {
   const reviewCount = controller.reviewRows.length;
   const issueCount = controller.issueCount;
   const workRemaining = reviewCount + issueCount;
@@ -149,10 +160,6 @@ function CatalogImporterWorkspaceNavigation({
                   label: `Review ${controller.counts.imageIssueCount.toLocaleString()}`,
                 }
               : null;
-
-  const download = () => {
-    void controller.downloadResults();
-  };
 
   return (
     <>
@@ -196,7 +203,7 @@ function CatalogImporterWorkspaceNavigation({
           variant="outline"
           className="shrink-0"
           disabled={controller.downloadingResults}
-          onClick={download}
+          onClick={onDownload}
         >
           {controller.downloadingResults ? (
             <Spinner />
@@ -228,7 +235,7 @@ function CatalogImporterWorkspaceNavigation({
           className="shrink-0"
           disabled={controller.downloadingResults}
           aria-label={downloadLabel}
-          onClick={download}
+          onClick={onDownload}
         >
           {controller.downloadingResults ? (
             <Spinner />
@@ -301,6 +308,8 @@ export function CatalogImporterResults({
   showMembershipPrompts,
 }: CatalogImporterResultsProps & { showMembershipPrompts: boolean }) {
   const [matchEditorRowId, setMatchEditorRowId] = useState<string | null>(null);
+  const [downloadConfirmationOpen, setDownloadConfirmationOpen] =
+    useState(false);
   const [previewColumnFilters, setPreviewColumnFilters] =
     useState<ColumnFiltersState>([]);
   const previewFilterInteractionTracked = useRef(false);
@@ -351,18 +360,14 @@ export function CatalogImporterResults({
     }
     setPreviewColumnFilters(nextFilters);
   }, []);
-  const hasPreparationWork =
-    controller.reviewRows.length > 0 || controller.issueCount > 0;
-  const nextPreparationAction =
-    controller.reviewRows.length > 0
-      ? {
-          href: "#catalog-importer-review-quiz",
-          label: "Review next name",
-        }
-      : {
-          href: "#catalog-importer-issues",
-          label: "Fix data",
-        };
+  const requestDownload = () => {
+    if (controller.reviewRows.length > 0 || controller.issueCount > 0) {
+      setDownloadConfirmationOpen(true);
+      return;
+    }
+
+    void controller.downloadResults();
+  };
   const dismissMembershipPrompts = () => {
     setMembershipPromptDismissed(true);
     try {
@@ -378,7 +383,10 @@ export function CatalogImporterResults({
     <div className="min-w-0 space-y-10 pb-24 md:pb-0">
       <CatalogImporterOverview controller={controller} />
 
-      <CatalogImporterWorkspaceNavigation controller={controller} />
+      <CatalogImporterWorkspaceNavigation
+        controller={controller}
+        onDownload={requestDownload}
+      />
 
       <CatalogImporterCatalogPreview
         columnFilters={previewColumnFilters}
@@ -396,42 +404,9 @@ export function CatalogImporterResults({
         <CatalogImporterMembershipPrompt
           ctaId="catalog-importer-preview-membership"
           heading="Imagine this as your public catalog"
-          description="Daylily Catalog Pro includes a hosted seller catalog, seller dashboard, ongoing catalog management, and discovery. Your prepared workbook stays free, and your browser-local project will still be here when you return. Direct spreadsheet import is not available yet."
+          description="Pro adds a hosted public catalog, seller dashboard, and discovery. Your prepared workbook remains free; it is not imported automatically."
           onDismiss={dismissMembershipPrompts}
         />
-      ) : null}
-
-      {hasPreparationWork ? (
-        <section
-          id="catalog-importer-preparation"
-          aria-labelledby="catalog-importer-preparation-heading"
-          className="border-t pt-10"
-        >
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-            <div className="max-w-2xl">
-              <h2
-                id="catalog-importer-preparation-heading"
-                className="text-xl font-semibold tracking-tight"
-              >
-                Finish preparing your workbook
-              </h2>
-              <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
-                Most of your collection is ready.{" "}
-                {controller.reviewRows.length > 0
-                  ? `${controller.reviewRows.length.toLocaleString()} ${controller.reviewRows.length === 1 ? "name needs" : "names need"} your cultivar decision. `
-                  : ""}
-                {controller.issueCount > 0
-                  ? `${controller.issueCount.toLocaleString()} ${controller.issueCount === 1 ? "data item needs" : "data items need"} review.`
-                  : ""}
-              </p>
-            </div>
-            <Button asChild variant="outline" className="shrink-0">
-              <a href={nextPreparationAction.href}>
-                {nextPreparationAction.label}
-              </a>
-            </Button>
-          </div>
-        </section>
       ) : null}
 
       {controller.lastLinkAction ? (
@@ -536,7 +511,7 @@ export function CatalogImporterResults({
             type="button"
             className="shrink-0"
             disabled={controller.downloadingResults}
-            onClick={() => void controller.downloadResults()}
+            onClick={requestDownload}
           >
             {controller.downloadingResults ? (
               <Spinner />
@@ -548,15 +523,10 @@ export function CatalogImporterResults({
         </div>
 
         {controller.downloadSummary ? (
-          <div
-            role="region"
-            aria-label="Prepared workbook contents"
-            className="mt-6 max-w-3xl border-y py-5"
-          >
-            <p className="text-sm font-medium">
-              This {controller.downloadSummary.fileType.toUpperCase()} file
-              will:
-            </p>
+          <details className="mt-5 max-w-3xl border-y py-4">
+            <summary className="cursor-pointer text-sm font-medium">
+              File details
+            </summary>
             <ul className="text-muted-foreground mt-3 grid gap-2 text-sm sm:grid-cols-2">
               <li>
                 Retain{" "}
@@ -618,31 +588,56 @@ export function CatalogImporterResults({
               </li>
             </ul>
             <p className="text-muted-foreground mt-4 text-xs leading-relaxed">
-              Reference photographs, awards, and cultivar attributes remain
-              linked to Daylily Catalog and are not copied into this file. The
-              value-only export does not preserve formulas, formatting, merged
-              cells, drawings, comments, macros, validation, or hidden state.
-              Nothing is published or imported.
+              {controller.downloadSummary.fileType === "csv"
+                ? "CSV uploads download as one CSV table. "
+                : "XLSX uploads retain every worksheet as a value-only workbook. "}
+              Reference photos, awards, and cultivar attributes are not copied.
+              Formulas, formatting, merged cells, drawings, comments, macros,
+              validation, and hidden state are not preserved. Nothing is
+              published or imported.
             </p>
-          </div>
+          </details>
         ) : null}
-
-        <div className="mt-4 max-w-3xl">
-          <p className="text-muted-foreground mt-1 text-sm">
-            CSV uploads download as CSV. XLSX uploads retain every worksheet as
-            a value-only XLSX workbook.
-          </p>
-        </div>
       </section>
 
       {showMembershipPrompt && readyToDownload ? (
         <CatalogImporterMembershipPrompt
           ctaId="catalog-importer-complete-membership"
           heading="Your workbook is ready. Want a hosted catalog?"
-          description="Daylily Catalog Pro includes a hosted seller catalog, seller dashboard, ongoing catalog management, and discovery. This prepared workbook remains yours to download, but it is not imported or published automatically."
+          description="Pro adds a hosted public catalog, seller dashboard, and discovery. This workbook remains yours; it is not imported automatically."
           onDismiss={dismissMembershipPrompts}
         />
       ) : null}
+
+      <AlertDialog
+        open={downloadConfirmationOpen}
+        onOpenChange={setDownloadConfirmationOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Download before review is complete?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              You have {controller.reviewRows.length.toLocaleString()} potential{" "}
+              {controller.reviewRows.length === 1 ? "match" : "matches"} to
+              review. You have {controller.issueCount.toLocaleString()}{" "}
+              {controller.issueCount === 1 ? "issue" : "issues"} to review.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setDownloadConfirmationOpen(false);
+                void controller.downloadResults();
+              }}
+            >
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <CatalogImporterMatchSheet
         key={matchEditorRow?.id ?? "closed"}

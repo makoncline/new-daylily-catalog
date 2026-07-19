@@ -72,21 +72,10 @@ export default async function CatalogImporterPage() {
             Upload an XLSX or CSV file. We’ll link registered cultivars, reveal
             a private catalog preview, and return a prepared copy.
           </p>
-          <ul className="text-muted-foreground mt-4 flex flex-wrap gap-x-5 gap-y-1 text-sm">
-            <li>Processed in your browser</li>
-            <li>Complete workbook not saved to our database</li>
-            <li>Nothing published</li>
-          </ul>
-          <details className="text-muted-foreground mt-3 text-sm">
-            <summary className="text-foreground cursor-pointer font-medium">
-              How matching works
-            </summary>
-            <p className="mt-2">
-              Only cultivar names and saved Daylily Catalog IDs are sent for
-              matching. Spreadsheet contents and private notes stay in this
-              browser.
-            </p>
-          </details>
+          <p className="text-muted-foreground mt-4 text-sm">
+            Your workbook stays in this browser; only cultivar names and saved
+            Daylily Catalog IDs are sent for matching. Nothing is published.
+          </p>
         </header>
 
         <CatalogImporterClient showMembershipPrompts={showMembershipPrompts} />

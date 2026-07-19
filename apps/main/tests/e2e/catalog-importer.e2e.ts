@@ -263,15 +263,15 @@ test.describe("catalog importer", () => {
       }),
     ).toBeVisible();
     await expect(
-      page.getByText("Reference photo", { exact: true }).first(),
-    ).toBeVisible();
+      page.getByText("Reference photo", { exact: true }),
+    ).toHaveCount(0);
     await expect(
       page.getByRole("heading", {
         name: "Imagine this as your public catalog",
       }),
     ).toBeVisible();
     await expect(
-      page.getByText("Direct spreadsheet import is not available yet.", {
+      page.getByText("Your prepared workbook remains free", {
         exact: false,
       }),
     ).toBeVisible();
@@ -455,8 +455,9 @@ test.describe("catalog importer", () => {
       page.getByRole("region", { name: "Listings left unmatched" }),
     ).toContainText("Mystery Bloom");
 
-    const downloadSummary = page.getByRole("region", {
-      name: "Prepared workbook contents",
+    await page.getByText("File details").click();
+    const downloadSummary = page.locator("details", {
+      hasText: "Retain 26 source rows in one CSV table",
     });
     await expect(downloadSummary).toContainText(
       "Retain 26 source rows in one CSV table",
@@ -479,7 +480,7 @@ test.describe("catalog importer", () => {
       }),
     ).toBeVisible();
     await expect(
-      page.getByText("it is not imported or published automatically", {
+      page.getByText("it is not imported automatically", {
         exact: false,
       }),
     ).toBeVisible();

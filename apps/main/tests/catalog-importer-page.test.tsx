@@ -64,11 +64,11 @@ describe("catalog importer quiet launch", () => {
         name: "Turn your daylily spreadsheet into a catalog-ready collection",
       }),
     ).toBeVisible();
-    expect(screen.getByText("Processed in your browser")).toBeVisible();
     expect(
-      screen.getByText("Complete workbook not saved to our database"),
+      screen.getByText(
+        /Your workbook stays in this browser; only cultivar names and saved Daylily Catalog IDs are sent for matching/,
+      ),
     ).toBeVisible();
-    expect(screen.getByText("Nothing published")).toBeVisible();
     expect(screen.getByText(/Spreadsheet tools · Prompts on/)).toBeVisible();
     expect(generateMetadata().robots).toEqual({
       follow: false,

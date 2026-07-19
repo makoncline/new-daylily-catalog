@@ -6,7 +6,6 @@ import {
   Download,
   FileSpreadsheet,
   ListFilter,
-  RotateCcw,
   Sparkles,
   Trash2,
   UploadCloud,
@@ -106,11 +105,6 @@ export function CatalogImporterUpload({
               {controller.selectedSheet?.rows.length.toLocaleString() ?? 0} rows
               in selected sheet
             </p>
-            {!controller.storageWarning ? (
-              <p className="text-muted-foreground mt-0.5 text-xs">
-                Saved locally in this browser on this device.
-              </p>
-            ) : null}
           </div>
         </div>
 
@@ -161,42 +155,6 @@ export function CatalogImporterUpload({
               <ListFilter className="size-4" />
               Map columns
             </Button>
-          ) : null}
-
-          {onEditMapping ? (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button type="button" variant="ghost" size="sm" className="h-8">
-                  <RotateCcw className="size-4" />
-                  Start over with this file
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>
-                    Start over with this file?
-                  </AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This clears column choices, matches, and fixes while keeping
-                    the uploaded workbook. Your original file is not changed.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={() => {
-                      controller.configureSheet(
-                        controller.parsedSpreadsheet!,
-                        controller.selectedSheetIndex,
-                      );
-                      onEditMapping();
-                    }}
-                  >
-                    Start over with this file
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
           ) : null}
 
           <AlertDialog>

@@ -112,8 +112,8 @@ describe("CatalogImporterWorkbench", () => {
     });
     expect(screen.getByRole("button", { name: "Map columns" })).toBeVisible();
     expect(
-      screen.getByRole("button", { name: "Start over with this file" }),
-    ).toBeVisible();
+      screen.queryByRole("button", { name: "Start over with this file" }),
+    ).not.toBeInTheDocument();
   });
 
   it("saves the spreadsheet before cultivar matching finishes", async () => {
@@ -353,6 +353,18 @@ describe("CatalogImporterWorkbench", () => {
 
     fireEvent.click(downloadButton);
     expect(
+      screen.getByRole("alertdialog", {
+        name: "Download before review is complete?",
+      }),
+    ).toHaveTextContent(
+      "You have 10 potential matches to review. You have 2 issues to review.",
+    );
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Continue",
+      }),
+    );
+    expect(
       await screen.findByRole("heading", {
         name: "Spreadsheet download did not finish",
       }),
@@ -364,6 +376,11 @@ describe("CatalogImporterWorkbench", () => {
     ).not.toBeInTheDocument();
 
     fireEvent.click(downloadButton);
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Continue",
+      }),
+    );
     await waitFor(() =>
       expect(downloadCatalogImportFileMock).toHaveBeenCalledTimes(2),
     );
@@ -434,8 +451,7 @@ describe("CatalogImporterWorkbench", () => {
             const candidate =
               confidence !== null
                 ? {
-                    awardNames:
-                      name === "Stella de Oro" ? "Award of Merit" : null,
+                    awardNames: name === "Stella de Oro" ? "L/W" : null,
                     bloomSizeIn: 5,
                     bloomSeason: "Midseason",
                     color: "Yellow",
@@ -458,7 +474,7 @@ describe("CatalogImporterWorkbench", () => {
                     ploidy: "Diploid",
                     rebloom: true,
                     scapeHeightIn: 24,
-                    year: index === 0 ? 1975 : 2017,
+                    year: 1975 + index,
                   }
                 : null;
 
@@ -505,13 +521,9 @@ describe("CatalogImporterWorkbench", () => {
       }),
     ).toBeVisible();
     expect(screen.getByText(/8 listings with reference photos/)).toBeVisible();
-    expect(screen.getByText(/Private browser preview/)).toBeVisible();
     expect(
-      screen.getByRole("link", { name: "Explore your catalog" }),
-    ).toHaveAttribute("href", "#catalog-importer-preview");
-    expect(
-      screen.getByRole("link", { name: "Review 2 names" }),
-    ).toHaveAttribute("href", "#catalog-importer-review-quiz");
+      screen.queryByText(/Private browser preview/),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryAllByRole("button", { name: /Review \d+% match/ }),
     ).toHaveLength(0);
@@ -592,9 +604,36 @@ describe("CatalogImporterWorkbench", () => {
         screen.getByRole("region", { name: "Catalog listings" }),
       ).getByRole("heading", { name: "Happy Returns" }),
     ).toBeVisible();
-    const preparation = screen.getByRole("heading", {
-      name: "Finish preparing your workbook",
+
+    fireEvent.click(screen.getByText("By year", { exact: true }));
+    expect(screen.getAllByTestId("catalog-analysis-bar")).toHaveLength(7);
+    for (const bar of screen.getAllByTestId("catalog-analysis-bar")) {
+      expect(bar).toHaveStyle({ width: "100%" });
+    }
+
+    fireEvent.click(screen.getByText("Award winning", { exact: true }));
+    expect(
+      screen.getByRole("link", {
+        name: /Lambert-Webster.*Lenington All-American Awards/,
+      }),
+    ).toBeVisible();
+
+    const listingRegion = screen.getByRole("region", {
+      name: "Catalog listings",
     });
+    expect(
+      within(listingRegion).queryByText("Reference photo", { exact: true }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(
+      within(listingRegion).getAllByRole("button", {
+        name: "View details for Stella de Oro",
+      })[0]!,
+    );
+    expect(
+      screen.getByRole("dialog", { name: "Stella de Oro" }),
+    ).toHaveTextContent("Lambert-Webster / Lenington All-American Awards");
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+
     const review = screen.getByRole("heading", {
       name: "Review potential matches",
     });
@@ -604,9 +643,10 @@ describe("CatalogImporterWorkbench", () => {
     const download = screen.getByRole("heading", {
       name: "Your current workbook is ready",
     });
-    const downloadSummary = screen.getByRole("region", {
-      name: "Prepared workbook contents",
-    });
+    fireEvent.click(screen.getByText("File details"));
+    const downloadSummary = screen
+      .getByText("Retain 11 source rows in one CSV table")
+      .closest("details")!;
     expect(downloadSummary).toHaveTextContent(
       "Retain 11 source rows in one CSV table",
     );
@@ -633,8 +673,7 @@ describe("CatalogImporterWorkbench", () => {
       [reveal, preview],
       [preview, insights],
       [insights, membership],
-      [membership, preparation],
-      [preparation, review],
+      [membership, review],
       [review, issues],
       [issues, download],
     ] as const) {
@@ -644,7 +683,7 @@ describe("CatalogImporterWorkbench", () => {
       ).toBeTruthy();
     }
     expect(membership.parentElement).toHaveTextContent(
-      "Direct spreadsheet import is not available yet.",
+      "Your prepared workbook remains free",
     );
     fireEvent.click(
       within(membership.closest("section")!).getByRole("button", {
