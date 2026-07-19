@@ -10,6 +10,7 @@ import {
   getTagTemplateValidationIssues,
   getTagTextTemplateFieldIds,
   getTagPreviewWarnings,
+  resolveCellFontSizePx,
   sanitizeTagDesignerState,
   tagDesignerStateToTemplateText,
 } from "@/app/dashboard/tags/_components/tag-designer-model";
@@ -158,6 +159,28 @@ describe("tag designer model", () => {
     });
   });
 
+  it("migrates the previous three-row Garden ID to the consolidated layout", () => {
+    const migrated = sanitizeTagDesignerState({
+      sizePresetId: "brother-tze-1",
+      customWidthInches: 3.5,
+      customHeightInches: 1,
+      showQrCode: true,
+      rows: createRowsFromTagTextTemplate(
+        "# {{title}}\n{{hybridizerYear}}\n- {{ploidy}}",
+      ),
+    });
+    const gardenId = BUILTIN_TAG_LAYOUT_TEMPLATES.find(
+      (template) => template.name === "Garden ID",
+    )!;
+
+    expect(createLayoutSignature(migrated)).toBe(
+      createLayoutSignature(gardenId.layout),
+    );
+    expect(tagDesignerStateToTemplateText(migrated)).toBe(
+      "# {{title}}\n{{hybridizerYear}} {{ploidy}}",
+    );
+  });
+
   it("parses line sizes and space-between columns without wrapping", () => {
     const template =
       "# {{title}}\n## {{hybridizerYear}} | {{ploidy}}\n- {{price}} | {{privateNote}}";
@@ -196,6 +219,77 @@ describe("tag designer model", () => {
         rows,
       }),
     ).toBe(template);
+  });
+
+  it("grows a standard title line to use its available width", () => {
+    const rows = buildResolvedRowsForListing(
+      listing,
+      createRowsFromTagTextTemplate("# {{title}}\n{{hybridizerYear}}"),
+    );
+    const title = rows[0]!.cells[0]!;
+    const detail = rows[1]!.cells[0]!;
+
+    expect(resolveCellFontSizePx(title, rows[0]!, 3.5, false)).toBeGreaterThan(
+      title.fontSize,
+    );
+    expect(resolveCellFontSizePx(detail, rows[1]!, 3.5, false)).toBe(
+      detail.fontSize,
+    );
+  });
+
+  it("keeps wide-letter titles inside the printable width while growing", () => {
+    const cases = [
+      { title: "Whammer Jammer", maximumFontSize: 29.3 },
+      { title: "oooooooooooo", maximumFontSize: 35.8 },
+      { title: "COOL COLOR", maximumFontSize: 38.7 },
+    ];
+
+    for (const testCase of cases) {
+      const row = buildResolvedRowsForListing(
+        { ...listing, title: testCase.title },
+        createRowsFromTagTextTemplate("# {{title}}"),
+      )[0]!;
+      const title = row.cells[0]!;
+      const fittedFontSize = resolveCellFontSizePx(title, row, 3.5, true);
+
+      expect(fittedFontSize).toBeGreaterThan(title.fontSize);
+      expect(fittedFontSize).toBeLessThanOrEqual(testCase.maximumFontSize);
+    }
+  });
+
+  it("caps short titles based on tag height", () => {
+    const row = buildResolvedRowsForListing(
+      { ...listing, title: "Clown" },
+      createRowsFromTagTextTemplate("# {{title}}"),
+    )[0]!;
+    const title = row.cells[0]!;
+
+    expect(resolveCellFontSizePx(title, row, 3.5, false, 0.75)).toBe(31.5);
+    expect(resolveCellFontSizePx(title, row, 3.5, false, 1)).toBe(42);
+    expect(resolveCellFontSizePx(title, row, 3.5, false, 2)).toBe(56);
+  });
+
+  it("reserves enough height for every row in raster exports", () => {
+    const rows = buildResolvedRowsForListing(
+      { ...listing, title: "Clown" },
+      createRowsFromTagTextTemplate(
+        "# {{title}}\n{{hybridizerYear}}\n## {{ploidy}} | {{price}}",
+      ),
+    );
+
+    const fittedRowSizes = rows.map((row) =>
+      Math.max(
+        ...row.cells.map((cell) =>
+          resolveCellFontSizePx(cell, row, 3.5, true, 1, rows),
+        ),
+      ),
+    );
+    const rasterContentHeight =
+      fittedRowSizes.reduce((total, fontSize) => total + fontSize * 1.39, 0) +
+      (rows.length - 1) * 2;
+    const availableHeight = (1 - 0.12) * 96;
+
+    expect(rasterContentHeight).toBeLessThanOrEqual(availableHeight);
   });
 
   it("preserves runs of interior blank lines as row spacing", () => {
@@ -261,7 +355,9 @@ describe("tag designer model", () => {
     expect(instructions).toContain("no more than 3 nonblank rows");
     expect(instructions).toContain("no more than two columns per row");
     expect(instructions).toContain("no code fence");
-    expect(instructions).toContain("# for large bold");
+    expect(instructions).toContain(
+      "# for a large bold title that grows to fill the available width",
+    );
     expect(instructions).toContain("| to space columns apart");
     expect(instructions).toContain("{{hybridizerYear}}: Hybridizer, Year");
     expect(instructions).toContain("{{privateNote}}: Private Note");
@@ -322,7 +418,7 @@ describe("tag designer model", () => {
     );
   });
 
-  it("offers four job-based presets with safe template text", () => {
+  it("offers job-based presets with safe template text", () => {
     expect(
       BUILTIN_TAG_LAYOUT_TEMPLATES.map((template) => template.name),
     ).toEqual(["Simple name", "Garden ID", "Sale tag", "Grower details"]);
@@ -332,7 +428,7 @@ describe("tag designer model", () => {
       ),
     ).toEqual([
       "# {{title}}",
-      "# {{title}}\n{{hybridizerYear}}\n- {{ploidy}}",
+      "# {{title}}\n{{hybridizerYear}} {{ploidy}}",
       "# {{title}}\n{{hybridizerYear}}\n## {{ploidy}} | {{price}}",
       "# {{title}}\n## {{hybridizerYear}}\n{{ploidy}} | {{foliageType}}\nBloom {{bloomSize}} | Scape {{scapeHeight}}\n- Season {{bloomSeason}} | Habit {{bloomHabit}}",
     ]);
