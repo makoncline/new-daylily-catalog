@@ -2,20 +2,26 @@
 import { existsSync, statSync } from "node:fs";
 import path from "node:path";
 const stateFor =
-  (captureSpec) =>
+  (captureSpec, atlasFlowId) =>
   (id, title, description, url, urlReproducible = true) => ({
     id,
     title,
     description,
     capture: `${id}.png`,
     captureSpec,
-    reproductionCommand: `ATLAS_OUTPUT_DIR=local/atlas/reproduce ATLAS_CAPTURE_DIR=local/atlas/reproduce/screenshots pnpm main exec playwright test -c playwright.atlas.config.ts ${captureSpec} --grep "${title}"`,
+    reproductionCommand: atlasFlowId
+      ? `node apps/main/scripts/run-atlas-flow.mjs ${atlasFlowId} --output=local/atlas/reproduce`
+      : `ATLAS_OUTPUT_DIR=local/atlas/reproduce ATLAS_CAPTURE_DIR=local/atlas/reproduce/screenshots pnpm main exec playwright test -c playwright.atlas.config.ts ${captureSpec} --grep "${title}"`,
     url,
     urlReproducible,
   });
 const publicState = stateFor("tests/atlas/public-catalog.atlas.ts");
 const cultivarState = stateFor("tests/atlas/cultivar-search.atlas.ts");
 const onboardingState = stateFor("tests/atlas/onboarding-membership.atlas.ts");
+const dashboardHomeState = stateFor(
+  "tests/atlas/dashboard-home.atlas.ts",
+  "dashboard-home",
+);
 const listingState = stateFor("tests/atlas/listing-management.atlas.ts");
 const listingMediaState = stateFor("tests/atlas/listing-media.atlas.ts");
 const listState = stateFor("tests/atlas/list-management.atlas.ts");
@@ -401,6 +407,102 @@ export const ATLAS_FLOWS = [
             "Checkout review",
             "The account email and membership terms immediately before Stripe.",
             "/onboarding?step=checkout",
+            false,
+          ),
+        ],
+      },
+    ],
+  },
+  {
+    id: "dashboard-home",
+    audience: "member",
+    title: "Choose the next catalog action",
+    description:
+      "Orient on the dashboard across setup, membership, billing, and established Pro states without multiplying partial-state permutations.",
+    tests: {
+      unit: [testRef("unit", "tests/build-dashboard-stats.test.ts")],
+      integration: [
+        testRef("integration", "tests/pro-membership-card.test.tsx"),
+        testRef("integration", "tests/persisted-subscription-query.test.ts"),
+      ],
+      e2e: [
+        testRef("e2e", "tests/e2e/new-user-journey.e2e.ts"),
+        testRef("e2e", "tests/e2e/onboarding-full-flow.e2e.ts"),
+      ],
+    },
+    steps: [
+      {
+        title: "Finish setup",
+        states: [
+          dashboardHomeState(
+            "dashboard-home-desktop-setup",
+            "Desktop setup guidance",
+            "Combined incomplete profile and catalog guidance with the membership offer at the supported iPad width.",
+            "/dashboard",
+            false,
+          ),
+          dashboardHomeState(
+            "dashboard-home-mobile-setup",
+            "Mobile setup guidance",
+            "The same combined setup guidance and membership offer at the supported phone width.",
+            "/dashboard",
+            false,
+          ),
+        ],
+      },
+      {
+        title: "Start membership",
+        states: [
+          dashboardHomeState(
+            "dashboard-home-desktop-upgrade",
+            "Desktop membership upgrade",
+            "A complete free catalog with the remaining Pro membership decision at the supported iPad width.",
+            "/dashboard",
+            false,
+          ),
+          dashboardHomeState(
+            "dashboard-home-mobile-upgrade",
+            "Mobile membership upgrade",
+            "The same complete free catalog and Pro decision at the supported phone width.",
+            "/dashboard",
+            false,
+          ),
+        ],
+      },
+      {
+        title: "Resolve billing",
+        states: [
+          dashboardHomeState(
+            "dashboard-home-desktop-billing",
+            "Desktop billing attention",
+            "A complete catalog with past-due billing guidance and recovery actions at the supported iPad width.",
+            "/dashboard",
+            false,
+          ),
+          dashboardHomeState(
+            "dashboard-home-mobile-billing",
+            "Mobile billing attention",
+            "The same past-due billing recovery state at the supported phone width.",
+            "/dashboard",
+            false,
+          ),
+        ],
+      },
+      {
+        title: "Return as an established Pro",
+        states: [
+          dashboardHomeState(
+            "dashboard-home-desktop-active-pro",
+            "Desktop active Pro",
+            "A complete active-Pro catalog after all conditional guidance disappears at the supported iPad width.",
+            "/dashboard",
+            false,
+          ),
+          dashboardHomeState(
+            "dashboard-home-mobile-active-pro",
+            "Mobile active Pro",
+            "The same established-Pro dashboard at the supported phone width.",
+            "/dashboard",
             false,
           ),
         ],

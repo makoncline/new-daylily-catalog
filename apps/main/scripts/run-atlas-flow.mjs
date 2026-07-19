@@ -12,6 +12,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import * as dotenv from "dotenv";
 import {
   generateAtlasGallery,
@@ -53,7 +54,14 @@ const baseURL =
   process.env.BASE_URL ??
   `http://localhost:${process.env.ATLAS_PORT ?? "3210"}`;
 const explicitDatabaseUrl = process.env.DATABASE_URL;
+const normalizeDatabaseUrl = (databaseUrl) =>
+  databaseUrl?.startsWith("file:")
+    ? new URL(databaseUrl, pathToFileURL(`${appRoot}${path.sep}`)).href
+    : databaseUrl;
 let disposableDatabase;
+let atlasDatabaseUrl = normalizeDatabaseUrl(
+  process.env.ATLAS_DATABASE_URL ?? explicitDatabaseUrl,
+);
 const runtimeFlagsPath = path.join(
   tmpdir(),
   `daylily-atlas-feature-flags-${process.pid}.json`,
@@ -123,7 +131,7 @@ async function startServer() {
   ]) {
     if (existsSync(envPath)) dotenv.config({ path: envPath, quiet: true });
   }
-  let databaseUrl = explicitDatabaseUrl;
+  let databaseUrl = normalizeDatabaseUrl(explicitDatabaseUrl);
   if (!databaseUrl) {
     const manifest = assertRealisticDataSeedFresh({
       manifestPath: path.join(appRoot, "local/realistic-data/personas.json"),
@@ -142,6 +150,7 @@ async function startServer() {
     });
     databaseUrl = `file:${disposableDatabase.databasePath}`;
   }
+  atlasDatabaseUrl = databaseUrl;
   serverLogFd = openSync(serverLogPath, "w");
   writeFileSync(runtimeFlagsPath, '{"publicCultivarSearch":true}');
   server = spawn("pnpm", ["dev", "--", "--port", new URL(baseURL).port], {
@@ -174,6 +183,11 @@ async function startServer() {
 try {
   mkdirSync(path.dirname(outputDirectory), { recursive: true });
   await startServer();
+  if (flows.some((flow) => flow.id === "dashboard-home") && !atlasDatabaseUrl) {
+    throw new Error(
+      "Dashboard home Atlas states need ATLAS_DATABASE_URL when BASE_URL reuses an existing server.",
+    );
+  }
   rmSync(outputDirectory, { recursive: true, force: true });
   mkdirSync(outputDirectory, { recursive: true });
   if (serverLogFd !== undefined) {
@@ -204,6 +218,7 @@ try {
         env: {
           ...process.env,
           BASE_URL: baseURL,
+          ATLAS_DATABASE_URL: atlasDatabaseUrl,
           ATLAS_OUTPUT_DIR: flowOutputDirectory,
           ATLAS_CAPTURE_DIR: captureDirectory,
           ATLAS_AUTH_STATE: path.join(flowOutputDirectory, ".auth/member.json"),
