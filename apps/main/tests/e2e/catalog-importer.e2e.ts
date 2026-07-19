@@ -428,14 +428,34 @@ test.describe("catalog importer", () => {
       page.getByRole("region", { name: "Listings left unmatched" }),
     ).toContainText("Mystery Bloom");
 
+    const downloadSummary = page.getByRole("region", {
+      name: "Prepared workbook contents",
+    });
+    await expect(downloadSummary).toContainText(
+      "Retain 26 source rows in one CSV table",
+    );
+    await expect(downloadSummary).toContainText(
+      "Include 3 seller-approved corrections",
+    );
+    await expect(downloadSummary).toContainText(
+      "Add Daylily Catalog identity to 24 linked listings",
+    );
+    await expect(downloadSummary).toContainText(
+      "Keep 1 intentionally unmatched listing",
+    );
+    await expect(downloadSummary).toContainText(
+      "Leave 0 cultivar decisions, 0 required values, and 0 warnings unresolved",
+    );
+
     const downloadPromise = page.waitForEvent("download");
     await page
-      .getByRole("button", { name: "Download prepared spreadsheet" })
+      .getByRole("region", { name: "Your prepared workbook is ready" })
+      .getByRole("button", { name: "Download prepared workbook" })
       .click();
     const download = await downloadPromise;
     const downloadPath = await download.path();
     expect(download.suggestedFilename()).toBe(
-      "spring-catalog-daylily-catalog.csv",
+      "spring-catalog-daylily-catalog-prepared.csv",
     );
     expect(downloadPath).not.toBeNull();
     const csv = await readFile(downloadPath, "utf8");

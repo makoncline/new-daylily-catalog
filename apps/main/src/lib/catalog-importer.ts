@@ -205,6 +205,19 @@ export interface CatalogImportRow {
   title: string;
 }
 
+export interface CatalogImportDownloadSummary {
+  appliedCorrectionCount: number;
+  fileType: "csv" | "xlsx";
+  intentionallyUnmatchedCount: number;
+  linkedIdentityCount: number;
+  removedRowCount: number;
+  retainedSourceRowCount: number;
+  retainedWorksheetCount: number;
+  unresolvedCultivarCount: number;
+  unresolvedValueCount: number;
+  unresolvedWarningCount: number;
+}
+
 function getDuplicateGroupKey(row: CatalogImportRow) {
   if (row.match?.cultivarReferenceId) {
     return `cultivar:${row.match.cultivarReferenceId}`;
@@ -841,6 +854,57 @@ export function createCatalogImportRows({
   }
 
   return assignCatalogImportDuplicateGroups(result);
+}
+
+export function getCatalogImportDownloadSummary({
+  matchedRows,
+  parsedSpreadsheet,
+}: {
+  matchedRows: CatalogImportRow[];
+  parsedSpreadsheet: ParsedSpreadsheet;
+}): CatalogImportDownloadSummary {
+  const state = getCatalogImportState(matchedRows);
+  const removedRowCount = new Set(
+    matchedRows
+      .filter((row) => row.outputState === "removed")
+      .map((row) => row.sourceRow),
+  ).size;
+  const appliedCorrectionCount = matchedRows.reduce((count, row) => {
+    if (row.rowKind !== "listing" || row.outputState === "removed") {
+      return count;
+    }
+
+    const originalPriceHadIssue =
+      parsePriceValue(row.sourcePrice).warning !== null;
+    const originalImage = getImageUrl(row.sourceImageUrl);
+    const priceWasCorrected =
+      originalPriceHadIssue && row.priceWarning === null;
+    const imageWasCorrected =
+      row.imageUrlWarning === null &&
+      (originalImage.warning !== null ||
+        originalImage.imageUrl !== row.imageUrl);
+
+    return count + Number(priceWasCorrected) + Number(imageWasCorrected);
+  }, 0);
+
+  return {
+    appliedCorrectionCount,
+    fileType: parsedSpreadsheet.fileName.toLowerCase().endsWith(".csv")
+      ? "csv"
+      : "xlsx",
+    intentionallyUnmatchedCount: state.counts.intentionallyUnmatchedCount,
+    linkedIdentityCount: state.counts.linkedListingCount,
+    removedRowCount,
+    retainedSourceRowCount:
+      parsedSpreadsheet.sheets.reduce(
+        (total, sheet) => total + sheet.rows.length,
+        0,
+      ) - removedRowCount,
+    retainedWorksheetCount: parsedSpreadsheet.sheets.length,
+    unresolvedCultivarCount: state.counts.pendingCultivarDecisionCount,
+    unresolvedValueCount: state.counts.requiredDataDecisionCount,
+    unresolvedWarningCount: state.counts.warningCount,
+  };
 }
 
 export function escapeCsv(value: SpreadsheetCell | undefined) {

@@ -18,6 +18,7 @@ import {
   createCatalogImportTemplateCsv,
   detectHeaderRow,
   getAutomaticCultivarMatch,
+  getCatalogImportDownloadSummary,
   getCatalogImportState,
   getSourceColumns,
   suggestColumnMapping,
@@ -298,6 +299,16 @@ export function useCatalogImporterWorkbench(
     () =>
       getCatalogImportState(matchedRows ?? [], selectedSheet?.rows.length ?? 0),
     [matchedRows, selectedSheet?.rows.length],
+  );
+  const downloadSummary = useMemo(
+    () =>
+      parsedSpreadsheet && matchedRows
+        ? getCatalogImportDownloadSummary({
+            matchedRows,
+            parsedSpreadsheet,
+          })
+        : null,
+    [matchedRows, parsedSpreadsheet],
   );
   const { includedRows, reviewRows } = importState;
   const activeReviewRow =
@@ -1497,6 +1508,7 @@ export function useCatalogImporterWorkbench(
     counts: importState.counts,
     downloadResults,
     downloadError,
+    downloadSummary,
     downloadingResults,
     downloadTemplate,
     enrichment: importState.enrichment,

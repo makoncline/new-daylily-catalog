@@ -12,14 +12,14 @@ decisions, evidence, and blockers.
 | --------------- | --------------------------------------------------------------------------------------------------------- |
 | Overall status  | Implementation in progress                                                                                |
 | Current phase   | Phase D — Export and continue                                                                             |
-| Current slice   | Slice 9 — Complete the prepared-workbook download experience                                              |
+| Current slice   | Slice 10 — Add honest guest/member continuation                                                           |
 | Last updated    | 2026-07-18                                                                                                |
 | Branch          | `agent/catalog-importer-v1`                                                                               |
 | Baseline commit | `7b5a81ad`                                                                                                |
 | Pull request    | [#352 — Prepare daylily catalog spreadsheets](https://github.com/makoncline/new-daylily-catalog/pull/352) |
 | Current blocker | None                                                                                                      |
-| Next action     | Audit the download labels, summary, filename, retry state, and re-upload contract                         |
-| Latest evidence | Slice 8 passed 39 focused tests, 3 E2Es, typecheck, and lint with one unrelated warning                   |
+| Next action     | Audit current membership state, sign-in return behavior, prompt placement, and shipped Pro promises       |
+| Latest evidence | Slice 9 passed 39 focused tests, 3 E2Es, typecheck, lint, and a real three-sheet XLSX download/open check |
 
 ### Progress
 
@@ -36,7 +36,7 @@ decisions, evidence, and blockers.
   - [x] Slice 7 — Complete cultivar review, revision, and undo
   - [x] Slice 8 — Complete spreadsheet issue repair
 - [ ] Phase D — Export and continue
-  - [ ] Slice 9 — Complete the prepared-workbook download experience
+  - [x] Slice 9 — Complete the prepared-workbook download experience
   - [ ] Slice 10 — Add honest guest/member continuation
 - [ ] Phase E — Hardening and closeout
   - [ ] Slice 11 — Fix mobile and accessibility blockers
@@ -48,22 +48,21 @@ decisions, evidence, and blockers.
 Use this area for short-lived details needed to resume the active slice.
 Move durable decisions to the decision log and completed work to the work log.
 
-- Slice 8 is complete and ready to package for PR #352.
-- Begin Slice 9 by comparing the current download surface with the already
-  verified cleaned-workbook contract.
-- Derive the pre-download summary from current importer state; do not duplicate
-  workbook logic in the UI.
-- Keep download failure and retry state separate from matching.
+- Slice 9 is complete and ready to package for PR #352.
+- Begin Slice 10 by reusing existing membership identity and seller-intent
+  patterns; do not introduce a new audience or funnel framework.
+- Keep every preparation and download capability available to guests.
+- Do not promise direct workbook import or one-click publishing.
 
 ### User update
 
 Use this as the source for concise progress updates.
 
-> Slice 8 is complete: price, duplicate, seller-image, and stale-ID issues are
-> grouped by meaning, preserve unresolved source data, explain prepared-file
-> consequences, and support one-level Undo. Obvious bundle prices preserve
-> their original offer in private notes, and stale IDs are replaced only after
-> a successful confident name match.
+> Slice 9 is complete: current and prepared downloads now have accurate labels,
+> a pre-download contract summary, stable prepared filenames, explicit
+> CSV/XLSX and fidelity behavior, and retryable failure copy. The real
+> three-sheet workbook downloaded and reopened with all sheet values intact
+> outside the selected sheet and only the three identity columns added.
 
 ## How the goal agent must use this file
 
@@ -696,34 +695,54 @@ the verified cleaned-workbook contract.
 
 Tasks:
 
-- [ ] Use `Download current workbook` while decisions remain.
-- [ ] Use `Download prepared workbook` when all required decisions are done.
-- [ ] Before generation, summarize:
-  - [ ] retained worksheet count;
-  - [ ] retained source-row count;
-  - [ ] applied seller-approved corrections;
-  - [ ] linked identity count;
-  - [ ] intentionally unmatched count;
-  - [ ] removed-row count;
-  - [ ] unresolved values/warnings; and
-  - [ ] workbook features not preserved.
-- [ ] Explain that live reference photographs, awards, and cultivar attributes
+- [x] Use `Download current workbook` while decisions remain.
+- [x] Use `Download prepared workbook` when all required decisions are done.
+- [x] Before generation, summarize:
+  - [x] retained worksheet count;
+  - [x] retained source-row count;
+  - [x] applied seller-approved corrections;
+  - [x] linked identity count;
+  - [x] intentionally unmatched count;
+  - [x] removed-row count;
+  - [x] unresolved values/warnings; and
+  - [x] workbook features not preserved.
+- [x] Explain that live reference photographs, awards, and cultivar attributes
       remain linked to Daylily Catalog and are not copied into the workbook.
-- [ ] Use the stable filename
+- [x] Use the stable filename
       `original-name-daylily-catalog-prepared.xlsx`.
-- [ ] Keep CSV input/output behavior explicit.
-- [ ] Ensure download generation cannot mutate the current in-browser project.
-- [ ] Separate download failure state and retry from matching.
-- [ ] Prove the output can be re-uploaded with identity fields recognized
+- [x] Keep CSV input/output behavior explicit.
+- [x] Ensure download generation cannot mutate the current in-browser project.
+- [x] Separate download failure state and retry from matching.
+- [x] Prove the output can be re-uploaded with identity fields recognized
       automatically.
-- [ ] Verify all three samples and the real 1,087-row, three-sheet workbook.
+- [x] Verify all three samples and the real 1,087-row, three-sheet workbook.
 
 Acceptance:
 
-- [ ] Current and completed download labels reflect actual state.
-- [ ] The pre-download summary matches the generated file.
-- [ ] A failed download can be retried without rematching.
-- [ ] The prepared file is an unambiguous future-import contract.
+- [x] Current and completed download labels reflect actual state.
+- [x] The pre-download summary matches the generated file.
+- [x] A failed download can be retried without rematching.
+- [x] The prepared file is an unambiguous future-import contract.
+
+Evidence (2026-07-18):
+
+- 39 focused importer tests passed, including source-workbook immutability and
+  automatic recognition of the prepared identity columns on re-upload.
+- All 3 importer E2Es passed with current/prepared labels, exact summary
+  counts, stable CSV filename, generated-file content checks, retry behavior,
+  restoration, and phone-width coverage.
+- Typecheck passed. Lint has zero errors and one unrelated existing dashboard
+  warning.
+- Visible Chrome showed the real workbook summary: 3 worksheets, 1,302 total
+  source rows, 1,034 linked identities, and 52 unresolved cultivar decisions.
+- Chrome downloaded
+  `/Users/makon/Downloads/daylilies-info-daylily-catalog-prepared.xlsx`.
+  It reopened as 3 sheets with row counts 1,087, 153, and 62; the two untouched
+  sheets were value-identical to the source, and the selected sheet gained
+  only the three Daylily Catalog identity columns.
+- The three supplied workbook formats remain covered by the Slice 0 contract
+  proof; this slice did not change workbook reconstruction, only its summary,
+  filename, and download presentation.
 
 ### Slice 10 — Add honest guest/member continuation
 
@@ -929,18 +948,19 @@ The goal is complete only when:
 Add new entries at the top. Keep descriptions factual and link commits or
 artifacts when useful.
 
-| Date       | Slice    | Status   | What changed                                                                                                                                           | Verification                                                                                                                                                              | Commit / notes                      |
-| ---------- | -------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
-| 2026-07-18 | Slice 8  | Complete | Grouped issue repair; preserved bundle-price meaning; clarified duplicate/image consequences; added stale-ID rematching and issue Undo.                | 39 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, plus preserved visible real-workbook state in Chrome.                                      | This Slice 8 commit.                |
-| 2026-07-18 | Slice 7  | Complete | Separated defer and intentional-unmatched decisions; added explicit candidate actions, restoration, linked-row unlinking, and identity Undo.           | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, and visible Chrome verification against the real 52-row review queue.                      | `10e70ca7`                          |
-| 2026-07-18 | Slice 6  | Complete | Added responsive persistent workspace navigation, prioritized next-task links, and always-available current/prepared download without duplicate state. | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, and real Chrome verification of sticky anchors and the 1,087-row workflow.                 | `086da3d8`                          |
-| 2026-07-18 | Slice 5  | Complete | Counted linked unique cultivars; added narrative discoveries and clickable rankings that drive the shared removable preview filters.                   | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and real Chrome filtering of the 1,087-row catalog from 1,034 to 52 listings.     | `dd181675`                          |
-| 2026-07-18 | Slice 4  | Complete | Restricted preview to explicit links; removed confidence badges; labeled image provenance; added match confirmation, highlighting, revision, and undo. | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome verification against the 1,087-row preview.                    | `b1442747`                          |
-| 2026-07-18 | Slice 3  | Complete | Replaced the generic overview with a personalized enrichment reveal; reordered preview, insights, preparation, repair, download, and Pro continuation. | 37 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome verification with the rebuilt 1,087-row workbook.              | `1d999a90`                          |
-| 2026-07-18 | Slice 2  | Complete | Clarified browser-local privacy and file actions; added confirmed resets and event-driven processing stages without timed delays or effects.           | 36 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome verification with the restored real workbook.                  | `bda585ad`                          |
-| 2026-07-18 | Slice 1  | Complete | Replaced overlapping row flags with explicit row/output/link/provenance state; centralized counts and enrichment; migrated v2 browser drafts to v3.    | 33 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome restoration of the 1,087-row workbook.                         | `01e838c0`                          |
-| 2026-07-18 | Slice 0  | Complete | Implemented cleaned mapped fields and canonical identity headers; documented the verified XLSX value-copy contract.                                    | 25 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, real Chrome download, full three-sheet value comparison, LibreOffice open/resave. | `1d643703`                          |
-| 2026-07-18 | Planning | Complete | Converted the full UI/UX review into a 14-slice implementation tracker; made cleaned-copy semantics the first gated contract.                          | Plan reviewed against the current product doc and PR boundary.                                                                                                            | Implementation begins with Slice 0. |
+| Date       | Slice    | Status   | What changed                                                                                                                                            | Verification                                                                                                                                                              | Commit / notes                      |
+| ---------- | -------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| 2026-07-18 | Slice 9  | Complete | Added exact pre-download summary, current/prepared labels, stable prepared filenames, explicit output/fidelity copy, and deterministic re-upload proof. | 39 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, visible Chrome summary, and reopened three-sheet real-workbook output.                     | This Slice 9 commit.                |
+| 2026-07-18 | Slice 8  | Complete | Grouped issue repair; preserved bundle-price meaning; clarified duplicate/image consequences; added stale-ID rematching and issue Undo.                 | 39 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, plus preserved visible real-workbook state in Chrome.                                      | `cb47bb01`                          |
+| 2026-07-18 | Slice 7  | Complete | Separated defer and intentional-unmatched decisions; added explicit candidate actions, restoration, linked-row unlinking, and identity Undo.            | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, and visible Chrome verification against the real 52-row review queue.                      | `10e70ca7`                          |
+| 2026-07-18 | Slice 6  | Complete | Added responsive persistent workspace navigation, prioritized next-task links, and always-available current/prepared download without duplicate state.  | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, and real Chrome verification of sticky anchors and the 1,087-row workflow.                 | `086da3d8`                          |
+| 2026-07-18 | Slice 5  | Complete | Counted linked unique cultivars; added narrative discoveries and clickable rankings that drive the shared removable preview filters.                    | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and real Chrome filtering of the 1,087-row catalog from 1,034 to 52 listings.     | `dd181675`                          |
+| 2026-07-18 | Slice 4  | Complete | Restricted preview to explicit links; removed confidence badges; labeled image provenance; added match confirmation, highlighting, revision, and undo.  | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome verification against the 1,087-row preview.                    | `b1442747`                          |
+| 2026-07-18 | Slice 3  | Complete | Replaced the generic overview with a personalized enrichment reveal; reordered preview, insights, preparation, repair, download, and Pro continuation.  | 37 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome verification with the rebuilt 1,087-row workbook.              | `1d999a90`                          |
+| 2026-07-18 | Slice 2  | Complete | Clarified browser-local privacy and file actions; added confirmed resets and event-driven processing stages without timed delays or effects.            | 36 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome verification with the restored real workbook.                  | `bda585ad`                          |
+| 2026-07-18 | Slice 1  | Complete | Replaced overlapping row flags with explicit row/output/link/provenance state; centralized counts and enrichment; migrated v2 browser drafts to v3.     | 33 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome restoration of the 1,087-row workbook.                         | `01e838c0`                          |
+| 2026-07-18 | Slice 0  | Complete | Implemented cleaned mapped fields and canonical identity headers; documented the verified XLSX value-copy contract.                                     | 25 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, real Chrome download, full three-sheet value comparison, LibreOffice open/resave. | `1d643703`                          |
+| 2026-07-18 | Planning | Complete | Converted the full UI/UX review into a 14-slice implementation tracker; made cleaned-copy semantics the first gated contract.                           | Plan reviewed against the current product doc and PR boundary.                                                                                                            | Implementation begins with Slice 0. |
 
 ## Deferred follow-ups
 

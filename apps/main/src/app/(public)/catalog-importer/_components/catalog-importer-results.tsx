@@ -26,16 +26,19 @@ interface CatalogImporterResultsProps {
   controller: CatalogImporterWorkbenchController;
 }
 
+function getDownloadLabel(controller: CatalogImporterWorkbenchController) {
+  return controller.reviewRows.length > 0 || controller.issueCount > 0
+    ? "Download current workbook"
+    : "Download prepared workbook";
+}
+
 function CatalogImporterWorkspaceNavigation({
   controller,
 }: CatalogImporterResultsProps) {
   const reviewCount = controller.reviewRows.length;
   const issueCount = controller.issueCount;
   const workRemaining = reviewCount + issueCount;
-  const downloadLabel =
-    workRemaining > 0
-      ? "Download current workbook"
-      : "Download prepared workbook";
+  const downloadLabel = getDownloadLabel(controller);
   const nextAction =
     reviewCount > 0
       ? {
@@ -220,6 +223,7 @@ export function CatalogImporterResults({
     controller.includedRows.find((row) => row.id === matchEditorRowId) ?? null;
   const readyToDownload =
     controller.reviewRows.length === 0 && controller.issueCount === 0;
+  const downloadLabel = getDownloadLabel(controller);
   const handleOpenReview = useCallback((row: CatalogImportRow) => {
     setMatchEditorRowId(row.id);
   }, []);
@@ -370,40 +374,133 @@ export function CatalogImporterResults({
         <Alert variant="destructive">
           <CircleAlert className="size-4" />
           <AlertTitle>Spreadsheet download did not finish</AlertTitle>
-          <AlertDescription>{controller.downloadError}</AlertDescription>
+          <AlertDescription>
+            {controller.downloadError} Your workbook and matching progress are
+            still here. Try the download again.
+          </AlertDescription>
         </Alert>
       ) : null}
 
       <section
         id="catalog-importer-download"
         aria-labelledby="catalog-importer-download-heading"
-        className="flex !scroll-mt-16 flex-col gap-5 border-t pt-8 sm:flex-row sm:items-center sm:justify-between"
+        className="!scroll-mt-16 border-t pt-8"
       >
-        <div>
-          <h2 id="catalog-importer-download-heading" className="font-semibold">
-            {readyToDownload
-              ? "Your prepared spreadsheet is ready"
-              : "Download your progress"}
-          </h2>
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+          <div className="max-w-3xl">
+            <h2
+              id="catalog-importer-download-heading"
+              className="font-semibold"
+            >
+              {readyToDownload
+                ? "Your prepared workbook is ready"
+                : "Your current workbook is ready"}
+            </h2>
+            <p className="text-muted-foreground mt-1 text-sm">
+              Download a cleaned copy now, or keep reviewing first.
+            </p>
+          </div>
+          <Button
+            type="button"
+            className="shrink-0"
+            disabled={controller.downloadingResults}
+            onClick={() => void controller.downloadResults()}
+          >
+            {controller.downloadingResults ? (
+              <Spinner />
+            ) : (
+              <Download className="size-4" />
+            )}
+            {downloadLabel}
+          </Button>
+        </div>
+
+        {controller.downloadSummary ? (
+          <div
+            role="region"
+            aria-label="Prepared workbook contents"
+            className="mt-6 max-w-3xl border-y py-5"
+          >
+            <p className="text-sm font-medium">
+              This {controller.downloadSummary.fileType.toUpperCase()} file
+              will:
+            </p>
+            <ul className="text-muted-foreground mt-3 grid gap-2 text-sm sm:grid-cols-2">
+              <li>
+                Retain{" "}
+                {controller.downloadSummary.fileType === "csv"
+                  ? `${controller.downloadSummary.retainedSourceRowCount.toLocaleString()} source rows in one CSV table`
+                  : `${controller.downloadSummary.retainedWorksheetCount.toLocaleString()} ${controller.downloadSummary.retainedWorksheetCount === 1 ? "worksheet" : "worksheets"} and ${controller.downloadSummary.retainedSourceRowCount.toLocaleString()} source rows`}
+              </li>
+              <li>
+                Include{" "}
+                {controller.downloadSummary.appliedCorrectionCount.toLocaleString()}{" "}
+                seller-approved{" "}
+                {controller.downloadSummary.appliedCorrectionCount === 1
+                  ? "correction"
+                  : "corrections"}
+              </li>
+              <li>
+                Add Daylily Catalog identity to{" "}
+                {controller.downloadSummary.linkedIdentityCount.toLocaleString()}{" "}
+                linked{" "}
+                {controller.downloadSummary.linkedIdentityCount === 1
+                  ? "listing"
+                  : "listings"}
+              </li>
+              <li>
+                Keep{" "}
+                {controller.downloadSummary.intentionallyUnmatchedCount.toLocaleString()}{" "}
+                intentionally unmatched{" "}
+                {controller.downloadSummary.intentionallyUnmatchedCount === 1
+                  ? "listing"
+                  : "listings"}
+              </li>
+              <li>
+                Remove{" "}
+                {controller.downloadSummary.removedRowCount.toLocaleString()}{" "}
+                source{" "}
+                {controller.downloadSummary.removedRowCount === 1
+                  ? "row"
+                  : "rows"}
+              </li>
+              <li>
+                Leave{" "}
+                {controller.downloadSummary.unresolvedCultivarCount.toLocaleString()}{" "}
+                cultivar{" "}
+                {controller.downloadSummary.unresolvedCultivarCount === 1
+                  ? "decision"
+                  : "decisions"}
+                ,{" "}
+                {controller.downloadSummary.unresolvedValueCount.toLocaleString()}{" "}
+                required{" "}
+                {controller.downloadSummary.unresolvedValueCount === 1
+                  ? "value"
+                  : "values"}
+                , and{" "}
+                {controller.downloadSummary.unresolvedWarningCount.toLocaleString()}{" "}
+                {controller.downloadSummary.unresolvedWarningCount === 1
+                  ? "warning"
+                  : "warnings"}{" "}
+                unresolved
+              </li>
+            </ul>
+            <p className="text-muted-foreground mt-4 text-xs leading-relaxed">
+              Reference photographs, awards, and cultivar attributes remain
+              linked to Daylily Catalog and are not copied into this file. The
+              value-only export does not preserve formulas, formatting, merged
+              cells, drawings, comments, macros, validation, or hidden state.
+              Nothing is published or imported.
+            </p>
+          </div>
+        ) : null}
+
+        <div className="mt-4 max-w-3xl">
           <p className="text-muted-foreground mt-1 text-sm">
-            Downloads a cleaned copy with your sheets and seller-owned columns.
-            Linked names, approved fixes, and Daylily Catalog identity columns
-            are included. XLSX formatting and formulas are not copied.
+            CSV uploads download as CSV. XLSX uploads retain every worksheet as
+            a value-only XLSX workbook.
           </p>
         </div>
-        <Button
-          type="button"
-          className="shrink-0"
-          disabled={controller.downloadingResults}
-          onClick={() => void controller.downloadResults()}
-        >
-          {controller.downloadingResults ? (
-            <Spinner />
-          ) : (
-            <Download className="size-4" />
-          )}
-          Download prepared spreadsheet
-        </Button>
       </section>
 
       <section

@@ -193,6 +193,12 @@ describe("catalog importer normalization", () => {
       name: "Notes",
       rows: [["Keep this sheet"], ["Seller notes"]],
     });
+    expect(
+      suggestColumnMapping(enriched.sheets[0]!.rows, headerRowIndex),
+    ).toMatchObject({
+      cultivarReferenceId: header.length,
+      title: 3,
+    });
     expect(rows[1]).toEqual(data);
   });
 

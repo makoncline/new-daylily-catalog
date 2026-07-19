@@ -335,8 +335,12 @@ describe("CatalogImporterWorkbench", () => {
     fireEvent.click(
       await screen.findByRole("button", { name: "Build catalog preview" }),
     );
-    const downloadButton = await screen.findByRole("button", {
-      name: "Download prepared spreadsheet",
+    const downloadButton = within(
+      await screen.findByRole("region", {
+        name: "Your current workbook is ready",
+      }),
+    ).getByRole("button", {
+      name: "Download current workbook",
     });
 
     fireEvent.click(downloadButton);
@@ -549,8 +553,23 @@ describe("CatalogImporterWorkbench", () => {
       name: "Fix spreadsheet issues",
     });
     const download = screen.getByRole("heading", {
-      name: "Download your progress",
+      name: "Your current workbook is ready",
     });
+    const downloadSummary = screen.getByRole("region", {
+      name: "Prepared workbook contents",
+    });
+    expect(downloadSummary).toHaveTextContent(
+      "Retain 11 source rows in one CSV table",
+    );
+    expect(downloadSummary).toHaveTextContent(
+      "Include 0 seller-approved corrections",
+    );
+    expect(downloadSummary).toHaveTextContent(
+      "Add Daylily Catalog identity to 8 linked listings",
+    );
+    expect(downloadSummary).toHaveTextContent(
+      "Leave 2 cultivar decisions, 1 required value, and 1 warning unresolved",
+    );
     const membership = screen.getByRole("heading", {
       name: "Imagine this as your public catalog",
     });

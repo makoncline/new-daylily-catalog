@@ -138,5 +138,5 @@ export function getDownloadFileName(fileName: string) {
       .replace(/^-+|-+$/g, "")
       .toLowerCase() || "daylily-catalog";
 
-  return `${safeName}-daylily-catalog.${extension}`;
+  return `${safeName}-daylily-catalog-prepared.${extension}`;
 }
