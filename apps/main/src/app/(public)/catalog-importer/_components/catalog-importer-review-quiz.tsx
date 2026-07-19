@@ -78,6 +78,8 @@ export function CatalogImporterReviewQuiz({
       searchCandidateResult.rowId === activeRow?.id &&
       searchCandidateResult.loading,
   );
+  const canMove = controller.reviewRows.length > 1;
+  const canResetSearch = reviewQuery.trim() !== activeRow?.sourceTitle.trim();
 
   const chooseCandidate = useCallback(
     (candidate: CultivarMatchCandidate) => {
@@ -116,13 +118,13 @@ export function CatalogImporterReviewQuiz({
       return;
     }
 
-    if (event.key.toLowerCase() === "x") {
+    if (event.key.toLowerCase() === "x" && canMove) {
       event.preventDefault();
       moveReviewRow(1);
-    } else if (event.key === "ArrowLeft") {
+    } else if (event.key === "ArrowLeft" && canMove) {
       event.preventDefault();
       moveReviewRow(-1);
-    } else if (event.key === "ArrowRight") {
+    } else if (event.key === "ArrowRight" && canMove) {
       event.preventDefault();
       moveReviewRow(1);
     }
@@ -138,7 +140,11 @@ export function CatalogImporterReviewQuiz({
       id="catalog-importer-review-quiz"
       role="region"
       aria-labelledby="catalog-importer-review-heading"
-      aria-keyshortcuts="1 2 3 4 5 6 7 8 9 X ArrowLeft ArrowRight"
+      aria-keyshortcuts={
+        canMove
+          ? "1 2 3 4 5 6 7 8 9 X ArrowLeft ArrowRight"
+          : "1 2 3 4 5 6 7 8 9"
+      }
       tabIndex={0}
       onKeyDown={handleKeyDown}
       className="focus-visible:ring-ring !scroll-mt-16 border-t pt-10 outline-none focus-visible:ring-2"
@@ -160,35 +166,39 @@ export function CatalogImporterReviewQuiz({
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        {canMove ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-muted-foreground hidden text-xs lg:inline">
+              <kbd className="font-mono">1–9</kbd> choose ·{" "}
+              <kbd className="font-mono">X</kbd> decide later ·{" "}
+              <kbd className="font-mono">← →</kbd> move
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="size-10"
+              aria-label="Previous unmatched name"
+              onClick={() => controller.moveReviewRow(-1)}
+            >
+              <ChevronLeft className="size-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="size-10"
+              aria-label="Next unmatched name"
+              onClick={() => controller.moveReviewRow(1)}
+            >
+              <ChevronRight className="size-4" />
+            </Button>
+          </div>
+        ) : (
           <span className="text-muted-foreground hidden text-xs lg:inline">
-            <kbd className="font-mono">1–9</kbd> choose ·{" "}
-            <kbd className="font-mono">X</kbd> decide later ·{" "}
-            <kbd className="font-mono">← →</kbd> move
+            <kbd className="font-mono">1–9</kbd> choose
           </span>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="size-10"
-            aria-label="Previous unmatched name"
-            disabled={controller.reviewRows.length < 2}
-            onClick={() => controller.moveReviewRow(-1)}
-          >
-            <ChevronLeft className="size-4" />
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="size-10"
-            aria-label="Next unmatched name"
-            disabled={controller.reviewRows.length < 2}
-            onClick={() => controller.moveReviewRow(1)}
-          >
-            <ChevronRight className="size-4" />
-          </Button>
-        </div>
+        )}
       </div>
 
       <div className="space-y-5">
@@ -202,33 +212,30 @@ export function CatalogImporterReviewQuiz({
           className="space-y-3"
         >
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <h3
-                id="catalog-importer-close-matches-heading"
-                className="font-semibold"
-              >
-                Close matches
-              </h3>
-              <p className="text-muted-foreground text-sm">
-                Best matches for {activeRow.title}.
-              </p>
-            </div>
+            <h3
+              id="catalog-importer-close-matches-heading"
+              className="font-semibold"
+            >
+              Close matches
+            </h3>
             <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                aria-keyshortcuts="X"
-                onClick={() => moveReviewRow(1)}
-              >
-                <SkipForward className="size-4" />
-                Decide later
-                <kbd
-                  aria-hidden="true"
-                  className="bg-muted rounded px-1.5 py-0.5 font-mono text-xs"
+              {canMove ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  aria-keyshortcuts="X"
+                  onClick={() => moveReviewRow(1)}
                 >
-                  X
-                </kbd>
-              </Button>
+                  <SkipForward className="size-4" />
+                  Decide later
+                  <kbd
+                    aria-hidden="true"
+                    className="bg-muted rounded px-1.5 py-0.5 font-mono text-xs"
+                  >
+                    X
+                  </kbd>
+                </Button>
+              ) : null}
               <Button type="button" variant="ghost" onClick={skipReviewRow}>
                 Leave unmatched
               </Button>
@@ -268,15 +275,14 @@ export function CatalogImporterReviewQuiz({
         </section>
 
         <div className="space-y-3 border-t pt-5">
-          <div>
-            <h3 className="font-semibold">Other match</h3>
-            <p className="text-muted-foreground text-sm">
-              Search another cultivar spelling.
-            </p>
-          </div>
+          <h3 className="font-semibold">Other match</h3>
 
           <form
-            className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]"
+            className={`grid min-w-0 gap-2 ${
+              canResetSearch
+                ? "sm:grid-cols-[minmax(0,1fr)_auto_auto]"
+                : "sm:grid-cols-[minmax(0,1fr)_auto]"
+            }`}
             onSubmit={(event) => {
               event.preventDefault();
               searchInputRef.current?.blur();
@@ -289,10 +295,12 @@ export function CatalogImporterReviewQuiz({
               value={reviewQuery}
               onChange={(event) => setReviewQuery(event.currentTarget.value)}
             />
-            <Button type="button" variant="outline" onClick={resetSearch}>
-              <RotateCcw className="size-4" />
-              Reset
-            </Button>
+            {canResetSearch ? (
+              <Button type="button" variant="outline" onClick={resetSearch}>
+                <RotateCcw className="size-4" />
+                Reset
+              </Button>
+            ) : null}
             <Button
               type="submit"
               disabled={searchLoading || reviewQuery.trim().length === 0}

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  CATALOG_IMPORT_IMAGE_PREVIEW_WARNING_PREFIX,
   applyAutomaticCultivarMatches,
   assignCatalogImportDuplicateGroups,
   createCatalogEnrichedSpreadsheet,
@@ -664,7 +665,7 @@ describe("catalog importer normalization", () => {
       duplicateGroupCount: 1,
       includedListingCount: 5,
       intentionallyUnmatchedCount: 1,
-      issueCount: 2,
+      issueCount: 1,
       linkedListingCount: 2,
       pendingCultivarDecisionCount: 2,
       priceIssueCount: 1,
@@ -691,6 +692,43 @@ describe("catalog importer normalization", () => {
       "Needs review",
       "Price issue",
     ]);
+  });
+
+  it("requires malformed image URLs but keeps load failures as warnings", () => {
+    const rows = createCatalogImportRows({
+      headerRowIndex: 0,
+      mapping: {
+        cultivarReferenceId: null,
+        description: null,
+        imageUrl: 1,
+        price: null,
+        privateNote: null,
+        title: 0,
+      },
+      rows: [
+        ["name", "image"],
+        ["Malformed image", "not-a-url"],
+        ["Blocked preview", "https://example.com/blocked.jpg"],
+      ],
+    });
+    const state = getCatalogImportState(
+      rows.map((row) =>
+        row.sourceTitle === "Blocked preview"
+          ? {
+              ...row,
+              imageUrlWarning: `${CATALOG_IMPORT_IMAGE_PREVIEW_WARNING_PREFIX}${row.imageUrl}`,
+            }
+          : row,
+      ),
+    );
+
+    expect(state.counts).toMatchObject({
+      issueCount: 1,
+      requiredDataDecisionCount: 1,
+      warningCount: 1,
+    });
+    expect(state.requiredDataDecisionRows).toHaveLength(1);
+    expect(state.warningRows).toHaveLength(1);
   });
 
   it("keeps the best candidate for rows that still need review", () => {

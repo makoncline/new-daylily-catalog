@@ -138,25 +138,12 @@ function DuplicateGroupTable({
 
   return (
     <div className="space-y-4 py-6 first:pt-0 last:pb-0">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h4 className="font-semibold">Multiple listings for {title}</h4>
-          <p className="text-muted-foreground mt-1 text-sm">
-            These rows link to the same cultivar, but both listings may be
-            intentional. Removing a row affects only the prepared workbook; your
-            uploaded file stays untouched.
-          </p>
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          className="shrink-0"
-          onClick={() =>
-            controller.keepDuplicateRows(rows.map((row) => row.id))
-          }
-        >
-          {rows.length === 2 ? "Keep both listings" : "Keep all listings"}
-        </Button>
+      <div>
+        <h4 className="font-semibold">Multiple listings for {title}</h4>
+        <p className="text-muted-foreground mt-1 text-sm">
+          All rows are kept unless you exclude one from the prepared workbook.
+          Your uploaded file stays untouched.
+        </p>
       </div>
 
       <Table
@@ -197,11 +184,11 @@ function DuplicateGroupTable({
                   variant="ghost"
                   size="sm"
                   className="text-destructive hover:text-destructive"
-                  aria-label={`Remove row ${row.sourceRow} from prepared workbook`}
+                  aria-label={`Exclude row ${row.sourceRow} from prepared workbook`}
                   onClick={() => controller.removeDuplicateRow(row.id)}
                 >
                   <Trash2 className="size-4" />
-                  Remove row {row.sourceRow}
+                  Exclude row {row.sourceRow}
                 </Button>
               </TableCell>
               <TableHead
@@ -276,28 +263,30 @@ function PriceIssuesTable({
             value.
           </p>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={!canSaveAll}
-          onClick={() =>
-            controller.resolvePriceIssues(
-              parsedRows.flatMap(({ canSave, parsed, row, suggestion }) =>
-                canSave
-                  ? [
-                      {
-                        preserveOriginalOffer: suggestion !== null,
-                        price: parsed.value,
-                        rowId: row.id,
-                      },
-                    ]
-                  : [],
-              ),
-            )
-          }
-        >
-          Save all
-        </Button>
+        {rows.length > 1 ? (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={!canSaveAll}
+            onClick={() =>
+              controller.resolvePriceIssues(
+                parsedRows.flatMap(({ canSave, parsed, row, suggestion }) =>
+                  canSave
+                    ? [
+                        {
+                          preserveOriginalOffer: suggestion !== null,
+                          price: parsed.value,
+                          rowId: row.id,
+                        },
+                      ]
+                    : [],
+                ),
+              )
+            }
+          >
+            Save all
+          </Button>
+        ) : null}
       </div>
 
       <Table
@@ -455,24 +444,27 @@ function ImageUrlIssuesTable({
             Seller images need review
           </h3>
           <p className="text-muted-foreground mt-1 text-sm">
-            Enter a complete image URL or leave it blank. You can leave a row
-            unresolved; the current workbook keeps its original value.
+            Enter a complete image URL or leave it blank.
           </p>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={!canSaveAll}
-          onClick={() =>
-            controller.resolveImageUrlIssues(
-              parsedRows.flatMap(({ parsed, row }) =>
-                parsed.valid ? [{ imageUrl: parsed.value, rowId: row.id }] : [],
-              ),
-            )
-          }
-        >
-          Save all
-        </Button>
+        {rows.length > 1 ? (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={!canSaveAll}
+            onClick={() =>
+              controller.resolveImageUrlIssues(
+                parsedRows.flatMap(({ parsed, row }) =>
+                  parsed.valid
+                    ? [{ imageUrl: parsed.value, rowId: row.id }]
+                    : [],
+                ),
+              )
+            }
+          >
+            Save all
+          </Button>
+        ) : null}
       </div>
 
       <Table
@@ -487,9 +479,6 @@ function ImageUrlIssuesTable({
             <TableHead scope="col">Name</TableHead>
             <TableHead scope="col" className="max-w-72">
               Original URL
-            </TableHead>
-            <TableHead scope="col" className="min-w-64">
-              What happened
             </TableHead>
             <TableHead scope="col" className="min-w-80">
               Corrected URL
@@ -523,14 +512,6 @@ function ImageUrlIssuesTable({
                   Original URL
                 </span>
                 {row.sourceImageUrl}
-              </TableCell>
-              <TableCell className="text-muted-foreground p-0 text-sm sm:table-cell sm:p-2">
-                <span className="mb-1 block text-xs font-medium sm:hidden">
-                  What happened
-                </span>
-                {isCatalogImportImagePreviewWarning(row.imageUrlWarning)
-                  ? "We could not preview this seller image from your browser. The remote server, hotlink policy, timeout, or file format may be responsible."
-                  : "This is not a complete HTTP or HTTPS image URL."}
               </TableCell>
               <TableCell className="p-0 sm:table-cell sm:p-2">
                 <span className="text-muted-foreground mb-1 block text-xs font-medium sm:hidden">
@@ -590,6 +571,64 @@ function ImageUrlIssuesTable({
   );
 }
 
+function ImagePreviewWarningsTable({ rows }: { rows: CatalogImportRow[] }) {
+  return (
+    <section aria-labelledby="catalog-importer-image-warnings-heading">
+      <div>
+        <h3
+          id="catalog-importer-image-warnings-heading"
+          className="font-semibold"
+        >
+          Seller images could not be previewed
+        </h3>
+        <p className="text-muted-foreground mt-1 text-sm">
+          The URLs are kept. The image host may block browser previews.
+        </p>
+      </div>
+
+      <Table aria-label="Seller image preview warnings" className="mt-4">
+        <TableHeader className="hidden sm:table-header-group">
+          <TableRow>
+            <TableHead scope="col" className="w-px">
+              Row
+            </TableHead>
+            <TableHead scope="col">Name</TableHead>
+            <TableHead scope="col">Image URL</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((row) => (
+            <TableRow
+              key={row.id}
+              className="grid gap-3 py-4 sm:table-row sm:py-0"
+            >
+              <TableHead
+                scope="row"
+                className="text-muted-foreground flex h-auto items-center gap-2 p-0 font-mono text-xs font-normal sm:table-cell sm:p-2"
+              >
+                <span className="font-sans font-medium sm:hidden">Row</span>
+                {row.sourceRow}
+              </TableHead>
+              <TableCell className="p-0 font-medium sm:table-cell sm:p-2">
+                <span className="text-muted-foreground mb-1 block text-xs font-medium sm:hidden">
+                  Name
+                </span>
+                {row.sourceTitle}
+              </TableCell>
+              <TableCell className="text-muted-foreground max-w-96 p-0 break-all sm:table-cell sm:p-2">
+                <span className="mb-1 block text-xs font-medium sm:hidden">
+                  Image URL
+                </span>
+                {row.sourceImageUrl}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </section>
+  );
+}
+
 function SavedIdIssuesTable({
   controller,
   rows,
@@ -630,15 +669,17 @@ function SavedIdIssuesTable({
             review. Invalid IDs are never exported as resolved identity.
           </p>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={rematching}
-          onClick={() => void rematch(rows.map((row) => row.id))}
-        >
-          {rematching ? <Spinner /> : null}
-          Match all by name
-        </Button>
+        {rows.length > 1 ? (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={rematching}
+            onClick={() => void rematch(rows.map((row) => row.id))}
+          >
+            {rematching ? <Spinner /> : null}
+            Match all by name
+          </Button>
+        ) : null}
       </div>
 
       {error ? (
@@ -716,14 +757,23 @@ export function CatalogImporterIssues({
   const priceRows = controller.includedRows.filter(
     (row) => row.priceWarning !== null,
   );
+  const imagePreviewWarningRows = controller.includedRows.filter((row) =>
+    isCatalogImportImagePreviewWarning(row.imageUrlWarning),
+  );
   const imageUrlRows = controller.includedRows.filter(
-    (row) => row.imageUrlWarning !== null,
+    (row) =>
+      row.imageUrlWarning !== null &&
+      !isCatalogImportImagePreviewWarning(row.imageUrlWarning),
   );
   const savedIdRows = controller.includedRows.filter(
     (row) => row.cultivarReferenceIdWarning !== null,
   );
 
-  if (controller.issueCount === 0) {
+  const requiredIssueCount =
+    priceRows.length + imageUrlRows.length + savedIdRows.length;
+  const warningCount = duplicateGroups.length + imagePreviewWarningRows.length;
+
+  if (requiredIssueCount === 0 && warningCount === 0) {
     return null;
   }
 
@@ -739,11 +789,15 @@ export function CatalogImporterIssues({
           id="catalog-importer-issues-heading"
           className="text-xl font-semibold tracking-tight"
         >
-          Fix spreadsheet issues
+          Review spreadsheet data
         </h2>
         <p className="text-muted-foreground mt-1 text-sm tabular-nums">
-          {controller.issueCount.toLocaleString()} issue
-          {controller.issueCount === 1 ? "" : "s"} remaining
+          {requiredIssueCount > 0
+            ? `${requiredIssueCount.toLocaleString()} ${requiredIssueCount === 1 ? "item needs" : "items need"} action`
+            : "No required changes"}
+          {warningCount > 0
+            ? ` · ${warningCount.toLocaleString()} ${warningCount === 1 ? "warning" : "warnings"}`
+            : ""}
         </p>
       </div>
 
@@ -751,7 +805,7 @@ export function CatalogImporterIssues({
         {duplicateGroups.length > 0 ? (
           <section className="py-6" aria-labelledby="duplicate-issues-heading">
             <h3 id="duplicate-issues-heading" className="font-semibold">
-              Duplicate listings
+              Possible duplicate listings
             </h3>
             <div className="divide-y">
               {duplicateGroups.map((group) => (
@@ -774,6 +828,12 @@ export function CatalogImporterIssues({
         {imageUrlRows.length > 0 ? (
           <div className="py-6">
             <ImageUrlIssuesTable controller={controller} rows={imageUrlRows} />
+          </div>
+        ) : null}
+
+        {imagePreviewWarningRows.length > 0 ? (
+          <div className="py-6">
+            <ImagePreviewWarningsTable rows={imagePreviewWarningRows} />
           </div>
         ) : null}
 

@@ -91,17 +91,6 @@ function CandidateChoice({
           {registryDescription}
         </p>
         <p className="text-muted-foreground mt-1 text-xs">{suggestionReason}</p>
-        <Button
-          type="button"
-          variant="link"
-          size="sm"
-          className="mt-1 h-auto w-fit max-w-full justify-start p-0 text-xs"
-          onClick={() => onChoose(candidate)}
-        >
-          <span className="truncate">
-            Link this listing to {candidate.displayName}
-          </span>
-        </Button>
       </div>
     </article>
   );

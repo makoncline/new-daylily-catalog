@@ -7,7 +7,6 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { ArrowUp, ChevronDown, ImageIcon, Info, Link2 } from "lucide-react";
-import { ImageGallery } from "@/components/image-gallery";
 import { ImagePlaceholder } from "@/components/image-placeholder";
 import type { OptimizedImageSource } from "@/components/optimized-image";
 import { OptimizedImage } from "@/components/optimized-image";
@@ -24,25 +23,12 @@ import type {
 } from "@/components/public-catalog-search/public-catalog-search-types";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import {
   getCandidateMeta,
   getAwardDisplayName,
@@ -96,80 +82,6 @@ export function getCatalogPreviewDescription(row: CatalogImportRow) {
   }
 
   return row.match ? getCultivarTraitSummary(row.match).join(" · ") : "";
-}
-
-function CatalogPreviewImage({
-  cultivarName,
-  image,
-  imageLabel,
-  onImageError,
-}: {
-  cultivarName: string;
-  image: OptimizedImageSource;
-  imageLabel: string;
-  onImageError?: () => void;
-}) {
-  return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <button
-          type="button"
-          aria-label={`Preview ${cultivarName} image`}
-          className="focus-visible:ring-ring block w-full cursor-zoom-in outline-none focus-visible:ring-2 focus-visible:ring-inset"
-        >
-          <OptimizedImage
-            image={image}
-            variant="thumb"
-            size="thumbnail"
-            alt={`${cultivarName} — ${imageLabel}`}
-            onImageError={onImageError}
-          />
-        </button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-xl">
-        <DialogTitle className="sr-only">{cultivarName} image</DialogTitle>
-        <DialogDescription className="sr-only">
-          Display-size {imageLabel.toLowerCase()}
-        </DialogDescription>
-        <ImageGallery
-          images={[{ ...image, alt: `${cultivarName} — ${imageLabel}` }]}
-          listingName={cultivarName}
-        />
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function CatalogPreviewDescription({
-  cultivarName,
-  text,
-}: {
-  cultivarName: string;
-  text: string;
-}) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <Tooltip open={open} onOpenChange={setOpen}>
-      <TooltipTrigger asChild>
-        <button
-          type="button"
-          aria-expanded={open}
-          aria-label={`Show full description for ${cultivarName}`}
-          onClick={() => setOpen(true)}
-          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring line-clamp-3 w-full rounded-sm text-left text-xs leading-relaxed outline-none focus-visible:ring-2"
-        >
-          {text}
-        </button>
-      </TooltipTrigger>
-      <TooltipContent
-        side="top"
-        className="max-w-sm text-xs leading-relaxed text-pretty"
-      >
-        {text}
-      </TooltipContent>
-    </Tooltip>
-  );
 }
 
 export function CatalogImporterCatalogPreview({
@@ -245,6 +157,8 @@ export function CatalogImporterCatalogPreview({
     () => buildPublicCatalogSearchFacetOptions(previewListings),
     [previewListings],
   );
+  const showSearchPanel =
+    previewListings.length > 1 || columnFilters.length > 0;
   // TanStack Table's hook intentionally returns mutable APIs; React Compiler warning is expected here.
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
@@ -328,23 +242,27 @@ export function CatalogImporterCatalogPreview({
 
       <div
         className={
-          panelCollapsed
-            ? "grid gap-4 lg:grid-cols-[auto_minmax(0,1fr)]"
-            : "grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]"
+          !showSearchPanel
+            ? undefined
+            : panelCollapsed
+              ? "grid gap-4 lg:grid-cols-[auto_minmax(0,1fr)]"
+              : "grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]"
         }
       >
-        <div className="lg:sticky lg:top-24 lg:self-start">
-          <PublicCatalogSearchAdvancedPanel
-            table={table}
-            listOptions={PREVIEW_LIST_OPTIONS}
-            facetOptions={facetOptions}
-            mode={mode}
-            onModeChange={setMode}
-            collapsed={panelCollapsed}
-            onCollapsedChange={setPanelCollapsed}
-            showCultivarFacets
-          />
-        </div>
+        {showSearchPanel ? (
+          <div className="lg:sticky lg:top-24 lg:self-start">
+            <PublicCatalogSearchAdvancedPanel
+              table={table}
+              listOptions={PREVIEW_LIST_OPTIONS}
+              facetOptions={facetOptions}
+              mode={mode}
+              onModeChange={setMode}
+              collapsed={panelCollapsed}
+              onCollapsedChange={setPanelCollapsed}
+              showCultivarFacets
+            />
+          </div>
+        ) : null}
 
         {filteredRows.length > 0 ? (
           <div className="min-w-0">
@@ -374,113 +292,82 @@ export function CatalogImporterCatalogPreview({
               onScroll={(event) =>
                 setListingAreaScrolled(event.currentTarget.scrollTop > 24)
               }
-              className="bg-muted/10 max-h-[52rem] scroll-mt-24 overflow-y-auto border-y py-3 pr-1 outline-none [scrollbar-gutter:stable] lg:max-h-[69rem] lg:pr-2 xl:max-h-[62rem]"
+              className="bg-muted/10 max-h-[52rem] scroll-mt-24 overflow-y-auto overscroll-y-auto rounded-lg border p-3 pr-1 outline-none [scrollbar-gutter:stable] lg:max-h-[69rem] lg:pr-2 xl:max-h-[62rem]"
             >
-              <TooltipProvider delayDuration={250}>
-                <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
-                  {visiblePreviewRows.map((row) => {
-                    const match = row.match!;
-                    const image = getCatalogPreviewImage(row);
-                    const imageLabel = getCatalogPreviewImageLabel(row);
-                    const description = getCatalogPreviewDescription(row);
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
+                {visiblePreviewRows.map((row) => {
+                  const match = row.match!;
+                  const image = getCatalogPreviewImage(row);
+                  const imageLabel = getCatalogPreviewImageLabel(row);
+                  const description = getCatalogPreviewDescription(row);
 
-                    return (
-                      <article
-                        key={row.id}
-                        id={getCatalogPreviewRowId(row.id)}
-                        className={cn(
-                          "bg-card scroll-mt-24 overflow-hidden rounded-lg border transition-shadow motion-reduce:transition-none",
-                          controller.lastLinkAction?.rowId === row.id &&
-                            "ring-primary ring-2 ring-offset-2",
-                        )}
+                  return (
+                    <article
+                      key={row.id}
+                      id={getCatalogPreviewRowId(row.id)}
+                      className={cn(
+                        "bg-card scroll-mt-24 overflow-hidden rounded-lg border transition-shadow motion-reduce:transition-none",
+                        controller.lastLinkAction?.rowId === row.id &&
+                          "ring-primary ring-2 ring-offset-2",
+                      )}
+                    >
+                      <button
+                        type="button"
+                        aria-label={`View details for ${match.displayName}`}
+                        className="focus-visible:ring-ring relative block w-full text-left outline-none focus-visible:ring-2 focus-visible:ring-inset"
+                        onClick={() => setDetailsRowId(row.id)}
                       >
-                        <div className="relative">
-                          {image ? (
-                            <CatalogPreviewImage
-                              key={image.url}
-                              image={image}
-                              imageLabel={imageLabel ?? "Cultivar photo"}
-                              cultivarName={match.displayName}
-                              onImageError={
-                                row.imageUrl
-                                  ? () =>
-                                      controller.flagImageUrlIssue(
-                                        row.id,
-                                        row.imageUrl,
-                                      )
-                                  : undefined
-                              }
-                            />
-                          ) : (
-                            <ImagePlaceholder />
-                          )}
-                          {row.imageUrl && imageLabel ? (
-                            <span className="bg-background/90 text-muted-foreground absolute top-2 left-2 rounded px-2 py-1 text-[0.6875rem] shadow-sm backdrop-blur">
-                              {imageLabel}
-                            </span>
-                          ) : null}
-                          {row.price !== null ? (
-                            <span className="bg-background/90 absolute top-2 right-2 rounded-md px-2 py-1 text-xs font-semibold shadow-sm backdrop-blur">
-                              {formatPrice(row.price)}
-                            </span>
-                          ) : null}
-                          <button
-                            type="button"
-                            aria-label={`View details for ${match.displayName}`}
-                            title="View details"
-                            className="bg-background/90 text-foreground hover:bg-background focus-visible:ring-ring absolute right-2 bottom-2 flex size-10 items-center justify-center rounded-full border shadow-sm backdrop-blur outline-none focus-visible:ring-2 sm:size-8"
-                            onClick={() => setDetailsRowId(row.id)}
-                          >
-                            <Info aria-hidden="true" className="size-3.5" />
-                          </button>
+                        {image ? (
+                          <OptimizedImage
+                            key={image.url}
+                            image={image}
+                            variant="thumb"
+                            size="thumbnail"
+                            alt={`${match.displayName} — ${imageLabel ?? "Cultivar photo"}`}
+                            onImageError={
+                              row.imageUrl
+                                ? () =>
+                                    controller.flagImageUrlIssue(
+                                      row.id,
+                                      row.imageUrl,
+                                    )
+                                : undefined
+                            }
+                          />
+                        ) : (
+                          <ImagePlaceholder />
+                        )}
+                        {row.price !== null ? (
+                          <span className="bg-background/90 absolute top-2 right-2 rounded-md px-2 py-1 text-xs font-semibold shadow-sm backdrop-blur">
+                            {formatPrice(row.price)}
+                          </span>
+                        ) : null}
+                        <span className="bg-background/90 text-foreground absolute right-2 bottom-2 flex size-8 items-center justify-center rounded-full border shadow-sm backdrop-blur">
+                          <Info aria-hidden="true" className="size-3.5" />
+                        </span>
+                      </button>
+                      <div className="space-y-2 p-3">
+                        <div className="min-w-0">
+                          <h3 className="line-clamp-2 text-sm leading-tight font-semibold">
+                            {match.displayName}
+                          </h3>
+                          <p className="text-muted-foreground mt-1 truncate text-xs">
+                            {getCandidateMeta(match) || "Registered cultivar"}
+                          </p>
                         </div>
-                        <div className="space-y-2 p-3">
-                          <div className="flex items-start gap-2">
-                            <div className="min-w-0 flex-1">
-                              <h3 className="line-clamp-2 text-sm leading-tight font-semibold">
-                                {match.displayName}
-                              </h3>
-                              <p className="text-muted-foreground mt-1 truncate text-xs">
-                                {getCandidateMeta(match) ||
-                                  "Registered cultivar"}
-                              </p>
-                            </div>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  className="-mt-1 -mr-1 size-10 shrink-0 sm:size-8"
-                                  aria-label={`Change cultivar match for ${row.sourceTitle}`}
-                                  onClick={() => onOpenReview(row)}
-                                >
-                                  <Link2
-                                    aria-hidden="true"
-                                    className="size-3.5"
-                                  />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                Change cultivar match
-                              </TooltipContent>
-                            </Tooltip>
-                          </div>
-                          {description ? (
-                            <CatalogPreviewDescription
-                              cultivarName={match.displayName}
-                              text={description}
-                            />
-                          ) : null}
-                        </div>
-                      </article>
-                    );
-                  })}
-                </div>
-              </TooltipProvider>
+                        {description ? (
+                          <p className="text-muted-foreground line-clamp-3 text-xs leading-relaxed">
+                            {description}
+                          </p>
+                        ) : null}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
 
-              <div className="mt-4 flex min-h-20 items-start justify-center border-t pt-4">
-                {canShowMore ? (
+              {canShowMore ? (
+                <div className="mt-4 flex items-start justify-center border-t pt-4">
                   <Button
                     type="button"
                     variant="outline"
@@ -498,8 +385,8 @@ export function CatalogImporterCatalogPreview({
                     Show more
                     <ChevronDown aria-hidden="true" className="size-4" />
                   </Button>
-                ) : null}
-              </div>
+                </div>
+              ) : null}
             </div>
           </div>
         ) : (
@@ -512,6 +399,7 @@ export function CatalogImporterCatalogPreview({
 
       <CatalogPreviewDetailsSheet
         row={detailsRow}
+        onOpenReview={onOpenReview}
         onOpenChange={(open) => {
           if (!open) setDetailsRowId(null);
         }}
@@ -522,9 +410,11 @@ export function CatalogImporterCatalogPreview({
 
 function CatalogPreviewDetailsSheet({
   row,
+  onOpenReview,
   onOpenChange,
 }: {
   row: CatalogImportRow | null;
+  onOpenReview: (row: CatalogImportRow) => void;
   onOpenChange: (open: boolean) => void;
 }) {
   const match = row?.match ?? null;
@@ -589,6 +479,20 @@ function CatalogPreviewDetailsSheet({
                 </p>
               </div>
             ) : null}
+
+            <div className="border-t pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  onOpenChange(false);
+                  onOpenReview(row);
+                }}
+              >
+                <Link2 aria-hidden="true" className="size-4" />
+                Change cultivar match
+              </Button>
+            </div>
           </div>
         ) : null}
       </SheetContent>

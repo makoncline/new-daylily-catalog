@@ -139,7 +139,11 @@ export function CatalogImporterAnalysis({
       ANALYSIS_FACETS.map((facet) => ({
         facet,
         ranking: getRankedValues(uniqueRows, facet),
-      })).filter(({ ranking }) => ranking.values.length > 0),
+      })).filter(
+        ({ ranking }) =>
+          ranking.values.length > 1 ||
+          (ranking.values[0]?.[1] ?? uniqueRows.length) < uniqueRows.length,
+      ),
     [uniqueRows],
   );
   const unresolvedListingCount = rows.filter(
@@ -202,7 +206,7 @@ export function CatalogImporterAnalysis({
           {referencePhotoCount === 1 ? "cultivar has" : "cultivars have"} a
           reference photo
         </span>
-        {awardWinningCount > 0 ? (
+        {awardWinningCount > 0 && awardWinningCount < uniqueRows.length ? (
           <a
             href="#catalog-importer-preview"
             onClick={() => {
@@ -213,9 +217,12 @@ export function CatalogImporterAnalysis({
             {awardWinningCount.toLocaleString()} award-winning{" "}
             {awardWinningCount === 1 ? "cultivar" : "cultivars"}
           </a>
-        ) : (
-          <span className="text-muted-foreground">No awards found yet</span>
-        )}
+        ) : awardWinningCount > 0 ? (
+          <span className="font-medium">
+            {awardWinningCount.toLocaleString()} award-winning{" "}
+            {awardWinningCount === 1 ? "cultivar" : "cultivars"}
+          </span>
+        ) : null}
         {earliestYear !== null && latestYear !== null ? (
           <span className="font-medium">
             Registrations span{" "}
@@ -227,26 +234,28 @@ export function CatalogImporterAnalysis({
       </div>
       {selected ? (
         <div className="mt-5 space-y-4">
-          <ToggleGroup
-            type="single"
-            value={selected.facet.value}
-            onValueChange={(nextView) => {
-              if (nextView) setView(nextView as AnalysisView);
-            }}
-            variant="outline"
-            className="flex flex-wrap justify-start gap-2"
-            aria-label="Catalog breakdown"
-          >
-            {availableRankings.map(({ facet: option }) => (
-              <ToggleGroupItem
-                key={option.value}
-                value={option.value}
-                className="data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground h-8 flex-none rounded-full px-3 text-xs"
-              >
-                {option.label}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
+          {availableRankings.length > 1 ? (
+            <ToggleGroup
+              type="single"
+              value={selected.facet.value}
+              onValueChange={(nextView) => {
+                if (nextView) setView(nextView as AnalysisView);
+              }}
+              variant="outline"
+              className="flex flex-wrap justify-start gap-2"
+              aria-label="Catalog breakdown"
+            >
+              {availableRankings.map(({ facet: option }) => (
+                <ToggleGroupItem
+                  key={option.value}
+                  value={option.value}
+                  className="data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground h-8 flex-none rounded-full px-3 text-xs"
+                >
+                  {option.label}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          ) : null}
 
           <div aria-live="polite">
             <h3 className="font-medium">{selected.facet.title}</h3>

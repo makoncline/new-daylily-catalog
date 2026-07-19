@@ -221,6 +221,7 @@ export function CatalogImporterMatchSheet({
 
   const closeLoading = closeResult?.rowId === row.id && closeResult.loading;
   const searchLoading = searchResult?.rowId === row.id && searchResult.loading;
+  const canResetSearch = query.trim() !== row.sourceTitle.trim();
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -277,14 +278,9 @@ export function CatalogImporterMatchSheet({
           </div>
 
           <section className="space-y-3" aria-labelledby="sheet-close-matches">
-            <div>
-              <h3 id="sheet-close-matches" className="font-semibold">
-                Close matches
-              </h3>
-              <p className="text-muted-foreground text-sm">
-                Best matches for {row.title}.
-              </p>
-            </div>
+            <h3 id="sheet-close-matches" className="font-semibold">
+              Close matches
+            </h3>
 
             {closeResult?.error && closeResult.rowId === row.id ? (
               <Alert variant="destructive">
@@ -315,17 +311,16 @@ export function CatalogImporterMatchSheet({
             className="space-y-3 border-t pt-5"
             aria-labelledby="sheet-other-match"
           >
-            <div>
-              <h3 id="sheet-other-match" className="font-semibold">
-                Other match
-              </h3>
-              <p className="text-muted-foreground text-sm">
-                Search another cultivar spelling.
-              </p>
-            </div>
+            <h3 id="sheet-other-match" className="font-semibold">
+              Other match
+            </h3>
 
             <form
-              className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]"
+              className={`grid min-w-0 gap-2 ${
+                canResetSearch
+                  ? "sm:grid-cols-[minmax(0,1fr)_auto_auto]"
+                  : "sm:grid-cols-[minmax(0,1fr)_auto]"
+              }`}
               onSubmit={(event) => {
                 event.preventDefault();
                 searchInputRef.current?.blur();
@@ -338,10 +333,12 @@ export function CatalogImporterMatchSheet({
                 value={query}
                 onChange={(event) => setQuery(event.currentTarget.value)}
               />
-              <Button type="button" variant="outline" onClick={resetSearch}>
-                <RotateCcw className="size-4" />
-                Reset
-              </Button>
+              {canResetSearch ? (
+                <Button type="button" variant="outline" onClick={resetSearch}>
+                  <RotateCcw className="size-4" />
+                  Reset
+                </Button>
+              ) : null}
               <Button
                 type="submit"
                 disabled={searchLoading || query.trim().length === 0}

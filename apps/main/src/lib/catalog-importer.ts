@@ -276,10 +276,15 @@ export function getCatalogImportState(
     (row) => row.cultivarReferenceIdWarning !== null,
   );
   const requiredDataDecisionRows = includedRows.filter(
-    (row) => row.priceWarning !== null,
+    (row) =>
+      row.priceWarning !== null ||
+      (row.imageUrlWarning !== null &&
+        !isCatalogImportImagePreviewWarning(row.imageUrlWarning)),
   );
   const warningRows = includedRows.filter(
-    (row) => row.duplicateOfSourceRow !== null || row.imageUrlWarning !== null,
+    (row) =>
+      row.duplicateOfSourceRow !== null ||
+      isCatalogImportImagePreviewWarning(row.imageUrlWarning),
   );
   const duplicateGroupCount = new Set(
     includedRows
@@ -291,6 +296,9 @@ export function getCatalogImportState(
   ).length;
   const imageIssueCount = includedRows.filter(
     (row) => row.imageUrlWarning !== null,
+  ).length;
+  const imagePreviewWarningCount = includedRows.filter((row) =>
+    isCatalogImportImagePreviewWarning(row.imageUrlWarning),
   ).length;
   const savedIdIssueCount = savedIdIssueRows.length;
   const uniqueMatches = [
@@ -342,11 +350,7 @@ export function getCatalogImportState(
       imageIssueCount,
       includedListingCount: includedRows.length,
       intentionallyUnmatchedCount: intentionallyUnmatchedRows.length,
-      issueCount:
-        duplicateGroupCount +
-        priceIssueCount +
-        imageIssueCount +
-        savedIdIssueCount,
+      issueCount: requiredDataDecisionRows.length + savedIdIssueCount,
       linkedListingCount: linkedRows.length,
       pendingCultivarDecisionCount: reviewRows.length + savedIdIssueCount,
       priceIssueCount,
@@ -355,7 +359,7 @@ export function getCatalogImportState(
       savedIdIssueCount,
       sourceRowCount,
       uniqueCultivarCount: uniqueMatches.length,
-      warningCount: duplicateGroupCount + imageIssueCount,
+      warningCount: duplicateGroupCount + imagePreviewWarningCount,
     },
     detectedRows,
     enrichment: {

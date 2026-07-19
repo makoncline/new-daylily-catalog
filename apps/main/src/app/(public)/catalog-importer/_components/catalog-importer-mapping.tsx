@@ -43,7 +43,9 @@ import {
 } from "@/components/ui/tooltip";
 import {
   columnIndexToLabel,
+  detectHeaderRow,
   getHeaderRowSummary,
+  suggestColumnMapping,
 } from "@/lib/catalog-importer";
 import {
   CATALOG_IMPORTER_MAPPING_FIELDS,
@@ -57,15 +59,11 @@ interface CatalogImporterMappingProps {
   onSubmit: () => void;
 }
 
-const PROCESSING_STEPS = [
-  { label: "Detecting listing rows", stage: "detecting" },
-  { label: "Matching cultivar names", stage: "matching" },
-  {
-    label: "Loading reference details and photographs",
-    stage: "matching",
-  },
-  { label: "Building your private catalog preview", stage: "building" },
-] as const;
+const PROCESSING_LABELS = {
+  building: "Building catalog preview",
+  detecting: "Detecting listings",
+  matching: "Matching cultivar names",
+} as const;
 
 function MappingHelp({
   description,
@@ -171,10 +169,6 @@ function SpreadsheetPreview({
             <h2 className="text-xl font-semibold tracking-tight">
               Spreadsheet preview
             </h2>
-            <p className="text-muted-foreground text-sm">
-              The detected header row is highlighted. Row and column labels
-              match the workbook.
-            </p>
           </div>
           <CollapsibleTrigger asChild>
             <Button
@@ -272,6 +266,14 @@ export function CatalogImporterMapping({
         Math.max(controller.matchingProgress.total, 1)) *
       100
     : 0;
+  const detectedHeaderRowIndex = detectHeaderRow(controller.selectedSheet.rows);
+  const detectedMapping = suggestColumnMapping(
+    controller.selectedSheet.rows,
+    detectedHeaderRowIndex,
+  );
+  const mappingChanged =
+    controller.headerRowIndex !== detectedHeaderRowIndex ||
+    JSON.stringify(controller.mapping) !== JSON.stringify(detectedMapping);
 
   return (
     <section
@@ -300,43 +302,43 @@ export function CatalogImporterMapping({
                 cultivar name is required.
               </p>
             </div>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="shrink-0"
-                  disabled={controller.processingStage !== null}
-                >
-                  <RotateCcw className="size-4" />
-                  Reset column mapping
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Reset column mapping?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This restores the detected column choices and clears
-                    matching progress for this file. Your original file is not
-                    changed.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={() =>
-                      controller.configureSheet(
-                        controller.parsedSpreadsheet!,
-                        controller.selectedSheetIndex,
-                      )
-                    }
+            {mappingChanged ? (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="shrink-0"
+                    disabled={controller.processingStage !== null}
                   >
-                    Reset column mapping
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+                    <RotateCcw className="size-4" />
+                    Reset
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Reset column mapping?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Restore the detected header and column choices?
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() =>
+                        controller.configureSheet(
+                          controller.parsedSpreadsheet!,
+                          controller.selectedSheetIndex,
+                        )
+                      }
+                    >
+                      Reset
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            ) : null}
           </div>
           <div className="space-y-5">
             <TooltipProvider delayDuration={200}>
@@ -401,10 +403,10 @@ export function CatalogImporterMapping({
                 role="status"
                 aria-label="Building catalog preview"
               >
-                <div className="flex items-center justify-between gap-4 text-sm font-medium">
+                <div className="flex items-center justify-between gap-4 text-sm">
                   <span className="flex items-center gap-2">
                     <Spinner />
-                    Preparing your preview
+                    {PROCESSING_LABELS[controller.processingStage]}
                   </span>
                   {controller.matchingProgress ? (
                     <span className="text-muted-foreground text-xs tabular-nums">
@@ -413,36 +415,6 @@ export function CatalogImporterMapping({
                     </span>
                   ) : null}
                 </div>
-                <ol className="grid gap-1.5 text-xs">
-                  {PROCESSING_STEPS.map((step, index) => {
-                    const currentIndex =
-                      controller.processingStage === "detecting"
-                        ? 0
-                        : controller.processingStage === "matching"
-                          ? 1
-                          : 3;
-                    const current =
-                      step.stage === controller.processingStage ||
-                      (controller.processingStage === "matching" &&
-                        index === 2);
-                    const complete = index < currentIndex;
-
-                    return (
-                      <li
-                        key={step.label}
-                        className={
-                          current
-                            ? "text-foreground font-medium"
-                            : complete
-                              ? "text-muted-foreground"
-                              : "text-muted-foreground/60"
-                        }
-                      >
-                        {complete ? "✓" : current ? "•" : "○"} {step.label}
-                      </li>
-                    );
-                  })}
-                </ol>
                 {controller.matchingProgress ? (
                   <Progress
                     value={progressValue}

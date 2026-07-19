@@ -37,19 +37,14 @@ interface CatalogImporterResultsProps {
   controller: CatalogImporterWorkbenchController;
 }
 
-const MEMBERSHIP_PROMPT_DISMISSED_KEY =
-  "catalog-importer-membership-prompt-dismissed";
-
 function CatalogImporterMembershipPrompt({
   ctaId,
   description,
   heading,
-  onDismiss,
 }: {
   ctaId: string;
   description: string;
   heading: string;
-  onDismiss: () => void;
 }) {
   const trackPromptImpression = useCallback(
     (node: HTMLElement | null) => {
@@ -90,31 +85,17 @@ function CatalogImporterMembershipPrompt({
           {description}
         </p>
       </div>
-      <div className="flex shrink-0 items-center gap-2">
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={() => {
-            capturePosthogEvent("catalog_import_membership_prompt_dismissed", {
-              cta_id: ctaId,
-            });
-            onDismiss();
-          }}
+      <Button asChild variant="outline" className="shrink-0">
+        <SellerIntentLink
+          ctaId={ctaId}
+          ctaLabel="Explore Pro membership"
+          entrySurface="catalog_importer_preview"
+          sourcePageType="catalog_importer"
+          sourcePath="/catalog-importer"
         >
-          Not now
-        </Button>
-        <Button asChild variant="outline">
-          <SellerIntentLink
-            ctaId={ctaId}
-            ctaLabel="Explore Pro membership"
-            entrySurface="catalog_importer_preview"
-            sourcePageType="catalog_importer"
-            sourcePath="/catalog-importer"
-          >
-            Explore Pro membership
-          </SellerIntentLink>
-        </Button>
-      </div>
+          Explore Pro membership
+        </SellerIntentLink>
+      </Button>
     </section>
   );
 }
@@ -131,7 +112,6 @@ function CatalogImporterWorkspaceNavigation({
 }: CatalogImporterResultsProps & { onDownload: () => void }) {
   const reviewCount = controller.reviewRows.length;
   const issueCount = controller.issueCount;
-  const workRemaining = reviewCount + issueCount;
   const downloadLabel = getDownloadLabel(controller);
   const nextAction =
     reviewCount > 0
@@ -139,27 +119,12 @@ function CatalogImporterWorkspaceNavigation({
           href: "#catalog-importer-review-quiz",
           label: `Review ${reviewCount.toLocaleString()}`,
         }
-      : controller.counts.savedIdIssueCount > 0
+      : issueCount > 0
         ? {
-            href: "#catalog-importer-saved-id-issues-heading",
-            label: `Review ${controller.counts.savedIdIssueCount.toLocaleString()}`,
+            href: "#catalog-importer-issues",
+            label: `Fix ${issueCount.toLocaleString()}`,
           }
-        : controller.counts.requiredDataDecisionCount > 0
-          ? {
-              href: "#catalog-importer-price-issues-heading",
-              label: `Fix ${controller.counts.requiredDataDecisionCount.toLocaleString()}`,
-            }
-          : controller.counts.duplicateGroupCount > 0
-            ? {
-                href: "#duplicate-issues-heading",
-                label: `Review ${controller.counts.duplicateGroupCount.toLocaleString()}`,
-              }
-            : controller.counts.imageIssueCount > 0
-              ? {
-                  href: "#catalog-importer-image-issues-heading",
-                  label: `Review ${controller.counts.imageIssueCount.toLocaleString()}`,
-                }
-              : null;
+        : null;
 
   return (
     <>
@@ -168,18 +133,9 @@ function CatalogImporterWorkspaceNavigation({
         className="bg-background/95 sticky top-2 z-30 hidden items-center justify-between gap-4 border-y py-2 backdrop-blur md:flex"
       >
         <div className="flex min-w-0 items-center gap-4 overflow-x-auto text-sm">
-          <a
-            href="#catalog-importer-preview"
-            className="hover:text-primary shrink-0 font-medium"
-          >
-            Catalog preview
-          </a>
-          <a
-            href="#catalog-importer-insights"
-            className="hover:text-primary shrink-0 font-medium"
-          >
-            Insights
-          </a>
+          <span className="text-muted-foreground shrink-0">
+            {controller.counts.linkedListingCount.toLocaleString()} linked
+          </span>
           {reviewCount > 0 ? (
             <a
               href="#catalog-importer-review-quiz"
@@ -220,15 +176,10 @@ function CatalogImporterWorkspaceNavigation({
       >
         {nextAction ? (
           <Button asChild variant="outline" className="min-w-0 flex-1">
-            <a href={nextAction.href}>
-              {nextAction.label}
-              <span className="sr-only">
-                {workRemaining.toLocaleString()} total items remaining
-              </span>
-            </a>
+            <a href={nextAction.href}>{nextAction.label}</a>
           </Button>
         ) : (
-          <span className="text-sm font-medium">Preparation complete</span>
+          <span aria-hidden="true" className="flex-1" />
         )}
         <Button
           type="button"
@@ -313,19 +264,6 @@ export function CatalogImporterResults({
   const [previewColumnFilters, setPreviewColumnFilters] =
     useState<ColumnFiltersState>([]);
   const previewFilterInteractionTracked = useRef(false);
-  const [membershipPromptDismissed, setMembershipPromptDismissed] = useState(
-    () => {
-      try {
-        return (
-          globalThis.sessionStorage?.getItem(
-            MEMBERSHIP_PROMPT_DISMISSED_KEY,
-          ) === "1"
-        );
-      } catch {
-        return false;
-      }
-    },
-  );
   const matchEditorRow =
     controller.includedRows.find((row) => row.id === matchEditorRowId) ?? null;
   const readyToDownload =
@@ -368,17 +306,6 @@ export function CatalogImporterResults({
 
     void controller.downloadResults();
   };
-  const dismissMembershipPrompts = () => {
-    setMembershipPromptDismissed(true);
-    try {
-      globalThis.sessionStorage?.setItem(MEMBERSHIP_PROMPT_DISMISSED_KEY, "1");
-    } catch {
-      // The dismissal still applies to this render when storage is unavailable.
-    }
-  };
-  const showMembershipPrompt =
-    showMembershipPrompts && !membershipPromptDismissed;
-
   return (
     <div className="min-w-0 space-y-10 pb-24 md:pb-0">
       <CatalogImporterOverview controller={controller} />
@@ -400,12 +327,11 @@ export function CatalogImporterResults({
         onApplyFilter={handleApplyInsightFilter}
       />
 
-      {showMembershipPrompt && !readyToDownload ? (
+      {showMembershipPrompts ? (
         <CatalogImporterMembershipPrompt
           ctaId="catalog-importer-preview-membership"
           heading="Imagine this as your public catalog"
           description="Pro adds a hosted public catalog, seller dashboard, and discovery. Your prepared workbook remains free; it is not imported automatically."
-          onDismiss={dismissMembershipPrompts}
         />
       ) : null}
 
@@ -473,7 +399,7 @@ export function CatalogImporterResults({
         <CatalogImporterReviewQuiz controller={controller} />
       ) : null}
 
-      {controller.issueCount > 0 ? (
+      {controller.issueCount > 0 || controller.counts.warningCount > 0 ? (
         <CatalogImporterIssues controller={controller} />
       ) : null}
 
@@ -488,125 +414,117 @@ export function CatalogImporterResults({
         </Alert>
       ) : null}
 
-      <section
-        id="catalog-importer-download"
-        aria-labelledby="catalog-importer-download-heading"
-        className="!scroll-mt-16 border-t pt-8"
-      >
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-          <div className="max-w-3xl">
-            <h2
-              id="catalog-importer-download-heading"
-              className="font-semibold"
+      {readyToDownload ? (
+        <section
+          id="catalog-importer-download"
+          aria-labelledby="catalog-importer-download-heading"
+          className="!scroll-mt-16 border-t pt-8"
+        >
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+            <div className="max-w-3xl">
+              <h2
+                id="catalog-importer-download-heading"
+                className="font-semibold"
+              >
+                Your prepared workbook is ready
+              </h2>
+              <p className="text-muted-foreground mt-1 text-sm">
+                Download the cleaned copy with your approved changes and Daylily
+                Catalog identity fields.
+              </p>
+            </div>
+            <Button
+              type="button"
+              className="shrink-0"
+              disabled={controller.downloadingResults}
+              onClick={requestDownload}
             >
-              {readyToDownload
-                ? "Your prepared workbook is ready"
-                : "Your current workbook is ready"}
-            </h2>
-            <p className="text-muted-foreground mt-1 text-sm">
-              Download a cleaned copy now, or keep reviewing first.
-            </p>
+              {controller.downloadingResults ? (
+                <Spinner />
+              ) : (
+                <Download className="size-4" />
+              )}
+              {downloadLabel}
+            </Button>
           </div>
-          <Button
-            type="button"
-            className="shrink-0"
-            disabled={controller.downloadingResults}
-            onClick={requestDownload}
-          >
-            {controller.downloadingResults ? (
-              <Spinner />
-            ) : (
-              <Download className="size-4" />
-            )}
-            {downloadLabel}
-          </Button>
-        </div>
 
-        {controller.downloadSummary ? (
-          <details className="mt-5 max-w-3xl border-y py-4">
-            <summary className="cursor-pointer text-sm font-medium">
-              File details
-            </summary>
-            <ul className="text-muted-foreground mt-3 grid gap-2 text-sm sm:grid-cols-2">
-              <li>
-                Retain{" "}
+          {controller.downloadSummary ? (
+            <details className="mt-5 max-w-3xl border-y py-4">
+              <summary className="cursor-pointer text-sm font-medium">
+                File details
+              </summary>
+              <ul className="text-muted-foreground mt-3 grid gap-2 text-sm sm:grid-cols-2">
+                <li>
+                  Retain{" "}
+                  {controller.downloadSummary.fileType === "csv"
+                    ? `${controller.downloadSummary.retainedSourceRowCount.toLocaleString()} source rows in one CSV table`
+                    : `${controller.downloadSummary.retainedWorksheetCount.toLocaleString()} ${controller.downloadSummary.retainedWorksheetCount === 1 ? "worksheet" : "worksheets"} and ${controller.downloadSummary.retainedSourceRowCount.toLocaleString()} source rows`}
+                </li>
+                <li>
+                  Include{" "}
+                  {controller.downloadSummary.appliedCorrectionCount.toLocaleString()}{" "}
+                  seller-approved{" "}
+                  {controller.downloadSummary.appliedCorrectionCount === 1
+                    ? "correction"
+                    : "corrections"}
+                </li>
+                <li>
+                  Add Daylily Catalog identity to{" "}
+                  {controller.downloadSummary.linkedIdentityCount.toLocaleString()}{" "}
+                  linked{" "}
+                  {controller.downloadSummary.linkedIdentityCount === 1
+                    ? "listing"
+                    : "listings"}
+                </li>
+                <li>
+                  Keep{" "}
+                  {controller.downloadSummary.intentionallyUnmatchedCount.toLocaleString()}{" "}
+                  intentionally unmatched{" "}
+                  {controller.downloadSummary.intentionallyUnmatchedCount === 1
+                    ? "listing"
+                    : "listings"}
+                </li>
+                <li>
+                  Remove{" "}
+                  {controller.downloadSummary.removedRowCount.toLocaleString()}{" "}
+                  source{" "}
+                  {controller.downloadSummary.removedRowCount === 1
+                    ? "row"
+                    : "rows"}
+                </li>
+                <li>
+                  Leave{" "}
+                  {controller.downloadSummary.unresolvedCultivarCount.toLocaleString()}{" "}
+                  cultivar{" "}
+                  {controller.downloadSummary.unresolvedCultivarCount === 1
+                    ? "decision"
+                    : "decisions"}
+                  ,{" "}
+                  {controller.downloadSummary.unresolvedValueCount.toLocaleString()}{" "}
+                  required{" "}
+                  {controller.downloadSummary.unresolvedValueCount === 1
+                    ? "value"
+                    : "values"}
+                  , and{" "}
+                  {controller.downloadSummary.unresolvedWarningCount.toLocaleString()}{" "}
+                  {controller.downloadSummary.unresolvedWarningCount === 1
+                    ? "warning"
+                    : "warnings"}{" "}
+                  unresolved
+                </li>
+              </ul>
+              <p className="text-muted-foreground mt-4 text-xs leading-relaxed">
                 {controller.downloadSummary.fileType === "csv"
-                  ? `${controller.downloadSummary.retainedSourceRowCount.toLocaleString()} source rows in one CSV table`
-                  : `${controller.downloadSummary.retainedWorksheetCount.toLocaleString()} ${controller.downloadSummary.retainedWorksheetCount === 1 ? "worksheet" : "worksheets"} and ${controller.downloadSummary.retainedSourceRowCount.toLocaleString()} source rows`}
-              </li>
-              <li>
-                Include{" "}
-                {controller.downloadSummary.appliedCorrectionCount.toLocaleString()}{" "}
-                seller-approved{" "}
-                {controller.downloadSummary.appliedCorrectionCount === 1
-                  ? "correction"
-                  : "corrections"}
-              </li>
-              <li>
-                Add Daylily Catalog identity to{" "}
-                {controller.downloadSummary.linkedIdentityCount.toLocaleString()}{" "}
-                linked{" "}
-                {controller.downloadSummary.linkedIdentityCount === 1
-                  ? "listing"
-                  : "listings"}
-              </li>
-              <li>
-                Keep{" "}
-                {controller.downloadSummary.intentionallyUnmatchedCount.toLocaleString()}{" "}
-                intentionally unmatched{" "}
-                {controller.downloadSummary.intentionallyUnmatchedCount === 1
-                  ? "listing"
-                  : "listings"}
-              </li>
-              <li>
-                Remove{" "}
-                {controller.downloadSummary.removedRowCount.toLocaleString()}{" "}
-                source{" "}
-                {controller.downloadSummary.removedRowCount === 1
-                  ? "row"
-                  : "rows"}
-              </li>
-              <li>
-                Leave{" "}
-                {controller.downloadSummary.unresolvedCultivarCount.toLocaleString()}{" "}
-                cultivar{" "}
-                {controller.downloadSummary.unresolvedCultivarCount === 1
-                  ? "decision"
-                  : "decisions"}
-                ,{" "}
-                {controller.downloadSummary.unresolvedValueCount.toLocaleString()}{" "}
-                required{" "}
-                {controller.downloadSummary.unresolvedValueCount === 1
-                  ? "value"
-                  : "values"}
-                , and{" "}
-                {controller.downloadSummary.unresolvedWarningCount.toLocaleString()}{" "}
-                {controller.downloadSummary.unresolvedWarningCount === 1
-                  ? "warning"
-                  : "warnings"}{" "}
-                unresolved
-              </li>
-            </ul>
-            <p className="text-muted-foreground mt-4 text-xs leading-relaxed">
-              {controller.downloadSummary.fileType === "csv"
-                ? "CSV uploads download as one CSV table. "
-                : "XLSX uploads retain every worksheet as a value-only workbook. "}
-              Reference photos, awards, and cultivar attributes are not copied.
-              Formulas, formatting, merged cells, drawings, comments, macros,
-              validation, and hidden state are not preserved. Nothing is
-              published or imported.
-            </p>
-          </details>
-        ) : null}
-      </section>
-
-      {showMembershipPrompt && readyToDownload ? (
-        <CatalogImporterMembershipPrompt
-          ctaId="catalog-importer-complete-membership"
-          heading="Your workbook is ready. Want a hosted catalog?"
-          description="Pro adds a hosted public catalog, seller dashboard, and discovery. This workbook remains yours; it is not imported automatically."
-          onDismiss={dismissMembershipPrompts}
-        />
+                  ? "CSV uploads download as one CSV table. "
+                  : "XLSX uploads retain every worksheet as a value-only workbook. "}
+                Reference photos, awards, and cultivar attributes are not
+                copied. Formulas, formatting, merged cells, drawings, comments,
+                macros, validation, and hidden state are not preserved. Nothing
+                is published or imported.
+              </p>
+            </details>
+          ) : null}
+        </section>
       ) : null}
 
       <AlertDialog

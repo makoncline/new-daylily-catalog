@@ -8,18 +8,18 @@ decisions, evidence, and blockers.
 
 ## Live status
 
-| Field           | Current value                                                                                                                                       |
-| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Overall status  | Implementation complete                                                                                                                             |
-| Current phase   | Complete                                                                                                                                            |
-| Current slice   | Slice 13 complete                                                                                                                                   |
-| Last updated    | 2026-07-19                                                                                                                                          |
-| Branch          | `agent/catalog-importer-v1`                                                                                                                         |
-| Baseline commit | `7b5a81ad`                                                                                                                                          |
-| Pull request    | [#352 — Prepare daylily catalog spreadsheets](https://github.com/makoncline/new-daylily-catalog/pull/352)                                           |
-| Current blocker | None                                                                                                                                                |
-| Next action     | User review of PR #352; no automatic Codex review was run                                                                                           |
-| Latest evidence | Follow-up simplification passed 42 focused tests, all 3 importer E2Es, typecheck, changed-file lint, and visible sample-catalog Chrome verification |
+| Field           | Current value                                                                                                                                                                          |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Overall status  | Implementation complete                                                                                                                                                                |
+| Current phase   | Complete                                                                                                                                                                               |
+| Current slice   | Reduction pass complete                                                                                                                                                                |
+| Last updated    | 2026-07-19                                                                                                                                                                             |
+| Branch          | `agent/catalog-importer-v1`                                                                                                                                                            |
+| Baseline commit | `7b5a81ad`                                                                                                                                                                             |
+| Pull request    | [#352 — Prepare daylily catalog spreadsheets](https://github.com/makoncline/new-daylily-catalog/pull/352)                                                                              |
+| Current blocker | Visible in-app browser verification was blocked by its localhost URL policy                                                                                                            |
+| Next action     | User review of the reduction pass in PR #352; no automatic Codex review was run                                                                                                        |
+| Latest evidence | Reduction pass passed 37 focused tests, all 3 importer E2Es, typecheck, changed-file lint, and `git diff --check`; in-app browser verification was blocked by its localhost URL policy |
 
 ### Progress
 
@@ -48,11 +48,16 @@ decisions, evidence, and blockers.
 Use this area for short-lived details needed to resume the active slice.
 Move durable decisions to the decision log and completed work to the work log.
 
-- All 14 slices are complete and pushed to PR #352.
+- All original 14 slices and the reviewed reduction pass are pushed to PR
+  #352.
 - The follow-up sample-catalog pass fixed sparse year charts, expanded award
   names, added unfinished-download confirmation, moved listing details into a
   Sheet, removed reference-photo badges and redundant copy/actions, and made
   the nested catalog scroll area visible without trapping page scroll.
+- The final reduction pass removed redundant reveal metrics and card actions,
+  hid controls that cannot do useful work, preserved duplicate listings by
+  default, and separated required malformed-image fixes from optional remote
+  preview warnings.
 - The original visible-Chrome draft remains restored with 1,034 links and 52
   pending decisions; the final sample-file checks did not alter its decisions.
 - The route remains a browser-local preparation experience. It does not create
@@ -67,8 +72,9 @@ Use this as the source for concise progress updates.
 > focused E2E contract, and passed visible Chrome checks with all three supplied
 > workbooks. A follow-up simplification pass also fixed the sample year view,
 > full award labels, listing detail Sheet, unfinished-download confirmation,
-> and catalog scroll handoff. The real draft still contains 1,034 linked
-> listings and 52 pending decisions. Nothing was imported or published.
+> catalog scroll handoff, redundant controls, duplicate handling, and image
+> warning semantics. The reduction passed 37 focused tests and all three
+> importer E2Es. Nothing was imported or published.
 
 ## How the goal agent must use this file
 
@@ -200,6 +206,8 @@ merged cells, drawings, comments, macros, validation, and hidden state.
 | 2026-07-18 | Clear known-invalid saved IDs from prepared identity fields.                                   | Without a separate match-state column, retaining an invalid ID could make a future importer treat unresolved identity as authoritative.           |
 | 2026-07-18 | Keep automatic Codex review outside this goal.                                                 | The user will explicitly trigger review when desired.                                                                                             |
 | 2026-07-19 | Keep the existing bounded preview rendering and add no new scaling mechanism.                  | The real and 5,000-listing measurements stayed usable; added virtualization, pagination controls, or queue modes would be unsupported complexity. |
+| 2026-07-19 | Keep duplicates and remote image-preview failures as nonblocking warnings.                     | Duplicate cultivar listings are common seller data, and a valid remote image URL can fail only because the host blocks browser previews.          |
+| 2026-07-19 | Consolidate each preview card into one details interaction.                                    | Image zoom, full description, registry details, awards, and match revision do not need separate competing controls on the same card.              |
 
 ## Phase A — Contract and state foundation
 
@@ -787,8 +795,8 @@ Acceptance:
 Evidence (2026-07-18):
 
 - 52 focused importer, page, and proxy integration tests passed.
-- All 3 importer E2Es passed, covering guest prompts, dismissal, completed
-  continuation, full download access, restoration, and phone-width overflow.
+- All 3 importer E2Es passed, covering guest prompts, full download access,
+  restoration, and phone-width overflow.
 - Typecheck passed. Lint has zero errors and one unrelated existing dashboard
   warning.
 - Visible Chrome used the signed-in Pro path with the real three-sheet
@@ -918,7 +926,7 @@ Tasks:
   - [x] issue resolution;
   - [x] current-workbook download;
   - [x] prepared-workbook download;
-  - [x] membership prompt impression/dismissal/click.
+  - [x] membership prompt impression/click.
 - [x] Never send filenames, cultivar names, spreadsheet cells, private notes,
       or seller content.
 - [x] Update Atlas to cover meaningful states without duplicating exhaustive
@@ -958,7 +966,7 @@ Evidence (2026-07-19):
 - Aggregate-only events now distinguish import start and completed upload,
   first preview, preview interaction, first/final identity decisions, issue
   resolution, current/prepared download, and membership prompt
-  impression/dismissal. The existing `SellerIntentLink` records the click.
+  impression. The existing `SellerIntentLink` records the click.
 - The event payloads contain only fixed event state, file type, sheet/row and
   workflow counts, static filter/issue identifiers, and CTA IDs. No filename,
   cultivar name, spreadsheet cell, description, note, or URL is emitted.
@@ -1047,24 +1055,25 @@ The goal is complete only when:
 Add new entries at the top. Keep descriptions factual and link commits or
 artifacts when useful.
 
-| Date       | Slice     | Status   | What changed                                                                                                                                                     | Verification                                                                                                                                                              | Commit / notes                      |
-| ---------- | --------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
-| 2026-07-19 | Follow-up | Complete | Fixed sparse insight bars and award labels; added unfinished-download confirmation and listing details Sheet; simplified privacy, overview, file, and scroll UI. | 42 focused tests, 3 importer E2Es, typecheck, changed-file lint, `git diff --check`, and visible Chrome sample-catalog verification.                                      | This follow-up commit.              |
-| 2026-07-19 | Slice 13  | Complete | Added aggregate funnel analytics; refreshed docs and Atlas descriptions; closed importer, shared-search, sample-file, and real-workbook proof.                   | 71 focused tests, 3 importer E2Es, 31 passing Atlas states, typecheck, lint, formatting, and visible Chrome with all three supplied workbooks.                            | This Slice 13 commit.               |
-| 2026-07-19 | Slice 12  | Complete | Measured the real and 5,000-listing browser workflows; existing bounded preview rendering stayed responsive, so no scaling mechanism was added.                  | Real parse, match, preview, filter, insight, issue, restore, and download timings plus deterministic 5,000-listing timings and visible Chrome restoration.                | `06bea555`                          |
-| 2026-07-19 | Slice 11  | Complete | Fixed demonstrated narrow-width issue controls; improved image/action names, touch and focus targets, table relationships, live announcements, and motion.       | 53 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, and visible Chrome desktop plus phone/tablet verification.                                 | `7a72aed4`                          |
-| 2026-07-18 | Slice 10  | Complete | Added guest/Pro-aware continuation, quiet and completed prompts, session dismissal, honest capability copy, and uncached optional Clerk audience detection.      | 52 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, and real Chrome Pro/restoration verification with the 1,087-row workbook.                  | `c45ac14d`                          |
-| 2026-07-18 | Slice 9   | Complete | Added exact pre-download summary, current/prepared labels, stable prepared filenames, explicit output/fidelity copy, and deterministic re-upload proof.          | 39 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, visible Chrome summary, and reopened three-sheet real-workbook output.                     | `30449348`                          |
-| 2026-07-18 | Slice 8   | Complete | Grouped issue repair; preserved bundle-price meaning; clarified duplicate/image consequences; added stale-ID rematching and issue Undo.                          | 39 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, plus preserved visible real-workbook state in Chrome.                                      | `cb47bb01`                          |
-| 2026-07-18 | Slice 7   | Complete | Separated defer and intentional-unmatched decisions; added explicit candidate actions, restoration, linked-row unlinking, and identity Undo.                     | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, and visible Chrome verification against the real 52-row review queue.                      | `10e70ca7`                          |
-| 2026-07-18 | Slice 6   | Complete | Added responsive persistent workspace navigation, prioritized next-task links, and always-available current/prepared download without duplicate state.           | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, and real Chrome verification of sticky anchors and the 1,087-row workflow.                 | `086da3d8`                          |
-| 2026-07-18 | Slice 5   | Complete | Counted linked unique cultivars; added narrative discoveries and clickable rankings that drive the shared removable preview filters.                             | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and real Chrome filtering of the 1,087-row catalog from 1,034 to 52 listings.     | `dd181675`                          |
-| 2026-07-18 | Slice 4   | Complete | Restricted preview to explicit links; removed confidence badges; labeled image provenance; added match confirmation, highlighting, revision, and undo.           | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome verification against the 1,087-row preview.                    | `b1442747`                          |
-| 2026-07-18 | Slice 3   | Complete | Replaced the generic overview with a personalized enrichment reveal; reordered preview, insights, preparation, repair, download, and Pro continuation.           | 37 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome verification with the rebuilt 1,087-row workbook.              | `1d999a90`                          |
-| 2026-07-18 | Slice 2   | Complete | Clarified browser-local privacy and file actions; added confirmed resets and event-driven processing stages without timed delays or effects.                     | 36 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome verification with the restored real workbook.                  | `bda585ad`                          |
-| 2026-07-18 | Slice 1   | Complete | Replaced overlapping row flags with explicit row/output/link/provenance state; centralized counts and enrichment; migrated v2 browser drafts to v3.              | 33 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome restoration of the 1,087-row workbook.                         | `01e838c0`                          |
-| 2026-07-18 | Slice 0   | Complete | Implemented cleaned mapped fields and canonical identity headers; documented the verified XLSX value-copy contract.                                              | 25 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, real Chrome download, full three-sheet value comparison, LibreOffice open/resave. | `1d643703`                          |
-| 2026-07-18 | Planning  | Complete | Converted the full UI/UX review into a 14-slice implementation tracker; made cleaned-copy semantics the first gated contract.                                    | Plan reviewed against the current product doc and PR boundary.                                                                                                            | Implementation begins with Slice 0. |
+| Date       | Slice     | Status   | What changed                                                                                                                                                          | Verification                                                                                                                                                              | Commit / notes                      |
+| ---------- | --------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| 2026-07-19 | Reduction | Complete | Reduced reveal/navigation/copy, consolidated listing-card interactions, hid no-op controls, default-kept duplicates, and separated image fixes from preview warnings. | 37 focused tests, 3 importer E2Es, typecheck, changed-file lint, and `git diff --check`; in-app browser blocked localhost verification.                                   | Reduction commit                   |
+| 2026-07-19 | Follow-up | Complete | Fixed sparse insight bars and award labels; added unfinished-download confirmation and listing details Sheet; simplified privacy, overview, file, and scroll UI.      | 42 focused tests, 3 importer E2Es, typecheck, changed-file lint, `git diff --check`, and visible Chrome sample-catalog verification.                                      | `3bae39bb`                          |
+| 2026-07-19 | Slice 13  | Complete | Added aggregate funnel analytics; refreshed docs and Atlas descriptions; closed importer, shared-search, sample-file, and real-workbook proof.                        | 71 focused tests, 3 importer E2Es, 31 passing Atlas states, typecheck, lint, formatting, and visible Chrome with all three supplied workbooks.                            | This Slice 13 commit.               |
+| 2026-07-19 | Slice 12  | Complete | Measured the real and 5,000-listing browser workflows; existing bounded preview rendering stayed responsive, so no scaling mechanism was added.                       | Real parse, match, preview, filter, insight, issue, restore, and download timings plus deterministic 5,000-listing timings and visible Chrome restoration.                | `06bea555`                          |
+| 2026-07-19 | Slice 11  | Complete | Fixed demonstrated narrow-width issue controls; improved image/action names, touch and focus targets, table relationships, live announcements, and motion.            | 53 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, and visible Chrome desktop plus phone/tablet verification.                                 | `7a72aed4`                          |
+| 2026-07-18 | Slice 10  | Complete | Added guest/Pro-aware continuation, quiet and completed prompts, session dismissal, honest capability copy, and uncached optional Clerk audience detection.           | 52 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, and real Chrome Pro/restoration verification with the 1,087-row workbook.                  | `c45ac14d`                          |
+| 2026-07-18 | Slice 9   | Complete | Added exact pre-download summary, current/prepared labels, stable prepared filenames, explicit output/fidelity copy, and deterministic re-upload proof.               | 39 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, visible Chrome summary, and reopened three-sheet real-workbook output.                     | `30449348`                          |
+| 2026-07-18 | Slice 8   | Complete | Grouped issue repair; preserved bundle-price meaning; clarified duplicate/image consequences; added stale-ID rematching and issue Undo.                               | 39 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, plus preserved visible real-workbook state in Chrome.                                      | `cb47bb01`                          |
+| 2026-07-18 | Slice 7   | Complete | Separated defer and intentional-unmatched decisions; added explicit candidate actions, restoration, linked-row unlinking, and identity Undo.                          | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, and visible Chrome verification against the real 52-row review queue.                      | `10e70ca7`                          |
+| 2026-07-18 | Slice 6   | Complete | Added responsive persistent workspace navigation, prioritized next-task links, and always-available current/prepared download without duplicate state.                | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, and real Chrome verification of sticky anchors and the 1,087-row workflow.                 | `086da3d8`                          |
+| 2026-07-18 | Slice 5   | Complete | Counted linked unique cultivars; added narrative discoveries and clickable rankings that drive the shared removable preview filters.                                  | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and real Chrome filtering of the 1,087-row catalog from 1,034 to 52 listings.     | `dd181675`                          |
+| 2026-07-18 | Slice 4   | Complete | Restricted preview to explicit links; removed confidence badges; labeled image provenance; added match confirmation, highlighting, revision, and undo.                | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome verification against the 1,087-row preview.                    | `b1442747`                          |
+| 2026-07-18 | Slice 3   | Complete | Replaced the generic overview with a personalized enrichment reveal; reordered preview, insights, preparation, repair, download, and Pro continuation.                | 37 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome verification with the rebuilt 1,087-row workbook.              | `1d999a90`                          |
+| 2026-07-18 | Slice 2   | Complete | Clarified browser-local privacy and file actions; added confirmed resets and event-driven processing stages without timed delays or effects.                          | 36 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome verification with the restored real workbook.                  | `bda585ad`                          |
+| 2026-07-18 | Slice 1   | Complete | Replaced overlapping row flags with explicit row/output/link/provenance state; centralized counts and enrichment; migrated v2 browser drafts to v3.                   | 33 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome restoration of the 1,087-row workbook.                         | `01e838c0`                          |
+| 2026-07-18 | Slice 0   | Complete | Implemented cleaned mapped fields and canonical identity headers; documented the verified XLSX value-copy contract.                                                   | 25 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, real Chrome download, full three-sheet value comparison, LibreOffice open/resave. | `1d643703`                          |
+| 2026-07-18 | Planning  | Complete | Converted the full UI/UX review into a 14-slice implementation tracker; made cleaned-copy semantics the first gated contract.                                         | Plan reviewed against the current product doc and PR boundary.                                                                                                            | Implementation begins with Slice 0. |
 
 ## Deferred follow-ups
 

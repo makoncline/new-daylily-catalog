@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description: "Simple terms for using Daylily Catalog.",
 };
 
-const updatedAt = "July 9, 2026";
+const updatedAt = "July 19, 2026";
 
 function Section({
   children,
@@ -72,6 +72,26 @@ export default function TermsPage() {
             If you want something removed, contact us. We will handle reasonable
             requests, but cached pages, backups, emails, and already-created
             materials may not disappear immediately.
+          </p>
+          <p>
+            Choosing a file for a browser-based preparation or preview tool does
+            not by itself publish the file or grant Daylily Catalog permission
+            to publish its contents. Publishing or importing data requires a
+            separate action.
+          </p>
+        </Section>
+
+        <Section title="File Tools And Automated Results">
+          <p>
+            File conversions, automated matches, suggestions, and generated
+            output can be incomplete or wrong. Review the results before using
+            them for your catalog or business.
+          </p>
+          <p>
+            Browser-based file tools are not general spreadsheet editors. Output
+            may preserve cell values without preserving every formula, format,
+            macro, comment, validation rule, drawing, merge, or hidden setting
+            from the original file.
           </p>
         </Section>
 

@@ -109,40 +109,42 @@ export function CatalogImporterUpload({
         </div>
 
         <div className="grid gap-2 lg:flex lg:items-center">
-          <div className="flex items-center gap-2">
-            <span className="text-muted-foreground text-xs font-medium">
-              Sheet
-            </span>
-            <Select
-              value={String(controller.selectedSheetIndex)}
-              onValueChange={(value) => {
-                controller.configureSheet(
-                  controller.parsedSpreadsheet!,
-                  Number(value),
-                );
-                onEditMapping?.();
-              }}
-            >
-              <SelectTrigger
-                className="h-8 min-w-0 flex-1 lg:w-56"
-                aria-label="Spreadsheet sheet"
+          {controller.parsedSpreadsheet.sheets.length > 1 ? (
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground text-xs font-medium">
+                Sheet
+              </span>
+              <Select
+                value={String(controller.selectedSheetIndex)}
+                onValueChange={(value) => {
+                  controller.configureSheet(
+                    controller.parsedSpreadsheet!,
+                    Number(value),
+                  );
+                  onEditMapping?.();
+                }}
               >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {controller.parsedSpreadsheet.sheets.map((sheet, index) => (
-                    <SelectItem
-                      key={`${sheet.name}-${index}`}
-                      value={String(index)}
-                    >
-                      {sheet.name} · {sheet.rows.length.toLocaleString()} rows
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </div>
+                <SelectTrigger
+                  className="h-8 min-w-0 flex-1 lg:w-56"
+                  aria-label="Spreadsheet sheet"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {controller.parsedSpreadsheet.sheets.map((sheet, index) => (
+                      <SelectItem
+                        key={`${sheet.name}-${index}`}
+                        value={String(index)}
+                      >
+                        {sheet.name} · {sheet.rows.length.toLocaleString()} rows
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
 
           {onEditMapping ? (
             <Button
