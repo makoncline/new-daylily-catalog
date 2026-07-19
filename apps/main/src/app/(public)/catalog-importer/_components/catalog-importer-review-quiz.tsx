@@ -170,6 +170,7 @@ export function CatalogImporterReviewQuiz({
             type="button"
             variant="outline"
             size="icon"
+            className="size-10"
             aria-label="Previous unmatched name"
             disabled={controller.reviewRows.length < 2}
             onClick={() => controller.moveReviewRow(-1)}
@@ -180,6 +181,7 @@ export function CatalogImporterReviewQuiz({
             type="button"
             variant="outline"
             size="icon"
+            className="size-10"
             aria-label="Next unmatched name"
             disabled={controller.reviewRows.length < 2}
             onClick={() => controller.moveReviewRow(1)}

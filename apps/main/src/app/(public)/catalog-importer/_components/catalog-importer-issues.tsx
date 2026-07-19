@@ -165,13 +165,19 @@ function DuplicateGroupTable({
       >
         <TableHeader>
           <TableRow>
-            <TableHead className="bg-muted/60 sticky left-0 z-10 w-px">
+            <TableHead
+              scope="col"
+              className="bg-muted/60 sticky left-0 z-10 w-px"
+            >
               Action
             </TableHead>
-            <TableHead className="w-px">Row</TableHead>
+            <TableHead scope="col" className="w-px">
+              Row
+            </TableHead>
             {columns.map((column) => (
               <TableHead
                 key={column.column}
+                scope="col"
                 className="min-w-32 align-bottom whitespace-normal"
               >
                 <span className="text-muted-foreground block font-mono text-[0.6875rem] font-normal">
@@ -198,9 +204,12 @@ function DuplicateGroupTable({
                   Remove row {row.sourceRow}
                 </Button>
               </TableCell>
-              <TableCell className="text-muted-foreground font-mono text-xs">
+              <TableHead
+                scope="row"
+                className="text-muted-foreground h-auto font-mono text-xs font-normal"
+              >
                 {row.sourceRow}
-              </TableCell>
+              </TableHead>
               {sourceCells.map((cell) => (
                 <TableCell
                   key={cell.column}
@@ -291,26 +300,48 @@ function PriceIssuesTable({
         </Button>
       </div>
 
-      <Table aria-label="Price format rows" className="mt-4 min-w-[48rem]">
-        <TableHeader>
+      <Table
+        aria-label="Price format rows"
+        className="mt-4 min-w-0 sm:min-w-[48rem]"
+      >
+        <TableHeader className="hidden sm:table-header-group">
           <TableRow>
-            <TableHead className="w-px">Row</TableHead>
-            <TableHead>Name</TableHead>
-            <TableHead>Original price</TableHead>
-            <TableHead className="min-w-56">Corrected price</TableHead>
-            <TableHead className="w-px">
+            <TableHead scope="col" className="w-px">
+              Row
+            </TableHead>
+            <TableHead scope="col">Name</TableHead>
+            <TableHead scope="col">Original price</TableHead>
+            <TableHead scope="col" className="min-w-56">
+              Corrected price
+            </TableHead>
+            <TableHead scope="col" className="w-px">
               <span className="sr-only">Save</span>
             </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {parsedRows.map(({ canSave, parsed, row, suggestion }) => (
-            <TableRow key={row.id}>
-              <TableCell className="text-muted-foreground font-mono text-xs">
+            <TableRow
+              key={row.id}
+              className="grid gap-3 py-4 sm:table-row sm:py-0"
+            >
+              <TableHead
+                scope="row"
+                className="text-muted-foreground flex h-auto items-center gap-2 p-0 font-mono text-xs font-normal sm:table-cell sm:p-2"
+              >
+                <span className="font-sans font-medium sm:hidden">Row</span>
                 {row.sourceRow}
+              </TableHead>
+              <TableCell className="p-0 font-medium sm:table-cell sm:p-2">
+                <span className="text-muted-foreground mb-1 block text-xs font-medium sm:hidden">
+                  Name
+                </span>
+                {row.sourceTitle}
               </TableCell>
-              <TableCell className="font-medium">{row.sourceTitle}</TableCell>
-              <TableCell className="text-muted-foreground">
+              <TableCell className="text-muted-foreground p-0 sm:table-cell sm:p-2">
+                <span className="mb-1 block text-xs font-medium sm:hidden">
+                  Original price
+                </span>
                 <span>{row.sourcePrice}</span>
                 {suggestion !== null ? (
                   <span className="mt-1 block text-xs">
@@ -318,10 +349,18 @@ function PriceIssuesTable({
                   </span>
                 ) : null}
               </TableCell>
-              <TableCell>
+              <TableCell className="p-0 sm:table-cell sm:p-2">
+                <span className="text-muted-foreground mb-1 block text-xs font-medium sm:hidden">
+                  Corrected price
+                </span>
                 <Input
                   aria-label={`Correct price for row ${row.sourceRow}`}
                   aria-invalid={!parsed.valid}
+                  aria-describedby={
+                    !parsed.valid || suggestion !== null
+                      ? `catalog-importer-price-message-${row.sourceRow}`
+                      : undefined
+                  }
                   inputMode="decimal"
                   value={values[row.id] ?? row.sourcePrice}
                   onChange={(event) => {
@@ -333,23 +372,32 @@ function PriceIssuesTable({
                   }}
                 />
                 {!parsed.valid ? (
-                  <p className="text-destructive mt-1 text-xs">
+                  <p
+                    id={`catalog-importer-price-message-${row.sourceRow}`}
+                    className="text-destructive mt-1 text-xs"
+                  >
                     Use one price, such as 12 or 12.50.
                   </p>
                 ) : suggestion !== null &&
                   controller.mapping.privateNote !== null ? (
-                  <p className="text-muted-foreground mt-1 text-xs">
+                  <p
+                    id={`catalog-importer-price-message-${row.sourceRow}`}
+                    className="text-muted-foreground mt-1 text-xs"
+                  >
                     Saving also adds “Original price: {row.sourcePrice}” to the
                     private note.
                   </p>
                 ) : suggestion !== null ? (
-                  <p className="text-muted-foreground mt-1 text-xs">
+                  <p
+                    id={`catalog-importer-price-message-${row.sourceRow}`}
+                    className="text-muted-foreground mt-1 text-xs"
+                  >
                     Map a private note column to preserve the original bundle
                     offer, or leave this row unresolved.
                   </p>
                 ) : null}
               </TableCell>
-              <TableCell>
+              <TableCell className="flex justify-end p-0 sm:table-cell sm:p-2">
                 <Button
                   type="button"
                   variant="ghost"
@@ -427,38 +475,75 @@ function ImageUrlIssuesTable({
         </Button>
       </div>
 
-      <Table aria-label="Seller image rows" className="mt-4 min-w-[58rem]">
-        <TableHeader>
+      <Table
+        aria-label="Seller image rows"
+        className="mt-4 min-w-0 sm:min-w-[58rem]"
+      >
+        <TableHeader className="hidden sm:table-header-group">
           <TableRow>
-            <TableHead className="w-px">Row</TableHead>
-            <TableHead>Name</TableHead>
-            <TableHead className="max-w-72">Original URL</TableHead>
-            <TableHead className="min-w-64">What happened</TableHead>
-            <TableHead className="min-w-80">Corrected URL</TableHead>
-            <TableHead className="w-px">
+            <TableHead scope="col" className="w-px">
+              Row
+            </TableHead>
+            <TableHead scope="col">Name</TableHead>
+            <TableHead scope="col" className="max-w-72">
+              Original URL
+            </TableHead>
+            <TableHead scope="col" className="min-w-64">
+              What happened
+            </TableHead>
+            <TableHead scope="col" className="min-w-80">
+              Corrected URL
+            </TableHead>
+            <TableHead scope="col" className="w-px">
               <span className="sr-only">Save</span>
             </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {parsedRows.map(({ parsed, row }) => (
-            <TableRow key={row.id}>
-              <TableCell className="text-muted-foreground font-mono text-xs">
+            <TableRow
+              key={row.id}
+              className="grid gap-3 py-4 sm:table-row sm:py-0"
+            >
+              <TableHead
+                scope="row"
+                className="text-muted-foreground flex h-auto items-center gap-2 p-0 font-mono text-xs font-normal sm:table-cell sm:p-2"
+              >
+                <span className="font-sans font-medium sm:hidden">Row</span>
                 {row.sourceRow}
+              </TableHead>
+              <TableCell className="p-0 font-medium sm:table-cell sm:p-2">
+                <span className="text-muted-foreground mb-1 block text-xs font-medium sm:hidden">
+                  Name
+                </span>
+                {row.sourceTitle}
               </TableCell>
-              <TableCell className="font-medium">{row.sourceTitle}</TableCell>
-              <TableCell className="text-muted-foreground max-w-72 break-all">
+              <TableCell className="text-muted-foreground max-w-72 p-0 break-all sm:table-cell sm:p-2">
+                <span className="mb-1 block text-xs font-medium sm:hidden">
+                  Original URL
+                </span>
                 {row.sourceImageUrl}
               </TableCell>
-              <TableCell className="text-muted-foreground text-sm">
+              <TableCell className="text-muted-foreground p-0 text-sm sm:table-cell sm:p-2">
+                <span className="mb-1 block text-xs font-medium sm:hidden">
+                  What happened
+                </span>
                 {isCatalogImportImagePreviewWarning(row.imageUrlWarning)
                   ? "We could not preview this seller image from your browser. The remote server, hotlink policy, timeout, or file format may be responsible."
                   : "This is not a complete HTTP or HTTPS image URL."}
               </TableCell>
-              <TableCell>
+              <TableCell className="p-0 sm:table-cell sm:p-2">
+                <span className="text-muted-foreground mb-1 block text-xs font-medium sm:hidden">
+                  Corrected URL
+                </span>
                 <Input
                   aria-label={`Correct image URL for row ${row.sourceRow}`}
                   aria-invalid={!parsed.valid}
+                  aria-describedby={
+                    !parsed.valid
+                      ? `catalog-importer-image-message-${row.sourceRow}`
+                      : undefined
+                  }
                   type="url"
                   value={values[row.id] ?? row.sourceImageUrl}
                   onChange={(event) => {
@@ -470,12 +555,15 @@ function ImageUrlIssuesTable({
                   }}
                 />
                 {!parsed.valid ? (
-                  <p className="text-destructive mt-1 text-xs">
+                  <p
+                    id={`catalog-importer-image-message-${row.sourceRow}`}
+                    className="text-destructive mt-1 text-xs"
+                  >
                     Use a complete http or https image URL.
                   </p>
                 ) : null}
               </TableCell>
-              <TableCell>
+              <TableCell className="flex justify-end p-0 sm:table-cell sm:p-2">
                 <Button
                   type="button"
                   variant="ghost"
@@ -560,25 +648,44 @@ function SavedIdIssuesTable({
       ) : null}
 
       <Table aria-label="Invalid saved cultivar ID rows" className="mt-4">
-        <TableHeader>
+        <TableHeader className="hidden sm:table-header-group">
           <TableRow>
-            <TableHead className="w-px">Row</TableHead>
-            <TableHead>Name</TableHead>
-            <TableHead>Daylily Catalog ID</TableHead>
-            <TableHead className="w-px">Action</TableHead>
+            <TableHead scope="col" className="w-px">
+              Row
+            </TableHead>
+            <TableHead scope="col">Name</TableHead>
+            <TableHead scope="col">Daylily Catalog ID</TableHead>
+            <TableHead scope="col" className="w-px">
+              Action
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {rows.map((row) => (
-            <TableRow key={row.id}>
-              <TableCell className="text-muted-foreground font-mono text-xs">
+            <TableRow
+              key={row.id}
+              className="grid gap-3 py-4 sm:table-row sm:py-0"
+            >
+              <TableHead
+                scope="row"
+                className="text-muted-foreground flex h-auto items-center gap-2 p-0 font-mono text-xs font-normal sm:table-cell sm:p-2"
+              >
+                <span className="font-sans font-medium sm:hidden">Row</span>
                 {row.sourceRow}
+              </TableHead>
+              <TableCell className="p-0 font-medium sm:table-cell sm:p-2">
+                <span className="text-muted-foreground mb-1 block text-xs font-medium sm:hidden">
+                  Name
+                </span>
+                {row.sourceTitle}
               </TableCell>
-              <TableCell className="font-medium">{row.sourceTitle}</TableCell>
-              <TableCell className="font-mono text-xs">
+              <TableCell className="p-0 font-mono text-xs sm:table-cell sm:p-2">
+                <span className="text-muted-foreground mb-1 block font-sans text-xs font-medium sm:hidden">
+                  Daylily Catalog ID
+                </span>
                 {row.cultivarReferenceIdWarning}
               </TableCell>
-              <TableCell>
+              <TableCell className="p-0 sm:table-cell sm:p-2">
                 <Button
                   type="button"
                   variant="outline"

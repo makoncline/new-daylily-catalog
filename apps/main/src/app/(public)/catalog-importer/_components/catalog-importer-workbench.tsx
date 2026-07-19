@@ -100,7 +100,12 @@ export function CatalogImporterWorkbench({
         ) : null}
       </div>
 
-      <div className="sr-only" aria-live="polite" aria-atomic="true">
+      <div
+        className="sr-only"
+        aria-label="Catalog importer updates"
+        aria-live="polite"
+        aria-atomic="true"
+      >
         {controller.liveAnnouncement}
       </div>
     </div>

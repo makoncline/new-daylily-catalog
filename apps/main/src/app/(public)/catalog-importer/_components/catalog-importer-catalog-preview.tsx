@@ -113,13 +113,13 @@ function CatalogPreviewImage({
         <button
           type="button"
           aria-label={`Preview ${cultivarName} image`}
-          className="block w-full cursor-zoom-in"
+          className="focus-visible:ring-ring block w-full cursor-zoom-in outline-none focus-visible:ring-2 focus-visible:ring-inset"
         >
           <OptimizedImage
             image={image}
             variant="thumb"
             size="thumbnail"
-            alt={cultivarName}
+            alt={`${cultivarName} — ${imageLabel}`}
             onImageError={onImageError}
           />
         </button>
@@ -130,7 +130,7 @@ function CatalogPreviewImage({
           Display-size {imageLabel.toLowerCase()}
         </DialogDescription>
         <ImageGallery
-          images={[{ ...image, alt: cultivarName }]}
+          images={[{ ...image, alt: `${cultivarName} — ${imageLabel}` }]}
           listingName={cultivarName}
         />
       </DialogContent>
@@ -277,13 +277,17 @@ export function CatalogImporterCatalogPreview({
   function returnToListingTop() {
     const listingArea = listingAreaRef.current;
     if (!listingArea) return;
+    const behavior = globalThis.matchMedia?.("(prefers-reduced-motion: reduce)")
+      .matches
+      ? "auto"
+      : "smooth";
 
     if (listingArea.scrollHeight > listingArea.clientHeight) {
-      listingArea.scrollTo({ behavior: "smooth", top: 0 });
+      listingArea.scrollTo({ behavior, top: 0 });
       return;
     }
 
-    listingArea.scrollIntoView({ behavior: "smooth", block: "start" });
+    listingArea.scrollIntoView({ behavior, block: "start" });
   }
 
   return (
@@ -383,7 +387,7 @@ export function CatalogImporterCatalogPreview({
                         key={row.id}
                         id={getCatalogPreviewRowId(row.id)}
                         className={cn(
-                          "bg-card scroll-mt-24 overflow-hidden rounded-lg border transition-shadow",
+                          "bg-card scroll-mt-24 overflow-hidden rounded-lg border transition-shadow motion-reduce:transition-none",
                           controller.lastLinkAction?.rowId === row.id &&
                             "ring-primary ring-2 ring-offset-2",
                         )}
@@ -424,7 +428,7 @@ export function CatalogImporterCatalogPreview({
                             rel="noreferrer"
                             aria-label={`Open ${match.displayName} cultivar page`}
                             title="Open cultivar page"
-                            className="bg-background/90 text-foreground hover:bg-background focus-visible:ring-ring absolute right-2 bottom-2 flex size-8 items-center justify-center rounded-full border shadow-sm backdrop-blur outline-none focus-visible:ring-2"
+                            className="bg-background/90 text-foreground hover:bg-background focus-visible:ring-ring absolute right-2 bottom-2 flex size-10 items-center justify-center rounded-full border shadow-sm backdrop-blur outline-none focus-visible:ring-2 sm:size-8"
                           >
                             <ExternalLink
                               aria-hidden="true"
@@ -449,7 +453,7 @@ export function CatalogImporterCatalogPreview({
                                   type="button"
                                   variant="ghost"
                                   size="icon"
-                                  className="-mt-1 -mr-1 size-8 shrink-0"
+                                  className="-mt-1 -mr-1 size-10 shrink-0 sm:size-8"
                                   aria-label={`Change cultivar match for ${row.sourceTitle}`}
                                   onClick={() => onOpenReview(row)}
                                 >

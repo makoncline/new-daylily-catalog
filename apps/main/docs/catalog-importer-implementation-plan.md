@@ -8,18 +8,18 @@ decisions, evidence, and blockers.
 
 ## Live status
 
-| Field           | Current value                                                                                                        |
-| --------------- | -------------------------------------------------------------------------------------------------------------------- |
-| Overall status  | Implementation in progress                                                                                           |
-| Current phase   | Phase E — Hardening and closeout                                                                                     |
-| Current slice   | Slice 11 — Fix mobile and accessibility blockers                                                                     |
-| Last updated    | 2026-07-18                                                                                                           |
-| Branch          | `agent/catalog-importer-v1`                                                                                          |
-| Baseline commit | `7b5a81ad`                                                                                                           |
-| Pull request    | [#352 — Prepare daylily catalog spreadsheets](https://github.com/makoncline/new-daylily-catalog/pull/352)            |
-| Current blocker | None                                                                                                                 |
-| Next action     | Audit the real desktop, tablet, and phone flows for overflow, covered controls, keyboard, and screen-reader blockers |
-| Latest evidence | Slice 10 passed 52 focused tests, 3 E2Es, typecheck, lint, and real Chrome Pro/restoration verification              |
+| Field           | Current value                                                                                                     |
+| --------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Overall status  | Implementation in progress                                                                                        |
+| Current phase   | Phase E — Hardening and closeout                                                                                  |
+| Current slice   | Slice 12 — Verify large-workbook performance and add only proven scaling controls                                 |
+| Last updated    | 2026-07-19                                                                                                        |
+| Branch          | `agent/catalog-importer-v1`                                                                                       |
+| Baseline commit | `7b5a81ad`                                                                                                        |
+| Pull request    | [#352 — Prepare daylily catalog spreadsheets](https://github.com/makoncline/new-daylily-catalog/pull/352)         |
+| Current blocker | None                                                                                                              |
+| Next action     | Measure the real 1,087-row workbook before generating or changing anything for the synthetic 5,000-listing case   |
+| Latest evidence | Slice 11 passed 53 focused tests, 3 E2Es, typecheck, lint, and real Chrome desktop plus phone/tablet verification |
 
 ### Progress
 
@@ -39,7 +39,7 @@ decisions, evidence, and blockers.
   - [x] Slice 9 — Complete the prepared-workbook download experience
   - [x] Slice 10 — Add honest guest/member continuation
 - [ ] Phase E — Hardening and closeout
-  - [ ] Slice 11 — Fix mobile and accessibility blockers
+  - [x] Slice 11 — Fix mobile and accessibility blockers
   - [ ] Slice 12 — Verify large-workbook performance and add only proven scaling controls
   - [ ] Slice 13 — Complete analytics, Atlas, documentation, and real-workbook proof
 
@@ -48,21 +48,22 @@ decisions, evidence, and blockers.
 Use this area for short-lived details needed to resume the active slice.
 Move durable decisions to the decision log and completed work to the work log.
 
-- Slice 10 is complete and ready to package for PR #352.
-- Begin Slice 11 with visible viewport and keyboard audits before changing UI.
-- Fix only demonstrated blockers; do not create separate mobile components
-  when responsive layout utilities are sufficient.
-- Keep keyboard shortcuts optional and do not add synchronization effects.
+- Slice 11 is complete and ready to package for PR #352.
+- Begin Slice 12 by measuring the real production-shaped workbook without
+  disturbing the seller's restored Chrome draft.
+- Record the existing behavior before adding any scaling control.
+- Do not add virtualization, pagination, or queue modes unless a recorded
+  measurement demonstrates the need.
 
 ### User update
 
 Use this as the source for concise progress updates.
 
-> Slice 10 is complete: guests retain the full preparation and download flow,
-> free-user prompts are nonblocking and dismissible, Pro members see no
-> acquisition messaging, and the copy promises only the hosted catalog,
-> dashboard, management, and discovery capabilities that exist today. The real
-> workbook restored unchanged after leaving and returning to the page.
+> Slice 11 is complete: the demonstrated phone-width issue controls now fit
+> without page overflow, candidate choices remain image/details side by side,
+> icon controls have useful names and touch targets, status changes are
+> announced, and keyboard/reduced-motion behavior is covered. Desktop, phone,
+> and tablet importer checks all pass.
 
 ## How the goal agent must use this file
 
@@ -801,25 +802,43 @@ assistive-technology users without a separate mobile product.
 
 Tasks:
 
-- [ ] Verify no page-level horizontal overflow.
-- [ ] Convert only genuinely unusable wide source/issue tables to labeled
+- [x] Verify no page-level horizontal overflow.
+- [x] Convert only genuinely unusable wide source/issue tables to labeled
       mobile row layouts.
-- [ ] Keep match choices image/details side by side where requested.
-- [ ] Verify no clipped issue-resolution controls.
-- [ ] Verify no sticky or floating control covers content.
-- [ ] Add accessible names to icon-only actions.
-- [ ] Verify readable contrast, focus visibility, and touch target size.
-- [ ] Announce match confirmation, issue resolution, and undo in a live region.
-- [ ] Keep keyboard shortcuts optional and suppress them while typing.
-- [ ] Respect reduced motion for automatic scroll and card insertion.
-- [ ] Verify useful cultivar/reference-image alternative text.
-- [ ] Verify table headers and source-row associations.
+- [x] Keep match choices image/details side by side where requested.
+- [x] Verify no clipped issue-resolution controls.
+- [x] Verify no sticky or floating control covers content.
+- [x] Add accessible names to icon-only actions.
+- [x] Verify readable contrast, focus visibility, and touch target size.
+- [x] Announce match confirmation, issue resolution, and undo in a live region.
+- [x] Keep keyboard shortcuts optional and suppress them while typing.
+- [x] Respect reduced motion for automatic scroll and card insertion.
+- [x] Verify useful cultivar/reference-image alternative text.
+- [x] Verify table headers and source-row associations.
 
 Acceptance:
 
-- [ ] Desktop, tablet, and narrow mobile complete the happy path.
-- [ ] Keyboard-only completion is possible without memorized shortcuts.
-- [ ] Status meaning is not communicated by color alone.
+- [x] Desktop, tablet, and narrow mobile complete the happy path.
+- [x] Keyboard-only completion is possible without memorized shortcuts.
+- [x] Status meaning is not communicated by color alone.
+
+Evidence (2026-07-19):
+
+- 53 focused importer, page, proxy, and shared image-preview tests passed.
+- All 3 importer E2Es passed. The desktop path covered keyboard review,
+  typing-shortcut suppression, live announcements, and download. The same
+  restored state was verified at 402px phone and 820px tablet widths.
+- The phone test first reproduced an editable issue control extending beyond
+  the 402px viewport. Price, image, and saved-ID issue rows now use compact
+  labeled layouts below the `sm` breakpoint; comparison and source tables
+  retain their useful table structure and bounded horizontal scrolling.
+- Candidate media/details remained side by side at phone width. Every editable
+  issue control stayed inside the viewport and above the fixed mobile toolbar.
+- Typecheck passed. Lint has zero errors and one unrelated existing dashboard
+  warning. Formatting and `git diff --check` passed.
+- Visible Chrome restored the real three-sheet workbook with 1,034 links and
+  all 52 pending decisions. Candidate reference images, source-table headers,
+  and the importer live region exposed useful accessible names.
 
 ### Slice 12 — Verify large-workbook performance and add only proven scaling controls
 
@@ -965,7 +984,8 @@ artifacts when useful.
 
 | Date       | Slice    | Status   | What changed                                                                                                                                                | Verification                                                                                                                                                              | Commit / notes                      |
 | ---------- | -------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
-| 2026-07-18 | Slice 10 | Complete | Added guest/Pro-aware continuation, quiet and completed prompts, session dismissal, honest capability copy, and uncached optional Clerk audience detection. | 52 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, and real Chrome Pro/restoration verification with the 1,087-row workbook.                  | This Slice 10 commit.               |
+| 2026-07-19 | Slice 11 | Complete | Fixed demonstrated narrow-width issue controls; improved image/action names, touch and focus targets, table relationships, live announcements, and motion.  | 53 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, and visible Chrome desktop plus phone/tablet verification.                                 | This Slice 11 commit.               |
+| 2026-07-18 | Slice 10 | Complete | Added guest/Pro-aware continuation, quiet and completed prompts, session dismissal, honest capability copy, and uncached optional Clerk audience detection. | 52 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, and real Chrome Pro/restoration verification with the 1,087-row workbook.                  | `c45ac14d`                          |
 | 2026-07-18 | Slice 9  | Complete | Added exact pre-download summary, current/prepared labels, stable prepared filenames, explicit output/fidelity copy, and deterministic re-upload proof.     | 39 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, visible Chrome summary, and reopened three-sheet real-workbook output.                     | `30449348`                          |
 | 2026-07-18 | Slice 8  | Complete | Grouped issue repair; preserved bundle-price meaning; clarified duplicate/image consequences; added stale-ID rematching and issue Undo.                     | 39 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, plus preserved visible real-workbook state in Chrome.                                      | `cb47bb01`                          |
 | 2026-07-18 | Slice 7  | Complete | Separated defer and intentional-unmatched decisions; added explicit candidate actions, restoration, linked-row unlinking, and identity Undo.                | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, and visible Chrome verification against the real 52-row review queue.                      | `10e70ca7`                          |

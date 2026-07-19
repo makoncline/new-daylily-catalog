@@ -379,6 +379,11 @@ test.describe("catalog importer", () => {
       page.getByText("Vanguard was added to your preview."),
     ).toBeVisible();
     await expect(
+      page.locator(
+        '[aria-live="polite"][aria-label="Catalog importer updates"]',
+      ),
+    ).toContainText("Vanguard 2 matched to Vanguard. Moving to Mystery Bloom.");
+    await expect(
       page.getByRole("link", { name: "View in preview" }),
     ).toBeVisible();
     await expect(
@@ -425,12 +430,24 @@ test.describe("catalog importer", () => {
     const restoredReviewQuiz = page.getByRole("region", {
       name: "Review potential matches",
     });
+    const reviewSearch = restoredReviewQuiz.getByLabel(
+      "Search a different cultivar spelling",
+    );
+    await reviewSearch.focus();
+    await page.keyboard.press("x");
+    await expect(
+      page.getByRole("heading", { name: "Mystery Bloom" }),
+    ).toBeVisible();
+    await expect(reviewSearch).toHaveValue("x");
+    await restoredReviewQuiz.getByRole("button", { name: "Reset" }).click();
+    await expect(reviewSearch).toHaveValue("Mystery Bloom");
     await restoredReviewQuiz.focus();
     await page.keyboard.press("x");
     await expect(
       page.getByRole("region", { name: "Review potential matches" }),
     ).toContainText("1 manual match remaining");
-    await closeMatches.getByRole("button", { name: "Leave unmatched" }).click();
+    await closeMatches.getByRole("button", { name: "Leave unmatched" }).focus();
+    await page.keyboard.press("Enter");
     await expect(
       page.getByRole("region", { name: "Review potential matches" }),
     ).toHaveCount(0);
@@ -523,6 +540,14 @@ test.describe("catalog importer", () => {
     await mockCultivarMatches(page);
     await page.goto("/catalog-importer");
     await uploadSample(page, 13);
+    for (const [label, option] of [
+      ["Price", /^price —/i],
+      ["Private note", /^privateNote —/i],
+      ["Image URL", /^imageUrl —/i],
+    ] as const) {
+      await page.getByLabel(label, { exact: true }).click();
+      await page.getByRole("option", { name: option }).click();
+    }
     await page.getByRole("button", { name: "Build catalog preview" }).click();
 
     await expect(
@@ -537,6 +562,25 @@ test.describe("catalog importer", () => {
     await expect(
       page.getByRole("table", { name: "Uploaded spreadsheet row 13" }),
     ).toBeVisible();
+    await expect(
+      page.getByRole("button", {
+        name: "Preview Vanguard reference photo",
+      }),
+    ).toBeVisible();
+
+    const candidateMedia = page.getByTestId("candidate-choice-media").first();
+    const candidateDetails = page
+      .getByTestId("candidate-choice-details")
+      .first();
+    const [candidateMediaBox, candidateDetailsBox] = await Promise.all([
+      candidateMedia.boundingBox(),
+      candidateDetails.boundingBox(),
+    ]);
+    expect(candidateMediaBox).not.toBeNull();
+    expect(candidateDetailsBox).not.toBeNull();
+    expect(candidateMediaBox!.x + candidateMediaBox!.width).toBeLessThanOrEqual(
+      candidateDetailsBox!.x,
+    );
 
     await expect(
       page.getByRole("table", {
@@ -547,6 +591,24 @@ test.describe("catalog importer", () => {
       name: "Catalog preparation actions",
     });
     await expect(mobileActions).toBeVisible();
+    const mobileActionsBox = await mobileActions.boundingBox();
+    expect(mobileActionsBox).not.toBeNull();
+
+    for (const control of [
+      page.getByLabel("Correct price for row 3"),
+      page.getByRole("button", { name: "Save price for row 3" }),
+      page.getByLabel("Correct image URL for row 4"),
+      page.getByRole("button", { name: "Save image URL for row 4" }),
+    ]) {
+      await control.scrollIntoViewIfNeeded();
+      await expect(control).toBeVisible();
+      const box = await control.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.x).toBeGreaterThanOrEqual(0);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(402);
+      expect(box!.y + box!.height).toBeLessThanOrEqual(mobileActionsBox!.y);
+    }
+
     await expect(
       mobileActions.getByRole("button", {
         name: "Download current workbook",
@@ -560,11 +622,31 @@ test.describe("catalog importer", () => {
     await expect(
       page.getByRole("button", { name: "Return to top" }),
     ).toBeHidden();
+    await expect(
+      page.locator(
+        '[aria-live="polite"][aria-label="Catalog importer updates"]',
+      ),
+    ).toHaveCount(1);
 
     const overflow = await page.evaluate(() => ({
       clientWidth: document.documentElement.clientWidth,
       scrollWidth: document.documentElement.scrollWidth,
     }));
     expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth);
+
+    await page.setViewportSize({ width: 820, height: 1180 });
+    await expect(mobileActions).toBeHidden();
+    await expect(
+      page.getByRole("navigation", {
+        name: "Catalog preparation workspace",
+      }),
+    ).toBeVisible();
+    const tabletOverflow = await page.evaluate(() => ({
+      clientWidth: document.documentElement.clientWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+    }));
+    expect(tabletOverflow.scrollWidth).toBeLessThanOrEqual(
+      tabletOverflow.clientWidth,
+    );
   });
 });

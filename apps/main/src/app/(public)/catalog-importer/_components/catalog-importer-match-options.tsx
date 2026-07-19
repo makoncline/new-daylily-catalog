@@ -22,7 +22,11 @@ function CandidateImage({ candidate }: { candidate: CultivarMatchCandidate }) {
   const image = getCultivarImage(candidate);
 
   return image ? (
-    <TableImagePreview images={[]} cultivarReferenceImage={image} />
+    <TableImagePreview
+      images={[]}
+      cultivarReferenceImage={image}
+      imageAlt={`${candidate.displayName} reference photo`}
+    />
   ) : (
     <div className="bg-muted text-muted-foreground flex size-16 shrink-0 items-center justify-center rounded-md border text-center text-xs">
       No photo
@@ -51,7 +55,7 @@ function CandidateChoice({
   return (
     <article
       role="listitem"
-      className="focus-within:border-primary hover:border-foreground/30 grid h-40 grid-cols-[7.25rem_minmax(0,1fr)] gap-3 overflow-hidden rounded-md border p-3 transition-colors sm:grid-cols-[8.5rem_minmax(0,1fr)] sm:gap-4 sm:p-4"
+      className="focus-within:border-primary hover:border-foreground/30 grid h-40 grid-cols-[7.25rem_minmax(0,1fr)] gap-3 overflow-hidden rounded-md border p-3 transition-colors motion-reduce:transition-none sm:grid-cols-[8.5rem_minmax(0,1fr)] sm:gap-4 sm:p-4"
     >
       <div
         data-testid="candidate-choice-media"

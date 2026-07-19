@@ -17,11 +17,13 @@ import { ImageGallery } from "@/components/image-gallery";
 interface TableImagePreviewProps {
   images: OptimizedImageSource[];
   cultivarReferenceImage?: OptimizedImageSource | null;
+  imageAlt?: string;
 }
 
 export function TableImagePreview({
   images,
   cultivarReferenceImage,
+  imageAlt = "Image preview",
 }: TableImagePreviewProps) {
   const allImages: OptimizedImageSource[] = [
     ...images,
@@ -36,14 +38,18 @@ export function TableImagePreview({
     <Dialog>
       <DialogTrigger asChild>
         <button
+          type="button"
+          aria-label={
+            imageAlt === "Image preview" ? undefined : `Preview ${imageAlt}`
+          }
           className={cn(
-            "group bg-muted/50 relative flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-md border",
+            "group bg-muted/50 focus-visible:ring-ring relative flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-md border outline-none focus-visible:ring-2",
           )}
         >
           <div className="absolute inset-0 overflow-hidden rounded-[4px]">
             <OptimizedImage
               image={firstImage}
-              alt="Image preview"
+              alt={imageAlt}
               size="thumbnail"
               variant="thumb"
               className="size-full"
@@ -52,7 +58,7 @@ export function TableImagePreview({
         </button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-xl">
-        <DialogTitle className="sr-only">Image preview</DialogTitle>
+        <DialogTitle className="sr-only">{imageAlt}</DialogTitle>
         <DialogDescription className="sr-only">
           Cultivar image preview
         </DialogDescription>
