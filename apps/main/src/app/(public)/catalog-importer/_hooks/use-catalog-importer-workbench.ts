@@ -194,6 +194,9 @@ export function useCatalogImporterWorkbench(
     processed: number;
     total: number;
   } | null>(null);
+  const [processingStage, setProcessingStage] = useState<
+    "building" | "detecting" | "matching" | null
+  >(null);
   const [matchError, setMatchError] = useState<string | null>(null);
   const [activeReviewRowId, setActiveReviewRowId] = useState<string | null>(
     initialDraft?.activeReviewRowId ?? null,
@@ -410,6 +413,7 @@ export function useCatalogImporterWorkbench(
         setMatchedRows(null);
         setMatchedRowsKey(null);
         setMatchingProgress(null);
+        setProcessingStage(null);
         await persistDraft({
           activeReviewRowId: null,
           headerRowIndex: nextHeaderRowIndex,
@@ -422,6 +426,7 @@ export function useCatalogImporterWorkbench(
         return;
       }
 
+      setProcessingStage("detecting");
       const rows = createCatalogImportRows({
         headerRowIndex: nextHeaderRowIndex,
         mapping: nextMapping,
@@ -443,6 +448,7 @@ export function useCatalogImporterWorkbench(
           parsedSpreadsheet: spreadsheet,
           selectedSheetIndex: nextSheetIndex,
         });
+        setProcessingStage(null);
         return;
       }
 
@@ -474,7 +480,7 @@ export function useCatalogImporterWorkbench(
       setMatchedRows(null);
       setMatchedRowsKey(null);
       setMatchError(null);
-      setMatchingProgress({ processed: 0, total: uniqueInputs.length });
+      setMatchingProgress(null);
       setActiveReviewRowId(null);
       setReviewQuery("");
       closeCandidateRequestId.current += 1;
@@ -494,6 +500,8 @@ export function useCatalogImporterWorkbench(
         return;
       }
 
+      setProcessingStage("matching");
+      setMatchingProgress({ processed: 0, total: uniqueInputs.length });
       const automaticMatches = new Map<string, CultivarMatchCandidate>();
       const cultivarReferenceMatches = new Map<
         string,
@@ -570,10 +578,26 @@ export function useCatalogImporterWorkbench(
 
         const nextReviewRow =
           getCatalogImportState(nextRows).reviewRows[0] ?? null;
+        setProcessingStage("building");
+        setMatchingProgress(null);
+        await persistDraft({
+          activeReviewRowId: nextReviewRow?.id ?? null,
+          headerRowIndex: nextHeaderRowIndex,
+          mapping: nextMapping,
+          matchedRows: nextRows,
+          matchedRowsKey: nextMatchKey,
+          parsedSpreadsheet: spreadsheet,
+          selectedSheetIndex: nextSheetIndex,
+        });
+        if (exactMatchRequestId.current !== requestId) {
+          return;
+        }
+
         setMatchedRows(nextRows);
         setMatchedRowsKey(nextMatchKey);
         setActiveReviewRowId(nextReviewRow?.id ?? null);
         setReviewQuery(nextReviewRow?.sourceTitle ?? "");
+        setProcessingStage(null);
         setMatchingProgress(null);
         if (!previewTracked.current) {
           previewTracked.current = true;
@@ -586,15 +610,6 @@ export function useCatalogImporterWorkbench(
         if (nextReviewRow) {
           void loadCandidates(nextReviewRow);
         }
-        await persistDraft({
-          activeReviewRowId: nextReviewRow?.id ?? null,
-          headerRowIndex: nextHeaderRowIndex,
-          mapping: nextMapping,
-          matchedRows: nextRows,
-          matchedRowsKey: nextMatchKey,
-          parsedSpreadsheet: spreadsheet,
-          selectedSheetIndex: nextSheetIndex,
-        });
       } catch (error) {
         if (
           controller.signal.aborted ||
@@ -604,6 +619,7 @@ export function useCatalogImporterWorkbench(
         }
 
         setMatchError(getErrorMessage(error));
+        setProcessingStage(null);
         setMatchingProgress(null);
       }
     },
@@ -638,6 +654,7 @@ export function useCatalogImporterWorkbench(
     setMatchedRows(null);
     setMatchedRowsKey(null);
     setMatchingProgress(null);
+    setProcessingStage(null);
     setMatchError(null);
     setActiveReviewRowId(null);
     setReviewQuery("");
@@ -664,7 +681,7 @@ export function useCatalogImporterWorkbench(
     setDownloadError(null);
     resetMatches();
     setStorageWarning(null);
-    setLiveAnnouncement("Cleaner reset.");
+    setLiveAnnouncement("Local progress cleared.");
     previewTracked.current = false;
   }, [persistDraft, resetMatches]);
 
@@ -1274,6 +1291,7 @@ export function useCatalogImporterWorkbench(
     matchedRowsKey,
     matchError,
     matchingProgress,
+    processingStage,
     moveReviewRow,
     openReviewRow,
     parsedSpreadsheet,

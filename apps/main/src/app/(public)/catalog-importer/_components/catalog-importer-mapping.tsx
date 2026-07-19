@@ -1,7 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronUp, CircleHelp } from "lucide-react";
+import { ChevronDown, ChevronUp, CircleHelp, RotateCcw } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Collapsible,
@@ -45,6 +56,16 @@ interface CatalogImporterMappingProps {
   controller: CatalogImporterWorkbenchController;
   onSubmit: () => void;
 }
+
+const PROCESSING_STEPS = [
+  { label: "Detecting listing rows", stage: "detecting" },
+  { label: "Matching cultivar names", stage: "matching" },
+  {
+    label: "Loading reference details and photographs",
+    stage: "matching",
+  },
+  { label: "Building your private catalog preview", stage: "building" },
+] as const;
 
 function MappingHelp({
   description,
@@ -103,7 +124,7 @@ function MappingField({
       </div>
       <FieldContent>
         <Select
-          disabled={controller.matchingProgress !== null}
+          disabled={controller.processingStage !== null}
           value={value === null ? "none" : String(value)}
           onValueChange={(nextValue) =>
             controller.handleMappingChange(
@@ -266,17 +287,56 @@ export function CatalogImporterMapping({
         </div>
 
         <section className="order-1 lg:order-2 lg:border-l lg:pl-8">
-          <div className="mb-5 space-y-1.5">
-            <h2
-              id="catalog-importer-mapping-heading"
-              className="text-xl font-semibold tracking-tight"
-            >
-              Map your columns
-            </h2>
-            <p className="text-muted-foreground text-sm">
-              Confirm which workbook columns become listing fields. Only
-              cultivar name is required.
-            </p>
+          <div className="mb-5 flex flex-col items-start justify-between gap-3 sm:flex-row">
+            <div className="space-y-1.5">
+              <h2
+                id="catalog-importer-mapping-heading"
+                className="text-xl font-semibold tracking-tight"
+              >
+                Map your columns
+              </h2>
+              <p className="text-muted-foreground text-sm">
+                Confirm which workbook columns become listing fields. Only
+                cultivar name is required.
+              </p>
+            </div>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0"
+                  disabled={controller.processingStage !== null}
+                >
+                  <RotateCcw className="size-4" />
+                  Reset column mapping
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Reset column mapping?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This restores the detected column choices and clears
+                    matching progress for this file. Your original file is not
+                    changed.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() =>
+                      controller.configureSheet(
+                        controller.parsedSpreadsheet!,
+                        controller.selectedSheetIndex,
+                      )
+                    }
+                  >
+                    Reset column mapping
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
           <div className="space-y-5">
             <TooltipProvider delayDuration={200}>
@@ -293,7 +353,7 @@ export function CatalogImporterMapping({
                   </div>
                   <FieldContent>
                     <Select
-                      disabled={controller.matchingProgress !== null}
+                      disabled={controller.processingStage !== null}
                       value={
                         controller.headerRowIndex === null
                           ? "none"
@@ -335,26 +395,60 @@ export function CatalogImporterMapping({
               </FieldGroup>
             </TooltipProvider>
 
-            {controller.matchingProgress ? (
+            {controller.processingStage ? (
               <div
-                className="space-y-2 rounded-lg border p-4"
+                className="space-y-3 border-y py-4"
                 role="status"
                 aria-label="Building catalog preview"
               >
-                <div className="text-muted-foreground flex items-center justify-between gap-4 text-xs">
+                <div className="flex items-center justify-between gap-4 text-sm font-medium">
                   <span className="flex items-center gap-2">
                     <Spinner />
-                    Thinking through your catalog…
+                    Preparing your preview
                   </span>
-                  <span className="tabular-nums">
-                    {controller.matchingProgress.processed.toLocaleString()} /{" "}
-                    {controller.matchingProgress.total.toLocaleString()}
-                  </span>
+                  {controller.matchingProgress ? (
+                    <span className="text-muted-foreground text-xs tabular-nums">
+                      {controller.matchingProgress.processed.toLocaleString()} /{" "}
+                      {controller.matchingProgress.total.toLocaleString()}
+                    </span>
+                  ) : null}
                 </div>
-                <Progress
-                  value={progressValue}
-                  aria-label="Cultivar matching progress"
-                />
+                <ol className="grid gap-1.5 text-xs">
+                  {PROCESSING_STEPS.map((step, index) => {
+                    const currentIndex =
+                      controller.processingStage === "detecting"
+                        ? 0
+                        : controller.processingStage === "matching"
+                          ? 1
+                          : 3;
+                    const current =
+                      step.stage === controller.processingStage ||
+                      (controller.processingStage === "matching" &&
+                        index === 2);
+                    const complete = index < currentIndex;
+
+                    return (
+                      <li
+                        key={step.label}
+                        className={
+                          current
+                            ? "text-foreground font-medium"
+                            : complete
+                              ? "text-muted-foreground"
+                              : "text-muted-foreground/60"
+                        }
+                      >
+                        {complete ? "✓" : current ? "•" : "○"} {step.label}
+                      </li>
+                    );
+                  })}
+                </ol>
+                {controller.matchingProgress ? (
+                  <Progress
+                    value={progressValue}
+                    aria-label="Cultivar matching progress"
+                  />
+                ) : null}
               </div>
             ) : null}
 
@@ -363,11 +457,11 @@ export function CatalogImporterMapping({
               className="w-full"
               disabled={
                 controller.mapping.title === null ||
-                controller.matchingProgress !== null
+                controller.processingStage !== null
               }
               onClick={onSubmit}
             >
-              {controller.matchingProgress
+              {controller.processingStage
                 ? "Building catalog preview…"
                 : "Build catalog preview"}
             </Button>

@@ -8,8 +8,20 @@ import {
   ListFilter,
   RotateCcw,
   Sparkles,
+  Trash2,
   UploadCloud,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -94,6 +106,11 @@ export function CatalogImporterUpload({
               {controller.selectedSheet?.rows.length.toLocaleString() ?? 0} rows
               in selected sheet
             </p>
+            {!controller.storageWarning ? (
+              <p className="text-muted-foreground mt-0.5 text-xs">
+                Saved locally in this browser on this device.
+              </p>
+            ) : null}
           </div>
         </div>
 
@@ -142,20 +159,69 @@ export function CatalogImporterUpload({
               onClick={onEditMapping}
             >
               <ListFilter className="size-4" />
-              Edit columns
+              Map columns
             </Button>
           ) : null}
 
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-8"
-            onClick={controller.resetImporter}
-          >
-            <RotateCcw className="size-4" />
-            Reset
-          </Button>
+          {onEditMapping ? (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button type="button" variant="ghost" size="sm" className="h-8">
+                  <RotateCcw className="size-4" />
+                  Start over with this file
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    Start over with this file?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This clears column choices, matches, and fixes while keeping
+                    the uploaded workbook. Your original file is not changed.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => {
+                      controller.configureSheet(
+                        controller.parsedSpreadsheet!,
+                        controller.selectedSheetIndex,
+                      );
+                      onEditMapping();
+                    }}
+                  >
+                    Start over with this file
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          ) : null}
+
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button type="button" variant="ghost" size="sm" className="h-8">
+                <Trash2 className="size-4" />
+                Clear local progress
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Clear local progress?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This clears the workbook and all progress saved in this
+                  browser. Your original file is not changed.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={controller.resetImporter}>
+                  Clear local progress
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </section>
     );
@@ -196,7 +262,7 @@ export function CatalogImporterUpload({
           </div>
           <p className="font-medium">
             {controller.readingFile
-              ? "Reading spreadsheet…"
+              ? "Reading workbook…"
               : isDragActive
                 ? "Drop the spreadsheet here"
                 : "Drop a spreadsheet here, or choose a file"}

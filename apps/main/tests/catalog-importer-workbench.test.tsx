@@ -5,6 +5,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CatalogImporterWorkbench } from "@/app/(public)/catalog-importer/_components/catalog-importer-workbench";
@@ -69,6 +70,9 @@ describe("CatalogImporterWorkbench", () => {
     render(<CatalogImporterWorkbench />);
 
     fireEvent.click(screen.getByRole("button", { name: "Use sample catalog" }));
+    expect(
+      await screen.findByRole("button", { name: "Reset column mapping" }),
+    ).toBeVisible();
     fireEvent.click(
       await screen.findByRole("button", { name: "Build catalog preview" }),
     );
@@ -95,6 +99,10 @@ describe("CatalogImporterWorkbench", () => {
         },
       );
     });
+    expect(screen.getByRole("button", { name: "Map columns" })).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Start over with this file" }),
+    ).toBeVisible();
   });
 
   it("saves the spreadsheet before cultivar matching finishes", async () => {
@@ -112,13 +120,18 @@ describe("CatalogImporterWorkbench", () => {
     fireEvent.click(
       await screen.findByRole("button", { name: "Build catalog preview" }),
     );
-    expect(
-      await screen.findByRole("status", {
-        name: "Building catalog preview",
-      }),
-    ).toBeVisible();
+    const processingStatus = await screen.findByRole("status", {
+      name: "Building catalog preview",
+    });
+    expect(processingStatus).toBeVisible();
     await waitFor(() =>
       expect(requestCultivarMatchesMock).toHaveBeenCalledOnce(),
+    );
+    await waitFor(() =>
+      expect(processingStatus).toHaveTextContent("Matching cultivar names"),
+    );
+    expect(processingStatus).toHaveTextContent(
+      "Loading reference details and photographs",
     );
     await waitFor(async () => {
       await expect(readCatalogImporterDraft()).resolves.toMatchObject({
@@ -133,6 +146,38 @@ describe("CatalogImporterWorkbench", () => {
     await act(async () => {
       finishMatching([]);
     });
+  });
+
+  it("explains and confirms clearing browser-local progress", async () => {
+    render(<CatalogImporterWorkbench />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Use sample catalog" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Clear local progress" }),
+    );
+
+    expect(
+      screen.getByRole("alertdialog", { name: "Clear local progress?" }),
+    ).toHaveTextContent(
+      "This clears the workbook and all progress saved in this browser. Your original file is not changed.",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.getByText("Sample daylily catalog.csv")).toBeVisible();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Clear local progress" }),
+    );
+    fireEvent.click(
+      within(
+        screen.getByRole("alertdialog", { name: "Clear local progress?" }),
+      ).getByRole("button", {
+        name: "Clear local progress",
+      }),
+    );
+
+    expect(
+      await screen.findByText("Drop a spreadsheet here, or choose a file"),
+    ).toBeVisible();
   });
 
   it("restores an incomplete draft and retries a failed match", async () => {

@@ -186,7 +186,7 @@ test.describe("catalog importer", () => {
     await expect(page.getByRole("main")).toHaveCount(1);
     await expect(
       page.getByRole("heading", {
-        name: "Free daylily catalog spreadsheet cleaner",
+        name: "Turn your daylily spreadsheet into a catalog-ready collection",
       }),
     ).toBeVisible();
     await expect(
@@ -205,7 +205,7 @@ test.describe("catalog importer", () => {
       page.getByRole("button", { name: "Replace spreadsheet" }),
     ).toHaveCount(0);
     await expect(
-      page.getByRole("button", { name: "Reset" }).first(),
+      page.getByRole("button", { name: "Clear local progress" }),
     ).toBeVisible();
     await expect(
       page.getByLabel("Cultivar reference ID", { exact: true }),

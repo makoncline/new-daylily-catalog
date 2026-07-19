@@ -37,17 +37,27 @@ export default function CatalogImporterPage() {
       <div className="mx-auto w-full max-w-[1440px] px-3 py-8 lg:px-8 lg:py-12">
         <header className="mb-8 max-w-3xl">
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-            Free daylily catalog spreadsheet cleaner
+            Turn your daylily spreadsheet into a catalog-ready collection
           </h1>
           <p className="text-muted-foreground mt-3 text-base sm:text-lg">
-            Link registered cultivars, preview your catalog, and download a
-            prepared copy with Daylily Catalog IDs.
+            Upload an XLSX or CSV file. We’ll link registered cultivars, reveal
+            a private catalog preview, and return a prepared copy.
           </p>
-          <p className="text-muted-foreground mt-2 text-sm">
-            XLSX and CSV files are processed in your browser. Only cultivar
-            names and saved IDs are sent for matching; your workbook is not
-            saved.
-          </p>
+          <ul className="text-muted-foreground mt-4 flex flex-wrap gap-x-5 gap-y-1 text-sm">
+            <li>Processed in your browser</li>
+            <li>Complete workbook not saved to our database</li>
+            <li>Nothing published</li>
+          </ul>
+          <details className="text-muted-foreground mt-3 text-sm">
+            <summary className="text-foreground cursor-pointer font-medium">
+              How matching works
+            </summary>
+            <p className="mt-2">
+              Only cultivar names and saved Daylily Catalog IDs are sent for
+              matching. Spreadsheet contents and private notes stay in this
+              browser.
+            </p>
+          </details>
         </header>
 
         <CatalogImporterClient />

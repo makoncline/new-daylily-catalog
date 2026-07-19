@@ -25,9 +25,14 @@ describe("catalog importer quiet launch", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: "Free daylily catalog spreadsheet cleaner",
+        name: "Turn your daylily spreadsheet into a catalog-ready collection",
       }),
     ).toBeVisible();
+    expect(screen.getByText("Processed in your browser")).toBeVisible();
+    expect(
+      screen.getByText("Complete workbook not saved to our database"),
+    ).toBeVisible();
+    expect(screen.getByText("Nothing published")).toBeVisible();
     expect(generateMetadata().robots).toEqual({
       follow: false,
       index: false,

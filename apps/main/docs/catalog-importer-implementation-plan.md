@@ -8,18 +8,18 @@ decisions, evidence, and blockers.
 
 ## Live status
 
-| Field           | Current value                                                                                                           |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| Overall status  | Implementation in progress                                                                                              |
-| Current phase   | Phase B — Reveal and explore                                                                                            |
-| Current slice   | Slice 2 — Refine upload, mapping, persistence, and processing feedback                                                  |
-| Last updated    | 2026-07-18                                                                                                              |
-| Branch          | `agent/catalog-importer-v1`                                                                                             |
-| Baseline commit | `7b5a81ad`                                                                                                              |
-| Pull request    | [#352 — Prepare daylily catalog spreadsheets](https://github.com/makoncline/new-daylily-catalog/pull/352)               |
-| Current blocker | None                                                                                                                    |
-| Next action     | Audit the current upload-to-preview transition and its persisted recovery boundaries                                    |
-| Latest evidence | Slice 1 passed 33 focused tests, 3 E2Es, typecheck, lint, and visible Chrome restoration of the real 1,087-row workbook |
+| Field           | Current value                                                                                                          |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Overall status  | Implementation in progress                                                                                             |
+| Current phase   | Phase B — Reveal and explore                                                                                           |
+| Current slice   | Slice 3 — Build the personalized results reveal and workspace order                                                    |
+| Last updated    | 2026-07-18                                                                                                             |
+| Branch          | `agent/catalog-importer-v1`                                                                                            |
+| Baseline commit | `7b5a81ad`                                                                                                             |
+| Pull request    | [#352 — Prepare daylily catalog spreadsheets](https://github.com/makoncline/new-daylily-catalog/pull/352)              |
+| Current blocker | None                                                                                                                   |
+| Next action     | Inventory current result sections, count language, enrichment metrics, and conversion placement                        |
+| Latest evidence | Slice 2 passed 36 focused tests, 3 E2Es, typecheck, lint, and visible Chrome review of the restored real workbook flow |
 
 ### Progress
 
@@ -27,7 +27,7 @@ decisions, evidence, and blockers.
   - [x] Slice 0 — Verify and freeze the cleaned-workbook contract
   - [x] Slice 1 — Make importer state, provenance, and counts explicit
 - [ ] Phase B — Reveal and explore
-  - [ ] Slice 2 — Refine upload, mapping, persistence, and processing feedback
+  - [x] Slice 2 — Refine upload, mapping, persistence, and processing feedback
   - [ ] Slice 3 — Build the personalized results reveal and workspace order
   - [ ] Slice 4 — Make catalog preview trusted and useful
   - [ ] Slice 5 — Make collection insights accurate and interactive
@@ -48,22 +48,21 @@ decisions, evidence, and blockers.
 Use this area for short-lived details needed to resume the active slice.
 Move durable decisions to the decision log and completed work to the work log.
 
-- Slice 1 is complete and awaiting its commit/push.
-- Begin Slice 2 by checking the current upload, mapping submit, matching retry,
-  download retry, and reset language before changing layout.
-- Preserve the event-driven draft writes and do not add synchronization
-  effects.
-- Keep processing stages tied to real work rather than adding timed animation.
+- Slice 2 is complete and packaged for PR #352.
+- Begin Slice 3 with the current selector counts and enrichment metrics; do not
+  duplicate calculations in the reveal component.
+- Reorder existing sections before adding new wrappers.
+- Keep the reveal concise and connect unresolved work to its visible catalog
+  consequence.
 
 ### User update
 
 Use this as the source for concise progress updates.
 
-> Slice 1 is complete: row identity, output inclusion, link state, and link
-> provenance are now separate, while every count and enrichment metric comes
-> from one pure selector. Existing v2 browser drafts migrate to v3; the real
-> 1,087-row workbook restored in Chrome with all 1,034 links and 52 review
-> decisions intact.
+> Slice 2 is complete: the upload page now states the browser-local and
+> unpublished privacy contract, mapping has an explicit submit step, processing
+> shows only real stages, and matching/download remain independently retryable.
+> Exact reset actions explain their scope before clearing anything.
 
 ## How the goal agent must use this file
 
@@ -320,39 +319,54 @@ recoverable progress after submitting column mapping.
 
 Tasks:
 
-- [ ] Use the heading `Turn your daylily spreadsheet into a catalog-ready collection`.
-- [ ] Keep upload copy concise while explaining XLSX/CSV support.
-- [ ] Show the three primary privacy promises:
-  - [ ] processed in the browser;
-  - [ ] complete workbook not saved to the application database; and
-  - [ ] nothing published.
-- [ ] Keep longer technical detail expandable.
-- [ ] Persist the workbook and mapping before matching begins.
-- [ ] Retain the explicit submit step after column selection.
-- [ ] Show real processing stages:
-  - [ ] reading workbook;
-  - [ ] detecting listing rows;
-  - [ ] matching cultivar names;
-  - [ ] loading reference data and photographs; and
-  - [ ] building the private preview.
-- [ ] Use no fake delays.
-- [ ] Retry matching without another upload or remap.
-- [ ] Keep download errors out of matching-error UI.
-- [ ] Rename ambiguous file actions to their exact scope:
-  - [ ] Map columns;
-  - [ ] Reset column mapping;
-  - [ ] Start over with this file; and
-  - [ ] Clear local progress.
-- [ ] Show `Saved locally in this browser on this device`.
-- [ ] Confirm destructive clearing and explain that the original file is
+- [x] Use the heading `Turn your daylily spreadsheet into a catalog-ready collection`.
+- [x] Keep upload copy concise while explaining XLSX/CSV support.
+- [x] Show the three primary privacy promises:
+  - [x] processed in the browser;
+  - [x] complete workbook not saved to the application database; and
+  - [x] nothing published.
+- [x] Keep longer technical detail expandable.
+- [x] Persist the workbook and mapping before matching begins.
+- [x] Retain the explicit submit step after column selection.
+- [x] Show real processing stages:
+  - [x] reading workbook;
+  - [x] detecting listing rows;
+  - [x] matching cultivar names;
+  - [x] loading reference data and photographs; and
+  - [x] building the private preview.
+- [x] Use no fake delays.
+- [x] Retry matching without another upload or remap.
+- [x] Keep download errors out of matching-error UI.
+- [x] Rename ambiguous file actions to their exact scope:
+  - [x] Map columns;
+  - [x] Reset column mapping;
+  - [x] Start over with this file; and
+  - [x] Clear local progress.
+- [x] Show `Saved locally in this browser on this device`.
+- [x] Confirm destructive clearing and explain that the original file is
       unaffected.
 
 Acceptance:
 
-- [ ] Refresh or client navigation can restore a fresh draft.
-- [ ] Matching failure leaves the workbook and mapping immediately retryable.
-- [ ] Processing feedback reflects actual work.
-- [ ] The page does not imply upload, publishing, or database persistence.
+- [x] Refresh or client navigation can restore a fresh draft.
+- [x] Matching failure leaves the workbook and mapping immediately retryable.
+- [x] Processing feedback reflects actual work.
+- [x] The page does not imply upload, publishing, or database persistence.
+
+Evidence:
+
+- `pnpm main test -- catalog-importer.test.ts
+catalog-importer-draft.test.ts catalog-importer-client.test.tsx
+catalog-importer-page.test.tsx catalog-importer-workbench.test.tsx
+catalog-importer-preview.test.ts catalog-importer-file.test.ts` — 36 passed.
+- `BASE_URL=http://localhost:3017 pnpm playwright test
+tests/e2e/catalog-importer.e2e.ts` — 3 passed.
+- Typecheck passed. Lint has zero errors and one unrelated existing dashboard
+  warning.
+- Visible Chrome restored `Daylilies info.xlsx` with 1,034 links and 52 review
+  decisions, showed the new privacy/file controls, opened mapping without
+  losing progress, and verified the clear-local-progress confirmation without
+  clearing the draft.
 
 ### Slice 3 — Build the personalized results reveal and workspace order
 
@@ -836,7 +850,8 @@ artifacts when useful.
 
 | Date       | Slice    | Status   | What changed                                                                                                                                        | Verification                                                                                                                                                              | Commit / notes                      |
 | ---------- | -------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
-| 2026-07-18 | Slice 1  | Complete | Replaced overlapping row flags with explicit row/output/link/provenance state; centralized counts and enrichment; migrated v2 browser drafts to v3. | 33 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome restoration of the 1,087-row workbook.                         | This Slice 1 commit.                |
+| 2026-07-18 | Slice 2  | Complete | Clarified browser-local privacy and file actions; added confirmed resets and event-driven processing stages without timed delays or effects.        | 36 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome verification with the restored real workbook.                  | This Slice 2 commit.                |
+| 2026-07-18 | Slice 1  | Complete | Replaced overlapping row flags with explicit row/output/link/provenance state; centralized counts and enrichment; migrated v2 browser drafts to v3. | 33 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome restoration of the 1,087-row workbook.                         | `01e838c0`                          |
 | 2026-07-18 | Slice 0  | Complete | Implemented cleaned mapped fields and canonical identity headers; documented the verified XLSX value-copy contract.                                 | 25 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, real Chrome download, full three-sheet value comparison, LibreOffice open/resave. | `1d643703`                          |
 | 2026-07-18 | Planning | Complete | Converted the full UI/UX review into a 14-slice implementation tracker; made cleaned-copy semantics the first gated contract.                       | Plan reviewed against the current product doc and PR boundary.                                                                                                            | Implementation begins with Slice 0. |
 
