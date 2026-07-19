@@ -24,7 +24,7 @@ export function CatalogImporterResults({
 }: CatalogImporterResultsProps) {
   const [matchEditorRowId, setMatchEditorRowId] = useState<string | null>(null);
   const matchEditorRow =
-    controller.resultRows.find((row) => row.id === matchEditorRowId) ?? null;
+    controller.includedRows.find((row) => row.id === matchEditorRowId) ?? null;
   const readyToDownload =
     controller.reviewRows.length === 0 && controller.issueCount === 0;
   const handleOpenReview = useCallback((row: CatalogImportRow) => {
@@ -53,9 +53,9 @@ export function CatalogImporterResults({
           </h2>
           <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
             We already linked {controller.matchedCount.toLocaleString()} of{" "}
-            {controller.resultRows.length.toLocaleString()} listings. Membership
-            unlocks the dashboard and hosted catalogs; keep the prepared
-            spreadsheet for mass import when it becomes available.
+            {controller.counts.includedListingCount.toLocaleString()} listings.
+            Membership unlocks the dashboard and hosted catalogs; keep the
+            prepared spreadsheet for mass import when it becomes available.
           </p>
         </div>
         <Button asChild size="lg" className="shrink-0">
@@ -71,7 +71,7 @@ export function CatalogImporterResults({
         </Button>
       </section>
 
-      <CatalogImporterAnalysis rows={controller.resultRows} />
+      <CatalogImporterAnalysis rows={controller.includedRows} />
 
       {controller.reviewRows.length > 0 ? (
         <CatalogImporterReviewQuiz controller={controller} />

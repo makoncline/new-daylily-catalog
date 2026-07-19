@@ -8,6 +8,7 @@ import {
   createCatalogImportTemplateCsv,
   detectHeaderRow,
   getAutomaticCultivarMatch,
+  getCatalogImportState,
   getSourceColumns,
   suggestColumnMapping,
   type SpreadsheetCell,
@@ -129,7 +130,8 @@ describe("catalog importer normalization", () => {
         scapeHeightIn: 34,
         year: 2014,
       },
-      matchStatus: "selected" as const,
+      linkProvenance: "user-confirmed" as const,
+      linkState: "linked" as const,
     }));
     const enriched = createCatalogEnrichedSpreadsheet({
       headerRowIndex,
@@ -260,7 +262,7 @@ describe("catalog importer normalization", () => {
       headerRowIndex: 0,
       mapping,
       matchedRows: importedRows.map((row) =>
-        row.sourceRow === 3 ? { ...row, removed: true } : row,
+        row.sourceRow === 3 ? { ...row, outputState: "removed" as const } : row,
       ),
       parsedSpreadsheet: {
         fileName: "seller-list.csv",
@@ -415,8 +417,9 @@ describe("catalog importer normalization", () => {
       matchedRows: [
         {
           ...row!,
+          linkProvenance: "saved-id",
+          linkState: "linked",
           match,
-          matchStatus: "exact",
         },
       ],
       parsedSpreadsheet: {
@@ -580,6 +583,110 @@ describe("catalog importer normalization", () => {
     ).toBe(true);
   });
 
+  it("derives listing, link, review, issue, and unique-cultivar counts once", () => {
+    const rows = createCatalogImportRows({
+      headerRowIndex: 0,
+      mapping: {
+        cultivarReferenceId: null,
+        description: null,
+        imageUrl: null,
+        price: 1,
+        privateNote: null,
+        title: 0,
+      },
+      rows: [
+        ["name", "price"],
+        ["Linked one", 10],
+        ["Linked duplicate", 12],
+        ["Needs review", 14],
+        ["Intentionally unmatched", 16],
+        ["Price issue", "two for $30"],
+        ["Removed listing", 20],
+        ["2023", ""],
+      ],
+    });
+    const match = {
+      awardNames: "Award of Merit",
+      bloomSizeIn: null,
+      bloomSeason: null,
+      color: "Red",
+      confidence: 100,
+      cultivarReferenceId: "cultivar-1",
+      displayName: "Linked cultivar",
+      form: null,
+      hybridizer: "Example",
+      imageAsset: null,
+      imageUrl: "https://example.com/reference.jpg",
+      listingCount: 0,
+      normalizedName: "linked cultivar",
+      ploidy: null,
+      rebloom: null,
+      scapeHeightIn: null,
+      year: 2017,
+    };
+    const state = getCatalogImportState(
+      assignCatalogImportDuplicateGroups(
+        rows.map((row, index) => {
+          if (index < 2) {
+            return {
+              ...row,
+              linkProvenance:
+                index === 0
+                  ? ("exact-name" as const)
+                  : ("user-confirmed" as const),
+              linkState: "linked" as const,
+              match,
+            };
+          }
+          if (index === 3) {
+            return {
+              ...row,
+              linkState: "intentionally-unmatched" as const,
+            };
+          }
+          if (index === 5) {
+            return { ...row, outputState: "removed" as const };
+          }
+          return row;
+        }),
+      ),
+      8,
+    );
+
+    expect(state.counts).toMatchObject({
+      detectedListingCount: 6,
+      duplicateGroupCount: 1,
+      includedListingCount: 5,
+      intentionallyUnmatchedCount: 1,
+      issueCount: 2,
+      linkedListingCount: 2,
+      pendingCultivarDecisionCount: 2,
+      priceIssueCount: 1,
+      requiredDataDecisionCount: 1,
+      reviewQueueCount: 2,
+      sourceRowCount: 8,
+      uniqueCultivarCount: 1,
+      warningCount: 1,
+    });
+    expect(state.enrichment).toEqual({
+      awardWinningCultivarCount: 1,
+      hybridizerCount: 1,
+      referencePhotoListingCount: 2,
+      registrationYearMax: 2017,
+      registrationYearMin: 2017,
+      searchableAttributeCount: 4,
+    });
+    expect(state.sourceRows).toHaveLength(7);
+    expect(state.detectedRows).toHaveLength(6);
+    expect(state.includedRows).toHaveLength(5);
+    expect(state.requiredDataDecisionRows).toHaveLength(1);
+    expect(state.warningRows).toHaveLength(1);
+    expect(state.reviewRows.map((row) => row.title)).toEqual([
+      "Needs review",
+      "Price issue",
+    ]);
+  });
+
   it("keeps the best candidate for rows that still need review", () => {
     const [row] = createCatalogImportRows({
       headerRowIndex: 0,
@@ -620,8 +727,8 @@ describe("catalog importer normalization", () => {
       }),
     ).toMatchObject([
       {
+        linkState: "pending",
         match: null,
-        matchStatus: "pending",
         suggestedMatch: {
           confidence: 82,
           cultivarReferenceId: "cultivar-vanguard",
@@ -661,15 +768,17 @@ describe("catalog importer normalization", () => {
     };
 
     expect(mapping.cultivarReferenceId).toBe(1);
-    expect(
-      applyAutomaticCultivarMatches({
-        automaticMatches: new Map(),
-        cultivarReferenceMatches: new Map([["cultivar-saved", savedMatch]]),
-        rows: [row!],
-      }),
-    ).toMatchObject([
+    const [restoredRow] = applyAutomaticCultivarMatches({
+      automaticMatches: new Map(),
+      cultivarReferenceMatches: new Map([["cultivar-saved", savedMatch]]),
+      rows: [row!],
+    });
+
+    expect([restoredRow]).toMatchObject([
       {
         cultivarReferenceIdWarning: null,
+        linkProvenance: "saved-id",
+        linkState: "linked",
         match: {
           cultivarReferenceId: "cultivar-saved",
           displayName: "Registered Name",
@@ -677,6 +786,11 @@ describe("catalog importer normalization", () => {
         sourceCultivarReferenceId: "cultivar-saved",
       },
     ]);
+    expect(getCatalogImportState([restoredRow!]).counts).toMatchObject({
+      linkedListingCount: 1,
+      pendingCultivarDecisionCount: 0,
+      uniqueCultivarCount: 1,
+    });
   });
 
   it("flags an unknown saved cultivar ID instead of replacing it by name", () => {
@@ -696,41 +810,46 @@ describe("catalog importer normalization", () => {
       ],
     });
 
-    expect(
-      applyAutomaticCultivarMatches({
-        automaticMatches: new Map([
-          [
-            "a w shucks",
-            {
-              bloomSizeIn: null,
-              bloomSeason: null,
-              color: null,
-              confidence: 100,
-              cultivarReferenceId: "different-id",
-              displayName: "A.W. Shucks",
-              form: null,
-              hybridizer: null,
-              imageAsset: null,
-              imageUrl: null,
-              listingCount: 0,
-              normalizedName: "a w shucks",
-              ploidy: null,
-              rebloom: null,
-              scapeHeightIn: null,
-              year: null,
-            },
-          ],
-        ]),
-        invalidCultivarReferenceIds: new Set(["missing-id"]),
-        rows: [row!],
-      }),
-    ).toMatchObject([
+    const [invalidIdRow] = applyAutomaticCultivarMatches({
+      automaticMatches: new Map([
+        [
+          "a w shucks",
+          {
+            bloomSizeIn: null,
+            bloomSeason: null,
+            color: null,
+            confidence: 100,
+            cultivarReferenceId: "different-id",
+            displayName: "A.W. Shucks",
+            form: null,
+            hybridizer: null,
+            imageAsset: null,
+            imageUrl: null,
+            listingCount: 0,
+            normalizedName: "a w shucks",
+            ploidy: null,
+            rebloom: null,
+            scapeHeightIn: null,
+            year: null,
+          },
+        ],
+      ]),
+      invalidCultivarReferenceIds: new Set(["missing-id"]),
+      rows: [row!],
+    });
+
+    expect([invalidIdRow]).toMatchObject([
       {
         cultivarReferenceIdWarning: "missing-id",
+        linkState: "pending",
         match: null,
-        matchStatus: "unmatched",
       },
     ]);
+    expect(getCatalogImportState([invalidIdRow!]).counts).toMatchObject({
+      pendingCultivarDecisionCount: 1,
+      reviewQueueCount: 0,
+      savedIdIssueCount: 1,
+    });
   });
 
   it("clears an unknown saved cultivar ID from prepared identity fields", () => {

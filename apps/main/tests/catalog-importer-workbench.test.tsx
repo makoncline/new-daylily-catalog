@@ -152,7 +152,7 @@ describe("CatalogImporterWorkbench", () => {
       matchedRowsKey: null,
       parsedSpreadsheet: spreadsheet,
       selectedSheetIndex: 0,
-      version: 2,
+      version: 3,
     };
     requestCultivarMatchesMock
       .mockRejectedValueOnce(new Error("Cultivar matching is warming up."))

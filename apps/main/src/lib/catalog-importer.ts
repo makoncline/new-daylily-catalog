@@ -100,7 +100,7 @@ export function applyAutomaticCultivarMatches({
   const nextRows: CatalogImportRow[] = [];
 
   for (const row of rows) {
-    if (row.skipped) {
+    if (row.rowKind === "ignored" || row.outputState === "removed") {
       nextRows.push(row);
       continue;
     }
@@ -112,8 +112,9 @@ export function applyAutomaticCultivarMatches({
       nextRows.push({
         ...row,
         cultivarReferenceIdWarning: null,
+        linkProvenance: "saved-id",
+        linkState: "linked",
         match: cultivarReferenceMatch,
-        matchStatus: "exact",
         suggestedMatch: cultivarReferenceMatch,
       });
       continue;
@@ -125,8 +126,9 @@ export function applyAutomaticCultivarMatches({
       nextRows.push({
         ...row,
         cultivarReferenceIdWarning: row.sourceCultivarReferenceId,
+        linkProvenance: null,
+        linkState: "pending",
         match: null,
-        matchStatus: "unmatched",
         suggestedMatch: null,
       });
       continue;
@@ -139,23 +141,36 @@ export function applyAutomaticCultivarMatches({
     if (automaticMatch) {
       nextRows.push({
         ...row,
+        linkProvenance:
+          automaticMatch.confidence === 100 ? "exact-name" : "automatic-name",
+        linkState: "linked",
         match: automaticMatch,
-        matchStatus: automaticMatch.confidence === 100 ? "exact" : "selected",
         suggestedMatch,
       });
     } else {
-      nextRows.push({ ...row, suggestedMatch });
+      nextRows.push({
+        ...row,
+        linkProvenance: null,
+        linkState: "pending",
+        suggestedMatch,
+      });
     }
   }
 
   return assignCatalogImportDuplicateGroups(nextRows);
 }
 
-export type CatalogImportMatchStatus =
-  | "exact"
-  | "pending"
-  | "selected"
-  | "unmatched";
+export type CatalogImportRowKind = "ignored" | "listing";
+export type CatalogImportOutputState = "included" | "removed";
+export type CatalogImportLinkState =
+  | "intentionally-unmatched"
+  | "linked"
+  | "pending";
+export type CatalogImportLinkProvenance =
+  | "automatic-name"
+  | "exact-name"
+  | "saved-id"
+  | "user-confirmed";
 
 export interface CatalogImportRow {
   cultivarReferenceIdWarning: string | null;
@@ -165,13 +180,14 @@ export interface CatalogImportRow {
   id: string;
   imageUrl: string;
   imageUrlWarning: string | null;
+  linkProvenance: CatalogImportLinkProvenance | null;
+  linkState: CatalogImportLinkState;
   match: CultivarMatchCandidate | null;
-  matchStatus: CatalogImportMatchStatus;
+  outputState: CatalogImportOutputState;
   price: number | null;
   priceWarning: string | null;
   privateNote: string;
-  removed: boolean;
-  skipped: boolean;
+  rowKind: CatalogImportRowKind;
   sourceCultivarReferenceId: string;
   sourceImageUrl: string;
   sourcePrice: string;
@@ -194,7 +210,7 @@ export function assignCatalogImportDuplicateGroups(rows: CatalogImportRow[]) {
   const firstRowByGroup = new Map<string, CatalogImportRow>();
 
   return rows.map((row) => {
-    if (row.skipped || row.removed) {
+    if (row.rowKind === "ignored" || row.outputState === "removed") {
       return { ...row, duplicateOfSourceRow: null };
     }
 
@@ -213,6 +229,139 @@ export function assignCatalogImportDuplicateGroups(rows: CatalogImportRow[]) {
       ? row
       : { ...row, duplicateOfSourceRow };
   });
+}
+
+export function getCatalogImportState(
+  rows: CatalogImportRow[],
+  sourceRowCount = rows.length,
+) {
+  const detectedRows = rows.filter((row) => row.rowKind === "listing");
+  const includedRows = detectedRows.filter(
+    (row) => row.outputState === "included",
+  );
+  const linkedRows = includedRows.filter(
+    (row) => row.linkState === "linked" && row.match !== null,
+  );
+  const reviewRows = includedRows.filter(
+    (row) =>
+      row.linkState === "pending" &&
+      row.match === null &&
+      row.cultivarReferenceIdWarning === null,
+  );
+  const intentionallyUnmatchedRows = includedRows.filter(
+    (row) => row.linkState === "intentionally-unmatched",
+  );
+  const savedIdIssueRows = includedRows.filter(
+    (row) => row.cultivarReferenceIdWarning !== null,
+  );
+  const requiredDataDecisionRows = includedRows.filter(
+    (row) => row.priceWarning !== null,
+  );
+  const warningRows = includedRows.filter(
+    (row) => row.duplicateOfSourceRow !== null || row.imageUrlWarning !== null,
+  );
+  const duplicateGroupCount = new Set(
+    includedRows
+      .filter((row) => row.duplicateOfSourceRow !== null)
+      .map((row) => row.duplicateOfSourceRow),
+  ).size;
+  const priceIssueCount = includedRows.filter(
+    (row) => row.priceWarning !== null,
+  ).length;
+  const imageIssueCount = includedRows.filter(
+    (row) => row.imageUrlWarning !== null,
+  ).length;
+  const savedIdIssueCount = savedIdIssueRows.length;
+  const uniqueMatches = [
+    ...new Map(
+      linkedRows.map((row) => [row.match!.cultivarReferenceId, row.match!]),
+    ).values(),
+  ];
+  const registrationYears = uniqueMatches.flatMap((match) =>
+    match.year === null ? [] : [match.year],
+  );
+  const searchableAttributeGetters = [
+    (match: CultivarMatchCandidate) => match.awardNames,
+    (match: CultivarMatchCandidate) => match.bloomHabit,
+    (match: CultivarMatchCandidate) => match.bloomSizeIn,
+    (match: CultivarMatchCandidate) => match.bloomSeason,
+    (match: CultivarMatchCandidate) => match.branches,
+    (match: CultivarMatchCandidate) => match.budCount,
+    (match: CultivarMatchCandidate) => match.color,
+    (match: CultivarMatchCandidate) => match.foliageType,
+    (match: CultivarMatchCandidate) => match.flowerShow,
+    (match: CultivarMatchCandidate) => match.form,
+    (match: CultivarMatchCandidate) => match.fragrance,
+    (match: CultivarMatchCandidate) => match.hybridizer,
+    (match: CultivarMatchCandidate) => match.parentage,
+    (match: CultivarMatchCandidate) => match.ploidy,
+    (match: CultivarMatchCandidate) => match.rebloom,
+    (match: CultivarMatchCandidate) => match.scapeHeightIn,
+    (match: CultivarMatchCandidate) => match.sculptedTypes,
+    (match: CultivarMatchCandidate) => match.year,
+  ];
+  const hasValue = (value: unknown) =>
+    value !== null && value !== undefined && value !== "";
+  const searchableAttributeCount = searchableAttributeGetters.filter(
+    (getValue) => uniqueMatches.some((match) => hasValue(getValue(match))),
+  ).length;
+  const referencePhotoListingCount = linkedRows.filter((row) =>
+    [
+      row.match?.imageAsset?.thumbUrl,
+      row.match?.imageAsset?.displayUrl,
+      row.match?.imageAsset?.originalUrl,
+      row.match?.imageUrl,
+    ].some(hasValue),
+  ).length;
+
+  return {
+    counts: {
+      detectedListingCount: detectedRows.length,
+      duplicateGroupCount,
+      imageIssueCount,
+      includedListingCount: includedRows.length,
+      intentionallyUnmatchedCount: intentionallyUnmatchedRows.length,
+      issueCount:
+        duplicateGroupCount +
+        priceIssueCount +
+        imageIssueCount +
+        savedIdIssueCount,
+      linkedListingCount: linkedRows.length,
+      pendingCultivarDecisionCount: reviewRows.length + savedIdIssueCount,
+      priceIssueCount,
+      requiredDataDecisionCount: requiredDataDecisionRows.length,
+      reviewQueueCount: reviewRows.length,
+      savedIdIssueCount,
+      sourceRowCount,
+      uniqueCultivarCount: uniqueMatches.length,
+      warningCount: duplicateGroupCount + imageIssueCount,
+    },
+    detectedRows,
+    enrichment: {
+      awardWinningCultivarCount: uniqueMatches.filter((match) =>
+        hasValue(match.awardNames),
+      ).length,
+      hybridizerCount: new Set(
+        uniqueMatches.flatMap((match) =>
+          match.hybridizer ? [match.hybridizer] : [],
+        ),
+      ).size,
+      referencePhotoListingCount,
+      registrationYearMax:
+        registrationYears.length > 0 ? Math.max(...registrationYears) : null,
+      registrationYearMin:
+        registrationYears.length > 0 ? Math.min(...registrationYears) : null,
+      searchableAttributeCount,
+    },
+    includedRows,
+    intentionallyUnmatchedRows,
+    linkedRows,
+    requiredDataDecisionRows,
+    reviewRows,
+    savedIdIssueRows,
+    sourceRows: rows,
+    warningRows,
+  };
 }
 
 const HEADER_PATTERNS = {
@@ -652,7 +801,10 @@ export function createCatalogImportRows({
     const hasMappedDetails = Boolean(
       price.source || description || sourcePrivateNote || image.source,
     );
-    const skipped = SECTION_HEADING_PATTERN.test(title) && !hasMappedDetails;
+    const rowKind =
+      SECTION_HEADING_PATTERN.test(title) && !hasMappedDetails
+        ? "ignored"
+        : "listing";
 
     result.push({
       cultivarReferenceIdWarning: null,
@@ -662,13 +814,14 @@ export function createCatalogImportRows({
       id: `source-row-${sourceRow}`,
       imageUrl: image.imageUrl,
       imageUrlWarning: image.warning,
+      linkProvenance: null,
+      linkState: "pending",
       match: null,
-      matchStatus: "pending",
+      outputState: "included",
       price: price.price,
       priceWarning: price.warning,
       privateNote: sourcePrivateNote,
-      removed: false,
-      skipped,
+      rowKind,
       sourceCultivarReferenceId,
       sourceImageUrl: image.source,
       sourcePrice: price.source,
@@ -784,11 +937,13 @@ export function createCatalogEnrichedSpreadsheet({
     outputHeaderRowIndex,
   );
   const removedSourceRows = new Set(
-    matchedRows.filter((row) => row.removed).map((row) => row.sourceRow),
+    matchedRows
+      .filter((row) => row.outputState === "removed")
+      .map((row) => row.sourceRow),
   );
 
   for (const row of matchedRows) {
-    if (row.removed) {
+    if (row.outputState === "removed") {
       continue;
     }
 

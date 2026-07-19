@@ -17,7 +17,7 @@ export interface CatalogImporterDraft {
   matchedRowsKey: string | null;
   parsedSpreadsheet: ParsedSpreadsheet | null;
   selectedSheetIndex: number;
-  version: 2;
+  version: 3;
 }
 
 export interface DraftStorage {
@@ -45,7 +45,7 @@ function isCatalogImporterDraft(value: unknown): value is CatalogImporterDraft {
 
   const draft = value as Partial<CatalogImporterDraft>;
   return (
-    draft.version === 2 &&
+    draft.version === 3 &&
     Number.isInteger(draft.selectedSheetIndex) &&
     (draft.parsedSpreadsheet === null ||
       (typeof draft.parsedSpreadsheet?.fileName === "string" &&
@@ -55,7 +55,78 @@ function isCatalogImporterDraft(value: unknown): value is CatalogImporterDraft {
   );
 }
 
-function migrateLegacyDraft(value: unknown): CatalogImporterDraft | null {
+function migrateCatalogImportRow(value: unknown): CatalogImportRow | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const legacy = value as Record<string, unknown>;
+  const match = legacy.match as CatalogImportRow["match"];
+  const suggestedMatch =
+    legacy.suggestedMatch as CatalogImportRow["suggestedMatch"];
+  const legacyMatchStatus =
+    typeof legacy.matchStatus === "string" ? legacy.matchStatus : null;
+  const rowKind =
+    legacy.rowKind === "ignored" || legacy.rowKind === "listing"
+      ? legacy.rowKind
+      : legacy.skipped === true &&
+          legacy.removed !== true &&
+          legacyMatchStatus !== "unmatched"
+        ? "ignored"
+        : "listing";
+  const outputState =
+    legacy.outputState === "removed" || legacy.outputState === "included"
+      ? legacy.outputState
+      : legacy.removed === true
+        ? "removed"
+        : "included";
+  const linkState =
+    legacy.linkState === "linked" ||
+    legacy.linkState === "pending" ||
+    legacy.linkState === "intentionally-unmatched"
+      ? legacy.linkState
+      : match
+        ? "linked"
+        : legacyMatchStatus === "unmatched"
+          ? "intentionally-unmatched"
+          : "pending";
+  const savedProvenance = legacy.linkProvenance;
+  const linkProvenance =
+    savedProvenance === "automatic-name" ||
+    savedProvenance === "exact-name" ||
+    savedProvenance === "saved-id" ||
+    savedProvenance === "user-confirmed"
+      ? savedProvenance
+      : linkState !== "linked"
+        ? null
+        : typeof legacy.sourceCultivarReferenceId === "string" &&
+            legacy.sourceCultivarReferenceId.length > 0 &&
+            match?.cultivarReferenceId === legacy.sourceCultivarReferenceId
+          ? "saved-id"
+          : legacyMatchStatus === "exact"
+            ? "exact-name"
+            : match?.cultivarReferenceId ===
+                  suggestedMatch?.cultivarReferenceId &&
+                (match?.confidence ?? 0) > 90
+              ? "automatic-name"
+              : "user-confirmed";
+  const current = { ...legacy };
+  delete current.matchStatus;
+  delete current.removed;
+  delete current.skipped;
+
+  return {
+    ...current,
+    linkProvenance,
+    linkState,
+    match,
+    outputState,
+    rowKind,
+    suggestedMatch,
+  } as CatalogImportRow;
+}
+
+function migrateDraft(value: unknown): CatalogImporterDraft | null {
   if (!value || typeof value !== "object") {
     return null;
   }
@@ -68,7 +139,7 @@ function migrateLegacyDraft(value: unknown): CatalogImporterDraft | null {
     | undefined;
 
   if (
-    draft.version !== 1 ||
+    (draft.version !== 1 && draft.version !== 2) ||
     !Number.isInteger(draft.selectedSheetIndex) ||
     !mapping ||
     (parsedSpreadsheet !== null &&
@@ -79,13 +150,9 @@ function migrateLegacyDraft(value: unknown): CatalogImporterDraft | null {
   }
 
   const matchedRows = Array.isArray(draft.matchedRows)
-    ? (draft.matchedRows as CatalogImportRow[]).map((row) => ({
-        ...row,
-        cultivarReferenceIdWarning: row.cultivarReferenceIdWarning ?? null,
-        duplicateAccepted: row.duplicateAccepted ?? false,
-        removed: row.removed ?? false,
-        sourceCultivarReferenceId: row.sourceCultivarReferenceId ?? "",
-      }))
+    ? draft.matchedRows
+        .map(migrateCatalogImportRow)
+        .filter((row): row is CatalogImportRow => row !== null)
     : null;
 
   return {
@@ -96,7 +163,10 @@ function migrateLegacyDraft(value: unknown): CatalogImporterDraft | null {
     headerRowIndex:
       typeof draft.headerRowIndex === "number" ? draft.headerRowIndex : null,
     mapping: {
-      cultivarReferenceId: null,
+      cultivarReferenceId:
+        draft.version === 2 && typeof mapping.cultivarReferenceId === "number"
+          ? mapping.cultivarReferenceId
+          : null,
       description:
         typeof mapping.description === "number" ? mapping.description : null,
       imageUrl: typeof mapping.imageUrl === "number" ? mapping.imageUrl : null,
@@ -110,7 +180,7 @@ function migrateLegacyDraft(value: unknown): CatalogImporterDraft | null {
       typeof draft.matchedRowsKey === "string" ? draft.matchedRowsKey : null,
     parsedSpreadsheet: parsedSpreadsheet ?? null,
     selectedSheetIndex: draft.selectedSheetIndex as number,
-    version: 2,
+    version: 3,
   };
 }
 
@@ -123,7 +193,7 @@ export async function migrateLegacyCatalogImporterDraft(storage: DraftStorage) {
       return null;
     }
 
-    const draft = migrateLegacyDraft(JSON.parse(rawValue) as unknown);
+    const draft = migrateDraft(JSON.parse(rawValue) as unknown);
     if (!draft) {
       window.localStorage.removeItem(CATALOG_IMPORT_LEGACY_DRAFT_STORAGE_KEY);
       return null;
@@ -149,6 +219,14 @@ export async function readCatalogImporterDraft(
     const draft = await selectedStorage.get(CATALOG_IMPORT_DRAFT_STORAGE_KEY);
     if (isCatalogImporterDraft(draft)) {
       return draft;
+    }
+    const migratedDraft = migrateDraft(draft);
+    if (migratedDraft) {
+      await selectedStorage.set(
+        CATALOG_IMPORT_DRAFT_STORAGE_KEY,
+        migratedDraft,
+      );
+      return migratedDraft;
     }
 
     if (!storage) {

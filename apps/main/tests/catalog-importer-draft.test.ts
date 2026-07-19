@@ -11,6 +11,7 @@ import {
   writeCatalogImporterDraft,
   type CatalogImporterDraft,
 } from "@/lib/catalog-importer-draft";
+import { createCatalogImportRows } from "@/lib/catalog-importer";
 
 function createStorage() {
   const values = new Map<string, unknown>();
@@ -51,7 +52,7 @@ describe("catalog importer browser draft", () => {
         sheets: [{ name: "CSV", rows: [["name"], ["Stella de Oro"]] }],
       },
       selectedSheetIndex: 0,
-      version: 2,
+      version: 3,
     };
 
     await expect(writeCatalogImporterDraft(draft, storage)).resolves.toBe(
@@ -82,7 +83,7 @@ describe("catalog importer browser draft", () => {
         sheets: [{ name: "CSV", rows: [["name"], [largeCell]] }],
       },
       selectedSheetIndex: 0,
-      version: 2,
+      version: 3,
     };
 
     await expect(writeCatalogImporterDraft(draft)).resolves.toBe("saved");
@@ -121,15 +122,102 @@ describe("catalog importer browser draft", () => {
         title: 0,
       },
       parsedSpreadsheet: { fileName: "legacy.csv" },
-      version: 2,
+      version: 3,
     });
     expect(
       window.localStorage.getItem(CATALOG_IMPORT_LEGACY_DRAFT_STORAGE_KEY),
     ).toBeNull();
     await expect(readCatalogImporterDraft()).resolves.toMatchObject({
       parsedSpreadsheet: { fileName: "legacy.csv" },
+      version: 3,
+    });
+  });
+
+  it("migrates v2 IndexedDB row state and provenance without losing progress", async () => {
+    const storage = createStorage();
+    const [currentRow] = createCatalogImportRows({
+      headerRowIndex: 0,
+      mapping: {
+        cultivarReferenceId: null,
+        description: null,
+        imageUrl: null,
+        price: null,
+        privateNote: null,
+        title: 0,
+      },
+      rows: [["name"], ["Vanguard 2"]],
+    });
+    const {
+      linkProvenance: _linkProvenance,
+      linkState: _linkState,
+      outputState: _outputState,
+      rowKind: _rowKind,
+      ...legacyRow
+    } = currentRow!;
+    const match = {
+      bloomSizeIn: null,
+      bloomSeason: null,
+      color: null,
+      confidence: 82,
+      cultivarReferenceId: "cultivar-vanguard",
+      displayName: "Vanguard",
+      form: null,
+      hybridizer: null,
+      imageAsset: null,
+      imageUrl: null,
+      listingCount: 0,
+      normalizedName: "vanguard",
+      ploidy: null,
+      rebloom: null,
+      scapeHeightIn: null,
+      year: null,
+    };
+    await storage.set(CATALOG_IMPORT_DRAFT_STORAGE_KEY, {
+      activeReviewRowId: null,
+      headerRowIndex: 0,
+      mapping: {
+        cultivarReferenceId: null,
+        description: null,
+        imageUrl: null,
+        price: null,
+        privateNote: null,
+        title: 0,
+      },
+      matchedRows: [
+        {
+          ...legacyRow,
+          match,
+          matchStatus: "selected",
+          removed: false,
+          skipped: false,
+          suggestedMatch: match,
+        },
+      ],
+      matchedRowsKey: "matched",
+      parsedSpreadsheet: {
+        fileName: "catalog.csv",
+        sheets: [{ name: "CSV", rows: [["name"], ["Vanguard 2"]] }],
+      },
+      selectedSheetIndex: 0,
       version: 2,
     });
+
+    const migrated = await readCatalogImporterDraft(storage);
+
+    expect(migrated).toMatchObject({
+      matchedRows: [
+        {
+          linkProvenance: "user-confirmed",
+          linkState: "linked",
+          outputState: "included",
+          rowKind: "listing",
+        },
+      ],
+      matchedRowsKey: "matched",
+      version: 3,
+    });
+    expect(migrated?.matchedRows?.[0]).not.toHaveProperty("matchStatus");
+    await expect(readCatalogImporterDraft(storage)).resolves.toEqual(migrated);
   });
 
   it("keeps a legacy draft when IndexedDB migration fails", async () => {

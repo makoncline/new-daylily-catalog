@@ -167,8 +167,8 @@ export function CatalogImporterCatalogPreview({
   const listingAreaRef = useRef<HTMLDivElement>(null);
 
   const matchedRows = useMemo(
-    () => controller.resultRows.filter((row) => row.match !== null),
-    [controller.resultRows],
+    () => controller.includedRows.filter((row) => row.match !== null),
+    [controller.includedRows],
   );
   const previewListings = useMemo<CatalogImporterPreviewListing[]>(
     () =>

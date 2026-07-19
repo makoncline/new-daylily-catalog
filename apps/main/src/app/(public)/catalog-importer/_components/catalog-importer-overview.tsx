@@ -59,20 +59,10 @@ export function CatalogImporterOverview({
 }: {
   controller: CatalogImporterWorkbenchController;
 }) {
-  const priceIssues = controller.resultRows.filter(
-    (row) => row.priceWarning !== null,
-  ).length;
-  const imageIssues = controller.resultRows.filter(
-    (row) => row.imageUrlWarning !== null,
-  ).length;
-  const cultivarIdIssues = controller.resultRows.filter(
-    (row) => row.cultivarReferenceIdWarning !== null,
-  ).length;
-  const duplicateIssues = new Set(
-    controller.resultRows
-      .filter((row) => row.duplicateOfSourceRow !== null)
-      .map((row) => row.duplicateOfSourceRow),
-  ).size;
+  const priceIssues = controller.counts.priceIssueCount;
+  const imageIssues = controller.counts.imageIssueCount;
+  const cultivarIdIssues = controller.counts.savedIdIssueCount;
+  const duplicateIssues = controller.counts.duplicateGroupCount;
   const issueDetails = [
     duplicateIssues > 0 ? countLabel(duplicateIssues, "duplicate group") : null,
     priceIssues > 0 ? countLabel(priceIssues, "price issue") : null,
@@ -103,8 +93,9 @@ export function CatalogImporterOverview({
           <p className="text-muted-foreground mt-1 max-w-2xl text-sm leading-relaxed">
             We linked registered cultivars for{" "}
             {controller.matchedCount.toLocaleString()} of{" "}
-            {controller.resultRows.length.toLocaleString()} listings. Browse the
-            catalog, then help with anything that still needs a human eye.
+            {controller.counts.includedListingCount.toLocaleString()} listings.
+            Browse the catalog, then help with anything that still needs a human
+            eye.
           </p>
         </div>
       </div>
@@ -113,7 +104,7 @@ export function CatalogImporterOverview({
         <SummaryMetric
           count={controller.matchedCount}
           href="#catalog-importer-preview"
-          label="cultivars linked"
+          label="listings linked"
           testId="summary-matched-count"
         />
         <SummaryMetric

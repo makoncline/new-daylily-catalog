@@ -17,6 +17,7 @@ import {
   createCatalogImportTemplateCsv,
   detectHeaderRow,
   getAutomaticCultivarMatch,
+  getCatalogImportState,
   getSourceColumns,
   suggestColumnMapping,
 } from "@/lib/catalog-importer";
@@ -62,25 +63,13 @@ function getCatalogImportFileType(fileName: string) {
 }
 
 function getCatalogImportTelemetryCounts(rows: CatalogImportRow[]) {
-  const activeRows = rows.filter((row) => !row.skipped);
-  const duplicateIssueCount = new Set(
-    activeRows
-      .filter((row) => row.duplicateOfSourceRow !== null)
-      .map((row) => row.duplicateOfSourceRow),
-  ).size;
+  const state = getCatalogImportState(rows);
 
   return {
-    issue_count:
-      duplicateIssueCount +
-      activeRows.filter((row) => row.priceWarning !== null).length +
-      activeRows.filter((row) => row.imageUrlWarning !== null).length +
-      activeRows.filter((row) => row.cultivarReferenceIdWarning !== null)
-        .length,
-    matched_count: activeRows.filter((row) => row.match !== null).length,
-    review_count: activeRows.filter(
-      (row) => row.match === null && row.matchStatus === "pending",
-    ).length,
-    row_count: activeRows.length,
+    issue_count: state.counts.issueCount,
+    matched_count: state.counts.linkedListingCount,
+    review_count: state.counts.pendingCultivarDecisionCount,
+    row_count: state.counts.includedListingCount,
   };
 }
 
@@ -151,8 +140,7 @@ function removeRowFromDuplicateGroup(rows: CatalogImportRow[], rowId: string) {
         ? {
             ...row,
             duplicateOfSourceRow: null,
-            removed: true,
-            skipped: true,
+            outputState: "removed",
           }
         : row,
     ),
@@ -166,13 +154,19 @@ export function useCatalogImporterWorkbench(
     initialDraft?.matchedRows?.find(
       (row) =>
         row.id === initialDraft.activeReviewRowId &&
-        !row.skipped &&
+        row.rowKind === "listing" &&
+        row.outputState === "included" &&
+        row.cultivarReferenceIdWarning === null &&
         row.match === null &&
-        row.matchStatus === "pending",
+        row.linkState === "pending",
     ) ??
     initialDraft?.matchedRows?.find(
       (row) =>
-        !row.skipped && row.match === null && row.matchStatus === "pending",
+        row.rowKind === "listing" &&
+        row.outputState === "included" &&
+        row.cultivarReferenceIdWarning === null &&
+        row.match === null &&
+        row.linkState === "pending",
     ) ??
     null;
   const [parsedSpreadsheet, setParsedSpreadsheet] =
@@ -277,18 +271,12 @@ export function useCatalogImporterWorkbench(
     },
     [headerRowIndex, populatedSourceColumnIndexes, selectedSheet],
   );
-  const resultRows = useMemo(
-    () => matchedRows?.filter((row) => !row.skipped) ?? [],
-    [matchedRows],
-  );
-  const reviewRows = useMemo(
+  const importState = useMemo(
     () =>
-      matchedRows?.filter(
-        (row) =>
-          !row.skipped && row.match === null && row.matchStatus === "pending",
-      ) ?? [],
-    [matchedRows],
+      getCatalogImportState(matchedRows ?? [], selectedSheet?.rows.length ?? 0),
+    [matchedRows, selectedSheet?.rows.length],
   );
+  const { includedRows, reviewRows } = importState;
   const activeReviewRow =
     reviewRows.find((row) => row.id === activeReviewRowId) ??
     reviewRows[0] ??
@@ -300,20 +288,9 @@ export function useCatalogImporterWorkbench(
 
     return getSourceCellsForRow(activeReviewRow);
   }, [activeReviewRow, getSourceCellsForRow]);
-  const matchedCount = resultRows.filter((row) => row.match !== null).length;
-  const unmatchedCount = resultRows.filter(
-    (row) => row.match === null && row.matchStatus === "unmatched",
-  ).length;
-  const duplicateIssueCount = new Set(
-    resultRows
-      .filter((row) => row.duplicateOfSourceRow !== null)
-      .map((row) => row.duplicateOfSourceRow),
-  ).size;
-  const issueCount =
-    duplicateIssueCount +
-    resultRows.filter((row) => row.priceWarning !== null).length +
-    resultRows.filter((row) => row.imageUrlWarning !== null).length +
-    resultRows.filter((row) => row.cultivarReferenceIdWarning !== null).length;
+  const matchedCount = importState.counts.linkedListingCount;
+  const unmatchedCount = importState.counts.intentionallyUnmatchedCount;
+  const issueCount = importState.counts.issueCount;
   const activeReviewIndex = activeReviewRow
     ? reviewRows.findIndex((row) => row.id === activeReviewRow.id)
     : -1;
@@ -371,7 +348,7 @@ export function useCatalogImporterWorkbench(
         parsedSpreadsheet,
         selectedSheetIndex,
         ...overrides,
-        version: 2,
+        version: 3,
       };
 
       draftWriteChain.current = draftWriteChain.current.then(async () => {
@@ -450,7 +427,9 @@ export function useCatalogImporterWorkbench(
         mapping: nextMapping,
         rows: sheet.rows,
       });
-      const rowsToMatch = rows.filter((row) => !row.skipped);
+      const rowsToMatch = rows.filter(
+        (row) => row.rowKind === "listing" && row.outputState === "included",
+      );
       if (rowsToMatch.length === 0) {
         setMatchedRows(rows);
         setMatchedRowsKey(null);
@@ -590,12 +569,7 @@ export function useCatalogImporterWorkbench(
         }
 
         const nextReviewRow =
-          nextRows.find(
-            (row) =>
-              !row.skipped &&
-              row.match === null &&
-              row.matchStatus === "pending",
-          ) ?? null;
+          getCatalogImportState(nextRows).reviewRows[0] ?? null;
         setMatchedRows(nextRows);
         setMatchedRowsKey(nextMatchKey);
         setActiveReviewRowId(nextReviewRow?.id ?? null);
@@ -945,7 +919,7 @@ export function useCatalogImporterWorkbench(
   const finishReviewRow = useCallback(
     (
       rowId: string,
-      update: Pick<CatalogImportRow, "match" | "matchStatus" | "skipped">,
+      update: Pick<CatalogImportRow, "linkProvenance" | "linkState" | "match">,
     ) => {
       if (!matchedRows) {
         return;
@@ -978,18 +952,12 @@ export function useCatalogImporterWorkbench(
             : row,
         ),
       );
-      const previousReviewRows = matchedRows.filter(
-        (row) =>
-          !row.skipped && row.match === null && row.matchStatus === "pending",
-      );
+      const previousReviewRows = getCatalogImportState(matchedRows).reviewRows;
       const reviewedIndex = Math.max(
         0,
         previousReviewRows.findIndex((row) => row.id === rowId),
       );
-      const nextReviewRows = nextRows.filter(
-        (row) =>
-          !row.skipped && row.match === null && row.matchStatus === "pending",
-      );
+      const nextReviewRows = getCatalogImportState(nextRows).reviewRows;
       const nextReviewRow =
         nextReviewRows[reviewedIndex % Math.max(nextReviewRows.length, 1)] ??
         null;
@@ -997,11 +965,9 @@ export function useCatalogImporterWorkbench(
       searchCandidateRequestId.current += 1;
       setSearchCandidateResult(null);
 
-      const action = update.skipped
-        ? "skipped"
-        : update.match
-          ? `matched to ${update.match.displayName}`
-          : "skipped";
+      const action = update.match
+        ? `matched to ${update.match.displayName}`
+        : "left unmatched";
 
       if (nextReviewRow) {
         setLiveAnnouncement(
@@ -1030,9 +996,9 @@ export function useCatalogImporterWorkbench(
     }
 
     finishReviewRow(activeReviewRow.id, {
+      linkProvenance: null,
+      linkState: "intentionally-unmatched",
       match: null,
-      matchStatus: "unmatched",
-      skipped: false,
     });
   }, [activeReviewRow, finishReviewRow]);
 
@@ -1055,8 +1021,8 @@ export function useCatalogImporterWorkbench(
                   ),
                 },
                 duplicateAccepted: false,
-                matchStatus: "selected",
-                skipped: false,
+                linkProvenance: "user-confirmed",
+                linkState: "linked",
               }
             : row,
         ),
@@ -1212,8 +1178,9 @@ export function useCatalogImporterWorkbench(
                 ...row,
                 cultivarReferenceIdWarning: null,
                 duplicateAccepted: false,
+                linkProvenance: null,
+                linkState: "pending",
                 match: null,
-                matchStatus: "pending",
                 sourceCultivarReferenceId: "",
               }
             : row,
@@ -1285,6 +1252,7 @@ export function useCatalogImporterWorkbench(
     candidateResult,
     clearCultivarReferenceIdIssues,
     configureSheet,
+    counts: importState.counts,
     downloadResults,
     downloadError,
     downloadingResults,
@@ -1316,7 +1284,7 @@ export function useCatalogImporterWorkbench(
     resetImporter,
     resolveImageUrlIssues,
     resolvePriceIssues,
-    resultRows,
+    includedRows,
     reviewRows,
     activeReviewIndex,
     reviewQuery,

@@ -1,7 +1,6 @@
 import type { OptimizedImageSource } from "@/components/optimized-image";
 import type {
   CatalogColumnMapping,
-  CatalogImportMatchStatus,
   CatalogImportRow,
   CultivarMatchCandidate,
   SpreadsheetCell,
@@ -56,16 +55,6 @@ export const CATALOG_IMPORTER_MAPPING_FIELDS: CatalogImporterMappingFieldDefinit
     },
   ];
 
-export const CATALOG_IMPORTER_STATUS_OPTIONS: Array<{
-  label: string;
-  value: CatalogImportMatchStatus;
-}> = [
-  { label: "Exact match", value: "exact" },
-  { label: "Selected match", value: "selected" },
-  { label: "Needs review", value: "pending" },
-  { label: "Skipped", value: "unmatched" },
-];
-
 export function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Something went wrong.";
 }
@@ -116,13 +105,6 @@ export function getCultivarTraitSummary(candidate: CultivarMatchCandidate) {
     candidate.bloomSeason,
     candidate.rebloom ? "Reblooms" : null,
   ].filter((value): value is string => Boolean(value));
-}
-
-export function getMatchStatusLabel(status: CatalogImportMatchStatus) {
-  return (
-    CATALOG_IMPORTER_STATUS_OPTIONS.find((option) => option.value === status)
-      ?.label ?? status
-  );
 }
 
 export function getRowIssues(row: CatalogImportRow) {

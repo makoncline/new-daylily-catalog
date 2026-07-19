@@ -11,21 +11,21 @@ decisions, evidence, and blockers.
 | Field           | Current value                                                                                                           |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | Overall status  | Implementation in progress                                                                                              |
-| Current phase   | Phase A — Contract and state foundation                                                                                 |
-| Current slice   | Slice 1 — Make importer state, provenance, and counts explicit                                                          |
+| Current phase   | Phase B — Reveal and explore                                                                                            |
+| Current slice   | Slice 2 — Refine upload, mapping, persistence, and processing feedback                                                  |
 | Last updated    | 2026-07-18                                                                                                              |
 | Branch          | `agent/catalog-importer-v1`                                                                                             |
 | Baseline commit | `7b5a81ad`                                                                                                              |
 | Pull request    | [#352 — Prepare daylily catalog spreadsheets](https://github.com/makoncline/new-daylily-catalog/pull/352)               |
 | Current blocker | None                                                                                                                    |
-| Next action     | Audit overlapping row status fields and count ownership for Slice 1                                                     |
-| Latest evidence | Slice 0 passed 25 focused tests, 3 E2Es, typecheck, real Chrome download, value comparison, and LibreOffice open/resave |
+| Next action     | Audit the current upload-to-preview transition and its persisted recovery boundaries                                    |
+| Latest evidence | Slice 1 passed 33 focused tests, 3 E2Es, typecheck, lint, and visible Chrome restoration of the real 1,087-row workbook |
 
 ### Progress
 
-- [ ] Phase A — Contract and state foundation
+- [x] Phase A — Contract and state foundation
   - [x] Slice 0 — Verify and freeze the cleaned-workbook contract
-  - [ ] Slice 1 — Make importer state, provenance, and counts explicit
+  - [x] Slice 1 — Make importer state, provenance, and counts explicit
 - [ ] Phase B — Reveal and explore
   - [ ] Slice 2 — Refine upload, mapping, persistence, and processing feedback
   - [ ] Slice 3 — Build the personalized results reveal and workspace order
@@ -48,20 +48,22 @@ decisions, evidence, and blockers.
 Use this area for short-lived details needed to resume the active slice.
 Move durable decisions to the decision log and completed work to the work log.
 
-- Slice 0 is complete and awaiting its commit/push.
-- Begin Slice 1 by inventorying existing `matchStatus`, `skipped`, `removed`,
-  warning, duplicate, and provenance logic before renaming any state.
-- Prefer pure selectors over storing additional counts or flags.
-- Preserve the newly frozen cleaned-workbook contract.
+- Slice 1 is complete and awaiting its commit/push.
+- Begin Slice 2 by checking the current upload, mapping submit, matching retry,
+  download retry, and reset language before changing layout.
+- Preserve the event-driven draft writes and do not add synchronization
+  effects.
+- Keep processing stages tied to real work rather than adding timed animation.
 
 ### User update
 
 Use this as the source for concise progress updates.
 
-> Slice 0 is complete: the cleaned-copy contract is implemented, documented,
-> and verified with the real 1,087-row workbook from visible Chrome. The next
-> slice will simplify row state and make every summary count come from shared
-> pure selectors.
+> Slice 1 is complete: row identity, output inclusion, link state, and link
+> provenance are now separate, while every count and enrichment metric comes
+> from one pure selector. Existing v2 browser drafts migrate to v3; the real
+> 1,087-row workbook restored in Chrome with all 1,034 links and 52 review
+> decisions intact.
 
 ## How the goal agent must use this file
 
@@ -264,36 +266,50 @@ Use the smallest state vocabulary that supports current requirements:
 
 Tasks:
 
-- [ ] Audit existing row status fields and remove overlapping concepts.
-- [ ] Add or rename only fields needed to represent the vocabulary above.
-- [ ] Keep invalid saved IDs out of the ordinary matching queue until their
+- [x] Audit existing row status fields and remove overlapping concepts.
+- [x] Add or rename only fields needed to represent the vocabulary above.
+- [x] Keep invalid saved IDs out of the ordinary matching queue until their
       identity issue is resolved.
-- [ ] Preserve valid saved-ID matches without rematching by name.
-- [ ] Create pure selectors for:
-  - [ ] source rows;
-  - [ ] detected listings;
-  - [ ] included listings;
-  - [ ] linked listings;
-  - [ ] pending cultivar decisions;
-  - [ ] intentionally unmatched listings;
-  - [ ] linked unique cultivars;
-  - [ ] duplicate groups;
-  - [ ] required data decisions;
-  - [ ] warnings; and
-  - [ ] enrichment metrics.
-- [ ] Version and migrate the browser-local draft if its persisted shape
+- [x] Preserve valid saved-ID matches without rematching by name.
+- [x] Create pure selectors for:
+  - [x] source rows;
+  - [x] detected listings;
+  - [x] included listings;
+  - [x] linked listings;
+  - [x] pending cultivar decisions;
+  - [x] intentionally unmatched listings;
+  - [x] linked unique cultivars;
+  - [x] duplicate groups;
+  - [x] required data decisions;
+  - [x] warnings; and
+  - [x] enrichment metrics.
+- [x] Version and migrate the browser-local draft if its persisted shape
       changes.
-- [ ] Verify restoration after refresh and fresh client navigation.
-- [ ] Remove state synchronization that can be derived from events/selectors.
-- [ ] Add focused state-transition and restoration integration coverage.
+- [x] Verify restoration after refresh and fresh client navigation.
+- [x] Remove state synchronization that can be derived from events/selectors.
+- [x] Add focused state-transition and restoration integration coverage.
 
 Acceptance:
 
-- [ ] The same selector supplies each count everywhere it appears.
-- [ ] Source rows, listings, linked listings, and unique cultivars have
+- [x] The same selector supplies each count everywhere it appears.
+- [x] Source rows, listings, linked listings, and unique cultivars have
       separate labels and values.
-- [ ] Existing drafts restore without losing workbook bytes or review progress.
-- [ ] No new synchronization `useEffect` is introduced.
+- [x] Existing drafts restore without losing workbook bytes or review progress.
+- [x] No new synchronization `useEffect` is introduced.
+
+Evidence:
+
+- `pnpm main test -- catalog-importer.test.ts
+catalog-importer-draft.test.ts catalog-importer-client.test.tsx
+catalog-importer-workbench.test.tsx catalog-importer-preview.test.ts
+catalog-importer-file.test.ts` — 33 passed.
+- `BASE_URL=http://localhost:3017 pnpm playwright test
+tests/e2e/catalog-importer.e2e.ts` — 3 passed.
+- Typecheck passed. Lint has zero errors and one unrelated existing dashboard
+  warning.
+- Visible Chrome reload migrated and restored `Daylilies info.xlsx`: 1,087
+  source rows, 1,086 detected listings, 1,034 linked listings, 52 review
+  decisions, and no spreadsheet issues.
 
 ## Phase B — Reveal and explore
 
@@ -818,10 +834,11 @@ The goal is complete only when:
 Add new entries at the top. Keep descriptions factual and link commits or
 artifacts when useful.
 
-| Date       | Slice    | Status   | What changed                                                                                                                  | Verification                                                                                                                                                              | Commit / notes                      |
-| ---------- | -------- | -------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
-| 2026-07-18 | Slice 0  | Complete | Implemented cleaned mapped fields and canonical identity headers; documented the verified XLSX value-copy contract.           | 25 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, real Chrome download, full three-sheet value comparison, LibreOffice open/resave. | This Slice 0 commit.                |
-| 2026-07-18 | Planning | Complete | Converted the full UI/UX review into a 14-slice implementation tracker; made cleaned-copy semantics the first gated contract. | Plan reviewed against the current product doc and PR boundary.                                                                                                            | Implementation begins with Slice 0. |
+| Date       | Slice    | Status   | What changed                                                                                                                                        | Verification                                                                                                                                                              | Commit / notes                      |
+| ---------- | -------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| 2026-07-18 | Slice 1  | Complete | Replaced overlapping row flags with explicit row/output/link/provenance state; centralized counts and enrichment; migrated v2 browser drafts to v3. | 33 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome restoration of the 1,087-row workbook.                         | This Slice 1 commit.                |
+| 2026-07-18 | Slice 0  | Complete | Implemented cleaned mapped fields and canonical identity headers; documented the verified XLSX value-copy contract.                                 | 25 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, real Chrome download, full three-sheet value comparison, LibreOffice open/resave. | `1d643703`                          |
+| 2026-07-18 | Planning | Complete | Converted the full UI/UX review into a 14-slice implementation tracker; made cleaned-copy semantics the first gated contract.                       | Plan reviewed against the current product doc and PR boundary.                                                                                                            | Implementation begins with Slice 0. |
 
 ## Deferred follow-ups
 

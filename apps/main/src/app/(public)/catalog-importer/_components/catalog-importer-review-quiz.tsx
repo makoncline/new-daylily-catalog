@@ -86,9 +86,9 @@ export function CatalogImporterReviewQuiz({
       }
 
       finishReviewRow(activeRow.id, {
+        linkProvenance: "user-confirmed",
+        linkState: "linked",
         match: candidate,
-        matchStatus: "selected",
-        skipped: false,
       });
     },
     [activeRow, finishReviewRow],

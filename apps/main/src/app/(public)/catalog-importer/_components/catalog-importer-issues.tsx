@@ -485,16 +485,16 @@ export function CatalogImporterIssues({
   controller: CatalogImporterWorkbenchController;
 }) {
   const duplicateGroups = useMemo(
-    () => getDuplicateGroups(controller.resultRows),
-    [controller.resultRows],
+    () => getDuplicateGroups(controller.includedRows),
+    [controller.includedRows],
   );
-  const priceRows = controller.resultRows.filter(
+  const priceRows = controller.includedRows.filter(
     (row) => row.priceWarning !== null,
   );
-  const imageUrlRows = controller.resultRows.filter(
+  const imageUrlRows = controller.includedRows.filter(
     (row) => row.imageUrlWarning !== null,
   );
-  const savedIdRows = controller.resultRows.filter(
+  const savedIdRows = controller.includedRows.filter(
     (row) => row.cultivarReferenceIdWarning !== null,
   );
 
