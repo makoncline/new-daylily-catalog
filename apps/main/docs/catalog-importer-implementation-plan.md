@@ -8,18 +8,18 @@ decisions, evidence, and blockers.
 
 ## Live status
 
-| Field           | Current value                                                                                                     |
-| --------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Overall status  | Implementation in progress                                                                                        |
-| Current phase   | Phase E — Hardening and closeout                                                                                  |
-| Current slice   | Slice 12 — Verify large-workbook performance and add only proven scaling controls                                 |
-| Last updated    | 2026-07-19                                                                                                        |
-| Branch          | `agent/catalog-importer-v1`                                                                                       |
-| Baseline commit | `7b5a81ad`                                                                                                        |
-| Pull request    | [#352 — Prepare daylily catalog spreadsheets](https://github.com/makoncline/new-daylily-catalog/pull/352)         |
-| Current blocker | None                                                                                                              |
-| Next action     | Measure the real 1,087-row workbook before generating or changing anything for the synthetic 5,000-listing case   |
-| Latest evidence | Slice 11 passed 53 focused tests, 3 E2Es, typecheck, lint, and real Chrome desktop plus phone/tablet verification |
+| Field           | Current value                                                                                                    |
+| --------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Overall status  | Implementation in progress                                                                                       |
+| Current phase   | Phase E — Hardening and closeout                                                                                 |
+| Current slice   | Slice 13 — Complete analytics, Atlas, documentation, and real-workbook proof                                     |
+| Last updated    | 2026-07-19                                                                                                       |
+| Branch          | `agent/catalog-importer-v1`                                                                                      |
+| Baseline commit | `7b5a81ad`                                                                                                       |
+| Pull request    | [#352 — Prepare daylily catalog spreadsheets](https://github.com/makoncline/new-daylily-catalog/pull/352)        |
+| Current blocker | None                                                                                                             |
+| Next action     | Audit existing aggregate analytics and Atlas states before adding only the missing high-signal closeout coverage |
+| Latest evidence | Slice 12 measured the real and 5,000-listing workbooks; both remained responsive without new scaling mechanisms  |
 
 ### Progress
 
@@ -40,7 +40,7 @@ decisions, evidence, and blockers.
   - [x] Slice 10 — Add honest guest/member continuation
 - [ ] Phase E — Hardening and closeout
   - [x] Slice 11 — Fix mobile and accessibility blockers
-  - [ ] Slice 12 — Verify large-workbook performance and add only proven scaling controls
+  - [x] Slice 12 — Verify large-workbook performance and add only proven scaling controls
   - [ ] Slice 13 — Complete analytics, Atlas, documentation, and real-workbook proof
 
 ### Current-slice notes
@@ -48,22 +48,21 @@ decisions, evidence, and blockers.
 Use this area for short-lived details needed to resume the active slice.
 Move durable decisions to the decision log and completed work to the work log.
 
-- Slice 11 is complete and ready to package for PR #352.
-- Begin Slice 12 by measuring the real production-shaped workbook without
-  disturbing the seller's restored Chrome draft.
-- Record the existing behavior before adding any scaling control.
-- Do not add virtualization, pagination, or queue modes unless a recorded
-  measurement demonstrates the need.
+- Slice 12 is complete and ready to package for PR #352.
+- Begin Slice 13 by inventorying the analytics, Atlas, E2E, and documentation
+  already present; add only missing closeout coverage.
+- Keep analytics aggregate-only and never include workbook or seller content.
+- The real Chrome draft remains restored with 1,034 links and 52 pending
+  decisions. Do not change its review decisions during verification.
 
 ### User update
 
 Use this as the source for concise progress updates.
 
-> Slice 11 is complete: the demonstrated phone-width issue controls now fit
-> without page overflow, candidate choices remain image/details side by side,
-> icon controls have useful names and touch targets, status changes are
-> announced, and keyboard/reduced-motion behavior is covered. Desktop, phone,
-> and tablet importer checks all pass.
+> Slice 12 is complete: the real 1,087-row workbook reached its first preview
+> in 1.05–2.01 seconds, filtered 1,034 links in under 60 ms, restored in about
+> 300 ms, and downloaded in under 200 ms. A deterministic 5,000-listing case
+> also stayed responsive, so no speculative scaling UI was added.
 
 ## How the goal agent must use this file
 
@@ -180,20 +179,21 @@ merged cells, drawings, comments, macros, validation, and hidden state.
 
 ## Decision log
 
-| Date       | Decision                                                                                       | Reason                                                                                                                                  |
-| ---------- | ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-07-18 | Build the complete preparation experience before adding a paywall.                             | The product needs to prove its full value before deciding which future import or publishing capabilities to gate.                       |
-| 2026-07-18 | Keep the preview before repair.                                                                | Photos, filters, and insights provide the immediate value reveal that motivates cleanup.                                                |
-| 2026-07-18 | Download a cleaned copy while leaving the uploaded file untouched.                             | Sellers want useful corrected data, but the browser flow must not mutate their source file.                                             |
-| 2026-07-18 | Use `Daylily Catalog ID` as the future import identity.                                        | Names and normalization rules can change; a validated stable ID is unambiguous.                                                         |
-| 2026-07-18 | Keep uncertain candidates out of preview and insights.                                         | One conspicuously incorrect photo damages trust in every match.                                                                         |
-| 2026-07-18 | Keep one-at-a-time cultivar review but show issue groups together.                             | Identity is a judgment task; price and duplicate repair benefit from comparison and batch context.                                      |
-| 2026-07-18 | Use cards only for listings, search/filter surfaces, and discrete match choices.               | Most workspace sections need hierarchy, not decorative containers.                                                                      |
-| 2026-07-18 | Reuse the shared catalog search registry and controlled components.                            | Search labels and filter semantics should not diverge across importer and existing catalog surfaces.                                    |
-| 2026-07-18 | Prefer event-driven transitions and derived selectors; add no new synchronization `useEffect`. | This avoids the render loops and split state ownership already encountered in the importer.                                             |
-| 2026-07-18 | Do not add a metadata sheet or speculative import fields yet.                                  | The current output needs only the three stable identity fields; future import requirements should justify additional schema.            |
-| 2026-07-18 | Clear known-invalid saved IDs from prepared identity fields.                                   | Without a separate match-state column, retaining an invalid ID could make a future importer treat unresolved identity as authoritative. |
-| 2026-07-18 | Keep automatic Codex review outside this goal.                                                 | The user will explicitly trigger review when desired.                                                                                   |
+| Date       | Decision                                                                                       | Reason                                                                                                                                            |
+| ---------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-07-18 | Build the complete preparation experience before adding a paywall.                             | The product needs to prove its full value before deciding which future import or publishing capabilities to gate.                                 |
+| 2026-07-18 | Keep the preview before repair.                                                                | Photos, filters, and insights provide the immediate value reveal that motivates cleanup.                                                          |
+| 2026-07-18 | Download a cleaned copy while leaving the uploaded file untouched.                             | Sellers want useful corrected data, but the browser flow must not mutate their source file.                                                       |
+| 2026-07-18 | Use `Daylily Catalog ID` as the future import identity.                                        | Names and normalization rules can change; a validated stable ID is unambiguous.                                                                   |
+| 2026-07-18 | Keep uncertain candidates out of preview and insights.                                         | One conspicuously incorrect photo damages trust in every match.                                                                                   |
+| 2026-07-18 | Keep one-at-a-time cultivar review but show issue groups together.                             | Identity is a judgment task; price and duplicate repair benefit from comparison and batch context.                                                |
+| 2026-07-18 | Use cards only for listings, search/filter surfaces, and discrete match choices.               | Most workspace sections need hierarchy, not decorative containers.                                                                                |
+| 2026-07-18 | Reuse the shared catalog search registry and controlled components.                            | Search labels and filter semantics should not diverge across importer and existing catalog surfaces.                                              |
+| 2026-07-18 | Prefer event-driven transitions and derived selectors; add no new synchronization `useEffect`. | This avoids the render loops and split state ownership already encountered in the importer.                                                       |
+| 2026-07-18 | Do not add a metadata sheet or speculative import fields yet.                                  | The current output needs only the three stable identity fields; future import requirements should justify additional schema.                      |
+| 2026-07-18 | Clear known-invalid saved IDs from prepared identity fields.                                   | Without a separate match-state column, retaining an invalid ID could make a future importer treat unresolved identity as authoritative.           |
+| 2026-07-18 | Keep automatic Codex review outside this goal.                                                 | The user will explicitly trigger review when desired.                                                                                             |
+| 2026-07-19 | Keep the existing bounded preview rendering and add no new scaling mechanism.                  | The real and 5,000-listing measurements stayed usable; added virtualization, pagination controls, or queue modes would be unsupported complexity. |
 
 ## Phase A — Contract and state foundation
 
@@ -847,29 +847,55 @@ virtualization or pagination complexity.
 
 Tasks:
 
-- [ ] Measure the real 1,087-row, three-sheet workbook.
-- [ ] Measure a synthetic 5,000-listing workbook only after the real case.
-- [ ] Record time and responsiveness for:
-  - [ ] parsing;
-  - [ ] persistence;
-  - [ ] matching;
-  - [ ] first meaningful preview;
-  - [ ] filtering;
-  - [ ] insight calculation;
-  - [ ] issue grouping;
-  - [ ] restoration; and
-  - [ ] download generation.
-- [ ] Keep work incremental where the existing event model supports it.
-- [ ] Add pagination, virtualization, or a large-queue table mode only when a
+- [x] Measure the real 1,087-row, three-sheet workbook.
+- [x] Measure a synthetic 5,000-listing workbook only after the real case.
+- [x] Record time and responsiveness for:
+  - [x] parsing;
+  - [x] persistence;
+  - [x] matching;
+  - [x] first meaningful preview;
+  - [x] filtering;
+  - [x] insight calculation;
+  - [x] issue grouping;
+  - [x] restoration; and
+  - [x] download generation.
+- [x] Keep work incremental where the existing event model supports it.
+- [x] Add pagination, virtualization, or a large-queue table mode only when a
       recorded measurement demonstrates the need.
-- [ ] Keep review and download controls responsive while background work runs.
+- [x] Keep review and download controls responsive while background work runs.
 
 Acceptance:
 
-- [ ] The real workbook completes matching, restoration, review, and download
+- [x] The real workbook completes matching, restoration, review, and download
       within recorded usable bounds.
-- [ ] Any new scaling mechanism has an evidence-backed threshold.
-- [ ] No feature is added solely for hypothetical scale.
+- [x] Any new scaling mechanism has an evidence-backed threshold.
+- [x] No feature is added solely for hypothetical scale.
+
+Evidence (2026-07-19):
+
+- The 161,180-byte real XLSX retained all three sheets with 1,087, 153, and 62
+  rows. Parse-to-mapping took 315–341 ms; the browser-local draft was present
+  4–5 ms later.
+- The first cold submit reached the meaningful preview in 2,010 ms. A repeat
+  with the search index warm took 1,046 ms across six real matching requests.
+  The warm matching phase's longest observed main-thread timer gap was 93 ms.
+- The 1,034-listing preview filtered to one listing in 48–56 ms. Preview cards
+  appeared 2–3 ms after the reveal, and insights plus issue grouping were
+  available 5–6 ms later.
+- Reload restoration took 288–301 ms without another matching request.
+  Generating the 143,606-byte prepared XLSX took 146–170 ms; its longest
+  observed main-thread timer gap was 65 ms.
+- A deterministic browser benchmark used exactly 5,000 headerless CSV listing
+  rows so it stayed within the product's 5,000-row sheet limit. Parse-to-mapping
+  took 226 ms, 20 matching batches plus preview took 524 ms, filtering took
+  129 ms, restoration took 387 ms, and generating the 645,667-byte prepared
+  CSV took 93 ms. The longest observed matching timer gap was 136 ms.
+- The existing preview already computes over the full linked collection while
+  rendering 20 cards at a time. These measurements do not justify adding
+  virtualization, pagination controls, or a separate large-queue mode.
+- Visible Chrome retained the real draft's 1,034 links and 52 pending decisions.
+  Live filtering returned to all 1,034 links, and review plus download controls
+  remained available without changing a seller decision.
 
 ### Slice 13 — Complete analytics, Atlas, documentation, and real-workbook proof
 
@@ -968,14 +994,14 @@ The goal is complete only when:
 
 ## Risks and open decisions
 
-| Status           | Question or risk                                                                                       | Resolution path                                                                                                                                           |
-| ---------------- | ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Resolved         | Which XLSX features does the current reconstruction actually preserve?                                 | It reconstructs browser-readable cell values and sheets; formulas, formatting, comments, merges, drawings, validation, and hidden state are not retained. |
-| Resolved         | Should an approved bundle price write only numeric unit price or also populate an existing note field? | Write the approved numeric unit price and append the exact original offer to a mapped private-note field; otherwise leave it unresolved.                  |
-| Resolved         | Is a Catalog view/Data review toggle necessary?                                                        | No. Customer-facing cards stay clean; one link action opens the existing source-row and match-revision sheet.                                             |
-| Resolved         | Which insights are useful for very small catalogs?                                                     | Rank available facts and prefer concise narrative metrics over empty or low-information charts.                                                           |
-| Resolved         | What exact sign-in return URL preserves the local project?                                             | Reuse the existing same-origin membership path; the IndexedDB project restores when the seller returns, without copying workbook state into auth URLs.    |
-| Open in Slice 12 | Does the preview need virtualization?                                                                  | Add it only if real measurements show the existing bounded rendering is not responsive.                                                                   |
+| Status   | Question or risk                                                                                       | Resolution path                                                                                                                                           |
+| -------- | ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Resolved | Which XLSX features does the current reconstruction actually preserve?                                 | It reconstructs browser-readable cell values and sheets; formulas, formatting, comments, merges, drawings, validation, and hidden state are not retained. |
+| Resolved | Should an approved bundle price write only numeric unit price or also populate an existing note field? | Write the approved numeric unit price and append the exact original offer to a mapped private-note field; otherwise leave it unresolved.                  |
+| Resolved | Is a Catalog view/Data review toggle necessary?                                                        | No. Customer-facing cards stay clean; one link action opens the existing source-row and match-revision sheet.                                             |
+| Resolved | Which insights are useful for very small catalogs?                                                     | Rank available facts and prefer concise narrative metrics over empty or low-information charts.                                                           |
+| Resolved | What exact sign-in return URL preserves the local project?                                             | Reuse the existing same-origin membership path; the IndexedDB project restores when the seller returns, without copying workbook state into auth URLs.    |
+| Resolved | Does the preview need virtualization?                                                                  | No. The real and 5,000-listing measurements remained responsive with the existing 20-card bounded rendering.                                              |
 
 ## Work log
 
@@ -984,7 +1010,8 @@ artifacts when useful.
 
 | Date       | Slice    | Status   | What changed                                                                                                                                                | Verification                                                                                                                                                              | Commit / notes                      |
 | ---------- | -------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
-| 2026-07-19 | Slice 11 | Complete | Fixed demonstrated narrow-width issue controls; improved image/action names, touch and focus targets, table relationships, live announcements, and motion.  | 53 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, and visible Chrome desktop plus phone/tablet verification.                                 | This Slice 11 commit.               |
+| 2026-07-19 | Slice 12 | Complete | Measured the real and 5,000-listing browser workflows; existing bounded preview rendering stayed responsive, so no scaling mechanism was added.             | Real parse, match, preview, filter, insight, issue, restore, and download timings plus deterministic 5,000-listing timings and visible Chrome restoration.                | This Slice 12 commit.               |
+| 2026-07-19 | Slice 11 | Complete | Fixed demonstrated narrow-width issue controls; improved image/action names, touch and focus targets, table relationships, live announcements, and motion.  | 53 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, and visible Chrome desktop plus phone/tablet verification.                                 | `7a72aed4`                          |
 | 2026-07-18 | Slice 10 | Complete | Added guest/Pro-aware continuation, quiet and completed prompts, session dismissal, honest capability copy, and uncached optional Clerk audience detection. | 52 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, and real Chrome Pro/restoration verification with the 1,087-row workbook.                  | `c45ac14d`                          |
 | 2026-07-18 | Slice 9  | Complete | Added exact pre-download summary, current/prepared labels, stable prepared filenames, explicit output/fidelity copy, and deterministic re-upload proof.     | 39 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, visible Chrome summary, and reopened three-sheet real-workbook output.                     | `30449348`                          |
 | 2026-07-18 | Slice 8  | Complete | Grouped issue repair; preserved bundle-price meaning; clarified duplicate/image consequences; added stale-ID rematching and issue Undo.                     | 39 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, plus preserved visible real-workbook state in Chrome.                                      | `cb47bb01`                          |
