@@ -141,7 +141,7 @@ export function CatalogImporterReviewQuiz({
       aria-keyshortcuts="1 2 3 4 5 6 7 8 9 X ArrowLeft ArrowRight"
       tabIndex={0}
       onKeyDown={handleKeyDown}
-      className="focus-visible:ring-ring scroll-mt-4 border-t pt-10 outline-none focus-visible:ring-2"
+      className="focus-visible:ring-ring !scroll-mt-16 border-t pt-10 outline-none focus-visible:ring-2"
     >
       <div className="flex flex-col gap-4 pb-6 lg:flex-row lg:items-center lg:justify-between">
         <div className="space-y-1">

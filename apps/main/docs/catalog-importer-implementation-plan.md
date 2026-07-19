@@ -8,30 +8,30 @@ decisions, evidence, and blockers.
 
 ## Live status
 
-| Field           | Current value                                                                                                    |
-| --------------- | ---------------------------------------------------------------------------------------------------------------- |
-| Overall status  | Implementation in progress                                                                                       |
-| Current phase   | Phase B — Reveal and explore                                                                                     |
-| Current slice   | Slice 6 — Add persistent workspace status and navigation                                                         |
-| Last updated    | 2026-07-18                                                                                                       |
-| Branch          | `agent/catalog-importer-v1`                                                                                      |
-| Baseline commit | `7b5a81ad`                                                                                                       |
-| Pull request    | [#352 — Prepare daylily catalog spreadsheets](https://github.com/makoncline/new-daylily-catalog/pull/352)        |
-| Current blocker | None                                                                                                             |
-| Next action     | Audit the existing page anchors, task-priority selectors, and nonoverlapping sticky-control boundary             |
-| Latest evidence | Slice 5 passed 38 focused tests, 3 E2Es, typecheck, lint, and real Chrome interaction with the 1,087-row catalog |
+| Field           | Current value                                                                                                  |
+| --------------- | -------------------------------------------------------------------------------------------------------------- |
+| Overall status  | Implementation in progress                                                                                     |
+| Current phase   | Phase C — Repair                                                                                               |
+| Current slice   | Slice 7 — Complete cultivar review, revision, and undo                                                         |
+| Last updated    | 2026-07-18                                                                                                     |
+| Branch          | `agent/catalog-importer-v1`                                                                                    |
+| Baseline commit | `7b5a81ad`                                                                                                     |
+| Pull request    | [#352 — Prepare daylily catalog spreadsheets](https://github.com/makoncline/new-daylily-catalog/pull/352)      |
+| Current blocker | None                                                                                                           |
+| Next action     | Audit candidate hierarchy, decision states, revision paths, and keyboard behavior against the Slice 7 contract |
+| Latest evidence | Slice 6 passed 38 focused tests, 3 E2Es, typecheck, lint, and visible navigation against the real workbook     |
 
 ### Progress
 
 - [x] Phase A — Contract and state foundation
   - [x] Slice 0 — Verify and freeze the cleaned-workbook contract
   - [x] Slice 1 — Make importer state, provenance, and counts explicit
-- [ ] Phase B — Reveal and explore
+- [x] Phase B — Reveal and explore
   - [x] Slice 2 — Refine upload, mapping, persistence, and processing feedback
   - [x] Slice 3 — Build the personalized results reveal and workspace order
   - [x] Slice 4 — Make catalog preview trusted and useful
   - [x] Slice 5 — Make collection insights accurate and interactive
-  - [ ] Slice 6 — Add persistent workspace status and navigation
+  - [x] Slice 6 — Add persistent workspace status and navigation
 - [ ] Phase C — Repair
   - [ ] Slice 7 — Complete cultivar review, revision, and undo
   - [ ] Slice 8 — Complete spreadsheet issue repair
@@ -48,22 +48,21 @@ decisions, evidence, and blockers.
 Use this area for short-lived details needed to resume the active slice.
 Move durable decisions to the decision log and completed work to the work log.
 
-- Slice 5 is complete and ready to package for PR #352.
-- Begin Slice 6 by reusing the existing section anchors and derived review/
-  issue counts.
-- Keep one desktop sticky status surface and one compact mobile surface; do not
-  create a second navigation system.
-- Sticky controls must not compete with the existing preview return-to-top
-  control or cover repair actions.
+- Slice 6 is complete and ready to package for PR #352.
+- Begin Slice 7 by auditing the current one-at-a-time review and revision sheet
+  against the explicit identity-decision contract.
+- Reuse the existing match option and search components.
+- Keep revision and undo local to cultivar-link decisions; do not introduce a
+  generic command or history framework.
 
 ### User update
 
 Use this as the source for concise progress updates.
 
-> Slice 5 is complete: collection analysis now counts linked unique cultivars,
-> states its basis, gives useful narrative facts, and applies the existing
-> removable catalog filters. The real workbook correctly showed 1,034 unique
-> cultivars, 1,017 reference photos, 84 award winners, and 52 unresolved rows.
+> Slice 6 is complete: a persistent desktop workspace bar links preview,
+> insights, review, issues, and download; phone width gets one compact Review/
+> Fix and Download bar. Real Chrome exposed and verified fixes for the public
+> shell’s sticky boundary, anchor clearance, and preview-control leakage.
 
 ## How the goal agent must use this file
 
@@ -531,26 +530,38 @@ anywhere without the page becoming a rigid wizard.
 
 Tasks:
 
-- [ ] Add a compact sticky desktop bar with:
-  - [ ] Catalog preview;
-  - [ ] Insights;
-  - [ ] Review names with count;
-  - [ ] Fix data with count; and
-  - [ ] Download current/prepared workbook.
-- [ ] Use a compact mobile bottom bar with remaining-work count and download.
-- [ ] Choose the next task in this order:
+- [x] Add a compact sticky desktop bar with:
+  - [x] Catalog preview;
+  - [x] Insights;
+  - [x] Review names with count;
+  - [x] Fix data with count; and
+  - [x] Download current/prepared workbook.
+- [x] Use a compact mobile bottom bar with remaining-work count and download.
+- [x] Choose the next task in this order:
   1. identity decision;
   2. required value;
   3. warning.
-- [ ] Scroll/focus the destination without covering its heading or controls.
-- [ ] Keep download available while work remains.
-- [ ] Ensure sticky controls never cover validation, content, or issue actions.
+- [x] Scroll/focus the destination without covering its heading or controls.
+- [x] Keep download available while work remains.
+- [x] Ensure sticky controls never cover validation, content, or issue actions.
 
 Acceptance:
 
-- [ ] Remaining work is visible while exploring preview and insights.
-- [ ] `Review next` always reaches the correct unresolved item.
-- [ ] Mobile has no competing sticky controls.
+- [x] Remaining work is visible while exploring preview and insights.
+- [x] `Review next` always reaches the correct unresolved item.
+- [x] Mobile has no competing sticky controls.
+
+Evidence (2026-07-18):
+
+- 38 focused importer tests passed, including workspace links, counts,
+  persistent download, and live count changes after confirm/undo.
+- All 3 importer E2Es passed; the phone scenario verifies the mobile bar,
+  hidden desktop/Return-to-top controls, and zero page-level overflow.
+- Typecheck passed. Lint has zero errors and one unrelated existing dashboard
+  warning.
+- Visible Chrome with the real workbook verified the desktop bar at the
+  preview and insights positions, clear anchor offsets, no preview controls
+  leaking into insights, Review names (52), and current-workbook download.
 
 ## Phase C — Repair
 
@@ -895,7 +906,8 @@ artifacts when useful.
 
 | Date       | Slice    | Status   | What changed                                                                                                                                           | Verification                                                                                                                                                              | Commit / notes                      |
 | ---------- | -------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
-| 2026-07-18 | Slice 5  | Complete | Counted linked unique cultivars; added narrative discoveries and clickable rankings that drive the shared removable preview filters.                   | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and real Chrome filtering of the 1,087-row catalog from 1,034 to 52 listings.     | This Slice 5 commit.                |
+| 2026-07-18 | Slice 6  | Complete | Added responsive persistent workspace navigation, prioritized next-task links, and always-available current/prepared download without duplicate state. | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, and real Chrome verification of sticky anchors and the 1,087-row workflow.                 | This Slice 6 commit.                |
+| 2026-07-18 | Slice 5  | Complete | Counted linked unique cultivars; added narrative discoveries and clickable rankings that drive the shared removable preview filters.                   | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and real Chrome filtering of the 1,087-row catalog from 1,034 to 52 listings.     | `dd181675`                          |
 | 2026-07-18 | Slice 4  | Complete | Restricted preview to explicit links; removed confidence badges; labeled image provenance; added match confirmation, highlighting, revision, and undo. | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome verification against the 1,087-row preview.                    | `b1442747`                          |
 | 2026-07-18 | Slice 3  | Complete | Replaced the generic overview with a personalized enrichment reveal; reordered preview, insights, preparation, repair, download, and Pro continuation. | 37 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome verification with the rebuilt 1,087-row workbook.              | `1d999a90`                          |
 | 2026-07-18 | Slice 2  | Complete | Clarified browser-local privacy and file actions; added confirmed resets and event-driven processing stages without timed delays or effects.           | 36 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome verification with the restored real workbook.                  | `bda585ad`                          |

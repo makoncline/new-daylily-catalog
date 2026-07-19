@@ -33,7 +33,7 @@ export function generateMetadata(): Metadata {
 
 export default function CatalogImporterPage() {
   return (
-    <div className="bg-background min-w-0 overflow-x-clip">
+    <div className="bg-background min-w-0">
       <div className="mx-auto w-full max-w-[1440px] px-3 py-8 lg:px-8 lg:py-12">
         <header className="mb-8 max-w-3xl">
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">

@@ -40,7 +40,10 @@ export function PublicShell({ children, mainClassName }: PublicShellProps) {
       <main
         id="main-content"
         className={cn(
-          "w-full flex-1 scroll-mt-4 overflow-hidden [&_[id]]:scroll-mt-4",
+          "w-full flex-1 scroll-mt-4 [&_[id]]:scroll-mt-4",
+          pathname === "/catalog-importer"
+            ? "overflow-visible"
+            : "overflow-hidden",
           overlapsHero && "-mt-16 lg:-mt-20",
           mainClassName,
         )}

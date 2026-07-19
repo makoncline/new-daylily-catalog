@@ -290,7 +290,7 @@ export function CatalogImporterCatalogPreview({
     <section
       id="catalog-importer-preview"
       aria-labelledby="catalog-importer-preview-heading"
-      className="scroll-mt-4 space-y-4"
+      className="!scroll-mt-16 space-y-4 overflow-clip"
     >
       <div>
         <h2
@@ -355,7 +355,7 @@ export function CatalogImporterCatalogPreview({
                 type="button"
                 variant="outline"
                 size="sm"
-                className="bg-background/95 pointer-events-auto rounded-full shadow-md backdrop-blur"
+                className="bg-background/95 pointer-events-auto hidden rounded-full shadow-md backdrop-blur lg:inline-flex"
                 onClick={returnToListingTop}
               >
                 <ArrowUp aria-hidden="true" className="size-4" />

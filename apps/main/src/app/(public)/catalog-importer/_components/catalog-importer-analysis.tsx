@@ -172,8 +172,9 @@ export function CatalogImporterAnalysis({
 
   return (
     <section
+      id="catalog-importer-insights"
       aria-labelledby="catalog-importer-analysis-heading"
-      className="border-t pt-10"
+      className="!scroll-mt-16 border-t pt-10"
     >
       <h2
         id="catalog-importer-analysis-heading"

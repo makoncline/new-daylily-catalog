@@ -377,6 +377,38 @@ describe("CatalogImporterWorkbench", () => {
         name: "Change cultivar match for Stella de Oro",
       }),
     ).toHaveLength(2);
+    const workspaceNavigation = screen.getByRole("navigation", {
+      name: "Catalog preparation workspace",
+    });
+    expect(
+      within(workspaceNavigation).getByRole("link", {
+        name: "Catalog preview",
+      }),
+    ).toHaveAttribute("href", "#catalog-importer-preview");
+    expect(
+      within(workspaceNavigation).getByRole("link", { name: "Insights" }),
+    ).toHaveAttribute("href", "#catalog-importer-insights");
+    expect(
+      within(workspaceNavigation).getByRole("link", {
+        name: "Review names (2)",
+      }),
+    ).toHaveAttribute("href", "#catalog-importer-review-quiz");
+    expect(
+      within(workspaceNavigation).getByRole("link", {
+        name: "Fix data (2)",
+      }),
+    ).toHaveAttribute("href", "#catalog-importer-issues");
+    expect(
+      within(workspaceNavigation).getByRole("button", {
+        name: "Download current workbook",
+      }),
+    ).toBeVisible();
+    const mobileActions = screen.getByRole("navigation", {
+      name: "Catalog preparation actions",
+    });
+    expect(
+      within(mobileActions).getByRole("link", { name: /Review 2/ }),
+    ).toHaveAttribute("href", "#catalog-importer-review-quiz");
 
     const preview = screen.getByRole("heading", {
       name: "Your catalog preview",
@@ -465,6 +497,11 @@ describe("CatalogImporterWorkbench", () => {
       }),
     ).toBeVisible();
     expect(
+      within(workspaceNavigation).getByRole("link", {
+        name: "Review names (1)",
+      }),
+    ).toBeVisible();
+    expect(
       screen.getByText(
         "Based on 8 linked unique cultivars. 1 unresolved listing is not included.",
       ),
@@ -481,6 +518,11 @@ describe("CatalogImporterWorkbench", () => {
     expect(
       screen.getByText("8", {
         selector: "[data-testid='linked-listing-count']",
+      }),
+    ).toBeVisible();
+    expect(
+      within(workspaceNavigation).getByRole("link", {
+        name: "Review names (2)",
       }),
     ).toBeVisible();
     expect(

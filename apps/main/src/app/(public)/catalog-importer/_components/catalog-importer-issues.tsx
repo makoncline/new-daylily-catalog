@@ -507,7 +507,7 @@ export function CatalogImporterIssues({
       id="catalog-importer-issues"
       role="region"
       aria-labelledby="catalog-importer-issues-heading"
-      className="scroll-mt-4 border-t pt-10"
+      className="!scroll-mt-16 border-t pt-10"
     >
       <div>
         <h2

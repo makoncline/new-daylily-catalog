@@ -26,6 +26,136 @@ interface CatalogImporterResultsProps {
   controller: CatalogImporterWorkbenchController;
 }
 
+function CatalogImporterWorkspaceNavigation({
+  controller,
+}: CatalogImporterResultsProps) {
+  const reviewCount = controller.reviewRows.length;
+  const issueCount = controller.issueCount;
+  const workRemaining = reviewCount + issueCount;
+  const downloadLabel =
+    workRemaining > 0
+      ? "Download current workbook"
+      : "Download prepared workbook";
+  const nextAction =
+    reviewCount > 0
+      ? {
+          href: "#catalog-importer-review-quiz",
+          label: `Review ${reviewCount.toLocaleString()}`,
+        }
+      : controller.counts.savedIdIssueCount > 0
+        ? {
+            href: "#catalog-importer-saved-id-issues-heading",
+            label: `Review ${controller.counts.savedIdIssueCount.toLocaleString()}`,
+          }
+        : controller.counts.requiredDataDecisionCount > 0
+          ? {
+              href: "#catalog-importer-price-issues-heading",
+              label: `Fix ${controller.counts.requiredDataDecisionCount.toLocaleString()}`,
+            }
+          : controller.counts.duplicateGroupCount > 0
+            ? {
+                href: "#duplicate-issues-heading",
+                label: `Review ${controller.counts.duplicateGroupCount.toLocaleString()}`,
+              }
+            : controller.counts.imageIssueCount > 0
+              ? {
+                  href: "#catalog-importer-image-issues-heading",
+                  label: `Review ${controller.counts.imageIssueCount.toLocaleString()}`,
+                }
+              : null;
+
+  const download = () => {
+    void controller.downloadResults();
+  };
+
+  return (
+    <>
+      <nav
+        aria-label="Catalog preparation workspace"
+        className="bg-background/95 sticky top-2 z-30 hidden items-center justify-between gap-4 border-y py-2 backdrop-blur md:flex"
+      >
+        <div className="flex min-w-0 items-center gap-4 overflow-x-auto text-sm">
+          <a
+            href="#catalog-importer-preview"
+            className="hover:text-primary shrink-0 font-medium"
+          >
+            Catalog preview
+          </a>
+          <a
+            href="#catalog-importer-insights"
+            className="hover:text-primary shrink-0 font-medium"
+          >
+            Insights
+          </a>
+          {reviewCount > 0 ? (
+            <a
+              href="#catalog-importer-review-quiz"
+              className="hover:text-primary shrink-0 font-medium"
+            >
+              Review names ({reviewCount.toLocaleString()})
+            </a>
+          ) : null}
+          {issueCount > 0 ? (
+            <a
+              href="#catalog-importer-issues"
+              className="hover:text-primary shrink-0 font-medium"
+            >
+              Fix data ({issueCount.toLocaleString()})
+            </a>
+          ) : null}
+        </div>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="shrink-0"
+          disabled={controller.downloadingResults}
+          onClick={download}
+        >
+          {controller.downloadingResults ? (
+            <Spinner />
+          ) : (
+            <Download className="size-4" />
+          )}
+          {downloadLabel}
+        </Button>
+      </nav>
+
+      <nav
+        aria-label="Catalog preparation actions"
+        className="bg-background/95 fixed inset-x-0 bottom-0 z-40 flex items-center justify-between gap-3 border-t px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-4px_16px_rgb(0_0_0/0.08)] backdrop-blur md:hidden"
+      >
+        {nextAction ? (
+          <Button asChild variant="outline" className="min-w-0 flex-1">
+            <a href={nextAction.href}>
+              {nextAction.label}
+              <span className="sr-only">
+                {workRemaining.toLocaleString()} total items remaining
+              </span>
+            </a>
+          </Button>
+        ) : (
+          <span className="text-sm font-medium">Preparation complete</span>
+        )}
+        <Button
+          type="button"
+          className="shrink-0"
+          disabled={controller.downloadingResults}
+          aria-label={downloadLabel}
+          onClick={download}
+        >
+          {controller.downloadingResults ? (
+            <Spinner />
+          ) : (
+            <Download className="size-4" />
+          )}
+          Download
+        </Button>
+      </nav>
+    </>
+  );
+}
+
 export function CatalogImporterResults({
   controller,
 }: CatalogImporterResultsProps) {
@@ -64,8 +194,10 @@ export function CatalogImporterResults({
         };
 
   return (
-    <div className="min-w-0 space-y-10">
+    <div className="min-w-0 space-y-10 pb-24 md:pb-0">
       <CatalogImporterOverview controller={controller} />
+
+      <CatalogImporterWorkspaceNavigation controller={controller} />
 
       <CatalogImporterCatalogPreview
         columnFilters={previewColumnFilters}
@@ -164,7 +296,7 @@ export function CatalogImporterResults({
       <section
         id="catalog-importer-download"
         aria-labelledby="catalog-importer-download-heading"
-        className="flex scroll-mt-4 flex-col gap-5 border-t pt-8 sm:flex-row sm:items-center sm:justify-between"
+        className="flex !scroll-mt-16 flex-col gap-5 border-t pt-8 sm:flex-row sm:items-center sm:justify-between"
       >
         <div>
           <h2 id="catalog-importer-download-heading" className="font-semibold">

@@ -474,6 +474,23 @@ test.describe("catalog importer", () => {
         name: "Duplicate rows for Daylily 10",
       }),
     ).toBeVisible();
+    const mobileActions = page.getByRole("navigation", {
+      name: "Catalog preparation actions",
+    });
+    await expect(mobileActions).toBeVisible();
+    await expect(
+      mobileActions.getByRole("button", {
+        name: "Download current workbook",
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("navigation", {
+        name: "Catalog preparation workspace",
+      }),
+    ).toBeHidden();
+    await expect(
+      page.getByRole("button", { name: "Return to top" }),
+    ).toBeHidden();
 
     const overflow = await page.evaluate(() => ({
       clientWidth: document.documentElement.clientWidth,
