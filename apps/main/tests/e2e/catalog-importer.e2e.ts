@@ -265,6 +265,16 @@ test.describe("catalog importer", () => {
     await expect(
       page.getByText("Reference photo", { exact: true }).first(),
     ).toBeVisible();
+    await expect(
+      page.getByRole("heading", {
+        name: "Imagine this as your public catalog",
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("Direct spreadsheet import is not available yet.", {
+        exact: false,
+      }),
+    ).toBeVisible();
 
     const issuesRegion = page.getByRole("region", {
       name: "Fix spreadsheet issues",
@@ -446,6 +456,16 @@ test.describe("catalog importer", () => {
     await expect(downloadSummary).toContainText(
       "Leave 0 cultivar decisions, 0 required values, and 0 warnings unresolved",
     );
+    await expect(
+      page.getByRole("heading", {
+        name: "Your workbook is ready. Want a hosted catalog?",
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("it is not imported or published automatically", {
+        exact: false,
+      }),
+    ).toBeVisible();
 
     const downloadPromise = page.waitForEvent("download");
     await page

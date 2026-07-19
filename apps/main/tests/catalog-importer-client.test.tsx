@@ -13,11 +13,14 @@ vi.mock(
   () => ({
     CatalogImporterWorkbench: ({
       initialDraft,
+      showMembershipPrompts,
     }: {
       initialDraft: { parsedSpreadsheet?: { fileName?: string } } | null;
+      showMembershipPrompts: boolean;
     }) => (
       <div>
-        {initialDraft?.parsedSpreadsheet?.fileName ?? "No restored spreadsheet"}
+        {initialDraft?.parsedSpreadsheet?.fileName ?? "No restored spreadsheet"}{" "}
+        · {showMembershipPrompts ? "Prompts on" : "Prompts off"}
       </div>
     ),
   }),
@@ -33,12 +36,14 @@ describe("CatalogImporterClient", () => {
         parsedSpreadsheet: { fileName: "second.csv" },
       });
 
-    const first = render(<CatalogImporterClient />);
-    expect(await screen.findByText("first.csv")).toBeVisible();
+    const first = render(
+      <CatalogImporterClient showMembershipPrompts={false} />,
+    );
+    expect(await screen.findByText(/first.csv · Prompts off/)).toBeVisible();
     first.unmount();
 
     render(<CatalogImporterClient />);
-    expect(await screen.findByText("second.csv")).toBeVisible();
+    expect(await screen.findByText(/second.csv · Prompts on/)).toBeVisible();
     await waitFor(() =>
       expect(readCatalogImporterDraftMock).toHaveBeenCalledTimes(2),
     );

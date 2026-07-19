@@ -7,7 +7,11 @@ import {
   type CatalogImporterDraft,
 } from "@/lib/catalog-importer-draft";
 
-export function CatalogImporterClient() {
+export function CatalogImporterClient({
+  showMembershipPrompts = true,
+}: {
+  showMembershipPrompts?: boolean;
+}) {
   const startedLoading = useRef(false);
   const [initialDraft, setInitialDraft] = useState<
     CatalogImporterDraft | null | undefined
@@ -33,7 +37,10 @@ export function CatalogImporterClient() {
           Loading spreadsheet tools…
         </div>
       ) : (
-        <CatalogImporterWorkbench initialDraft={initialDraft} />
+        <CatalogImporterWorkbench
+          initialDraft={initialDraft}
+          showMembershipPrompts={showMembershipPrompts}
+        />
       )}
     </div>
   );

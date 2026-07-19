@@ -108,6 +108,7 @@ describe("seller funnel proxy protection", () => {
     for (const url of [
       "http://localhost:3000/start-membership",
       "http://localhost:3000/cultivars",
+      "http://localhost:3000/catalog-importer",
       "http://localhost:3000/catalogs/extra",
       "http://localhost:3000/catalog/legacy-listing",
       "http://localhost:3000/kitchen-sink",

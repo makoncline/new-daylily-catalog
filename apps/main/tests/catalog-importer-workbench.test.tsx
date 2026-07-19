@@ -39,6 +39,7 @@ vi.mock("@/lib/catalog-importer-file", async (importOriginal) => ({
 describe("CatalogImporterWorkbench", () => {
   beforeEach(async () => {
     window.localStorage.clear();
+    window.sessionStorage.clear();
     await clearCatalogImporterDraft();
     capturePosthogEventMock.mockClear();
     downloadCatalogImportFileMock.mockReset();
@@ -368,6 +369,28 @@ describe("CatalogImporterWorkbench", () => {
     );
   });
 
+  it("hides acquisition prompts for Pro members without gating download", async () => {
+    render(<CatalogImporterWorkbench showMembershipPrompts={false} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Use sample catalog" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Build catalog preview" }),
+    );
+
+    expect(
+      screen.queryByRole("heading", {
+        name: "Imagine this as your public catalog",
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(
+        await screen.findByRole("region", {
+          name: "Your current workbook is ready",
+        }),
+      ).getByRole("button", { name: "Download current workbook" }),
+    ).toBeVisible();
+  });
+
   it("reveals the enriched catalog before preparation and membership prompts", async () => {
     const linkedNames = new Set([
       "Action Figure",
@@ -577,17 +600,30 @@ describe("CatalogImporterWorkbench", () => {
     for (const [earlier, later] of [
       [reveal, preview],
       [preview, insights],
-      [insights, preparation],
+      [insights, membership],
+      [membership, preparation],
       [preparation, review],
       [review, issues],
       [issues, download],
-      [download, membership],
     ] as const) {
       expect(
         earlier.compareDocumentPosition(later) &
           Node.DOCUMENT_POSITION_FOLLOWING,
       ).toBeTruthy();
     }
+    expect(membership.parentElement).toHaveTextContent(
+      "Direct spreadsheet import is not available yet.",
+    );
+    fireEvent.click(
+      within(membership.closest("section")!).getByRole("button", {
+        name: "Not now",
+      }),
+    );
+    expect(
+      screen.queryByRole("heading", {
+        name: "Imagine this as your public catalog",
+      }),
+    ).not.toBeInTheDocument();
 
     const reviewQuiz = screen.getByRole("region", {
       name: "Review potential matches",

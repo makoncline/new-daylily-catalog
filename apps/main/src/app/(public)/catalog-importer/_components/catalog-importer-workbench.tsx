@@ -12,8 +12,10 @@ import type { CatalogImporterDraft } from "@/lib/catalog-importer-draft";
 
 export function CatalogImporterWorkbench({
   initialDraft = null,
+  showMembershipPrompts = true,
 }: {
   initialDraft?: CatalogImporterDraft | null;
+  showMembershipPrompts?: boolean;
 }) {
   const controller = useCatalogImporterWorkbench(initialDraft);
   const [mappingOpened, setMappingOpened] = useState(false);
@@ -91,7 +93,10 @@ export function CatalogImporterWorkbench({
         {controller.mapping.title !== null &&
         controller.matchedRows &&
         !editingMapping ? (
-          <CatalogImporterResults controller={controller} />
+          <CatalogImporterResults
+            controller={controller}
+            showMembershipPrompts={showMembershipPrompts}
+          />
         ) : null}
       </div>
 

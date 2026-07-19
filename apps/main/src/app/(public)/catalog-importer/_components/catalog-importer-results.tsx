@@ -26,6 +26,56 @@ interface CatalogImporterResultsProps {
   controller: CatalogImporterWorkbenchController;
 }
 
+const MEMBERSHIP_PROMPT_DISMISSED_KEY =
+  "catalog-importer-membership-prompt-dismissed";
+
+function CatalogImporterMembershipPrompt({
+  ctaId,
+  description,
+  heading,
+  onDismiss,
+}: {
+  ctaId: string;
+  description: string;
+  heading: string;
+  onDismiss: () => void;
+}) {
+  return (
+    <section
+      aria-labelledby={`${ctaId}-heading`}
+      className="flex flex-col gap-5 border-t pt-8 sm:flex-row sm:items-center sm:justify-between"
+    >
+      <div className="max-w-2xl">
+        <h2
+          id={`${ctaId}-heading`}
+          className="text-xl font-semibold tracking-tight"
+        >
+          {heading}
+        </h2>
+        <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
+          {description}
+        </p>
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        <Button type="button" variant="ghost" onClick={onDismiss}>
+          Not now
+        </Button>
+        <Button asChild variant="outline">
+          <SellerIntentLink
+            ctaId={ctaId}
+            ctaLabel="Explore Pro membership"
+            entrySurface="catalog_importer_preview"
+            sourcePageType="catalog_importer"
+            sourcePath="/catalog-importer"
+          >
+            Explore Pro membership
+          </SellerIntentLink>
+        </Button>
+      </div>
+    </section>
+  );
+}
+
 function getDownloadLabel(controller: CatalogImporterWorkbenchController) {
   return controller.reviewRows.length > 0 || controller.issueCount > 0
     ? "Download current workbook"
@@ -215,10 +265,24 @@ function CatalogImporterUnmatchedRows({
 
 export function CatalogImporterResults({
   controller,
-}: CatalogImporterResultsProps) {
+  showMembershipPrompts,
+}: CatalogImporterResultsProps & { showMembershipPrompts: boolean }) {
   const [matchEditorRowId, setMatchEditorRowId] = useState<string | null>(null);
   const [previewColumnFilters, setPreviewColumnFilters] =
     useState<ColumnFiltersState>([]);
+  const [membershipPromptDismissed, setMembershipPromptDismissed] = useState(
+    () => {
+      try {
+        return (
+          globalThis.sessionStorage?.getItem(
+            MEMBERSHIP_PROMPT_DISMISSED_KEY,
+          ) === "1"
+        );
+      } catch {
+        return false;
+      }
+    },
+  );
   const matchEditorRow =
     controller.includedRows.find((row) => row.id === matchEditorRowId) ?? null;
   const readyToDownload =
@@ -250,6 +314,16 @@ export function CatalogImporterResults({
           href: "#catalog-importer-issues",
           label: "Fix data",
         };
+  const dismissMembershipPrompts = () => {
+    setMembershipPromptDismissed(true);
+    try {
+      globalThis.sessionStorage?.setItem(MEMBERSHIP_PROMPT_DISMISSED_KEY, "1");
+    } catch {
+      // The dismissal still applies to this render when storage is unavailable.
+    }
+  };
+  const showMembershipPrompt =
+    showMembershipPrompts && !membershipPromptDismissed;
 
   return (
     <div className="min-w-0 space-y-10 pb-24 md:pb-0">
@@ -268,6 +342,15 @@ export function CatalogImporterResults({
         rows={controller.includedRows}
         onApplyFilter={handleApplyInsightFilter}
       />
+
+      {showMembershipPrompt && !readyToDownload ? (
+        <CatalogImporterMembershipPrompt
+          ctaId="catalog-importer-preview-membership"
+          heading="Imagine this as your public catalog"
+          description="Daylily Catalog Pro includes a hosted seller catalog, seller dashboard, ongoing catalog management, and discovery. Your prepared workbook stays free, and your browser-local project will still be here when you return. Direct spreadsheet import is not available yet."
+          onDismiss={dismissMembershipPrompts}
+        />
+      ) : null}
 
       {hasPreparationWork ? (
         <section
@@ -503,35 +586,14 @@ export function CatalogImporterResults({
         </div>
       </section>
 
-      <section
-        aria-labelledby="catalog-importer-membership-heading"
-        className="flex flex-col gap-5 border-t pt-8 sm:flex-row sm:items-center sm:justify-between"
-      >
-        <div className="max-w-2xl">
-          <h2
-            id="catalog-importer-membership-heading"
-            className="text-xl font-semibold tracking-tight"
-          >
-            Imagine this as your public catalog
-          </h2>
-          <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
-            Daylily Catalog Pro includes a hosted seller catalog, seller
-            dashboard, and discovery features. Your prepared workbook remains
-            available to download here.
-          </p>
-        </div>
-        <Button asChild variant="outline" className="shrink-0">
-          <SellerIntentLink
-            ctaId="catalog-importer-membership"
-            ctaLabel="Explore Pro membership"
-            entrySurface="catalog_importer_preview"
-            sourcePageType="catalog_importer"
-            sourcePath="/catalog-importer"
-          >
-            Explore Pro membership
-          </SellerIntentLink>
-        </Button>
-      </section>
+      {showMembershipPrompt && readyToDownload ? (
+        <CatalogImporterMembershipPrompt
+          ctaId="catalog-importer-complete-membership"
+          heading="Your workbook is ready. Want a hosted catalog?"
+          description="Daylily Catalog Pro includes a hosted seller catalog, seller dashboard, ongoing catalog management, and discovery. This prepared workbook remains yours to download, but it is not imported or published automatically."
+          onDismiss={dismissMembershipPrompts}
+        />
+      ) : null}
 
       <CatalogImporterMatchSheet
         key={matchEditorRow?.id ?? "closed"}
