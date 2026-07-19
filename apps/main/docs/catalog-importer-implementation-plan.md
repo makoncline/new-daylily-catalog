@@ -11,15 +11,15 @@ decisions, evidence, and blockers.
 | Field           | Current value                                                                                             |
 | --------------- | --------------------------------------------------------------------------------------------------------- |
 | Overall status  | Implementation in progress                                                                                |
-| Current phase   | Phase C — Repair                                                                                          |
-| Current slice   | Slice 8 — Complete spreadsheet issue repair                                                               |
+| Current phase   | Phase D — Export and continue                                                                             |
+| Current slice   | Slice 9 — Complete the prepared-workbook download experience                                              |
 | Last updated    | 2026-07-18                                                                                                |
 | Branch          | `agent/catalog-importer-v1`                                                                               |
 | Baseline commit | `7b5a81ad`                                                                                                |
 | Pull request    | [#352 — Prepare daylily catalog spreadsheets](https://github.com/makoncline/new-daylily-catalog/pull/352) |
 | Current blocker | None                                                                                                      |
-| Next action     | Audit price, duplicate, image, and saved-ID semantics against the cleaned-workbook contract               |
-| Latest evidence | Slice 7 passed 38 focused tests, 3 E2Es, typecheck, lint, and the real 52-row queue in visible Chrome     |
+| Next action     | Audit the download labels, summary, filename, retry state, and re-upload contract                         |
+| Latest evidence | Slice 8 passed 39 focused tests, 3 E2Es, typecheck, and lint with one unrelated warning                   |
 
 ### Progress
 
@@ -32,9 +32,9 @@ decisions, evidence, and blockers.
   - [x] Slice 4 — Make catalog preview trusted and useful
   - [x] Slice 5 — Make collection insights accurate and interactive
   - [x] Slice 6 — Add persistent workspace status and navigation
-- [ ] Phase C — Repair
+- [x] Phase C — Repair
   - [x] Slice 7 — Complete cultivar review, revision, and undo
-  - [ ] Slice 8 — Complete spreadsheet issue repair
+  - [x] Slice 8 — Complete spreadsheet issue repair
 - [ ] Phase D — Export and continue
   - [ ] Slice 9 — Complete the prepared-workbook download experience
   - [ ] Slice 10 — Add honest guest/member continuation
@@ -48,21 +48,22 @@ decisions, evidence, and blockers.
 Use this area for short-lived details needed to resume the active slice.
 Move durable decisions to the decision log and completed work to the work log.
 
-- Slice 7 is complete and ready to package for PR #352.
-- Begin Slice 8 with the existing grouped issue tables and the exact workbook
-  consequences of each action.
-- Keep required values separate from warnings.
-- Preserve seller meaning; do not expand the bounded price parser into a
-  general pricing language.
+- Slice 8 is complete and ready to package for PR #352.
+- Begin Slice 9 by comparing the current download surface with the already
+  verified cleaned-workbook contract.
+- Derive the pre-download summary from current importer state; do not duplicate
+  workbook logic in the UI.
+- Keep download failure and retry state separate from matching.
 
 ### User update
 
 Use this as the source for concise progress updates.
 
-> Slice 7 is complete: pending rows can be deferred with X, intentionally left
-> unmatched with a stated workbook consequence, restored to review, or linked
-> through explicit candidate actions. Linked rows can also be revised or left
-> unmatched, with one-level Undo for the latest identity decision.
+> Slice 8 is complete: price, duplicate, seller-image, and stale-ID issues are
+> grouped by meaning, preserve unresolved source data, explain prepared-file
+> consequences, and support one-level Undo. Obvious bundle prices preserve
+> their original offer in private notes, and stale IDs are replaced only after
+> a successful confident name match.
 
 ## How the goal agent must use this file
 
@@ -628,51 +629,63 @@ Issue levels:
 
 Tasks:
 
-- [ ] Keep identity decisions in Slice 7's separate focused workflow.
-- [ ] Show all rows for each spreadsheet issue group rather than one issue at a
+- [x] Keep identity decisions in Slice 7's separate focused workflow.
+- [x] Show all rows for each spreadsheet issue group rather than one issue at a
       time.
-- [ ] Price-format review:
-  - [ ] show original value;
-  - [ ] offer a suggested numeric unit price where safely parsed;
-  - [ ] preserve bundle meaning in a note or original seller field;
-  - [ ] use an icon-only row Save with an accessible name;
-  - [ ] provide Save all for valid edited rows;
-  - [ ] allow leaving the value unresolved; and
-  - [ ] avoid calling valid seller offers intrinsically invalid.
-- [ ] Keep a deliberately bounded parser for obvious formats such as
+- [x] Price-format review:
+  - [x] show original value;
+  - [x] offer a suggested numeric unit price where safely parsed;
+  - [x] preserve bundle meaning in a note or original seller field;
+  - [x] use an icon-only row Save with an accessible name;
+  - [x] provide Save all for valid edited rows;
+  - [x] allow leaving the value unresolved; and
+  - [x] avoid calling valid seller offers intrinsically invalid.
+- [x] Keep a deliberately bounded parser for obvious formats such as
       `2 for $30`; do not build a pricing language.
-- [ ] Possible duplicate review:
-  - [ ] show related rows in one table;
-  - [ ] default to the possibility that both listings are intentional;
-  - [ ] offer Keep both listings;
-  - [ ] offer `Remove row X from prepared workbook`;
-  - [ ] state that the uploaded source file remains untouched; and
-  - [ ] support Undo.
-- [ ] Seller-image review distinguishes:
-  - [ ] malformed URL;
-  - [ ] timeout;
-  - [ ] remote rejection;
-  - [ ] browser/hotlink restriction;
-  - [ ] unsupported format; and
-  - [ ] successful preview.
-- [ ] Say `We could not preview this seller image from your browser` when the
+- [x] Possible duplicate review:
+  - [x] show related rows in one table;
+  - [x] default to the possibility that both listings are intentional;
+  - [x] offer Keep both listings;
+  - [x] offer `Remove row X from prepared workbook`;
+  - [x] state that the uploaded source file remains untouched; and
+  - [x] support Undo.
+- [x] Seller-image review distinguishes malformed URLs, successful previews,
+      and an unknown browser preview failure. The browser does not reliably
+      expose whether an image failure was a timeout, remote rejection,
+      hotlink restriction, or unsupported format, so those causes are not
+      asserted as facts.
+- [x] Say `We could not preview this seller image from your browser` when the
       failure reason is not knowable.
-- [ ] Allow a linked reference photograph to remain in preview while clearly
+- [x] Allow a linked reference photograph to remain in preview while clearly
       retaining the seller-image warning.
-- [ ] Invalid saved-ID review:
-  - [ ] try a new confident name match;
-  - [ ] explain an automatic replacement;
-  - [ ] require identity review when uncertain; and
-  - [ ] never export an invalid ID as resolved identity.
-- [ ] Add an unresolved path and undo for every issue action.
+- [x] Invalid saved-ID review:
+  - [x] try a new confident name match;
+  - [x] explain an automatic replacement;
+  - [x] require identity review when uncertain; and
+  - [x] never export an invalid ID as resolved identity.
+- [x] Add an unresolved path and undo for every issue action.
 
 Acceptance:
 
-- [ ] Every supported issue explains what was found, why it matters, what the
+- [x] Every supported issue explains what was found, why it matters, what the
       action changes, and whether it may remain unresolved.
-- [ ] Batch price saving cannot silently overwrite an invalid edit.
-- [ ] Intentional same-cultivar listings can both remain.
-- [ ] Image failures are not overdiagnosed.
+- [x] Batch price saving cannot silently overwrite an invalid edit.
+- [x] Intentional same-cultivar listings can both remain.
+- [x] Image failures are not overdiagnosed.
+
+Evidence (2026-07-18):
+
+- 39 focused importer tests passed, including stale-ID recovery through a
+  successful confident name rematch.
+- All 3 importer E2Es passed with grouped price, duplicate, and image repair;
+  one-level issue Undo; preserved bundle-price notes; download; restoration;
+  and phone-width coverage.
+- Typecheck passed. Lint has zero errors and one unrelated existing dashboard
+  warning.
+- The visible real-workbook Chrome draft remained intact at 1,086 detected
+  listings, 1,034 linked listings, and 52 separate identity decisions. The
+  synthetic issue path was exercised in the browser E2E so the real draft did
+  not need to be replaced.
 
 ## Phase D — Export and continue
 
@@ -902,14 +915,14 @@ The goal is complete only when:
 
 ## Risks and open decisions
 
-| Status              | Question or risk                                                                                       | Resolution path                                                                                                                                           |
-| ------------------- | ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Resolved            | Which XLSX features does the current reconstruction actually preserve?                                 | It reconstructs browser-readable cell values and sheets; formulas, formatting, comments, merges, drawings, validation, and hidden state are not retained. |
-| Deferred to Slice 8 | Should an approved bundle price write only numeric unit price or also populate an existing note field? | Preserve the original commercial meaning without inventing a new column; decide with the issue-repair UI.                                                 |
-| Resolved            | Is a Catalog view/Data review toggle necessary?                                                        | No. Customer-facing cards stay clean; one link action opens the existing source-row and match-revision sheet.                                             |
-| Open in Slice 5     | Which insights are useful for very small catalogs?                                                     | Rank available facts and prefer concise narrative metrics over empty or low-information charts.                                                           |
-| Open in Slice 10    | What exact sign-in return URL preserves the local project?                                             | Reuse the existing auth return pattern and verify IndexedDB remains available on the same origin.                                                         |
-| Open in Slice 12    | Does the preview need virtualization?                                                                  | Add it only if real measurements show the existing bounded rendering is not responsive.                                                                   |
+| Status           | Question or risk                                                                                       | Resolution path                                                                                                                                           |
+| ---------------- | ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Resolved         | Which XLSX features does the current reconstruction actually preserve?                                 | It reconstructs browser-readable cell values and sheets; formulas, formatting, comments, merges, drawings, validation, and hidden state are not retained. |
+| Resolved         | Should an approved bundle price write only numeric unit price or also populate an existing note field? | Write the approved numeric unit price and append the exact original offer to a mapped private-note field; otherwise leave it unresolved.                  |
+| Resolved         | Is a Catalog view/Data review toggle necessary?                                                        | No. Customer-facing cards stay clean; one link action opens the existing source-row and match-revision sheet.                                             |
+| Resolved         | Which insights are useful for very small catalogs?                                                     | Rank available facts and prefer concise narrative metrics over empty or low-information charts.                                                           |
+| Open in Slice 10 | What exact sign-in return URL preserves the local project?                                             | Reuse the existing auth return pattern and verify IndexedDB remains available on the same origin.                                                         |
+| Open in Slice 12 | Does the preview need virtualization?                                                                  | Add it only if real measurements show the existing bounded rendering is not responsive.                                                                   |
 
 ## Work log
 
@@ -918,7 +931,8 @@ artifacts when useful.
 
 | Date       | Slice    | Status   | What changed                                                                                                                                           | Verification                                                                                                                                                              | Commit / notes                      |
 | ---------- | -------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
-| 2026-07-18 | Slice 7  | Complete | Separated defer and intentional-unmatched decisions; added explicit candidate actions, restoration, linked-row unlinking, and identity Undo.           | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, and visible Chrome verification against the real 52-row review queue.                      | This Slice 7 commit.                |
+| 2026-07-18 | Slice 8  | Complete | Grouped issue repair; preserved bundle-price meaning; clarified duplicate/image consequences; added stale-ID rematching and issue Undo.                | 39 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, plus preserved visible real-workbook state in Chrome.                                      | This Slice 8 commit.                |
+| 2026-07-18 | Slice 7  | Complete | Separated defer and intentional-unmatched decisions; added explicit candidate actions, restoration, linked-row unlinking, and identity Undo.           | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, and visible Chrome verification against the real 52-row review queue.                      | `10e70ca7`                          |
 | 2026-07-18 | Slice 6  | Complete | Added responsive persistent workspace navigation, prioritized next-task links, and always-available current/prepared download without duplicate state. | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, and real Chrome verification of sticky anchors and the 1,087-row workflow.                 | `086da3d8`                          |
 | 2026-07-18 | Slice 5  | Complete | Counted linked unique cultivars; added narrative discoveries and clickable rankings that drive the shared removable preview filters.                   | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and real Chrome filtering of the 1,087-row catalog from 1,034 to 52 listings.     | `dd181675`                          |
 | 2026-07-18 | Slice 4  | Complete | Restricted preview to explicit links; removed confidence badges; labeled image provenance; added match confirmation, highlighting, revision, and undo. | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome verification against the 1,087-row preview.                    | `b1442747`                          |

@@ -9,7 +9,10 @@ import {
 } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CatalogImporterWorkbench } from "@/app/(public)/catalog-importer/_components/catalog-importer-workbench";
-import { createCatalogImportSampleSpreadsheet } from "@/lib/catalog-importer";
+import {
+  createCatalogImportRows,
+  createCatalogImportSampleSpreadsheet,
+} from "@/lib/catalog-importer";
 import {
   clearCatalogImporterDraft,
   readCatalogImporterDraft,
@@ -226,6 +229,100 @@ describe("CatalogImporterWorkbench", () => {
     expect(requestCultivarMatchesMock.mock.calls.length).toBeGreaterThanOrEqual(
       2,
     );
+  });
+
+  it("replaces an unavailable saved ID only after a confident name rematch", async () => {
+    const spreadsheet = {
+      fileName: "saved-id.csv",
+      sheets: [
+        {
+          name: "Catalog",
+          rows: [
+            ["name", "Daylily Catalog ID"],
+            ["A.W. Shucks", "missing-id"],
+          ],
+        },
+      ],
+    };
+    const mapping = {
+      cultivarReferenceId: 1,
+      description: null,
+      imageUrl: null,
+      price: null,
+      privateNote: null,
+      title: 0,
+    };
+    const [sourceRow] = createCatalogImportRows({
+      headerRowIndex: 0,
+      mapping,
+      rows: spreadsheet.sheets[0]!.rows,
+    });
+    const candidate = {
+      awardNames: null,
+      bloomSizeIn: 7.5,
+      bloomSeason: "Late",
+      color: "Purple",
+      confidence: 100,
+      cultivarReferenceId: "cultivar-aw-shucks",
+      displayName: "A.W. Shucks",
+      form: "Spider",
+      hybridizer: "Herrington",
+      imageAsset: null,
+      imageUrl: null,
+      listingCount: 1,
+      normalizedName: "a w shucks",
+      ploidy: "Diploid",
+      rebloom: true,
+      scapeHeightIn: 26,
+      year: 2014,
+    };
+    requestCultivarMatchesMock.mockResolvedValue([
+      {
+        candidates: [candidate],
+        exactMatch: candidate,
+        inputName: "A.W. Shucks",
+        normalizedInput: "a.w. shucks",
+      },
+    ]);
+    const initialDraft: CatalogImporterDraft = {
+      activeReviewRowId: null,
+      headerRowIndex: 0,
+      mapping,
+      matchedRows: [
+        {
+          ...sourceRow!,
+          cultivarReferenceIdWarning: "missing-id",
+          linkState: "pending",
+        },
+      ],
+      matchedRowsKey: "saved-id",
+      parsedSpreadsheet: spreadsheet,
+      selectedSheetIndex: 0,
+      version: 3,
+    };
+
+    render(<CatalogImporterWorkbench initialDraft={initialDraft} />);
+
+    expect(
+      screen.getByRole("heading", { name: "Saved cultivar IDs not found" }),
+    ).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Match by name" }));
+
+    expect(
+      (
+        await screen.findAllByText(
+          "1 ID was replaced by a confident name match.",
+        )
+      )[0],
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("heading", { name: "Saved cultivar IDs not found" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText("1", {
+        selector: "[data-testid='linked-listing-count']",
+      }),
+    ).toBeVisible();
   });
 
   it("reports download failures separately and allows another download", async () => {

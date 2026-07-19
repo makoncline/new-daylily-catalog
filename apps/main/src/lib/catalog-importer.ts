@@ -5,6 +5,14 @@ import {
 
 export type SpreadsheetCell = string | number | boolean | Date | null;
 
+export const CATALOG_IMPORT_IMAGE_PREVIEW_WARNING_PREFIX = "preview-failed:";
+
+export function isCatalogImportImagePreviewWarning(value: string | null) {
+  return (
+    value?.startsWith(CATALOG_IMPORT_IMAGE_PREVIEW_WARNING_PREFIX) ?? false
+  );
+}
+
 export interface SpreadsheetSheet {
   name: string;
   rows: SpreadsheetCell[][];

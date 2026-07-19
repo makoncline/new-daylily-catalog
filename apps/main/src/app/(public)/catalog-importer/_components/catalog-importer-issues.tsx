@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Table,
   TableBody,
@@ -13,7 +14,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { CatalogImporterWorkbenchController } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
-import type { CatalogImportRow } from "@/lib/catalog-importer";
+import {
+  isCatalogImportImagePreviewWarning,
+  type CatalogImportRow,
+} from "@/lib/catalog-importer";
 
 interface DuplicateGroup {
   id: string;
@@ -64,6 +68,44 @@ function parsePrice(value: string): ParsedInput<number | null> {
     : { valid: false, value: null };
 }
 
+function getBundlePriceSuggestion(value: string) {
+  const quantityWords: Record<string, number> = {
+    eight: 8,
+    five: 5,
+    four: 4,
+    nine: 9,
+    one: 1,
+    seven: 7,
+    six: 6,
+    ten: 10,
+    three: 3,
+    two: 2,
+  };
+  const match =
+    /^\s*(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s*(?:for|\/)\s*\$?\s*(\d+(?:\.\d+)?)\s*$/i.exec(
+      value.replaceAll(",", ""),
+    );
+  if (!match) {
+    return null;
+  }
+
+  const quantityToken = match[1]!.toLowerCase();
+  const quantity = /^\d+$/.test(quantityToken)
+    ? Number(quantityToken)
+    : (quantityWords[quantityToken] ?? 0);
+  const total = Number(match[2]);
+  if (
+    !Number.isInteger(quantity) ||
+    quantity <= 0 ||
+    !Number.isFinite(total) ||
+    total < 0
+  ) {
+    return null;
+  }
+
+  return total / quantity;
+}
+
 function parseImageUrl(value: string): ParsedInput<string> {
   const normalized = value.trim();
   if (!normalized) {
@@ -100,8 +142,9 @@ function DuplicateGroupTable({
         <div>
           <h4 className="font-semibold">Multiple listings for {title}</h4>
           <p className="text-muted-foreground mt-1 text-sm">
-            Remove an accidental copy, or keep every listing if they are
-            intentional.
+            These rows link to the same cultivar, but both listings may be
+            intentional. Removing a row affects only the prepared workbook; your
+            uploaded file stays untouched.
           </p>
         </div>
         <Button
@@ -112,7 +155,7 @@ function DuplicateGroupTable({
             controller.keepDuplicateRows(rows.map((row) => row.id))
           }
         >
-          Keep all
+          {rows.length === 2 ? "Keep both listings" : "Keep all listings"}
         </Button>
       </div>
 
@@ -148,11 +191,11 @@ function DuplicateGroupTable({
                   variant="ghost"
                   size="sm"
                   className="text-destructive hover:text-destructive"
-                  aria-label={`Remove row ${row.sourceRow}`}
+                  aria-label={`Remove row ${row.sourceRow} from prepared workbook`}
                   onClick={() => controller.removeDuplicateRow(row.id)}
                 >
                   <Trash2 className="size-4" />
-                  Remove
+                  Remove row {row.sourceRow}
                 </Button>
               </TableCell>
               <TableCell className="text-muted-foreground font-mono text-xs">
@@ -184,13 +227,29 @@ function PriceIssuesTable({
   rows: CatalogImportRow[];
 }) {
   const [values, setValues] = useState<Record<string, string>>(() =>
-    Object.fromEntries(rows.map((row) => [row.id, row.sourcePrice])),
+    Object.fromEntries(
+      rows.map((row) => {
+        const suggestion = getBundlePriceSuggestion(row.sourcePrice);
+        return [
+          row.id,
+          suggestion === null ? row.sourcePrice : suggestion.toFixed(2),
+        ];
+      }),
+    ),
   );
-  const parsedRows = rows.map((row) => ({
-    parsed: parsePrice(values[row.id] ?? row.sourcePrice),
-    row,
-  }));
-  const canSaveAll = parsedRows.every(({ parsed }) => parsed.valid);
+  const parsedRows = rows.map((row) => {
+    const suggestion = getBundlePriceSuggestion(row.sourcePrice);
+    const parsed = parsePrice(values[row.id] ?? row.sourcePrice);
+    return {
+      canSave:
+        parsed.valid &&
+        (suggestion === null || controller.mapping.privateNote !== null),
+      parsed,
+      row,
+      suggestion,
+    };
+  });
+  const canSaveAll = parsedRows.every(({ canSave }) => canSave);
 
   return (
     <section aria-labelledby="catalog-importer-price-issues-heading">
@@ -200,11 +259,12 @@ function PriceIssuesTable({
             id="catalog-importer-price-issues-heading"
             className="font-semibold"
           >
-            Invalid prices
+            Price formats need review
           </h3>
           <p className="text-muted-foreground mt-1 text-sm">
-            Enter one price for each listing, or leave the corrected price
-            blank.
+            The catalog price field needs one numeric unit price. You can leave
+            a row unresolved; a current-workbook download keeps its original
+            value.
           </p>
         </div>
         <Button
@@ -213,8 +273,16 @@ function PriceIssuesTable({
           disabled={!canSaveAll}
           onClick={() =>
             controller.resolvePriceIssues(
-              parsedRows.flatMap(({ parsed, row }) =>
-                parsed.valid ? [{ price: parsed.value, rowId: row.id }] : [],
+              parsedRows.flatMap(({ canSave, parsed, row, suggestion }) =>
+                canSave
+                  ? [
+                      {
+                        preserveOriginalOffer: suggestion !== null,
+                        price: parsed.value,
+                        rowId: row.id,
+                      },
+                    ]
+                  : [],
               ),
             )
           }
@@ -223,7 +291,7 @@ function PriceIssuesTable({
         </Button>
       </div>
 
-      <Table aria-label="Invalid price rows" className="mt-4 min-w-[44rem]">
+      <Table aria-label="Price format rows" className="mt-4 min-w-[48rem]">
         <TableHeader>
           <TableRow>
             <TableHead className="w-px">Row</TableHead>
@@ -236,14 +304,19 @@ function PriceIssuesTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {parsedRows.map(({ parsed, row }) => (
+          {parsedRows.map(({ canSave, parsed, row, suggestion }) => (
             <TableRow key={row.id}>
               <TableCell className="text-muted-foreground font-mono text-xs">
                 {row.sourceRow}
               </TableCell>
               <TableCell className="font-medium">{row.sourceTitle}</TableCell>
               <TableCell className="text-muted-foreground">
-                {row.sourcePrice}
+                <span>{row.sourcePrice}</span>
+                {suggestion !== null ? (
+                  <span className="mt-1 block text-xs">
+                    Suggested unit price: {suggestion.toFixed(2)}
+                  </span>
+                ) : null}
               </TableCell>
               <TableCell>
                 <Input
@@ -263,6 +336,17 @@ function PriceIssuesTable({
                   <p className="text-destructive mt-1 text-xs">
                     Use one price, such as 12 or 12.50.
                   </p>
+                ) : suggestion !== null &&
+                  controller.mapping.privateNote !== null ? (
+                  <p className="text-muted-foreground mt-1 text-xs">
+                    Saving also adds “Original price: {row.sourcePrice}” to the
+                    private note.
+                  </p>
+                ) : suggestion !== null ? (
+                  <p className="text-muted-foreground mt-1 text-xs">
+                    Map a private note column to preserve the original bundle
+                    offer, or leave this row unresolved.
+                  </p>
                 ) : null}
               </TableCell>
               <TableCell>
@@ -270,13 +354,17 @@ function PriceIssuesTable({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  disabled={!parsed.valid}
+                  disabled={!canSave}
                   aria-label={`Save price for row ${row.sourceRow}`}
                   title={`Save price for row ${row.sourceRow}`}
                   onClick={() => {
-                    if (parsed.valid) {
+                    if (canSave && parsed.valid) {
                       controller.resolvePriceIssues([
-                        { price: parsed.value, rowId: row.id },
+                        {
+                          preserveOriginalOffer: suggestion !== null,
+                          price: parsed.value,
+                          rowId: row.id,
+                        },
                       ]);
                     }
                   }}
@@ -316,11 +404,11 @@ function ImageUrlIssuesTable({
             id="catalog-importer-image-issues-heading"
             className="font-semibold"
           >
-            Invalid image URLs
+            Seller images need review
           </h3>
           <p className="text-muted-foreground mt-1 text-sm">
-            Enter a complete image URL or leave it blank. The preview also
-            checks that saved images load.
+            Enter a complete image URL or leave it blank. You can leave a row
+            unresolved; the current workbook keeps its original value.
           </p>
         </div>
         <Button
@@ -339,12 +427,13 @@ function ImageUrlIssuesTable({
         </Button>
       </div>
 
-      <Table aria-label="Invalid image URL rows" className="mt-4 min-w-[52rem]">
+      <Table aria-label="Seller image rows" className="mt-4 min-w-[58rem]">
         <TableHeader>
           <TableRow>
             <TableHead className="w-px">Row</TableHead>
             <TableHead>Name</TableHead>
             <TableHead className="max-w-72">Original URL</TableHead>
+            <TableHead className="min-w-64">What happened</TableHead>
             <TableHead className="min-w-80">Corrected URL</TableHead>
             <TableHead className="w-px">
               <span className="sr-only">Save</span>
@@ -360,6 +449,11 @@ function ImageUrlIssuesTable({
               <TableCell className="font-medium">{row.sourceTitle}</TableCell>
               <TableCell className="text-muted-foreground max-w-72 break-all">
                 {row.sourceImageUrl}
+              </TableCell>
+              <TableCell className="text-muted-foreground text-sm">
+                {isCatalogImportImagePreviewWarning(row.imageUrlWarning)
+                  ? "We could not preview this seller image from your browser. The remote server, hotlink policy, timeout, or file format may be responsible."
+                  : "This is not a complete HTTP or HTTPS image URL."}
               </TableCell>
               <TableCell>
                 <Input
@@ -415,6 +509,23 @@ function SavedIdIssuesTable({
   controller: CatalogImporterWorkbenchController;
   rows: CatalogImportRow[];
 }) {
+  const [error, setError] = useState<string | null>(null);
+  const [rematching, setRematching] = useState(false);
+
+  async function rematch(rowIds: string[]) {
+    setError(null);
+    setRematching(true);
+    try {
+      await controller.clearCultivarReferenceIdIssues(rowIds);
+    } catch {
+      setError(
+        "Name matching did not finish. The saved IDs are unchanged; try again.",
+      );
+    } finally {
+      setRematching(false);
+    }
+  }
+
   return (
     <section aria-labelledby="catalog-importer-saved-id-issues-heading">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -423,22 +534,30 @@ function SavedIdIssuesTable({
             id="catalog-importer-saved-id-issues-heading"
             className="font-semibold"
           >
-            Saved cultivar links not found
+            Saved cultivar IDs not found
           </h3>
           <p className="text-muted-foreground mt-1 text-sm">
-            Clear the unavailable IDs and find each cultivar by name.
+            These IDs no longer identify a cultivar. A single confident name
+            match replaces the ID automatically; uncertain names move to manual
+            review. Invalid IDs are never exported as resolved identity.
           </p>
         </div>
         <Button
           type="button"
           variant="outline"
-          onClick={() =>
-            controller.clearCultivarReferenceIdIssues(rows.map((row) => row.id))
-          }
+          disabled={rematching}
+          onClick={() => void rematch(rows.map((row) => row.id))}
         >
-          Rematch all
+          {rematching ? <Spinner /> : null}
+          Match all by name
         </Button>
       </div>
+
+      {error ? (
+        <p role="alert" className="text-destructive mt-3 text-sm">
+          {error}
+        </p>
+      ) : null}
 
       <Table aria-label="Invalid saved cultivar ID rows" className="mt-4">
         <TableHeader>
@@ -464,9 +583,8 @@ function SavedIdIssuesTable({
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() =>
-                    controller.clearCultivarReferenceIdIssues([row.id])
-                  }
+                  disabled={rematching}
+                  onClick={() => void rematch([row.id])}
                 >
                   Match by name
                 </Button>

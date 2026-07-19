@@ -223,6 +223,8 @@ test.describe("catalog importer", () => {
 
     await page.getByLabel("Price", { exact: true }).click();
     await page.getByRole("option", { name: /^price —/i }).click();
+    await page.getByLabel("Private note", { exact: true }).click();
+    await page.getByRole("option", { name: /^privateNote —/i }).click();
     await page.getByLabel("Image URL", { exact: true }).click();
     await page.getByRole("option", { name: /^imageUrl —/i }).click();
     await expect(
@@ -269,10 +271,14 @@ test.describe("catalog importer", () => {
     });
     await expect(issuesRegion).toContainText("4 issues remaining");
     await expect(
-      issuesRegion.getByRole("heading", { name: "Invalid prices" }),
+      issuesRegion.getByRole("heading", {
+        name: "Price formats need review",
+      }),
     ).toBeVisible();
     await expect(
-      issuesRegion.getByRole("heading", { name: "Invalid image URLs" }),
+      issuesRegion.getByRole("heading", {
+        name: "Seller images need review",
+      }),
     ).toBeVisible();
     await expect(
       issuesRegion.getByRole("heading", {
@@ -284,16 +290,30 @@ test.describe("catalog importer", () => {
     });
     await expect(duplicateRows.getByRole("row")).toHaveCount(3);
     await expect(
-      duplicateRows.getByRole("button", { name: "Remove row 11" }),
+      duplicateRows.getByRole("button", {
+        name: "Remove row 11 from prepared workbook",
+      }),
     ).toBeVisible();
     await expect(
-      duplicateRows.getByRole("button", { name: "Remove row 12" }),
+      duplicateRows.getByRole("button", {
+        name: "Remove row 12 from prepared workbook",
+      }),
     ).toBeVisible();
-    await issuesRegion.getByRole("button", { name: "Keep all" }).click();
+    await issuesRegion
+      .getByRole("button", { name: "Keep both listings" })
+      .click();
+    await expect(issuesRegion).toContainText("3 issues remaining");
+    await page
+      .getByRole("button", { name: "Undo spreadsheet issue change" })
+      .click();
+    await expect(issuesRegion).toContainText("4 issues remaining");
+    await issuesRegion
+      .getByRole("button", { name: "Keep both listings" })
+      .click();
     await expect(issuesRegion).toContainText("3 issues remaining");
 
     const priceIssues = issuesRegion.getByRole("region", {
-      name: "Invalid prices",
+      name: "Price formats need review",
     });
     await priceIssues.getByLabel("Correct price for row 3").fill("12.50");
     await priceIssues.getByLabel("Correct price for row 5").fill("13.50");
@@ -301,7 +321,7 @@ test.describe("catalog importer", () => {
     await expect(issuesRegion).toContainText("1 issue remaining");
 
     const imageIssues = issuesRegion.getByRole("region", {
-      name: "Invalid image URLs",
+      name: "Seller images need review",
     });
     const correctedImageUrl = imageIssues.getByLabel(
       "Correct image URL for row 4",
@@ -428,6 +448,8 @@ test.describe("catalog importer", () => {
     );
     expect(csv).not.toContain("Vanguard 2");
     expect(csv).toContain("Daylily 2,12.5");
+    expect(csv).toContain("Original price: two for $20");
+    expect(csv).toContain("Original price: three for $30");
     expect(csv.split("\r\n")).toHaveLength(26);
   });
 

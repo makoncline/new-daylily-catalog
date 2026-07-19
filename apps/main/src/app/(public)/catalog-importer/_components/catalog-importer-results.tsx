@@ -335,6 +335,27 @@ export function CatalogImporterResults({
         </div>
       ) : null}
 
+      {controller.lastIssueAction ? (
+        <div
+          role="status"
+          className="flex flex-col gap-3 border-y py-4 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <p className="text-sm font-medium">
+            {controller.lastIssueAction.message}
+          </p>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            aria-label="Undo spreadsheet issue change"
+            onClick={controller.undoLastIssueAction}
+          >
+            <Undo2 aria-hidden="true" className="size-4" />
+            Undo
+          </Button>
+        </div>
+      ) : null}
+
       <CatalogImporterUnmatchedRows controller={controller} />
 
       {controller.reviewRows.length > 0 ? (

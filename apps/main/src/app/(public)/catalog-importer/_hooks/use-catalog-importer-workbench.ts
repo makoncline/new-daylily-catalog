@@ -9,6 +9,7 @@ import {
 import {
   applyAutomaticCultivarMatches,
   assignCatalogImportDuplicateGroups,
+  CATALOG_IMPORT_IMAGE_PREVIEW_WARNING_PREFIX,
   cellToText,
   columnIndexToLabel,
   createCatalogEnrichedSpreadsheet,
@@ -71,6 +72,15 @@ function getCatalogImportTelemetryCounts(rows: CatalogImportRow[]) {
     review_count: state.counts.pendingCultivarDecisionCount,
     row_count: state.counts.includedListingCount,
   };
+}
+
+function appendOriginalPriceNote(privateNote: string, sourcePrice: string) {
+  const note = `Original price: ${sourcePrice}`;
+  if (privateNote.split("\n").includes(note)) {
+    return privateNote;
+  }
+
+  return [privateNote, note].filter(Boolean).join("\n");
 }
 
 function getCatalogMatchKey({
@@ -225,6 +235,10 @@ export function useCatalogImporterWorkbench(
     kind: "added" | "changed" | "left-unmatched";
     previousRow: CatalogImportRow;
     rowId: string;
+  } | null>(null);
+  const [lastIssueAction, setLastIssueAction] = useState<{
+    message: string;
+    previousRows: CatalogImportRow[];
   } | null>(null);
   const exactMatchRequestId = useRef(0);
   const exactMatchAbortController = useRef<AbortController | null>(null);
@@ -394,6 +408,7 @@ export function useCatalogImporterWorkbench(
       nextActiveReviewRowId = activeReviewRowId,
     ) => {
       setLastLinkAction(null);
+      setLastIssueAction(null);
       setMatchedRows(nextRows);
       void persistDraft({
         activeReviewRowId: nextActiveReviewRowId,
@@ -1190,6 +1205,10 @@ export function useCatalogImporterWorkbench(
       }
 
       saveMatchedRows(removeRowFromDuplicateGroup(matchedRows, rowId));
+      setLastIssueAction({
+        message: `Source row ${removedRow.sourceRow} was removed from the prepared workbook.`,
+        previousRows: matchedRows,
+      });
       setLiveAnnouncement(`Source row ${removedRow.sourceRow} removed.`);
     },
     [matchedRows, saveMatchedRows],
@@ -1212,6 +1231,10 @@ export function useCatalogImporterWorkbench(
           : row,
       );
       saveMatchedRows(nextRows);
+      setLastIssueAction({
+        message: `${retainedIds.size.toLocaleString()} intentional listings were kept.`,
+        previousRows: matchedRows,
+      });
       setLiveAnnouncement(
         `${retainedIds.size.toLocaleString()} duplicate listings kept.`,
       );
@@ -1220,11 +1243,17 @@ export function useCatalogImporterWorkbench(
   );
 
   const resolvePriceIssues = useCallback(
-    (updates: Array<{ price: number | null; rowId: string }>) => {
+    (
+      updates: Array<{
+        preserveOriginalOffer?: boolean;
+        price: number | null;
+        rowId: string;
+      }>,
+    ) => {
       if (!matchedRows) {
         return;
       }
-      const prices = new Map(updates.map(({ price, rowId }) => [rowId, price]));
+      const prices = new Map(updates.map((update) => [update.rowId, update]));
       if (prices.size === 0) {
         return;
       }
@@ -1234,12 +1263,19 @@ export function useCatalogImporterWorkbench(
           prices.has(row.id)
             ? {
                 ...row,
-                price: prices.get(row.id) ?? null,
+                price: prices.get(row.id)?.price ?? null,
                 priceWarning: null,
+                privateNote: prices.get(row.id)?.preserveOriginalOffer
+                  ? appendOriginalPriceNote(row.privateNote, row.sourcePrice)
+                  : row.privateNote,
               }
             : row,
         ),
       );
+      setLastIssueAction({
+        message: `${prices.size.toLocaleString()} price ${prices.size === 1 ? "value was" : "values were"} updated.`,
+        previousRows: matchedRows,
+      });
       setLiveAnnouncement(
         `${prices.size.toLocaleString()} price ${prices.size === 1 ? "issue" : "issues"} resolved.`,
       );
@@ -1270,6 +1306,10 @@ export function useCatalogImporterWorkbench(
             : row,
         ),
       );
+      setLastIssueAction({
+        message: `${imageUrls.size.toLocaleString()} seller image ${imageUrls.size === 1 ? "value was" : "values were"} updated.`,
+        previousRows: matchedRows,
+      });
       setLiveAnnouncement(
         `${imageUrls.size.toLocaleString()} image URL ${imageUrls.size === 1 ? "issue" : "issues"} resolved.`,
       );
@@ -1293,7 +1333,7 @@ export function useCatalogImporterWorkbench(
             ? {
                 ...candidate,
                 imageUrl: "",
-                imageUrlWarning: imageUrl,
+                imageUrlWarning: `${CATALOG_IMPORT_IMAGE_PREVIEW_WARNING_PREFIX}${imageUrl}`,
               }
             : candidate,
         ),
@@ -1306,47 +1346,103 @@ export function useCatalogImporterWorkbench(
   );
 
   const clearCultivarReferenceIdIssues = useCallback(
-    (rowIds: string[]) => {
+    async (rowIds: string[]) => {
       if (!matchedRows) {
         return;
       }
       const targetIds = new Set(rowIds);
-      const resolvedRows = matchedRows.filter((row) => targetIds.has(row.id));
-      const firstResolvedRow = resolvedRows[0];
-      if (!firstResolvedRow) {
+      const targetRows = matchedRows.filter((row) => targetIds.has(row.id));
+      if (targetRows.length === 0) {
         return;
       }
 
-      const nextRows = assignCatalogImportDuplicateGroups(
-        matchedRows.map((row) =>
-          targetIds.has(row.id)
-            ? {
-                ...row,
-                cultivarReferenceIdWarning: null,
-                duplicateAccepted: false,
-                linkProvenance: null,
-                linkState: "pending",
-                match: null,
-                sourceCultivarReferenceId: "",
-              }
-            : row,
+      const results = await requestCultivarMatches({
+        includeCandidates: true,
+        names: targetRows.map((row) => row.title),
+      });
+      const resultsByName = new Map(
+        results.flatMap((result) =>
+          result.normalizedInput
+            ? [[result.normalizedInput, result] as const]
+            : [],
         ),
       );
-      const nextReviewRow = nextRows.find(
-        (row) => row.id === firstResolvedRow.id,
+      let replacedCount = 0;
+      const nextRows = assignCatalogImportDuplicateGroups(
+        matchedRows.map((row) => {
+          if (!targetIds.has(row.id)) {
+            return row;
+          }
+
+          const result = resultsByName.get(
+            normalizeCultivarName(row.title) ?? "",
+          );
+          const automaticMatch = result
+            ? getAutomaticCultivarMatch(result)
+            : null;
+          if (automaticMatch) {
+            replacedCount += 1;
+          }
+
+          return {
+            ...row,
+            cultivarReferenceIdWarning: null,
+            duplicateAccepted: false,
+            linkProvenance: automaticMatch
+              ? automaticMatch.confidence === 100
+                ? ("exact-name" as const)
+                : ("automatic-name" as const)
+              : null,
+            linkState: automaticMatch
+              ? ("linked" as const)
+              : ("pending" as const),
+            match: automaticMatch,
+            sourceCultivarReferenceId: "",
+            suggestedMatch: result?.candidates[0] ?? null,
+          };
+        }),
       );
-      setActiveReviewRowId(firstResolvedRow.id);
-      setReviewQuery(firstResolvedRow.sourceTitle);
+      const nextReviewRow = getCatalogImportState(nextRows).reviewRows.find(
+        (row) => targetIds.has(row.id),
+      );
       if (nextReviewRow) {
+        setActiveReviewRowId(nextReviewRow.id);
+        setReviewQuery(nextReviewRow.sourceTitle);
         void loadCandidates(nextReviewRow);
       }
-      saveMatchedRows(nextRows, firstResolvedRow.id);
+      saveMatchedRows(nextRows, nextReviewRow?.id);
+      const reviewCount = targetRows.length - replacedCount;
+      const replacementSummary =
+        replacedCount > 0
+          ? `${replacedCount.toLocaleString()} ${
+              replacedCount === 1 ? "ID was" : "IDs were"
+            } replaced by a confident name match.`
+          : "";
+      const reviewSummary =
+        reviewCount > 0
+          ? `${reviewCount.toLocaleString()} ${
+              reviewCount === 1 ? "name needs" : "names need"
+            } review.`
+          : "";
+      setLastIssueAction({
+        message: [replacementSummary, reviewSummary].filter(Boolean).join(" "),
+        previousRows: matchedRows,
+      });
       setLiveAnnouncement(
-        `${resolvedRows.length.toLocaleString()} saved cultivar ${resolvedRows.length === 1 ? "ID" : "IDs"} cleared. Match by name to continue.`,
+        [replacementSummary, reviewSummary].filter(Boolean).join(" "),
       );
     },
     [loadCandidates, matchedRows, saveMatchedRows],
   );
+
+  const undoLastIssueAction = useCallback(() => {
+    if (!lastIssueAction) {
+      return;
+    }
+
+    saveMatchedRows(lastIssueAction.previousRows);
+    setLiveAnnouncement("Spreadsheet issue change undone.");
+  }, [lastIssueAction, saveMatchedRows]);
 
   const downloadResults = useCallback(async () => {
     if (!parsedSpreadsheet || !matchedRows) {
@@ -1413,6 +1509,7 @@ export function useCatalogImporterWorkbench(
     headerRowIndex,
     issueCount,
     lastLinkAction,
+    lastIssueAction,
     liveAnnouncement,
     loadFile,
     loadSampleCatalog,
@@ -1453,6 +1550,7 @@ export function useCatalogImporterWorkbench(
     storageWarning,
     unmatchedCount,
     undoLastLinkAction,
+    undoLastIssueAction,
   };
 }
 
