@@ -75,6 +75,22 @@ function getCatalogImportTelemetryCounts(rows: CatalogImportRow[]) {
   };
 }
 
+function captureIssueResolution({
+  issueType,
+  resolvedCount,
+  rows,
+}: {
+  issueType: "duplicate" | "image" | "price" | "saved_id";
+  resolvedCount: number;
+  rows: CatalogImportRow[];
+}) {
+  capturePosthogEvent("catalog_import_issue_resolved", {
+    issue_type: issueType,
+    resolved_count: resolvedCount,
+    ...getCatalogImportTelemetryCounts(rows),
+  });
+}
+
 function appendOriginalPriceNote(privateNote: string, sourcePrice: string) {
   const note = `Original price: ${sourcePrice}`;
   if (privateNote.split("\n").includes(note)) {
@@ -246,6 +262,7 @@ export function useCatalogImporterWorkbench(
   const closeCandidateRequestId = useRef(0);
   const searchCandidateRequestId = useRef(0);
   const draftWriteChain = useRef(Promise.resolve());
+  const identityDecisionTracked = useRef(false);
   const previewTracked = useRef(initialDraft?.matchedRows != null);
 
   const selectedSheet = parsedSpreadsheet?.sheets[selectedSheetIndex] ?? null;
@@ -755,11 +772,16 @@ export function useCatalogImporterWorkbench(
     async (file: File) => {
       setReadingFile(true);
       setFileError(null);
+      identityDecisionTracked.current = false;
+      capturePosthogEvent("catalog_import_started", {
+        file_type: getCatalogImportFileType(file.name),
+        source: "upload",
+      });
 
       try {
         const spreadsheet = await parseCatalogImportFile(file);
         previewTracked.current = false;
-        capturePosthogEvent("catalog_import_started", {
+        capturePosthogEvent("catalog_import_uploaded", {
           file_type: getCatalogImportFileType(spreadsheet.fileName),
           row_count: spreadsheet.sheets.reduce(
             (total, sheet) => total + sheet.rows.length,
@@ -784,8 +806,13 @@ export function useCatalogImporterWorkbench(
 
   const loadSampleCatalog = useCallback(() => {
     const spreadsheet = createCatalogImportSampleSpreadsheet();
+    identityDecisionTracked.current = false;
     previewTracked.current = false;
     capturePosthogEvent("catalog_import_started", {
+      file_type: getCatalogImportFileType(spreadsheet.fileName),
+      source: "sample",
+    });
+    capturePosthogEvent("catalog_import_uploaded", {
       file_type: getCatalogImportFileType(spreadsheet.fileName),
       row_count: spreadsheet.sheets.reduce(
         (total, sheet) => total + sheet.rows.length,
@@ -1012,6 +1039,14 @@ export function useCatalogImporterWorkbench(
       const nextReviewRow =
         nextReviewRows[reviewedIndex % Math.max(nextReviewRows.length, 1)] ??
         null;
+      capturePosthogEvent("catalog_import_identity_decided", {
+        decision_state: normalizedUpdate.match ? "linked" : "unmatched",
+        first_decision: !identityDecisionTracked.current,
+        final_decision: nextReviewRows.length === 0,
+        remaining_count: nextReviewRows.length,
+        ...getCatalogImportTelemetryCounts(nextRows),
+      });
+      identityDecisionTracked.current = true;
 
       searchCandidateRequestId.current += 1;
       setSearchCandidateResult(null);
@@ -1215,7 +1250,13 @@ export function useCatalogImporterWorkbench(
         return;
       }
 
-      saveMatchedRows(removeRowFromDuplicateGroup(matchedRows, rowId));
+      const nextRows = removeRowFromDuplicateGroup(matchedRows, rowId);
+      saveMatchedRows(nextRows);
+      captureIssueResolution({
+        issueType: "duplicate",
+        resolvedCount: 1,
+        rows: nextRows,
+      });
       setLastIssueAction({
         message: `Source row ${removedRow.sourceRow} was removed from the prepared workbook.`,
         previousRows: matchedRows,
@@ -1242,6 +1283,11 @@ export function useCatalogImporterWorkbench(
           : row,
       );
       saveMatchedRows(nextRows);
+      captureIssueResolution({
+        issueType: "duplicate",
+        resolvedCount: retainedIds.size,
+        rows: nextRows,
+      });
       setLastIssueAction({
         message: `${retainedIds.size.toLocaleString()} intentional listings were kept.`,
         previousRows: matchedRows,
@@ -1269,20 +1315,24 @@ export function useCatalogImporterWorkbench(
         return;
       }
 
-      saveMatchedRows(
-        matchedRows.map((row) =>
-          prices.has(row.id)
-            ? {
-                ...row,
-                price: prices.get(row.id)?.price ?? null,
-                priceWarning: null,
-                privateNote: prices.get(row.id)?.preserveOriginalOffer
-                  ? appendOriginalPriceNote(row.privateNote, row.sourcePrice)
-                  : row.privateNote,
-              }
-            : row,
-        ),
+      const nextRows = matchedRows.map((row) =>
+        prices.has(row.id)
+          ? {
+              ...row,
+              price: prices.get(row.id)?.price ?? null,
+              priceWarning: null,
+              privateNote: prices.get(row.id)?.preserveOriginalOffer
+                ? appendOriginalPriceNote(row.privateNote, row.sourcePrice)
+                : row.privateNote,
+            }
+          : row,
       );
+      saveMatchedRows(nextRows);
+      captureIssueResolution({
+        issueType: "price",
+        resolvedCount: prices.size,
+        rows: nextRows,
+      });
       setLastIssueAction({
         message: `${prices.size.toLocaleString()} price ${prices.size === 1 ? "value was" : "values were"} updated.`,
         previousRows: matchedRows,
@@ -1306,17 +1356,21 @@ export function useCatalogImporterWorkbench(
         return;
       }
 
-      saveMatchedRows(
-        matchedRows.map((row) =>
-          imageUrls.has(row.id)
-            ? {
-                ...row,
-                imageUrl: imageUrls.get(row.id) ?? "",
-                imageUrlWarning: null,
-              }
-            : row,
-        ),
+      const nextRows = matchedRows.map((row) =>
+        imageUrls.has(row.id)
+          ? {
+              ...row,
+              imageUrl: imageUrls.get(row.id) ?? "",
+              imageUrlWarning: null,
+            }
+          : row,
       );
+      saveMatchedRows(nextRows);
+      captureIssueResolution({
+        issueType: "image",
+        resolvedCount: imageUrls.size,
+        rows: nextRows,
+      });
       setLastIssueAction({
         message: `${imageUrls.size.toLocaleString()} seller image ${imageUrls.size === 1 ? "value was" : "values were"} updated.`,
         previousRows: matchedRows,
@@ -1422,6 +1476,11 @@ export function useCatalogImporterWorkbench(
         void loadCandidates(nextReviewRow);
       }
       saveMatchedRows(nextRows, nextReviewRow?.id);
+      captureIssueResolution({
+        issueType: "saved_id",
+        resolvedCount: targetRows.length,
+        rows: nextRows,
+      });
       const reviewCount = targetRows.length - replacedCount;
       const replacementSummary =
         replacedCount > 0
@@ -1472,7 +1531,12 @@ export function useCatalogImporterWorkbench(
         selectedSheetIndex,
       });
       await downloadCatalogImportFile({ fileName, spreadsheet });
+      const counts = getCatalogImportState(matchedRows).counts;
       capturePosthogEvent("catalog_import_downloaded", {
+        download_state:
+          counts.issueCount === 0 && counts.pendingCultivarDecisionCount === 0
+            ? "prepared"
+            : "current",
         file_type: getCatalogImportFileType(parsedSpreadsheet.fileName),
         sheet_count: parsedSpreadsheet.sheets.length,
         ...getCatalogImportTelemetryCounts(matchedRows),

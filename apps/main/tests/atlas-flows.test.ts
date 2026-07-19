@@ -133,7 +133,7 @@ describe("Atlas flow contract", () => {
 
     expect(importer.steps.map(({ title }) => title)).toEqual([
       "Start from a spreadsheet",
-      "Inspect catalog matches",
+      "Reveal the prepared catalog",
       "Resolve uncertain matches",
       "Preview the catalog",
     ]);

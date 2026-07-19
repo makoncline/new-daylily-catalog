@@ -15,16 +15,22 @@ workbook to the application database.
 
 1. Upload an XLSX or CSV spreadsheet.
 2. Choose the header row and map the listing fields.
-3. Search the private catalog preview and review the catalog analysis. The
-   preview starts with 20 cultivars and expands only when the seller chooses
-   **Show more**.
-4. Confirm uncertain cultivar names, then resolve spreadsheet issues.
-5. Download the enriched copy of the original workbook.
+3. Reveal the confidently linked portion as a private catalog, including
+   reference photographs, searchable cultivar traits, and exact counts for
+   source rows, detected listings, linked listings, and unique cultivars.
+4. Explore the private catalog and collection analysis. The preview starts
+   with 20 cultivars and expands only when the seller chooses **Show more**.
+5. Repair the remaining data through focused cultivar-name decisions and
+   grouped spreadsheet issue controls.
+6. Export the current or fully prepared copy of the original workbook.
+7. Continue to Pro only when the seller wants the hosted public catalog,
+   dashboard, ongoing management, and discovery features.
 
 The original workbook and review progress stay in the browser. Cultivar names
 and previously saved cultivar reference IDs are sent to the matching endpoint.
-The free flow can clean the entire workbook. Membership begins when a seller
-wants to save listings or publish the preview as a hosted catalog.
+Only confident automatic matches, valid saved IDs, and matches confirmed by the
+seller appear in the preview or insights. The complete preparation and download
+flow remains available without membership. Nothing is published or imported.
 
 ## Shared search composition
 
@@ -120,3 +126,11 @@ node apps/main/scripts/run-atlas-flow.mjs catalog-importer --output=local/atlas/
 
 Inspect all eight desktop and mobile states in both galleries, then run the
 catalog-cleaner integration and connected E2E tests listed in the gallery.
+
+## Product analytics
+
+Importer analytics use aggregate workflow facts only: file type, sheet and row
+counts, linked/review/issue counts, interaction type, decision state, resolved
+issue type and quantity, current/prepared download state, and membership prompt
+IDs. Events must never contain filenames, cultivar names, spreadsheet cells,
+descriptions, private notes, image URLs, or other seller content.

@@ -292,19 +292,19 @@ export const ATLAS_FLOWS = [
         ],
       },
       {
-        title: "Inspect catalog matches",
+        title: "Reveal the prepared catalog",
         states: [
           importerState(
             "catalog-importer-desktop-results",
-            "Desktop catalog matches",
-            "A mapped workbook, workflow overview, matched rows, and prepared-file download.",
+            "Desktop catalog results",
+            "The personalized enrichment reveal, preparation status, and complete results workspace.",
             "/catalog-importer",
             false,
           ),
           importerState(
             "catalog-importer-mobile-results",
-            "Mobile catalog matches",
-            "Mapped fields and matched rows within the phone-width workspace.",
+            "Mobile catalog results",
+            "The personalized reveal and persistent preparation actions at phone width.",
             "/catalog-importer",
             false,
           ),
@@ -316,14 +316,14 @@ export const ATLAS_FLOWS = [
           importerState(
             "catalog-importer-desktop-review",
             "Desktop catalog review",
-            "The review workspace with a suggested registered cultivar.",
+            "The source spreadsheet row and focused registered-cultivar decision workspace.",
             "/catalog-importer",
             false,
           ),
           importerState(
             "catalog-importer-mobile-review",
             "Mobile catalog review",
-            "The phone-width review workspace and compact candidate choice.",
+            "The phone-width source context and side-by-side candidate choice.",
             "/catalog-importer",
             false,
           ),
@@ -335,14 +335,14 @@ export const ATLAS_FLOWS = [
           importerState(
             "catalog-importer-desktop-preview",
             "Desktop catalog preview",
-            "The searchable catalog preview and collection analysis on desktop.",
+            "The customer-facing cards, full shared search panel, and collection analysis.",
             "/catalog-importer",
             false,
           ),
           importerState(
             "catalog-importer-mobile-preview",
             "Mobile catalog preview",
-            "The searchable catalog preview and prepared-workbook download at phone width.",
+            "The searchable cards, advanced filters, and persistent preparation actions at phone width.",
             "/catalog-importer",
             false,
           ),

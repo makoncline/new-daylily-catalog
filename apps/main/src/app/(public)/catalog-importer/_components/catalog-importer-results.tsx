@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useState } from "react";
-import type { ColumnFiltersState } from "@tanstack/react-table";
+import { useCallback, useRef, useState } from "react";
+import type { ColumnFiltersState, OnChangeFn } from "@tanstack/react-table";
 import { CircleAlert, Download, Undo2 } from "lucide-react";
 import { SellerIntentLink } from "@/components/seller-intent-link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -20,6 +20,7 @@ import { CatalogImporterMatchSheet } from "@/app/(public)/catalog-importer/_comp
 import { CatalogImporterOverview } from "@/app/(public)/catalog-importer/_components/catalog-importer-overview";
 import { CatalogImporterReviewQuiz } from "@/app/(public)/catalog-importer/_components/catalog-importer-review-quiz";
 import type { CatalogImporterWorkbenchController } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
+import { capturePosthogEvent } from "@/lib/analytics/posthog";
 import type { CatalogImportRow } from "@/lib/catalog-importer";
 
 interface CatalogImporterResultsProps {
@@ -40,10 +41,33 @@ function CatalogImporterMembershipPrompt({
   heading: string;
   onDismiss: () => void;
 }) {
+  const trackPromptImpression = useCallback(
+    (node: HTMLElement | null) => {
+      if (!node) {
+        return;
+      }
+
+      const impressionKey = `catalog-importer-membership-prompt-viewed:${ctaId}`;
+      try {
+        if (globalThis.sessionStorage?.getItem(impressionKey) === "1") {
+          return;
+        }
+        globalThis.sessionStorage?.setItem(impressionKey, "1");
+      } catch {
+        // Analytics still records the visible prompt when storage is unavailable.
+      }
+      capturePosthogEvent("catalog_import_membership_prompt_viewed", {
+        cta_id: ctaId,
+      });
+    },
+    [ctaId],
+  );
+
   return (
     <section
       aria-labelledby={`${ctaId}-heading`}
       className="flex flex-col gap-5 border-t pt-8 sm:flex-row sm:items-center sm:justify-between"
+      ref={trackPromptImpression}
     >
       <div className="max-w-2xl">
         <h2
@@ -57,7 +81,16 @@ function CatalogImporterMembershipPrompt({
         </p>
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        <Button type="button" variant="ghost" onClick={onDismiss}>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => {
+            capturePosthogEvent("catalog_import_membership_prompt_dismissed", {
+              cta_id: ctaId,
+            });
+            onDismiss();
+          }}
+        >
           Not now
         </Button>
         <Button asChild variant="outline">
@@ -270,6 +303,7 @@ export function CatalogImporterResults({
   const [matchEditorRowId, setMatchEditorRowId] = useState<string | null>(null);
   const [previewColumnFilters, setPreviewColumnFilters] =
     useState<ColumnFiltersState>([]);
+  const previewFilterInteractionTracked = useRef(false);
   const [membershipPromptDismissed, setMembershipPromptDismissed] = useState(
     () => {
       try {
@@ -293,6 +327,10 @@ export function CatalogImporterResults({
   }, []);
   const handleApplyInsightFilter = useCallback(
     (insightFilter: CatalogImporterInsightFilter) => {
+      capturePosthogEvent("catalog_import_preview_interacted", {
+        filter_type: insightFilter.id,
+        interaction_type: "insight",
+      });
       setPreviewColumnFilters((currentFilters) => [
         ...currentFilters.filter(
           (currentFilter) => currentFilter.id !== insightFilter.id,
@@ -302,6 +340,17 @@ export function CatalogImporterResults({
     },
     [],
   );
+  const handlePreviewColumnFiltersChange = useCallback<
+    OnChangeFn<ColumnFiltersState>
+  >((nextFilters) => {
+    if (!previewFilterInteractionTracked.current) {
+      previewFilterInteractionTracked.current = true;
+      capturePosthogEvent("catalog_import_preview_interacted", {
+        interaction_type: "search_or_filter",
+      });
+    }
+    setPreviewColumnFilters(nextFilters);
+  }, []);
   const hasPreparationWork =
     controller.reviewRows.length > 0 || controller.issueCount > 0;
   const nextPreparationAction =
@@ -334,7 +383,7 @@ export function CatalogImporterResults({
       <CatalogImporterCatalogPreview
         columnFilters={previewColumnFilters}
         controller={controller}
-        onColumnFiltersChange={setPreviewColumnFilters}
+        onColumnFiltersChange={handlePreviewColumnFiltersChange}
         onOpenReview={handleOpenReview}
       />
 

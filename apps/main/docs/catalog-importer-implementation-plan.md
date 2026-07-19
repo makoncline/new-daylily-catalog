@@ -8,18 +8,18 @@ decisions, evidence, and blockers.
 
 ## Live status
 
-| Field           | Current value                                                                                                    |
-| --------------- | ---------------------------------------------------------------------------------------------------------------- |
-| Overall status  | Implementation in progress                                                                                       |
-| Current phase   | Phase E — Hardening and closeout                                                                                 |
-| Current slice   | Slice 13 — Complete analytics, Atlas, documentation, and real-workbook proof                                     |
-| Last updated    | 2026-07-19                                                                                                       |
-| Branch          | `agent/catalog-importer-v1`                                                                                      |
-| Baseline commit | `7b5a81ad`                                                                                                       |
-| Pull request    | [#352 — Prepare daylily catalog spreadsheets](https://github.com/makoncline/new-daylily-catalog/pull/352)        |
-| Current blocker | None                                                                                                             |
-| Next action     | Audit existing aggregate analytics and Atlas states before adding only the missing high-signal closeout coverage |
-| Latest evidence | Slice 12 measured the real and 5,000-listing workbooks; both remained responsive without new scaling mechanisms  |
+| Field           | Current value                                                                                                                              |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Overall status  | Implementation complete                                                                                                                    |
+| Current phase   | Complete                                                                                                                                   |
+| Current slice   | Slice 13 complete                                                                                                                          |
+| Last updated    | 2026-07-19                                                                                                                                 |
+| Branch          | `agent/catalog-importer-v1`                                                                                                                |
+| Baseline commit | `7b5a81ad`                                                                                                                                 |
+| Pull request    | [#352 — Prepare daylily catalog spreadsheets](https://github.com/makoncline/new-daylily-catalog/pull/352)                                  |
+| Current blocker | None                                                                                                                                       |
+| Next action     | User review of PR #352; no automatic Codex review was run                                                                                  |
+| Latest evidence | 71 focused tests, 3 importer E2Es, 31 passing Atlas states, and visible Chrome proof with all supplied workbooks completed the final slice |
 
 ### Progress
 
@@ -38,31 +38,31 @@ decisions, evidence, and blockers.
 - [x] Phase D — Export and continue
   - [x] Slice 9 — Complete the prepared-workbook download experience
   - [x] Slice 10 — Add honest guest/member continuation
-- [ ] Phase E — Hardening and closeout
+- [x] Phase E — Hardening and closeout
   - [x] Slice 11 — Fix mobile and accessibility blockers
   - [x] Slice 12 — Verify large-workbook performance and add only proven scaling controls
-  - [ ] Slice 13 — Complete analytics, Atlas, documentation, and real-workbook proof
+  - [x] Slice 13 — Complete analytics, Atlas, documentation, and real-workbook proof
 
 ### Current-slice notes
 
 Use this area for short-lived details needed to resume the active slice.
 Move durable decisions to the decision log and completed work to the work log.
 
-- Slice 12 is complete and ready to package for PR #352.
-- Begin Slice 13 by inventorying the analytics, Atlas, E2E, and documentation
-  already present; add only missing closeout coverage.
-- Keep analytics aggregate-only and never include workbook or seller content.
-- The real Chrome draft remains restored with 1,034 links and 52 pending
-  decisions. Do not change its review decisions during verification.
+- All 14 slices are complete and pushed to PR #352.
+- The original visible-Chrome draft remains restored with 1,034 links and 52
+  pending decisions; the final sample-file checks did not alter its decisions.
+- The route remains a browser-local preparation experience. It does not create
+  database listings or publish a catalog.
 
 ### User update
 
 Use this as the source for concise progress updates.
 
-> Slice 12 is complete: the real 1,087-row workbook reached its first preview
-> in 1.05–2.01 seconds, filtered 1,034 links in under 60 ms, restored in about
-> 300 ms, and downloaded in under 200 ms. A deterministic 5,000-listing case
-> also stayed responsive, so no speculative scaling UI was added.
+> The catalog-importer plan is complete. The final slice added aggregate-only
+> funnel measurement, refreshed eight importer Atlas states, preserved the
+> focused E2E contract, and passed visible Chrome checks with all three supplied
+> workbooks. The real draft still contains 1,034 linked listings and 52 pending
+> decisions. Nothing was imported or published.
 
 ## How the goal agent must use this file
 
@@ -904,77 +904,110 @@ visual states, accurate documentation, and end-to-end evidence.
 
 Tasks:
 
-- [ ] Keep analytics minimal and aggregate-only:
-  - [ ] upload started/completed;
-  - [ ] first meaningful preview;
-  - [ ] preview search/filter or insight interaction;
-  - [ ] first and final identity decision;
-  - [ ] issue resolution;
-  - [ ] current-workbook download;
-  - [ ] prepared-workbook download;
-  - [ ] membership prompt impression/dismissal/click.
-- [ ] Never send filenames, cultivar names, spreadsheet cells, private notes,
+- [x] Keep analytics minimal and aggregate-only:
+  - [x] upload started/completed;
+  - [x] first meaningful preview;
+  - [x] preview search/filter or insight interaction;
+  - [x] first and final identity decision;
+  - [x] issue resolution;
+  - [x] current-workbook download;
+  - [x] prepared-workbook download;
+  - [x] membership prompt impression/dismissal/click.
+- [x] Never send filenames, cultivar names, spreadsheet cells, private notes,
       or seller content.
-- [ ] Update Atlas to cover meaningful states without duplicating exhaustive
+- [x] Update Atlas to cover meaningful states without duplicating exhaustive
       shared-search tests.
-- [ ] Keep one focused E2E happy path for upload, mapping, submit/processing,
+- [x] Keep one focused E2E happy path for upload, mapping, submit/processing,
       reveal, representative review, issue repair, download, restoration, and
       mobile overflow.
-- [ ] Re-run existing public catalog and cultivar flows after shared-search
+- [x] Re-run existing public catalog and cultivar flows after shared-search
       component changes.
-- [ ] Update:
-  - [ ] `catalog-list-cleaner.md`;
-  - [ ] `agent-development-flywheel.md` if the declared flow changes;
-  - [ ] Atlas state descriptions; and
-  - [ ] relevant AGENTS.md reusable knowledge only when genuinely learned.
-- [ ] Complete visible Chrome proof using all three supplied samples.
-- [ ] Complete visible Chrome proof using the real 1,087-row, three-sheet file.
-- [ ] Verify:
-  - [ ] restoration after refresh and client navigation;
-  - [ ] matching retry;
-  - [ ] download retry;
-  - [ ] re-upload of the prepared workbook;
-  - [ ] opened downloaded workbook;
-  - [ ] desktop and mobile layouts; and
-  - [ ] zero relevant Next.js dev issues.
+- [x] Update:
+  - [x] `catalog-list-cleaner.md`;
+  - [x] `agent-development-flywheel.md` if the declared flow changes (no
+        declared-flow change was needed);
+  - [x] Atlas state descriptions; and
+  - [x] relevant AGENTS.md reusable knowledge only when genuinely learned (no
+        new reusable machine or repository rule was discovered).
+- [x] Complete visible Chrome proof using all three supplied samples.
+- [x] Complete visible Chrome proof using the real 1,087-row, three-sheet file.
+- [x] Verify:
+  - [x] restoration after refresh and client navigation;
+  - [x] matching retry;
+  - [x] download retry;
+  - [x] re-upload of the prepared workbook;
+  - [x] opened downloaded workbook;
+  - [x] desktop and mobile layouts; and
+  - [x] zero relevant Next.js dev issues.
 
 Acceptance:
 
-- [ ] Analytics prove the core funnel without collecting seller data.
-- [ ] Atlas and E2E cover different, high-value responsibilities.
-- [ ] Documentation matches the shipped UI and workbook behavior.
-- [ ] Real-workbook proof is recorded in the work log.
+- [x] Analytics prove the core funnel without collecting seller data.
+- [x] Atlas and E2E cover different, high-value responsibilities.
+- [x] Documentation matches the shipped UI and workbook behavior.
+- [x] Real-workbook proof is recorded in the work log.
+
+Evidence (2026-07-19):
+
+- Aggregate-only events now distinguish import start and completed upload,
+  first preview, preview interaction, first/final identity decisions, issue
+  resolution, current/prepared download, and membership prompt
+  impression/dismissal. The existing `SellerIntentLink` records the click.
+- The event payloads contain only fixed event state, file type, sheet/row and
+  workflow counts, static filter/issue identifiers, and CTA IDs. No filename,
+  cultivar name, spreadsheet cell, description, note, or URL is emitted.
+- 71 focused importer, page, proxy, Atlas-contract, and image-preview tests
+  passed. All 3 importer E2Es passed in 19.4 seconds.
+- All 8 importer Atlas states passed and were inspected. The unchanged shared
+  surfaces also passed 9 public-catalog and 14 cultivar-search Atlas states;
+  representative desktop and mobile states were inspected.
+- Visible Chrome successfully processed all supplied files without altering
+  the retained real draft:
+  - `2023 LIST ALPHABETICAL.xlsx`: 568 source rows, 567 listings, 517 linked,
+    and 50 pending identity decisions;
+  - `Daylilies info.xlsx`: 1,087 source rows, 1,086 listings, 1,034 linked, and
+    52 pending identity decisions; and
+  - `VarietyPedigrees.xlsx`: 559 source rows, 558 listings, 508 linked, and 50
+    pending identity decisions.
+- The original Chrome draft restored with 1,034 links and all 52 pending
+  decisions. No relevant warning or error appeared in either retained or
+  isolated-sample Chrome logs.
+- Focused integration coverage proved matching and download retry without a
+  second upload or remap. Earlier Slice 0 and Slice 9 proof opened, compared,
+  re-saved, and re-uploaded the prepared three-sheet workbook.
+- Typecheck passed. Lint has zero errors and one pre-existing unrelated
+  dashboard warning. Formatting and `git diff --check` passed.
 
 ## Quality gates
 
 Run proportionate checks after each slice, then all gates before completion.
 
-- [ ] Focused unit/integration tests pass.
-- [ ] Importer E2E happy path passes.
-- [ ] Existing shared public-catalog/cultivar checks pass after shared changes.
-- [ ] Typecheck passes.
-- [ ] Lint has no new errors or warnings.
-- [ ] Formatting check passes.
-- [ ] Relevant Atlas desktop and mobile states are inspected.
-- [ ] Visible Chrome happy path passes.
-- [ ] Browser console and Next.js development issues have no relevant errors.
-- [ ] Dirty worktree contains no unexplained files.
-- [ ] Each completed slice is committed and pushed to PR #352.
+- [x] Focused unit/integration tests pass.
+- [x] Importer E2E happy path passes.
+- [x] Existing shared public-catalog/cultivar checks pass after shared changes.
+- [x] Typecheck passes.
+- [x] Lint has no new errors or warnings.
+- [x] Formatting check passes.
+- [x] Relevant Atlas desktop and mobile states are inspected.
+- [x] Visible Chrome happy path passes.
+- [x] Browser console and Next.js development issues have no relevant errors.
+- [x] Dirty worktree contains no unexplained files.
+- [x] Each completed slice is committed and pushed to PR #352.
 
 ## Final exit gates
 
 The goal is complete only when:
 
-- [ ] every phase and slice is checked;
-- [ ] all acceptance criteria are met or explicitly superseded in the decision
+- [x] every phase and slice is checked;
+- [x] all acceptance criteria are met or explicitly superseded in the decision
       log;
-- [ ] all quality gates pass;
-- [ ] the real 1,087-row, three-sheet contract proof passes;
-- [ ] the prepared workbook opens and re-uploads correctly;
-- [ ] browser-local restoration survives refresh, client navigation, and
+- [x] all quality gates pass;
+- [x] the real 1,087-row, three-sheet contract proof passes;
+- [x] the prepared workbook opens and re-uploads correctly;
+- [x] browser-local restoration survives refresh, client navigation, and
       sign-in return where applicable;
-- [ ] nothing is published and no database listings are created;
-- [ ] the user receives a final summary of behavior, evidence, remaining
+- [x] nothing is published and no database listings are created;
+- [x] the user receives a final summary of behavior, evidence, remaining
       non-goals, and PR state.
 
 ## Explicit non-goals
@@ -1010,7 +1043,8 @@ artifacts when useful.
 
 | Date       | Slice    | Status   | What changed                                                                                                                                                | Verification                                                                                                                                                              | Commit / notes                      |
 | ---------- | -------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
-| 2026-07-19 | Slice 12 | Complete | Measured the real and 5,000-listing browser workflows; existing bounded preview rendering stayed responsive, so no scaling mechanism was added.             | Real parse, match, preview, filter, insight, issue, restore, and download timings plus deterministic 5,000-listing timings and visible Chrome restoration.                | This Slice 12 commit.               |
+| 2026-07-19 | Slice 13 | Complete | Added aggregate funnel analytics; refreshed docs and Atlas descriptions; closed importer, shared-search, sample-file, and real-workbook proof.              | 71 focused tests, 3 importer E2Es, 31 passing Atlas states, typecheck, lint, formatting, and visible Chrome with all three supplied workbooks.                            | This Slice 13 commit.               |
+| 2026-07-19 | Slice 12 | Complete | Measured the real and 5,000-listing browser workflows; existing bounded preview rendering stayed responsive, so no scaling mechanism was added.             | Real parse, match, preview, filter, insight, issue, restore, and download timings plus deterministic 5,000-listing timings and visible Chrome restoration.                | `06bea555`                          |
 | 2026-07-19 | Slice 11 | Complete | Fixed demonstrated narrow-width issue controls; improved image/action names, touch and focus targets, table relationships, live announcements, and motion.  | 53 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, and visible Chrome desktop plus phone/tablet verification.                                 | `7a72aed4`                          |
 | 2026-07-18 | Slice 10 | Complete | Added guest/Pro-aware continuation, quiet and completed prompts, session dismissal, honest capability copy, and uncached optional Clerk audience detection. | 52 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, and real Chrome Pro/restoration verification with the 1,087-row workbook.                  | `c45ac14d`                          |
 | 2026-07-18 | Slice 9  | Complete | Added exact pre-download summary, current/prepared labels, stable prepared filenames, explicit output/fidelity copy, and deterministic re-upload proof.     | 39 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, visible Chrome summary, and reopened three-sheet real-workbook output.                     | `30449348`                          |

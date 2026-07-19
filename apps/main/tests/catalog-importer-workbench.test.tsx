@@ -86,6 +86,13 @@ describe("CatalogImporterWorkbench", () => {
         "catalog_import_started",
         {
           file_type: "csv",
+          source: "sample",
+        },
+      );
+      expect(capturePosthogEventMock).toHaveBeenCalledWith(
+        "catalog_import_uploaded",
+        {
+          file_type: "csv",
           row_count: 11,
           sheet_count: 1,
           source: "sample",
@@ -367,6 +374,18 @@ describe("CatalogImporterWorkbench", () => {
         }),
       ).not.toBeInTheDocument(),
     );
+    expect(capturePosthogEventMock).toHaveBeenCalledWith(
+      "catalog_import_downloaded",
+      {
+        download_state: "current",
+        file_type: "csv",
+        issue_count: 2,
+        matched_count: 0,
+        review_count: 10,
+        row_count: 10,
+        sheet_count: 1,
+      },
+    );
   });
 
   it("hides acquisition prompts for Pro members without gating download", async () => {
@@ -550,6 +569,13 @@ describe("CatalogImporterWorkbench", () => {
     });
     expect(topHybridizerInsight).toBeVisible();
     fireEvent.click(topHybridizerInsight);
+    expect(capturePosthogEventMock).toHaveBeenCalledWith(
+      "catalog_import_preview_interacted",
+      {
+        filter_type: "hybridizer",
+        interaction_type: "insight",
+      },
+    );
     expect(
       screen.getByRole("button", { name: /Hybridizer: Example One/ }),
     ).toBeVisible();
@@ -596,6 +622,12 @@ describe("CatalogImporterWorkbench", () => {
     const membership = screen.getByRole("heading", {
       name: "Imagine this as your public catalog",
     });
+    expect(capturePosthogEventMock).toHaveBeenCalledWith(
+      "catalog_import_membership_prompt_viewed",
+      {
+        cta_id: "catalog-importer-preview-membership",
+      },
+    );
 
     for (const [earlier, later] of [
       [reveal, preview],
@@ -618,6 +650,12 @@ describe("CatalogImporterWorkbench", () => {
       within(membership.closest("section")!).getByRole("button", {
         name: "Not now",
       }),
+    );
+    expect(capturePosthogEventMock).toHaveBeenCalledWith(
+      "catalog_import_membership_prompt_dismissed",
+      {
+        cta_id: "catalog-importer-preview-membership",
+      },
     );
     expect(
       screen.queryByRole("heading", {
@@ -654,6 +692,15 @@ describe("CatalogImporterWorkbench", () => {
     );
     fireEvent.click(
       within(reviewQuiz).getByRole("button", { name: "Leave unmatched" }),
+    );
+    expect(capturePosthogEventMock).toHaveBeenCalledWith(
+      "catalog_import_identity_decided",
+      expect.objectContaining({
+        decision_state: "unmatched",
+        final_decision: false,
+        first_decision: true,
+        remaining_count: 1,
+      }),
     );
     expect(
       await screen.findByRole("region", { name: "Listings left unmatched" }),
@@ -746,6 +793,30 @@ describe("CatalogImporterWorkbench", () => {
       expect(
         screen.queryByRole("region", { name: "Listings left unmatched" }),
       ).not.toBeInTheDocument(),
+    );
+
+    const priceIssues = screen.getByRole("region", {
+      name: "Price formats need review",
+    });
+    await act(async () => {
+      fireEvent.change(
+        within(priceIssues).getByLabelText("Correct price for row 11"),
+        {
+          target: { value: "15.00" },
+        },
+      );
+      fireEvent.click(
+        within(priceIssues).getByRole("button", {
+          name: "Save price for row 11",
+        }),
+      );
+    });
+    expect(capturePosthogEventMock).toHaveBeenCalledWith(
+      "catalog_import_issue_resolved",
+      expect.objectContaining({
+        issue_type: "price",
+        resolved_count: 1,
+      }),
     );
   });
 });
