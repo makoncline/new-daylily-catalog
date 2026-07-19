@@ -1274,6 +1274,7 @@ export function useCatalogImporterWorkbench(
     downloadError,
     downloadingResults,
     downloadTemplate,
+    enrichment: importState.enrichment,
     fileError,
     flagImageUrlIssue,
     finishReviewRow,

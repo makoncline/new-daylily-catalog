@@ -83,7 +83,7 @@ async function openCleaner(page: Page, viewport: typeof desktop) {
   await page.goto("/catalog-importer");
   await expect(
     page.getByRole("heading", {
-      name: "Free daylily catalog spreadsheet cleaner",
+      name: "Turn your daylily spreadsheet into a catalog-ready collection",
     }),
   ).toBeVisible();
 }
@@ -96,7 +96,9 @@ async function uploadSpreadsheet(page: Page) {
   });
   await page.getByRole("button", { name: "Build catalog preview" }).click();
   await expect(
-    page.getByRole("heading", { name: "Your catalog is taking shape" }),
+    page.getByRole("heading", {
+      name: "Your private catalog preview is ready",
+    }),
   ).toBeVisible();
 }
 

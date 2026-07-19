@@ -1,56 +1,35 @@
 "use client";
 
-import { ArrowDown, Check, CircleAlert, Sprout } from "lucide-react";
+import { ArrowDown, Check, LockKeyhole } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import type { CatalogImporterWorkbenchController } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
 
 function countLabel(count: number, singular: string, plural = `${singular}s`) {
   return `${count.toLocaleString()} ${count === 1 ? singular : plural}`;
 }
 
-function SummaryMetric({
+function joinList(parts: string[]) {
+  if (parts.length <= 1) return parts[0] ?? "";
+  if (parts.length === 2) return parts.join(" and ");
+  return `${parts.slice(0, -1).join(", ")}, and ${parts.at(-1)}`;
+}
+
+function RevealMetric({
   count,
-  href,
   label,
   testId,
 }: {
   count: number;
-  href?: string;
   label: string;
   testId: string;
 }) {
-  const content = (
-    <>
-      <span>
-        <span
-          className="block text-2xl font-semibold tabular-nums"
-          data-testid={testId}
-        >
-          {count.toLocaleString()}
-        </span>
-        <span className="text-muted-foreground text-xs">{label}</span>
-      </span>
-      {href ? (
-        <ArrowDown
-          aria-hidden="true"
-          className="text-muted-foreground size-4 transition-transform group-hover:translate-y-0.5"
-        />
-      ) : (
-        <Check aria-hidden="true" className="text-primary size-4" />
-      )}
-    </>
-  );
-  const className =
-    "group flex items-center justify-between gap-3 border-b px-5 py-4 outline-none sm:border-r sm:border-b-0 sm:last:border-r-0";
-
-  return href ? (
-    <a
-      href={href}
-      className={`${className} hover:bg-background/70 focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-inset`}
-    >
-      {content}
-    </a>
-  ) : (
-    <div className={className}>{content}</div>
+  return (
+    <div className="px-0 py-4 sm:px-4">
+      <dd className="text-2xl font-semibold tabular-nums" data-testid={testId}>
+        {count.toLocaleString()}
+      </dd>
+      <dt className="text-muted-foreground mt-0.5 text-xs">{label}</dt>
+    </div>
   );
 }
 
@@ -59,80 +38,151 @@ export function CatalogImporterOverview({
 }: {
   controller: CatalogImporterWorkbenchController;
 }) {
-  const priceIssues = controller.counts.priceIssueCount;
-  const imageIssues = controller.counts.imageIssueCount;
-  const cultivarIdIssues = controller.counts.savedIdIssueCount;
-  const duplicateIssues = controller.counts.duplicateGroupCount;
-  const issueDetails = [
-    duplicateIssues > 0 ? countLabel(duplicateIssues, "duplicate group") : null,
-    priceIssues > 0 ? countLabel(priceIssues, "price issue") : null,
-    imageIssues > 0 ? countLabel(imageIssues, "image issue") : null,
-    cultivarIdIssues > 0
-      ? countLabel(cultivarIdIssues, "saved ID issue")
+  const { counts, enrichment } = controller;
+  const enrichmentDetails = [
+    enrichment.referencePhotoListingCount > 0
+      ? countLabel(
+          enrichment.referencePhotoListingCount,
+          "listing with a reference photo",
+          "listings with reference photos",
+        )
       : null,
-  ].filter((detail): detail is string => Boolean(detail));
+    enrichment.awardWinningCultivarCount > 0
+      ? countLabel(
+          enrichment.awardWinningCultivarCount,
+          "award-winning cultivar",
+        )
+      : null,
+    enrichment.searchableAttributeCount > 0
+      ? countLabel(
+          enrichment.searchableAttributeCount,
+          "searchable attribute type",
+        )
+      : null,
+  ].filter((detail): detail is string => detail !== null);
+  const collectionDetails = [
+    enrichment.hybridizerCount > 0
+      ? countLabel(enrichment.hybridizerCount, "hybridizer")
+      : null,
+    enrichment.registrationYearMin !== null &&
+    enrichment.registrationYearMax !== null
+      ? enrichment.registrationYearMin === enrichment.registrationYearMax
+        ? `registration year ${enrichment.registrationYearMin}`
+        : `registration years ${enrichment.registrationYearMin}–${enrichment.registrationYearMax}`
+      : null,
+  ].filter((detail): detail is string => detail !== null);
+  const nextAction =
+    counts.reviewQueueCount > 0
+      ? {
+          href: "#catalog-importer-review-quiz",
+          label: `Review ${countLabel(counts.reviewQueueCount, "name")}`,
+        }
+      : counts.issueCount > 0
+        ? {
+            href: "#catalog-importer-issues",
+            label: `Fix ${countLabel(counts.issueCount, "data item")}`,
+          }
+        : {
+            href: "#catalog-importer-download",
+            label: "Download prepared workbook",
+          };
 
   return (
     <section
       id="catalog-importer-summary"
       role="region"
       aria-labelledby="catalog-importer-summary-heading"
-      className="border-primary/20 bg-primary/[0.035] border-y"
+      className="border-b pb-10"
     >
-      <div className="flex gap-4 px-1 py-6 sm:px-5">
-        <div className="bg-primary text-primary-foreground flex size-11 shrink-0 items-center justify-center rounded-full">
-          <Sprout aria-hidden="true" className="size-5" />
+      <p className="text-primary text-sm font-medium">Catalog revealed</p>
+      <h2
+        id="catalog-importer-summary-heading"
+        className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl"
+      >
+        Your private catalog preview is ready
+      </h2>
+      <p className="text-muted-foreground mt-3 max-w-3xl text-sm leading-relaxed sm:text-base">
+        {counts.linkedListingCount > 0
+          ? `We linked ${countLabel(counts.linkedListingCount, "listing")}, representing ${countLabel(counts.uniqueCultivarCount, "unique registered cultivar")}.`
+          : "Your workspace is ready for cultivar review."}{" "}
+        {enrichmentDetails.length > 0
+          ? `Matching unlocked ${joinList(enrichmentDetails)}${collectionDetails.length > 0 ? ` across ${joinList(collectionDetails)}` : ""}.`
+          : "Linking cultivar identities will add reference photos, registry details, and searchable attributes."}
+      </p>
+
+      <p className="text-muted-foreground mt-3 flex items-center gap-2 text-xs">
+        <LockKeyhole aria-hidden="true" className="size-3.5" />
+        Private browser preview · Nothing has been published
+      </p>
+
+      <dl className="mt-7 grid border-y sm:grid-cols-5 sm:divide-x">
+        <RevealMetric
+          count={counts.sourceRowCount}
+          label="spreadsheet rows"
+          testId="source-row-count"
+        />
+        <RevealMetric
+          count={counts.detectedListingCount}
+          label="listings detected"
+          testId="detected-listing-count"
+        />
+        <RevealMetric
+          count={counts.linkedListingCount}
+          label="listings linked"
+          testId="linked-listing-count"
+        />
+        <RevealMetric
+          count={counts.uniqueCultivarCount}
+          label="linked unique cultivars"
+          testId="unique-cultivar-count"
+        />
+        <RevealMetric
+          count={counts.pendingCultivarDecisionCount}
+          label="decisions pending"
+          testId="pending-decision-count"
+        />
+      </dl>
+
+      <div className="mt-7 grid gap-5 border-b pb-7 sm:grid-cols-2 sm:gap-8">
+        <div>
+          <h3 className="text-sm font-medium">From your spreadsheet</h3>
+          <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
+            Names, prices, descriptions, private notes, and seller images.
+          </p>
         </div>
-        <div className="min-w-0">
-          <h2
-            id="catalog-importer-summary-heading"
-            className="text-xl font-semibold tracking-tight"
-          >
-            Your catalog is taking shape
-          </h2>
-          <p className="text-muted-foreground mt-1 max-w-2xl text-sm leading-relaxed">
-            We linked registered cultivars for{" "}
-            {controller.matchedCount.toLocaleString()} of{" "}
-            {controller.counts.includedListingCount.toLocaleString()} listings.
-            Browse the catalog, then help with anything that still needs a human
-            eye.
+        <div>
+          <h3 className="text-sm font-medium">Added by Daylily Catalog</h3>
+          <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
+            Registered identity, reference photos, hybridizer, year, awards,
+            bloom details, and searchable cultivar attributes.
           </p>
         </div>
       </div>
 
-      <div className="grid border-t sm:grid-cols-3">
-        <SummaryMetric
-          count={controller.matchedCount}
-          href="#catalog-importer-preview"
-          label="listings linked"
-          testId="summary-matched-count"
-        />
-        <SummaryMetric
-          count={controller.reviewRows.length}
-          href={
-            controller.reviewRows.length > 0
-              ? "#catalog-importer-review-quiz"
-              : undefined
-          }
-          label="matches need review"
-          testId="summary-review-count"
-        />
-        <SummaryMetric
-          count={controller.issueCount}
-          href={
-            controller.issueCount > 0 ? "#catalog-importer-issues" : undefined
-          }
-          label="spreadsheet issues"
-          testId="summary-issue-count"
-        />
-      </div>
-
-      {issueDetails.length > 0 ? (
-        <div className="text-muted-foreground flex items-center gap-2 border-t px-1 py-3 text-xs sm:px-5">
-          <CircleAlert aria-hidden="true" className="size-3.5 shrink-0" />
-          <span>{issueDetails.join(" · ")}</span>
-        </div>
+      {counts.pendingCultivarDecisionCount > 0 ? (
+        <p className="text-muted-foreground mt-5 max-w-3xl text-sm">
+          {countLabel(counts.pendingCultivarDecisionCount, "listing")}{" "}
+          {counts.pendingCultivarDecisionCount === 1 ? "is" : "are"} waiting for
+          a cultivar decision, so{" "}
+          {counts.pendingCultivarDecisionCount === 1 ? "it is" : "they are"} not
+          yet enriched or included in the preview and insights.
+        </p>
       ) : null}
+
+      <div className="mt-6 flex flex-wrap gap-3">
+        <Button asChild>
+          <a href="#catalog-importer-preview">
+            Explore your catalog
+            <ArrowDown aria-hidden="true" className="size-4" />
+          </a>
+        </Button>
+        <Button asChild variant="outline">
+          <a href={nextAction.href}>
+            {nextAction.label}
+            <Check aria-hidden="true" className="size-4" />
+          </a>
+        </Button>
+      </div>
     </section>
   );
 }

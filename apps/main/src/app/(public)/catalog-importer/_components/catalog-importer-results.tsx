@@ -30,6 +30,18 @@ export function CatalogImporterResults({
   const handleOpenReview = useCallback((row: CatalogImportRow) => {
     setMatchEditorRowId(row.id);
   }, []);
+  const hasPreparationWork =
+    controller.reviewRows.length > 0 || controller.issueCount > 0;
+  const nextPreparationAction =
+    controller.reviewRows.length > 0
+      ? {
+          href: "#catalog-importer-review-quiz",
+          label: "Review next name",
+        }
+      : {
+          href: "#catalog-importer-issues",
+          label: "Fix data",
+        };
 
   return (
     <div className="min-w-0 space-y-10">
@@ -40,38 +52,40 @@ export function CatalogImporterResults({
         onOpenReview={handleOpenReview}
       />
 
-      <section
-        aria-labelledby="catalog-importer-membership-heading"
-        className="border-primary/20 bg-primary/[0.035] flex flex-col gap-5 border-y px-1 py-8 sm:flex-row sm:items-center sm:justify-between sm:px-5"
-      >
-        <div className="max-w-2xl">
-          <h2
-            id="catalog-importer-membership-heading"
-            className="text-xl font-semibold tracking-tight"
-          >
-            Turn this preview into your public catalog
-          </h2>
-          <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
-            We already linked {controller.matchedCount.toLocaleString()} of{" "}
-            {controller.counts.includedListingCount.toLocaleString()} listings.
-            Membership unlocks the dashboard and hosted catalogs; keep the
-            prepared spreadsheet for mass import when it becomes available.
-          </p>
-        </div>
-        <Button asChild size="lg" className="shrink-0">
-          <SellerIntentLink
-            ctaId="catalog-importer-membership"
-            ctaLabel="Become a member"
-            entrySurface="catalog_importer_preview"
-            sourcePageType="catalog_importer"
-            sourcePath="/catalog-importer"
-          >
-            Become a member
-          </SellerIntentLink>
-        </Button>
-      </section>
-
       <CatalogImporterAnalysis rows={controller.includedRows} />
+
+      {hasPreparationWork ? (
+        <section
+          id="catalog-importer-preparation"
+          aria-labelledby="catalog-importer-preparation-heading"
+          className="border-t pt-10"
+        >
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+            <div className="max-w-2xl">
+              <h2
+                id="catalog-importer-preparation-heading"
+                className="text-xl font-semibold tracking-tight"
+              >
+                Finish preparing your workbook
+              </h2>
+              <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
+                Most of your collection is ready.{" "}
+                {controller.reviewRows.length > 0
+                  ? `${controller.reviewRows.length.toLocaleString()} ${controller.reviewRows.length === 1 ? "name needs" : "names need"} your cultivar decision. `
+                  : ""}
+                {controller.issueCount > 0
+                  ? `${controller.issueCount.toLocaleString()} ${controller.issueCount === 1 ? "data item needs" : "data items need"} review.`
+                  : ""}
+              </p>
+            </div>
+            <Button asChild variant="outline" className="shrink-0">
+              <a href={nextPreparationAction.href}>
+                {nextPreparationAction.label}
+              </a>
+            </Button>
+          </div>
+        </section>
+      ) : null}
 
       {controller.reviewRows.length > 0 ? (
         <CatalogImporterReviewQuiz controller={controller} />
@@ -90,8 +104,9 @@ export function CatalogImporterResults({
       ) : null}
 
       <section
+        id="catalog-importer-download"
         aria-labelledby="catalog-importer-download-heading"
-        className="flex flex-col gap-5 border-t pt-8 sm:flex-row sm:items-center sm:justify-between"
+        className="flex scroll-mt-4 flex-col gap-5 border-t pt-8 sm:flex-row sm:items-center sm:justify-between"
       >
         <div>
           <h2 id="catalog-importer-download-heading" className="font-semibold">
@@ -117,6 +132,36 @@ export function CatalogImporterResults({
             <Download className="size-4" />
           )}
           Download prepared spreadsheet
+        </Button>
+      </section>
+
+      <section
+        aria-labelledby="catalog-importer-membership-heading"
+        className="flex flex-col gap-5 border-t pt-8 sm:flex-row sm:items-center sm:justify-between"
+      >
+        <div className="max-w-2xl">
+          <h2
+            id="catalog-importer-membership-heading"
+            className="text-xl font-semibold tracking-tight"
+          >
+            Imagine this as your public catalog
+          </h2>
+          <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
+            Daylily Catalog Pro includes a hosted seller catalog, seller
+            dashboard, and discovery features. Your prepared workbook remains
+            available to download here.
+          </p>
+        </div>
+        <Button asChild variant="outline" className="shrink-0">
+          <SellerIntentLink
+            ctaId="catalog-importer-membership"
+            ctaLabel="Explore Pro membership"
+            entrySurface="catalog_importer_preview"
+            sourcePageType="catalog_importer"
+            sourcePath="/catalog-importer"
+          >
+            Explore Pro membership
+          </SellerIntentLink>
         </Button>
       </section>
 

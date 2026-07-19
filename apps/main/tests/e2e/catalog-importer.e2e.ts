@@ -226,7 +226,9 @@ test.describe("catalog importer", () => {
     await page.getByLabel("Image URL", { exact: true }).click();
     await page.getByRole("option", { name: /^imageUrl —/i }).click();
     await expect(
-      page.getByRole("region", { name: "Your catalog is taking shape" }),
+      page.getByRole("region", {
+        name: "Your private catalog preview is ready",
+      }),
     ).toHaveCount(0);
     await page.getByRole("button", { name: "Build catalog preview" }).click();
 
@@ -234,17 +236,23 @@ test.describe("catalog importer", () => {
       page.getByRole("heading", { name: "Matches", exact: true }),
     ).toHaveCount(0);
     const catalogSummary = page.getByRole("region", {
-      name: "Your catalog is taking shape",
+      name: "Your private catalog preview is ready",
     });
+    await expect(catalogSummary.getByTestId("source-row-count")).toHaveText(
+      "26",
+    );
     await expect(
-      catalogSummary.getByTestId("summary-matched-count"),
-    ).toHaveText("23");
-    await expect(catalogSummary.getByTestId("summary-review-count")).toHaveText(
-      "2",
+      catalogSummary.getByTestId("detected-listing-count"),
+    ).toHaveText("25");
+    await expect(catalogSummary.getByTestId("linked-listing-count")).toHaveText(
+      "23",
     );
-    await expect(catalogSummary.getByTestId("summary-issue-count")).toHaveText(
-      "4",
-    );
+    await expect(
+      catalogSummary.getByTestId("unique-cultivar-count"),
+    ).toHaveText("22");
+    await expect(
+      catalogSummary.getByTestId("pending-decision-count"),
+    ).toHaveText("2");
 
     const issuesRegion = page.getByRole("region", {
       name: "Fix spreadsheet issues",
@@ -340,9 +348,9 @@ test.describe("catalog importer", () => {
         ),
       )
       .toBe(true);
-    await expect(
-      catalogSummary.getByTestId("summary-matched-count"),
-    ).toHaveText("24");
+    await expect(catalogSummary.getByTestId("linked-listing-count")).toHaveText(
+      "24",
+    );
 
     await page.reload();
     await expect(
@@ -408,13 +416,18 @@ test.describe("catalog importer", () => {
       page.getByText("Sample daylily catalog.csv", { exact: true }),
     ).toBeVisible();
     const summary = page.getByRole("region", {
-      name: "Your catalog is taking shape",
+      name: "Your private catalog preview is ready",
     });
-    await expect(summary.getByTestId("summary-matched-count")).toHaveText("9");
-    await expect(summary.getByTestId("summary-review-count")).toHaveText("1");
-    await expect(summary.getByTestId("summary-issue-count")).toHaveText("2");
-    await expect(summary).toContainText("1 duplicate");
-    await expect(summary).toContainText("1 price issue");
+    await expect(summary.getByTestId("source-row-count")).toHaveText("11");
+    await expect(summary.getByTestId("detected-listing-count")).toHaveText(
+      "10",
+    );
+    await expect(summary.getByTestId("linked-listing-count")).toHaveText("9");
+    await expect(summary.getByTestId("unique-cultivar-count")).toHaveText("8");
+    await expect(summary.getByTestId("pending-decision-count")).toHaveText("1");
+    await expect(
+      page.getByRole("region", { name: "Fix spreadsheet issues" }),
+    ).toContainText("2 issues remaining");
   });
 
   test("keeps the phone layout within the viewport", async ({ page }) => {
@@ -425,7 +438,9 @@ test.describe("catalog importer", () => {
     await page.getByRole("button", { name: "Build catalog preview" }).click();
 
     await expect(
-      page.getByRole("heading", { name: "Your catalog is taking shape" }),
+      page.getByRole("heading", {
+        name: "Your private catalog preview is ready",
+      }),
     ).toBeVisible();
 
     await expect(

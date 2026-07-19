@@ -220,7 +220,7 @@ describe("CatalogImporterWorkbench", () => {
 
     expect(
       await screen.findByRole("heading", {
-        name: "Your catalog is taking shape",
+        name: "Your private catalog preview is ready",
       }),
     ).toBeVisible();
     expect(requestCultivarMatchesMock.mock.calls.length).toBeGreaterThanOrEqual(
@@ -265,5 +265,139 @@ describe("CatalogImporterWorkbench", () => {
         }),
       ).not.toBeInTheDocument(),
     );
+  });
+
+  it("reveals the enriched catalog before preparation and membership prompts", async () => {
+    const linkedNames = new Set([
+      "Action Figure",
+      "Happy Returns",
+      "My Favorite Martian",
+      "Orange Velvet",
+      "Primal Scream",
+      "Ruby Spider",
+      "Stella de Oro",
+    ]);
+    requestCultivarMatchesMock.mockImplementation(
+      ({ names }: { names: string[] }) =>
+        Promise.resolve(
+          names.map((name, index) => {
+            const normalizedInput = name.toLowerCase();
+            const candidate = linkedNames.has(name)
+              ? {
+                  awardNames:
+                    name === "Stella de Oro" ? "Award of Merit" : null,
+                  bloomSizeIn: 5,
+                  bloomSeason: "Midseason",
+                  color: "Yellow",
+                  confidence: 100,
+                  cultivarReferenceId: `cultivar-${normalizedInput.replaceAll(" ", "-")}`,
+                  displayName: name,
+                  form: "Single",
+                  hybridizer: index % 2 === 0 ? "Example One" : "Example Two",
+                  imageAsset: {
+                    blurUrl: null,
+                    displayUrl: `https://media.example/${index}.jpg`,
+                    id: `asset-${index}`,
+                    originalUrl: null,
+                    status: "ready",
+                    thumbUrl: `https://media.example/${index}-thumb.jpg`,
+                  },
+                  imageUrl: null,
+                  listingCount: 1,
+                  normalizedName: normalizedInput,
+                  ploidy: "Diploid",
+                  rebloom: true,
+                  scapeHeightIn: 24,
+                  year: index === 0 ? 1975 : 2017,
+                }
+              : null;
+
+            return {
+              candidates: candidate ? [candidate] : [],
+              exactMatch: candidate,
+              inputName: name,
+              normalizedInput,
+            };
+          }),
+        ),
+    );
+    render(<CatalogImporterWorkbench />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Use sample catalog" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Build catalog preview" }),
+    );
+
+    const reveal = await screen.findByRole("heading", {
+      name: "Your private catalog preview is ready",
+    });
+    expect(
+      screen.getByText("11", { selector: "[data-testid='source-row-count']" }),
+    ).toBeVisible();
+    expect(
+      screen.getByText("10", {
+        selector: "[data-testid='detected-listing-count']",
+      }),
+    ).toBeVisible();
+    expect(
+      screen.getByText("8", {
+        selector: "[data-testid='linked-listing-count']",
+      }),
+    ).toBeVisible();
+    expect(
+      screen.getByText("7", {
+        selector: "[data-testid='unique-cultivar-count']",
+      }),
+    ).toBeVisible();
+    expect(
+      screen.getByText("2", {
+        selector: "[data-testid='pending-decision-count']",
+      }),
+    ).toBeVisible();
+    expect(screen.getByText(/8 listings with reference photos/)).toBeVisible();
+    expect(screen.getByText(/Private browser preview/)).toBeVisible();
+    expect(
+      screen.getByRole("link", { name: "Explore your catalog" }),
+    ).toHaveAttribute("href", "#catalog-importer-preview");
+    expect(
+      screen.getByRole("link", { name: "Review 2 names" }),
+    ).toHaveAttribute("href", "#catalog-importer-review-quiz");
+
+    const preview = screen.getByRole("heading", {
+      name: "Your catalog preview",
+    });
+    const insights = screen.getByRole("heading", {
+      name: "Explore your catalog",
+    });
+    const preparation = screen.getByRole("heading", {
+      name: "Finish preparing your workbook",
+    });
+    const review = screen.getByRole("heading", {
+      name: "Review potential matches",
+    });
+    const issues = screen.getByRole("heading", {
+      name: "Fix spreadsheet issues",
+    });
+    const download = screen.getByRole("heading", {
+      name: "Download your progress",
+    });
+    const membership = screen.getByRole("heading", {
+      name: "Imagine this as your public catalog",
+    });
+
+    for (const [earlier, later] of [
+      [reveal, preview],
+      [preview, insights],
+      [insights, preparation],
+      [preparation, review],
+      [review, issues],
+      [issues, download],
+      [download, membership],
+    ] as const) {
+      expect(
+        earlier.compareDocumentPosition(later) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    }
   });
 });
