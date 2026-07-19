@@ -189,7 +189,6 @@ export const TAG_SHEET_CREATOR_STORAGE_KEY = "tag-sheet-creator-state-v1";
 const TEMPLATE_DEFAULT_ID = "default-template";
 export const TEMPLATE_CUSTOM_ID = "custom-template";
 const TEMPLATE_SIMPLE_NAME_ID = "template-simple-name";
-const TEMPLATE_GROWER_ID_ID = "template-grower-id";
 const TEMPLATE_SALE_TAG_ID = "template-sale-tag";
 const TEMPLATE_GROWER_DETAILS_ID = "template-grower-details";
 const LARGE_LINE_FONT_SIZE_PX = 22;
@@ -361,8 +360,9 @@ function createTemplateCell(
 }
 
 const SIMPLE_NAME_TEMPLATE = "# {{title}}";
-const GARDEN_ID_TEMPLATE = "# {{title}}\n{{hybridizerYear}}\n- {{ploidy}}";
-const GROWER_ID_TEMPLATE = "# {{title}}\n{{hybridizerYear}} {{ploidy}}";
+const GARDEN_ID_TEMPLATE = "# {{title}}\n{{hybridizerYear}} {{ploidy}}";
+const PREVIOUS_GARDEN_ID_TEMPLATE =
+  "# {{title}}\n{{hybridizerYear}}\n- {{ploidy}}";
 const SALE_TAG_TEMPLATE =
   "# {{title}}\n{{hybridizerYear}}\n## {{ploidy}} | {{price}}";
 const GROWER_DETAILS_TEMPLATE =
@@ -384,6 +384,9 @@ const LEGACY_DEFAULT_ROWS: TagRow[] = [
 ];
 const LEGACY_DEFAULT_ROWS_SIGNATURE =
   createRowsLayoutSignature(LEGACY_DEFAULT_ROWS);
+const PREVIOUS_GARDEN_ID_ROWS_SIGNATURE = createRowsLayoutSignature(
+  createRowsFromTagTextTemplate(PREVIOUS_GARDEN_ID_TEMPLATE),
+);
 
 function createBuiltinTemplateRows(idPrefix: string, template: string) {
   return createRowsFromTagTextTemplate(template).map((row, index) => ({
@@ -420,17 +423,6 @@ export const BUILTIN_TAG_LAYOUT_TEMPLATES: Array<
     id: TEMPLATE_DEFAULT_ID,
     name: "Garden ID",
     layout: DEFAULT_TAG_DESIGNER_STATE,
-  },
-  {
-    id: TEMPLATE_GROWER_ID_ID,
-    name: "Grower ID",
-    layout: {
-      sizePresetId: "brother-tze-1",
-      customWidthInches: 3.5,
-      customHeightInches: 1,
-      showQrCode: true,
-      rows: createBuiltinTemplateRows("grower-id-row", GROWER_ID_TEMPLATE),
-    },
   },
   {
     id: TEMPLATE_SALE_TAG_ID,
@@ -954,10 +946,13 @@ export function sanitizeTagDesignerState(
   const rows = (state.rows as Partial<TagRow>[])
     .map((r) => sanitizeRow(r))
     .filter((r): r is TagRow => r !== null);
-  const migratedRows =
-    createRowsLayoutSignature(rows) === LEGACY_DEFAULT_ROWS_SIGNATURE
-      ? DEFAULT_TAG_DESIGNER_STATE.rows
-      : rows;
+  const rowsSignature = createRowsLayoutSignature(rows);
+  const migratedRows = [
+    LEGACY_DEFAULT_ROWS_SIGNATURE,
+    PREVIOUS_GARDEN_ID_ROWS_SIGNATURE,
+  ].includes(rowsSignature)
+    ? DEFAULT_TAG_DESIGNER_STATE.rows
+    : rows;
 
   return {
     sizePresetId: presetExists

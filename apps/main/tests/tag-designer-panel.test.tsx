@@ -329,8 +329,8 @@ describe("TagDesignerPanel", () => {
       screen.getByRole("button", { name: /Garden ID/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /^Grower ID/i }),
-    ).toBeInTheDocument();
+      screen.queryByRole("button", { name: /^Grower ID/i }),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /Sale tag/i }),
     ).toBeInTheDocument();
@@ -353,10 +353,10 @@ describe("TagDesignerPanel", () => {
     expect(screen.getByText("Smith, 2015 · $18.50")).toBeInTheDocument();
   });
 
-  it("applies the two-line Grower ID template with an auto-sized title", () => {
+  it("applies the two-line Garden ID template with an auto-sized title", () => {
     render(<TagDesignerPanel listings={sampleListings} />);
 
-    fireEvent.click(screen.getByRole("button", { name: /^Grower ID/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Garden ID/i }));
 
     expect(screen.getByText("Smith, 2015 tet")).toBeInTheDocument();
     expect(

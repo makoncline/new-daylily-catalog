@@ -159,6 +159,28 @@ describe("tag designer model", () => {
     });
   });
 
+  it("migrates the previous three-row Garden ID to the consolidated layout", () => {
+    const migrated = sanitizeTagDesignerState({
+      sizePresetId: "brother-tze-1",
+      customWidthInches: 3.5,
+      customHeightInches: 1,
+      showQrCode: true,
+      rows: createRowsFromTagTextTemplate(
+        "# {{title}}\n{{hybridizerYear}}\n- {{ploidy}}",
+      ),
+    });
+    const gardenId = BUILTIN_TAG_LAYOUT_TEMPLATES.find(
+      (template) => template.name === "Garden ID",
+    )!;
+
+    expect(createLayoutSignature(migrated)).toBe(
+      createLayoutSignature(gardenId.layout),
+    );
+    expect(tagDesignerStateToTemplateText(migrated)).toBe(
+      "# {{title}}\n{{hybridizerYear}} {{ploidy}}",
+    );
+  });
+
   it("parses line sizes and space-between columns without wrapping", () => {
     const template =
       "# {{title}}\n## {{hybridizerYear}} | {{ploidy}}\n- {{price}} | {{privateNote}}";
@@ -399,20 +421,13 @@ describe("tag designer model", () => {
   it("offers job-based presets with safe template text", () => {
     expect(
       BUILTIN_TAG_LAYOUT_TEMPLATES.map((template) => template.name),
-    ).toEqual([
-      "Simple name",
-      "Garden ID",
-      "Grower ID",
-      "Sale tag",
-      "Grower details",
-    ]);
+    ).toEqual(["Simple name", "Garden ID", "Sale tag", "Grower details"]);
     expect(
       BUILTIN_TAG_LAYOUT_TEMPLATES.map((template) =>
         tagDesignerStateToTemplateText(template.layout),
       ),
     ).toEqual([
       "# {{title}}",
-      "# {{title}}\n{{hybridizerYear}}\n- {{ploidy}}",
       "# {{title}}\n{{hybridizerYear}} {{ploidy}}",
       "# {{title}}\n{{hybridizerYear}}\n## {{ploidy}} | {{price}}",
       "# {{title}}\n## {{hybridizerYear}}\n{{ploidy}} | {{foliageType}}\nBloom {{bloomSize}} | Scape {{scapeHeight}}\n- Season {{bloomSeason}} | Habit {{bloomHabit}}",
