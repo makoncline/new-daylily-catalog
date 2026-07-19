@@ -253,6 +253,16 @@ test.describe("catalog importer", () => {
     await expect(
       catalogSummary.getByTestId("pending-decision-count"),
     ).toHaveText("2");
+    await expect(page.getByText("100%", { exact: true })).toHaveCount(0);
+    await expect(
+      page.getByRole("button", {
+        name: "Change cultivar match for Daylily 1",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("Reference photo", { exact: true }).first(),
+    ).toBeVisible();
 
     const issuesRegion = page.getByRole("region", {
       name: "Fix spreadsheet issues",
@@ -335,6 +345,15 @@ test.describe("catalog importer", () => {
 
     await reviewQuiz.focus();
     await page.keyboard.press("1");
+    await expect(
+      page.getByText("Vanguard was added to your preview."),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "View in preview" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Undo cultivar link" }),
+    ).toBeVisible();
     await expect(
       page.getByText("1 manual match remaining", { exact: false }),
     ).toBeVisible();

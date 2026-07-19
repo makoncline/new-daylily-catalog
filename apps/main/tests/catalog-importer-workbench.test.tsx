@@ -282,39 +282,46 @@ describe("CatalogImporterWorkbench", () => {
         Promise.resolve(
           names.map((name, index) => {
             const normalizedInput = name.toLowerCase();
-            const candidate = linkedNames.has(name)
-              ? {
-                  awardNames:
-                    name === "Stella de Oro" ? "Award of Merit" : null,
-                  bloomSizeIn: 5,
-                  bloomSeason: "Midseason",
-                  color: "Yellow",
-                  confidence: 100,
-                  cultivarReferenceId: `cultivar-${normalizedInput.replaceAll(" ", "-")}`,
-                  displayName: name,
-                  form: "Single",
-                  hybridizer: index % 2 === 0 ? "Example One" : "Example Two",
-                  imageAsset: {
-                    blurUrl: null,
-                    displayUrl: `https://media.example/${index}.jpg`,
-                    id: `asset-${index}`,
-                    originalUrl: null,
-                    status: "ready",
-                    thumbUrl: `https://media.example/${index}-thumb.jpg`,
-                  },
-                  imageUrl: null,
-                  listingCount: 1,
-                  normalizedName: normalizedInput,
-                  ploidy: "Diploid",
-                  rebloom: true,
-                  scapeHeightIn: 24,
-                  year: index === 0 ? 1975 : 2017,
-                }
-              : null;
+            const suggestedName = name === "Vanguard 2" ? "Vanguard" : name;
+            const confidence = linkedNames.has(name)
+              ? 100
+              : name === "Vanguard 2"
+                ? 82
+                : null;
+            const candidate =
+              confidence !== null
+                ? {
+                    awardNames:
+                      name === "Stella de Oro" ? "Award of Merit" : null,
+                    bloomSizeIn: 5,
+                    bloomSeason: "Midseason",
+                    color: "Yellow",
+                    confidence,
+                    cultivarReferenceId: `cultivar-${suggestedName.toLowerCase().replaceAll(" ", "-")}`,
+                    displayName: suggestedName,
+                    form: "Single",
+                    hybridizer: index % 2 === 0 ? "Example One" : "Example Two",
+                    imageAsset: {
+                      blurUrl: null,
+                      displayUrl: `https://media.example/${index}.jpg`,
+                      id: `asset-${index}`,
+                      originalUrl: null,
+                      status: "ready",
+                      thumbUrl: `https://media.example/${index}-thumb.jpg`,
+                    },
+                    imageUrl: null,
+                    listingCount: 1,
+                    normalizedName: suggestedName.toLowerCase(),
+                    ploidy: "Diploid",
+                    rebloom: true,
+                    scapeHeightIn: 24,
+                    year: index === 0 ? 1975 : 2017,
+                  }
+                : null;
 
             return {
               candidates: candidate ? [candidate] : [],
-              exactMatch: candidate,
+              exactMatch: confidence === 100 ? candidate : null,
               inputName: name,
               normalizedInput,
             };
@@ -362,6 +369,14 @@ describe("CatalogImporterWorkbench", () => {
     expect(
       screen.getByRole("link", { name: "Review 2 names" }),
     ).toHaveAttribute("href", "#catalog-importer-review-quiz");
+    expect(
+      screen.queryAllByRole("button", { name: /Review \d+% match/ }),
+    ).toHaveLength(0);
+    expect(
+      screen.getAllByRole("button", {
+        name: "Change cultivar match for Stella de Oro",
+      }),
+    ).toHaveLength(2);
 
     const preview = screen.getByRole("heading", {
       name: "Your catalog preview",
@@ -399,5 +414,43 @@ describe("CatalogImporterWorkbench", () => {
           Node.DOCUMENT_POSITION_FOLLOWING,
       ).toBeTruthy();
     }
+
+    const reviewQuiz = screen.getByRole("region", {
+      name: "Review potential matches",
+    });
+    fireEvent.click(
+      within(reviewQuiz).getByRole("button", {
+        name: "Use match 1: Vanguard",
+      }),
+    );
+
+    expect(
+      await screen.findByText("Vanguard was added to your preview."),
+    ).toBeVisible();
+    expect(screen.getByRole("link", { name: "View in preview" })).toBeVisible();
+    expect(
+      within(
+        screen.getByRole("region", { name: "Catalog listings" }),
+      ).getByRole("heading", { name: "Vanguard" }),
+    ).toBeVisible();
+    expect(
+      screen.getByText("9", {
+        selector: "[data-testid='linked-listing-count']",
+      }),
+    ).toBeVisible();
+
+    fireEvent.click(screen.getByRole("button", { name: "Undo cultivar link" }));
+    await waitFor(() =>
+      expect(
+        within(
+          screen.getByRole("region", { name: "Catalog listings" }),
+        ).queryByRole("heading", { name: "Vanguard" }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(
+      screen.getByText("8", {
+        selector: "[data-testid='linked-listing-count']",
+      }),
+    ).toBeVisible();
   });
 });

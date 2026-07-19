@@ -1,14 +1,17 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { CircleAlert, Download } from "lucide-react";
+import { CircleAlert, Download, Undo2 } from "lucide-react";
 import { SellerIntentLink } from "@/components/seller-intent-link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { CatalogImporterAnalysis } from "@/app/(public)/catalog-importer/_components/catalog-importer-analysis";
 import { CatalogImporterIssues } from "@/app/(public)/catalog-importer/_components/catalog-importer-issues";
-import { CatalogImporterCatalogPreview } from "@/app/(public)/catalog-importer/_components/catalog-importer-catalog-preview";
+import {
+  CatalogImporterCatalogPreview,
+  getCatalogPreviewRowId,
+} from "@/app/(public)/catalog-importer/_components/catalog-importer-catalog-preview";
 import { CatalogImporterMatchSheet } from "@/app/(public)/catalog-importer/_components/catalog-importer-match-sheet";
 import { CatalogImporterOverview } from "@/app/(public)/catalog-importer/_components/catalog-importer-overview";
 import { CatalogImporterReviewQuiz } from "@/app/(public)/catalog-importer/_components/catalog-importer-review-quiz";
@@ -85,6 +88,39 @@ export function CatalogImporterResults({
             </Button>
           </div>
         </section>
+      ) : null}
+
+      {controller.lastLinkAction ? (
+        <div
+          role="status"
+          className="flex flex-col gap-3 border-y py-4 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <p className="text-sm font-medium">
+            {controller.lastLinkAction.displayName}{" "}
+            {controller.lastLinkAction.kind === "added"
+              ? "was added to your preview."
+              : "is now linked in your preview."}
+          </p>
+          <div className="flex items-center gap-1">
+            <Button asChild variant="link" size="sm">
+              <a
+                href={`#${getCatalogPreviewRowId(controller.lastLinkAction.rowId)}`}
+              >
+                View in preview
+              </a>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              aria-label="Undo cultivar link"
+              onClick={controller.undoLastLinkAction}
+            >
+              <Undo2 aria-hidden="true" className="size-4" />
+              Undo
+            </Button>
+          </div>
+        </div>
       ) : null}
 
       {controller.reviewRows.length > 0 ? (

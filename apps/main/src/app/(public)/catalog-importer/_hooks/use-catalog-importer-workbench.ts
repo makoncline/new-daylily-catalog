@@ -220,6 +220,12 @@ export function useCatalogImporterWorkbench(
     useState<CatalogImporterCandidateResult | null>(null);
   const [storageWarning, setStorageWarning] = useState<string | null>(null);
   const [liveAnnouncement, setLiveAnnouncement] = useState("");
+  const [lastLinkAction, setLastLinkAction] = useState<{
+    displayName: string;
+    kind: "added" | "changed";
+    previousRow: CatalogImportRow;
+    rowId: string;
+  } | null>(null);
   const exactMatchRequestId = useRef(0);
   const exactMatchAbortController = useRef<AbortController | null>(null);
   const closeCandidateRequestId = useRef(0);
@@ -387,6 +393,7 @@ export function useCatalogImporterWorkbench(
       nextRows: CatalogImportRow[],
       nextActiveReviewRowId = activeReviewRowId,
     ) => {
+      setLastLinkAction(null);
       setMatchedRows(nextRows);
       void persistDraft({
         activeReviewRowId: nextActiveReviewRowId,
@@ -660,6 +667,7 @@ export function useCatalogImporterWorkbench(
     setReviewQuery("");
     setCandidateResult(null);
     setSearchCandidateResult(null);
+    setLastLinkAction(null);
   }, []);
 
   const resetImporter = useCallback(() => {
@@ -1003,6 +1011,17 @@ export function useCatalogImporterWorkbench(
         );
       }
       saveMatchedRows(nextRows, nextReviewRow?.id ?? null);
+      if (normalizedUpdate.match && reviewedRow) {
+        setLastLinkAction({
+          displayName: normalizedUpdate.match.displayName,
+          kind:
+            reviewedRow.linkState === "linked" && reviewedRow.match
+              ? "changed"
+              : "added",
+          previousRow: reviewedRow,
+          rowId,
+        });
+      }
     },
     [loadCandidates, matchedRows, saveMatchedRows],
   );
@@ -1022,6 +1041,10 @@ export function useCatalogImporterWorkbench(
   const selectRowMatch = useCallback(
     (rowId: string, match: CultivarMatchCandidate) => {
       if (!matchedRows) {
+        return;
+      }
+      const previousRow = matchedRows.find((row) => row.id === rowId);
+      if (!previousRow) {
         return;
       }
 
@@ -1045,10 +1068,33 @@ export function useCatalogImporterWorkbench(
         ),
       );
       saveMatchedRows(nextRows);
+      setLastLinkAction({
+        displayName: match.displayName,
+        kind:
+          previousRow.linkState === "linked" && previousRow.match
+            ? "changed"
+            : "added",
+        previousRow,
+        rowId,
+      });
       setLiveAnnouncement(`Match changed to ${match.displayName}.`);
     },
     [matchedRows, saveMatchedRows],
   );
+
+  const undoLastLinkAction = useCallback(() => {
+    if (!lastLinkAction || !matchedRows) {
+      return;
+    }
+
+    const nextRows = assignCatalogImportDuplicateGroups(
+      matchedRows.map((row) =>
+        row.id === lastLinkAction.rowId ? lastLinkAction.previousRow : row,
+      ),
+    );
+    saveMatchedRows(nextRows);
+    setLiveAnnouncement(`${lastLinkAction.displayName} cultivar link undone.`);
+  }, [lastLinkAction, matchedRows, saveMatchedRows]);
 
   const removeDuplicateRow = useCallback(
     (rowId: string) => {
@@ -1283,6 +1329,7 @@ export function useCatalogImporterWorkbench(
     handleMappingChange,
     headerRowIndex,
     issueCount,
+    lastLinkAction,
     liveAnnouncement,
     loadFile,
     loadSampleCatalog,
@@ -1320,6 +1367,7 @@ export function useCatalogImporterWorkbench(
     sourcePreviewRows,
     storageWarning,
     unmatchedCount,
+    undoLastLinkAction,
   };
 }
 

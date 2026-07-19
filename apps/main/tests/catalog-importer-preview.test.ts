@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   getCatalogPreviewDescription,
   getCatalogPreviewImage,
+  getCatalogPreviewImageLabel,
+  isCatalogPreviewRow,
 } from "@/app/(public)/catalog-importer/_components/catalog-importer-catalog-preview";
 import type { CatalogImportRow } from "@/lib/catalog-importer";
 
@@ -63,10 +65,12 @@ describe("catalog importer preview content", () => {
   it("uses seller fields first and cultivar reference data as fallback", () => {
     const row = previewRow();
 
+    expect(isCatalogPreviewRow(row)).toBe(true);
     expect(getCatalogPreviewImage(row)).toEqual({
       id: "uploaded-row-1",
       url: "https://seller.example/listing.jpg",
     });
+    expect(getCatalogPreviewImageLabel(row)).toBe("Seller photo");
     expect(getCatalogPreviewDescription(row)).toBe("Seller description");
 
     const fallbackRow = previewRow({ description: "", imageUrl: "" });
@@ -74,6 +78,18 @@ describe("catalog importer preview content", () => {
       id: "asset-1",
       url: "https://media.example/display.jpg",
     });
+    expect(getCatalogPreviewImageLabel(fallbackRow)).toBe("Reference photo");
     expect(getCatalogPreviewDescription(fallbackRow)).toContain("Purple");
+  });
+
+  it("does not expose an unresolved candidate as a catalog listing", () => {
+    expect(
+      isCatalogPreviewRow(
+        previewRow({
+          linkProvenance: null,
+          linkState: "pending",
+        }),
+      ),
+    ).toBe(false);
   });
 });

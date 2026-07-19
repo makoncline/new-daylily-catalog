@@ -8,18 +8,18 @@ decisions, evidence, and blockers.
 
 ## Live status
 
-| Field           | Current value                                                                                                            |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Overall status  | Implementation in progress                                                                                               |
-| Current phase   | Phase B — Reveal and explore                                                                                             |
-| Current slice   | Slice 4 — Make catalog preview trusted and useful                                                                        |
-| Last updated    | 2026-07-18                                                                                                               |
-| Branch          | `agent/catalog-importer-v1`                                                                                              |
-| Baseline commit | `7b5a81ad`                                                                                                               |
-| Pull request    | [#352 — Prepare daylily catalog spreadsheets](https://github.com/makoncline/new-daylily-catalog/pull/352)                |
-| Current blocker | None                                                                                                                     |
-| Next action     | Audit preview inclusion, customer-facing diagnostics, image provenance, match revision, and post-confirmation feedback   |
-| Latest evidence | Slice 3 passed 37 focused tests, 3 E2Es, typecheck, lint, and visible Chrome review of the 1,087-row personalized reveal |
+| Field           | Current value                                                                                                     |
+| --------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Overall status  | Implementation in progress                                                                                        |
+| Current phase   | Phase B — Reveal and explore                                                                                      |
+| Current slice   | Slice 5 — Make collection insights accurate and interactive                                                       |
+| Last updated    | 2026-07-18                                                                                                        |
+| Branch          | `agent/catalog-importer-v1`                                                                                       |
+| Baseline commit | `7b5a81ad`                                                                                                        |
+| Pull request    | [#352 — Prepare daylily catalog spreadsheets](https://github.com/makoncline/new-daylily-catalog/pull/352)         |
+| Current blocker | None                                                                                                              |
+| Next action     | Audit insight counting basis, small-catalog usefulness, and the shared preview-filter interaction boundary        |
+| Latest evidence | Slice 4 passed 38 focused tests, 3 E2Es, typecheck, lint, and real Chrome review of the trusted 1,087-row preview |
 
 ### Progress
 
@@ -29,7 +29,7 @@ decisions, evidence, and blockers.
 - [ ] Phase B — Reveal and explore
   - [x] Slice 2 — Refine upload, mapping, persistence, and processing feedback
   - [x] Slice 3 — Build the personalized results reveal and workspace order
-  - [ ] Slice 4 — Make catalog preview trusted and useful
+  - [x] Slice 4 — Make catalog preview trusted and useful
   - [ ] Slice 5 — Make collection insights accurate and interactive
   - [ ] Slice 6 — Add persistent workspace status and navigation
 - [ ] Phase C — Repair
@@ -48,21 +48,22 @@ decisions, evidence, and blockers.
 Use this area for short-lived details needed to resume the active slice.
 Move durable decisions to the decision log and completed work to the work log.
 
-- Slice 3 is complete and packaged for PR #352.
-- Begin Slice 4 by proving which link states enter the preview; do not infer
-  trust from `match !== null` alone.
-- Keep the existing shared catalog filters and optimized-image path.
-- Prefer a simple customer-facing card plus one clear match-revision action over
-  adding a view-mode system.
+- Slice 4 is complete and packaged for PR #352.
+- Begin Slice 5 with unique-cultivar counts; duplicate seller listings should
+  not inflate collection analysis.
+- Reuse the existing preview table's filter definitions rather than creating a
+  second interpretation of facets.
+- Prefer a few personalized, clickable discoveries over adding more chart
+  types.
 
 ### User update
 
 Use this as the source for concise progress updates.
 
-> Slice 3 is complete: results now reveal exactly what matching unlocked, use
-> precise row/listing/unique-cultivar counts, keep preview and insights
-> together, and place preparation before repair. The membership continuation
-> now comes after download instead of interrupting the value demonstration.
+> Slice 4 is complete: only explicitly linked rows enter the preview, catalog
+> cards no longer show confidence percentages, seller/reference photos are
+> labeled, and the existing link control opens full match revision. Confirming
+> a match adds and highlights the listing with View and Undo actions.
 
 ## How the goal agent must use this file
 
@@ -428,37 +429,55 @@ exposing unresolved identities as facts.
 
 Tasks:
 
-- [ ] Include only confident automatic links, valid saved-ID links, and
+- [x] Include only confident automatic links, valid saved-ID links, and
       seller-confirmed links.
-- [ ] Exclude uncertain candidate matches until the seller confirms one.
-- [ ] Remove confidence percentages from customer-facing listing cards.
-- [ ] Add `Catalog view | Data review` only if review controls cannot remain
+- [x] Exclude uncertain candidate matches until the seller confirms one.
+- [x] Remove confidence percentages from customer-facing listing cards.
+- [x] Add `Catalog view | Data review` only if review controls cannot remain
       clear in a simple details surface.
-- [ ] In customer view, hide source rows, confidence, and internal diagnostics.
-- [ ] In data review, show provenance and allow `Change match`.
-- [ ] Prioritize seller-mapped price, description, private note, and image over
+- [x] In customer view, hide source rows, confidence, and internal diagnostics.
+- [x] Keep source-row context in the revision sheet and allow `Change match`.
+- [x] Prioritize seller-mapped price, description, private note, and image over
       registry fallbacks.
-- [ ] Label seller and reference photographs distinctly where ambiguity is
+- [x] Label seller and reference photographs distinctly where ambiguity is
       possible.
-- [ ] Keep all matched images on the shared optimized asset path with square
+- [x] Keep all matched images on the shared optimized asset path with square
       thumbnails, display-size previews, and blur-up.
-- [ ] Add the unresolved-listings callout with a direct review action.
-- [ ] When a match is confirmed:
-  - [ ] insert the listing into preview;
-  - [ ] update filters and insights;
-  - [ ] announce the addition;
-  - [ ] offer `View in preview`; and
-  - [ ] offer Undo.
-- [ ] Keep the bounded three-card-tall scroll area, in-scroll Show more,
+- [x] Add the unresolved-listings callout with a direct review action.
+- [x] When a match is confirmed:
+  - [x] insert the listing into preview;
+  - [x] update filters and insights;
+  - [x] announce the addition;
+  - [x] offer `View in preview`; and
+  - [x] offer Undo.
+- [x] Keep the bounded three-card-tall scroll area, in-scroll Show more,
       persistent `Showing X of X`, and nonoverlapping Return to top.
-- [ ] Keep shared basic and advanced catalog filters.
+- [x] Keep shared basic and advanced catalog filters.
 
 Acceptance:
 
-- [ ] No unresolved candidate receives a reference image or cultivar facts.
-- [ ] Seller data wins over reference fallbacks where intended.
-- [ ] Card controls do not overlap content at desktop or mobile widths.
-- [ ] Confirming a match produces a visible reward in preview.
+- [x] No unresolved candidate receives a reference image or cultivar facts.
+- [x] Seller data wins over reference fallbacks where intended.
+- [x] Card controls do not overlap content at desktop or mobile widths.
+- [x] Confirming a match produces a visible reward in preview.
+
+Implementation note:
+
+- A separate Catalog/Data mode was not added. Customer-facing cards remain
+  clean, while the single link icon opens the existing source-row and candidate
+  sheet when revision is needed.
+
+Evidence (2026-07-18):
+
+- 38 focused importer tests passed, including explicit rejection of a pending
+  row that still carries candidate data and confirmation/undo coverage.
+- All 3 importer E2Es passed with customer-card, reference-photo,
+  confirmation/undo, restoration, download, and mobile-overflow assertions.
+- Typecheck passed. Lint has zero errors and one unrelated existing dashboard
+  warning.
+- Visible Chrome showed zero confidence badges, 20 labeled reference photos in
+  the loaded preview, the 52-listing unresolved callout, and the full source-row
+  match sheet opened from the new link action.
 
 ### Slice 5 — Make collection insights accurate and interactive
 
@@ -850,7 +869,7 @@ The goal is complete only when:
 | ------------------- | ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Resolved            | Which XLSX features does the current reconstruction actually preserve?                                 | It reconstructs browser-readable cell values and sheets; formulas, formatting, comments, merges, drawings, validation, and hidden state are not retained. |
 | Deferred to Slice 8 | Should an approved bundle price write only numeric unit price or also populate an existing note field? | Preserve the original commercial meaning without inventing a new column; decide with the issue-repair UI.                                                 |
-| Open in Slice 4     | Is a Catalog view/Data review toggle necessary?                                                        | First try customer-facing cards plus a simple details/change-match action; add a mode only if that is unclear.                                            |
+| Resolved            | Is a Catalog view/Data review toggle necessary?                                                        | No. Customer-facing cards stay clean; one link action opens the existing source-row and match-revision sheet.                                             |
 | Open in Slice 5     | Which insights are useful for very small catalogs?                                                     | Rank available facts and prefer concise narrative metrics over empty or low-information charts.                                                           |
 | Open in Slice 10    | What exact sign-in return URL preserves the local project?                                             | Reuse the existing auth return pattern and verify IndexedDB remains available on the same origin.                                                         |
 | Open in Slice 12    | Does the preview need virtualization?                                                                  | Add it only if real measurements show the existing bounded rendering is not responsive.                                                                   |
@@ -862,7 +881,8 @@ artifacts when useful.
 
 | Date       | Slice    | Status   | What changed                                                                                                                                           | Verification                                                                                                                                                              | Commit / notes                      |
 | ---------- | -------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
-| 2026-07-18 | Slice 3  | Complete | Replaced the generic overview with a personalized enrichment reveal; reordered preview, insights, preparation, repair, download, and Pro continuation. | 37 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome verification with the rebuilt 1,087-row workbook.              | This Slice 3 commit.                |
+| 2026-07-18 | Slice 4  | Complete | Restricted preview to explicit links; removed confidence badges; labeled image provenance; added match confirmation, highlighting, revision, and undo. | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome verification against the 1,087-row preview.                    | This Slice 4 commit.                |
+| 2026-07-18 | Slice 3  | Complete | Replaced the generic overview with a personalized enrichment reveal; reordered preview, insights, preparation, repair, download, and Pro continuation. | 37 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome verification with the rebuilt 1,087-row workbook.              | `1d999a90`                          |
 | 2026-07-18 | Slice 2  | Complete | Clarified browser-local privacy and file actions; added confirmed resets and event-driven processing stages without timed delays or effects.           | 36 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome verification with the restored real workbook.                  | `bda585ad`                          |
 | 2026-07-18 | Slice 1  | Complete | Replaced overlapping row flags with explicit row/output/link/provenance state; centralized counts and enrichment; migrated v2 browser drafts to v3.    | 33 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome restoration of the 1,087-row workbook.                         | `01e838c0`                          |
 | 2026-07-18 | Slice 0  | Complete | Implemented cleaned mapped fields and canonical identity headers; documented the verified XLSX value-copy contract.                                    | 25 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, real Chrome download, full three-sheet value comparison, LibreOffice open/resave. | `1d643703`                          |
