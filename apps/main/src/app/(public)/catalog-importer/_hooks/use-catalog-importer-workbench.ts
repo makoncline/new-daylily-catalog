@@ -222,7 +222,7 @@ export function useCatalogImporterWorkbench(
   const [liveAnnouncement, setLiveAnnouncement] = useState("");
   const [lastLinkAction, setLastLinkAction] = useState<{
     displayName: string;
-    kind: "added" | "changed";
+    kind: "added" | "changed" | "left-unmatched";
     previousRow: CatalogImportRow;
     rowId: string;
   } | null>(null);
@@ -1011,13 +1011,14 @@ export function useCatalogImporterWorkbench(
         );
       }
       saveMatchedRows(nextRows, nextReviewRow?.id ?? null);
-      if (normalizedUpdate.match && reviewedRow) {
+      if (reviewedRow) {
         setLastLinkAction({
-          displayName: normalizedUpdate.match.displayName,
-          kind:
-            reviewedRow.linkState === "linked" && reviewedRow.match
+          displayName: normalizedUpdate.match?.displayName ?? reviewedRow.title,
+          kind: normalizedUpdate.match
+            ? reviewedRow.linkState === "linked" && reviewedRow.match
               ? "changed"
-              : "added",
+              : "added"
+            : "left-unmatched",
           previousRow: reviewedRow,
           rowId,
         });
@@ -1037,6 +1038,75 @@ export function useCatalogImporterWorkbench(
       match: null,
     });
   }, [activeReviewRow, finishReviewRow]);
+
+  const leaveRowUnmatched = useCallback(
+    (rowId: string) => {
+      if (!matchedRows) {
+        return;
+      }
+
+      const previousRow = matchedRows.find((row) => row.id === rowId);
+      if (!previousRow) {
+        return;
+      }
+
+      const nextRows = assignCatalogImportDuplicateGroups(
+        matchedRows.map((row) =>
+          row.id === rowId
+            ? {
+                ...row,
+                linkProvenance: null,
+                linkState: "intentionally-unmatched" as const,
+                match: null,
+              }
+            : row,
+        ),
+      );
+      saveMatchedRows(nextRows);
+      setLastLinkAction({
+        displayName: previousRow.title,
+        kind: "left-unmatched",
+        previousRow,
+        rowId,
+      });
+      setLiveAnnouncement(
+        `${previousRow.title} will remain unmatched in the prepared workbook.`,
+      );
+    },
+    [matchedRows, saveMatchedRows],
+  );
+
+  const restoreUnmatchedRow = useCallback(
+    (rowId: string) => {
+      if (!matchedRows) {
+        return;
+      }
+
+      const previousRow = matchedRows.find((row) => row.id === rowId);
+      if (previousRow?.linkState !== "intentionally-unmatched") {
+        return;
+      }
+
+      const restoredRow: CatalogImportRow = {
+        ...previousRow,
+        linkProvenance: null,
+        linkState: "pending",
+        match: null,
+      };
+      const nextRows = assignCatalogImportDuplicateGroups(
+        matchedRows.map((row) => (row.id === rowId ? restoredRow : row)),
+      );
+
+      searchCandidateRequestId.current += 1;
+      setSearchCandidateResult(null);
+      setActiveReviewRowId(rowId);
+      setReviewQuery(restoredRow.sourceTitle);
+      void loadCandidates(restoredRow);
+      setLiveAnnouncement(`${restoredRow.title} returned to manual review.`);
+      saveMatchedRows(nextRows, rowId);
+    },
+    [loadCandidates, matchedRows, saveMatchedRows],
+  );
 
   const selectRowMatch = useCallback(
     (rowId: string, match: CultivarMatchCandidate) => {
@@ -1092,9 +1162,22 @@ export function useCatalogImporterWorkbench(
         row.id === lastLinkAction.rowId ? lastLinkAction.previousRow : row,
       ),
     );
-    saveMatchedRows(nextRows);
-    setLiveAnnouncement(`${lastLinkAction.displayName} cultivar link undone.`);
-  }, [lastLinkAction, matchedRows, saveMatchedRows]);
+    const restoredReviewRow =
+      lastLinkAction.previousRow.linkState === "pending"
+        ? lastLinkAction.previousRow
+        : null;
+    if (restoredReviewRow) {
+      searchCandidateRequestId.current += 1;
+      setSearchCandidateResult(null);
+      setActiveReviewRowId(restoredReviewRow.id);
+      setReviewQuery(restoredReviewRow.sourceTitle);
+      void loadCandidates(restoredReviewRow);
+    }
+    saveMatchedRows(nextRows, restoredReviewRow?.id);
+    setLiveAnnouncement(
+      `${lastLinkAction.displayName} identity decision undone.`,
+    );
+  }, [lastLinkAction, loadCandidates, matchedRows, saveMatchedRows]);
 
   const removeDuplicateRow = useCallback(
     (rowId: string) => {
@@ -1346,8 +1429,10 @@ export function useCatalogImporterWorkbench(
     readingFile,
     rejectFile,
     keepDuplicateRows,
+    leaveRowUnmatched,
     removeDuplicateRow,
     resetImporter,
+    restoreUnmatchedRow,
     resolveImageUrlIssues,
     resolvePriceIssues,
     includedRows,

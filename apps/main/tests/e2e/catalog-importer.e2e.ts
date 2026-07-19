@@ -352,7 +352,7 @@ test.describe("catalog importer", () => {
       page.getByRole("link", { name: "View in preview" }),
     ).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Undo cultivar link" }),
+      page.getByRole("button", { name: "Undo identity decision" }),
     ).toBeVisible();
     await expect(
       page.getByText("1 manual match remaining", { exact: false }),
@@ -390,7 +390,7 @@ test.describe("catalog importer", () => {
 
     const closeMatches = page.getByRole("region", { name: "Close matches" });
     await expect(
-      closeMatches.getByRole("button", { name: "Skip" }),
+      closeMatches.getByRole("button", { name: "Decide later" }),
     ).toHaveAttribute("aria-keyshortcuts", "X");
     const restoredReviewQuiz = page.getByRole("region", {
       name: "Review potential matches",
@@ -399,7 +399,14 @@ test.describe("catalog importer", () => {
     await page.keyboard.press("x");
     await expect(
       page.getByRole("region", { name: "Review potential matches" }),
+    ).toContainText("1 manual match remaining");
+    await closeMatches.getByRole("button", { name: "Leave unmatched" }).click();
+    await expect(
+      page.getByRole("region", { name: "Review potential matches" }),
     ).toHaveCount(0);
+    await expect(
+      page.getByRole("region", { name: "Listings left unmatched" }),
+    ).toContainText("Mystery Bloom");
 
     const downloadPromise = page.waitForEvent("download");
     await page

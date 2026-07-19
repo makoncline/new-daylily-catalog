@@ -43,11 +43,15 @@ function CandidateChoice({
   const registryDescription =
     getCultivarTraitSummary(candidate).join(" · ") ||
     "Registry description unavailable";
+  const suggestionReason =
+    candidate.confidence === 100
+      ? "Exact normalized-name match"
+      : `Suggested because the names are ${candidate.confidence}% similar`;
 
   return (
     <article
       role="listitem"
-      className="focus-within:border-primary hover:border-foreground/30 grid h-32 grid-cols-[7.25rem_minmax(0,1fr)] gap-3 overflow-hidden rounded-md border p-3 transition-colors sm:grid-cols-[8.5rem_minmax(0,1fr)] sm:gap-4 sm:p-4"
+      className="focus-within:border-primary hover:border-foreground/30 grid h-40 grid-cols-[7.25rem_minmax(0,1fr)] gap-3 overflow-hidden rounded-md border p-3 transition-colors sm:grid-cols-[8.5rem_minmax(0,1fr)] sm:gap-4 sm:p-4"
     >
       <div
         data-testid="candidate-choice-media"
@@ -82,9 +86,18 @@ function CandidateChoice({
         <p className="text-muted-foreground mt-1 line-clamp-2 text-xs leading-relaxed break-words sm:text-sm">
           {registryDescription}
         </p>
-        <p className="text-muted-foreground mt-1 text-xs tabular-nums">
-          {candidate.confidence}% name similarity
-        </p>
+        <p className="text-muted-foreground mt-1 text-xs">{suggestionReason}</p>
+        <Button
+          type="button"
+          variant="link"
+          size="sm"
+          className="mt-1 h-auto w-fit max-w-full justify-start p-0 text-xs"
+          onClick={() => onChoose(candidate)}
+        >
+          <span className="truncate">
+            Link this listing to {candidate.displayName}
+          </span>
+        </Button>
       </div>
     </article>
   );
@@ -105,7 +118,7 @@ export function CatalogImporterCandidateList({
     <div
       role="list"
       aria-label={ariaLabel}
-      className="max-h-[25.5rem] space-y-3 overflow-y-auto overscroll-contain pr-1"
+      className="max-h-[31.5rem] space-y-3 overflow-y-auto overscroll-contain pr-1"
     >
       {candidates.map((candidate, candidateIndex) => (
         <CandidateChoice

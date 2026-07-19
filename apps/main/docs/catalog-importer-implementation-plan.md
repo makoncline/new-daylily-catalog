@@ -8,18 +8,18 @@ decisions, evidence, and blockers.
 
 ## Live status
 
-| Field           | Current value                                                                                                  |
-| --------------- | -------------------------------------------------------------------------------------------------------------- |
-| Overall status  | Implementation in progress                                                                                     |
-| Current phase   | Phase C — Repair                                                                                               |
-| Current slice   | Slice 7 — Complete cultivar review, revision, and undo                                                         |
-| Last updated    | 2026-07-18                                                                                                     |
-| Branch          | `agent/catalog-importer-v1`                                                                                    |
-| Baseline commit | `7b5a81ad`                                                                                                     |
-| Pull request    | [#352 — Prepare daylily catalog spreadsheets](https://github.com/makoncline/new-daylily-catalog/pull/352)      |
-| Current blocker | None                                                                                                           |
-| Next action     | Audit candidate hierarchy, decision states, revision paths, and keyboard behavior against the Slice 7 contract |
-| Latest evidence | Slice 6 passed 38 focused tests, 3 E2Es, typecheck, lint, and visible navigation against the real workbook     |
+| Field           | Current value                                                                                             |
+| --------------- | --------------------------------------------------------------------------------------------------------- |
+| Overall status  | Implementation in progress                                                                                |
+| Current phase   | Phase C — Repair                                                                                          |
+| Current slice   | Slice 8 — Complete spreadsheet issue repair                                                               |
+| Last updated    | 2026-07-18                                                                                                |
+| Branch          | `agent/catalog-importer-v1`                                                                               |
+| Baseline commit | `7b5a81ad`                                                                                                |
+| Pull request    | [#352 — Prepare daylily catalog spreadsheets](https://github.com/makoncline/new-daylily-catalog/pull/352) |
+| Current blocker | None                                                                                                      |
+| Next action     | Audit price, duplicate, image, and saved-ID semantics against the cleaned-workbook contract               |
+| Latest evidence | Slice 7 passed 38 focused tests, 3 E2Es, typecheck, lint, and the real 52-row queue in visible Chrome     |
 
 ### Progress
 
@@ -33,7 +33,7 @@ decisions, evidence, and blockers.
   - [x] Slice 5 — Make collection insights accurate and interactive
   - [x] Slice 6 — Add persistent workspace status and navigation
 - [ ] Phase C — Repair
-  - [ ] Slice 7 — Complete cultivar review, revision, and undo
+  - [x] Slice 7 — Complete cultivar review, revision, and undo
   - [ ] Slice 8 — Complete spreadsheet issue repair
 - [ ] Phase D — Export and continue
   - [ ] Slice 9 — Complete the prepared-workbook download experience
@@ -48,21 +48,21 @@ decisions, evidence, and blockers.
 Use this area for short-lived details needed to resume the active slice.
 Move durable decisions to the decision log and completed work to the work log.
 
-- Slice 6 is complete and ready to package for PR #352.
-- Begin Slice 7 by auditing the current one-at-a-time review and revision sheet
-  against the explicit identity-decision contract.
-- Reuse the existing match option and search components.
-- Keep revision and undo local to cultivar-link decisions; do not introduce a
-  generic command or history framework.
+- Slice 7 is complete and ready to package for PR #352.
+- Begin Slice 8 with the existing grouped issue tables and the exact workbook
+  consequences of each action.
+- Keep required values separate from warnings.
+- Preserve seller meaning; do not expand the bounded price parser into a
+  general pricing language.
 
 ### User update
 
 Use this as the source for concise progress updates.
 
-> Slice 6 is complete: a persistent desktop workspace bar links preview,
-> insights, review, issues, and download; phone width gets one compact Review/
-> Fix and Download bar. Real Chrome exposed and verified fixes for the public
-> shell’s sticky boundary, anchor clearance, and preview-control leakage.
+> Slice 7 is complete: pending rows can be deferred with X, intentionally left
+> unmatched with a stated workbook consequence, restored to review, or linked
+> through explicit candidate actions. Linked rows can also be revised or left
+> unmatched, with one-level Undo for the latest identity decision.
 
 ## How the goal agent must use this file
 
@@ -572,36 +572,48 @@ workflow, and every link can be corrected later.
 
 Tasks:
 
-- [ ] Keep the one-at-a-time review model.
-- [ ] Show all seller spreadsheet columns for the active source row.
-- [ ] For each close candidate show:
-  - [ ] reference photograph;
-  - [ ] cultivar name;
-  - [ ] hybridizer and year;
-  - [ ] why it was suggested;
-  - [ ] distinguishing registry details; and
-  - [ ] explicit `Link this listing to …` action.
-- [ ] Keep number-key selection as a secondary shortcut.
-- [ ] Keep `X` as the Decide later shortcut within the match choices.
-- [ ] Separate `Decide later` from `Leave unmatched`.
-- [ ] Explain the prepared-workbook consequence of leaving a row unmatched.
-- [ ] Keep Other match search below close matches.
-- [ ] Give Other match search its own independent results and reset-to-source
+- [x] Keep the one-at-a-time review model.
+- [x] Show all seller spreadsheet columns for the active source row.
+- [x] For each close candidate show:
+  - [x] reference photograph;
+  - [x] cultivar name;
+  - [x] hybridizer and year;
+  - [x] why it was suggested;
+  - [x] distinguishing registry details; and
+  - [x] explicit `Link this listing to …` action.
+- [x] Keep number-key selection as a secondary shortcut.
+- [x] Keep `X` as the Decide later shortcut within the match choices.
+- [x] Separate `Decide later` from `Leave unmatched`.
+- [x] Explain the prepared-workbook consequence of leaving a row unmatched.
+- [x] Keep Other match search below close matches.
+- [x] Give Other match search its own independent results and reset-to-source
       query action.
-- [ ] Keep close and search result areas to three visible cards with internal
+- [x] Keep close and search result areas to three visible cards with internal
       vertical scrolling.
-- [ ] Keep two-column image/details candidate cards on mobile.
-- [ ] Allow previous/next navigation, reopening automatic links, changing
+- [x] Keep two-column image/details candidate cards on mobile.
+- [x] Allow previous/next navigation, reopening automatic links, changing
       manual links, and restoring an intentionally unmatched row.
-- [ ] Add a direct one-level Undo for the latest identity decision.
-- [ ] Do not add a generic command-history system.
+- [x] Add a direct one-level Undo for the latest identity decision.
+- [x] Do not add a generic command-history system.
 
 Acceptance:
 
-- [ ] Every pending row can be linked, deferred, or intentionally unmatched.
-- [ ] Every link can be revised.
-- [ ] Refresh restores queue contents, position, and completed decisions.
-- [ ] Keyboard use supplements rather than replaces visible actions.
+- [x] Every pending row can be linked, deferred, or intentionally unmatched.
+- [x] Every link can be revised.
+- [x] Refresh restores queue contents, position, and completed decisions.
+- [x] Keyboard use supplements rather than replaces visible actions.
+
+Evidence (2026-07-18):
+
+- 38 focused importer tests passed, including defer-versus-unmatched behavior,
+  explicit candidate actions, restoration, linked-row unlinking, and undo.
+- All 3 importer E2Es passed with keyboard defer, intentional unmatched output,
+  refresh restoration, download, and phone-width coverage.
+- Typecheck passed. Lint has zero errors and one unrelated existing dashboard
+  warning.
+- Visible Chrome verified the 52-row real review queue, all uploaded columns,
+  the two-column candidate layout, X defer/arrow navigation, intentional
+  unmatched state, restoration, and one-level Undo back to 1 of 52.
 
 ### Slice 8 — Complete spreadsheet issue repair
 
@@ -906,7 +918,8 @@ artifacts when useful.
 
 | Date       | Slice    | Status   | What changed                                                                                                                                           | Verification                                                                                                                                                              | Commit / notes                      |
 | ---------- | -------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
-| 2026-07-18 | Slice 6  | Complete | Added responsive persistent workspace navigation, prioritized next-task links, and always-available current/prepared download without duplicate state. | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, and real Chrome verification of sticky anchors and the 1,087-row workflow.                 | This Slice 6 commit.                |
+| 2026-07-18 | Slice 7  | Complete | Separated defer and intentional-unmatched decisions; added explicit candidate actions, restoration, linked-row unlinking, and identity Undo.           | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, and visible Chrome verification against the real 52-row review queue.                      | This Slice 7 commit.                |
+| 2026-07-18 | Slice 6  | Complete | Added responsive persistent workspace navigation, prioritized next-task links, and always-available current/prepared download without duplicate state. | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, and real Chrome verification of sticky anchors and the 1,087-row workflow.                 | `086da3d8`                          |
 | 2026-07-18 | Slice 5  | Complete | Counted linked unique cultivars; added narrative discoveries and clickable rankings that drive the shared removable preview filters.                   | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and real Chrome filtering of the 1,087-row catalog from 1,034 to 52 listings.     | `dd181675`                          |
 | 2026-07-18 | Slice 4  | Complete | Restricted preview to explicit links; removed confidence badges; labeled image provenance; added match confirmation, highlighting, revision, and undo. | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome verification against the 1,087-row preview.                    | `b1442747`                          |
 | 2026-07-18 | Slice 3  | Complete | Replaced the generic overview with a personalized enrichment reveal; reordered preview, insights, preparation, repair, download, and Pro continuation. | 37 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome verification with the rebuilt 1,087-row workbook.              | `1d999a90`                          |

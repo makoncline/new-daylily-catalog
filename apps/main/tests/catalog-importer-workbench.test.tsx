@@ -476,6 +476,43 @@ describe("CatalogImporterWorkbench", () => {
     const reviewQuiz = screen.getByRole("region", {
       name: "Review potential matches",
     });
+    expect(
+      within(reviewQuiz).getByRole("button", {
+        name: "Link this listing to Vanguard",
+      }),
+    ).toBeVisible();
+    expect(
+      within(reviewQuiz).getByRole("button", { name: "Decide later" }),
+    ).toHaveAttribute("aria-keyshortcuts", "X");
+    expect(reviewQuiz).toHaveTextContent(
+      "Leave unmatched keeps this row in the prepared workbook without a Daylily Catalog cultivar ID or link.",
+    );
+
+    fireEvent.keyDown(reviewQuiz, { key: "x" });
+    expect(
+      screen.getByText("2 manual matches remaining", { exact: false }),
+    ).toBeVisible();
+    expect(
+      within(reviewQuiz).getByRole("heading", { name: "Aerial Art" }),
+    ).toBeVisible();
+    fireEvent.click(
+      within(reviewQuiz).getByRole("button", {
+        name: "Previous unmatched name",
+      }),
+    );
+    fireEvent.click(
+      within(reviewQuiz).getByRole("button", { name: "Leave unmatched" }),
+    );
+    expect(
+      await screen.findByRole("region", { name: "Listings left unmatched" }),
+    ).toHaveTextContent("Vanguard 2");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Review Vanguard 2 again" }),
+    );
+    expect(
+      await screen.findByText("2 manual matches remaining", { exact: false }),
+    ).toBeVisible();
+
     fireEvent.click(
       within(reviewQuiz).getByRole("button", {
         name: "Use match 1: Vanguard",
@@ -507,7 +544,9 @@ describe("CatalogImporterWorkbench", () => {
       ),
     ).toBeVisible();
 
-    fireEvent.click(screen.getByRole("button", { name: "Undo cultivar link" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Undo identity decision" }),
+    );
     await waitFor(() =>
       expect(
         within(
@@ -530,5 +569,31 @@ describe("CatalogImporterWorkbench", () => {
         "Based on 7 linked unique cultivars. 2 unresolved listings are not included.",
       ),
     ).toBeVisible();
+
+    fireEvent.click(
+      screen.getAllByRole("button", {
+        name: "Change cultivar match for Stella de Oro",
+      })[0]!,
+    );
+    const matchSheet = await screen.findByRole("dialog", {
+      name: "Change cultivar match",
+    });
+    expect(matchSheet).toHaveTextContent(
+      "Leave unmatched keeps this row in the prepared workbook without a Daylily Catalog cultivar ID or link.",
+    );
+    fireEvent.click(
+      within(matchSheet).getByRole("button", { name: "Leave unmatched" }),
+    );
+    expect(
+      await screen.findByRole("region", { name: "Listings left unmatched" }),
+    ).toHaveTextContent("Stella de Oro");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Undo identity decision" }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("region", { name: "Listings left unmatched" }),
+      ).not.toBeInTheDocument(),
+    );
   });
 });

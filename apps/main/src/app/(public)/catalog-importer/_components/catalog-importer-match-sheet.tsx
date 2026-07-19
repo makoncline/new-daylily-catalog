@@ -258,6 +258,24 @@ export function CatalogImporterMatchSheet({
             sourceCells={controller.getSourceCellsForRow(row)}
           />
 
+          <div className="flex flex-col gap-3 border-y py-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-muted-foreground text-sm">
+              Leave unmatched keeps this row in the prepared workbook without a
+              Daylily Catalog cultivar ID or link.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              className="shrink-0"
+              onClick={() => {
+                controller.leaveRowUnmatched(row.id);
+                onOpenChange(false);
+              }}
+            >
+              Leave unmatched
+            </Button>
+          </div>
+
           <section className="space-y-3" aria-labelledby="sheet-close-matches">
             <div>
               <h3 id="sheet-close-matches" className="font-semibold">

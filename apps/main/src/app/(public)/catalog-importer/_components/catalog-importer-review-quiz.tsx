@@ -118,7 +118,7 @@ export function CatalogImporterReviewQuiz({
 
     if (event.key.toLowerCase() === "x") {
       event.preventDefault();
-      skipReviewRow();
+      moveReviewRow(1);
     } else if (event.key === "ArrowLeft") {
       event.preventDefault();
       moveReviewRow(-1);
@@ -163,7 +163,7 @@ export function CatalogImporterReviewQuiz({
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-muted-foreground hidden text-xs lg:inline">
             <kbd className="font-mono">1–9</kbd> choose ·{" "}
-            <kbd className="font-mono">X</kbd> skip ·{" "}
+            <kbd className="font-mono">X</kbd> decide later ·{" "}
             <kbd className="font-mono">← →</kbd> move
           </span>
           <Button
@@ -199,7 +199,7 @@ export function CatalogImporterReviewQuiz({
           aria-labelledby="catalog-importer-close-matches-heading"
           className="space-y-3"
         >
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h3
                 id="catalog-importer-close-matches-heading"
@@ -211,22 +211,31 @@ export function CatalogImporterReviewQuiz({
                 Best matches for {activeRow.title}.
               </p>
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              aria-keyshortcuts="X"
-              onClick={skipReviewRow}
-            >
-              <SkipForward className="size-4" />
-              Skip
-              <kbd
-                aria-hidden="true"
-                className="bg-muted rounded px-1.5 py-0.5 font-mono text-xs"
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                aria-keyshortcuts="X"
+                onClick={() => moveReviewRow(1)}
               >
-                X
-              </kbd>
-            </Button>
+                <SkipForward className="size-4" />
+                Decide later
+                <kbd
+                  aria-hidden="true"
+                  className="bg-muted rounded px-1.5 py-0.5 font-mono text-xs"
+                >
+                  X
+                </kbd>
+              </Button>
+              <Button type="button" variant="ghost" onClick={skipReviewRow}>
+                Leave unmatched
+              </Button>
+            </div>
           </div>
+          <p className="text-muted-foreground text-xs">
+            Leave unmatched keeps this row in the prepared workbook without a
+            Daylily Catalog cultivar ID or link.
+          </p>
 
           {closeCandidateResult?.error &&
           closeCandidateResult.rowId === activeRow.id ? (

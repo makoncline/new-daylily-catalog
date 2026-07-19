@@ -156,6 +156,60 @@ function CatalogImporterWorkspaceNavigation({
   );
 }
 
+function CatalogImporterUnmatchedRows({
+  controller,
+}: CatalogImporterResultsProps) {
+  const rows = controller.includedRows.filter(
+    (row) => row.linkState === "intentionally-unmatched",
+  );
+
+  if (rows.length === 0) {
+    return null;
+  }
+
+  return (
+    <section
+      id="catalog-importer-unmatched"
+      role="region"
+      aria-labelledby="catalog-importer-unmatched-heading"
+      className="border-t pt-8"
+    >
+      <h2 id="catalog-importer-unmatched-heading" className="font-semibold">
+        Listings left unmatched
+      </h2>
+      <p className="text-muted-foreground mt-1 text-sm">
+        These rows stay in the prepared workbook without Daylily Catalog
+        identity fields.
+      </p>
+      <div className="mt-4 divide-y border-y">
+        {rows.map((row) => (
+          <div
+            key={row.id}
+            className="flex items-center justify-between gap-4 py-3"
+          >
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium">{row.sourceTitle}</p>
+              <p className="text-muted-foreground text-xs">
+                Source row {row.sourceRow}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="shrink-0"
+              aria-label={`Review ${row.sourceTitle} again`}
+              onClick={() => controller.restoreUnmatchedRow(row.id)}
+            >
+              Review again
+            </Button>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export function CatalogImporterResults({
   controller,
 }: CatalogImporterResultsProps) {
@@ -251,23 +305,27 @@ export function CatalogImporterResults({
         >
           <p className="text-sm font-medium">
             {controller.lastLinkAction.displayName}{" "}
-            {controller.lastLinkAction.kind === "added"
-              ? "was added to your preview."
-              : "is now linked in your preview."}
+            {controller.lastLinkAction.kind === "left-unmatched"
+              ? "will remain unmatched in the prepared workbook."
+              : controller.lastLinkAction.kind === "added"
+                ? "was added to your preview."
+                : "is now linked in your preview."}
           </p>
           <div className="flex items-center gap-1">
-            <Button asChild variant="link" size="sm">
-              <a
-                href={`#${getCatalogPreviewRowId(controller.lastLinkAction.rowId)}`}
-              >
-                View in preview
-              </a>
-            </Button>
+            {controller.lastLinkAction.kind !== "left-unmatched" ? (
+              <Button asChild variant="link" size="sm">
+                <a
+                  href={`#${getCatalogPreviewRowId(controller.lastLinkAction.rowId)}`}
+                >
+                  View in preview
+                </a>
+              </Button>
+            ) : null}
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              aria-label="Undo cultivar link"
+              aria-label="Undo identity decision"
               onClick={controller.undoLastLinkAction}
             >
               <Undo2 aria-hidden="true" className="size-4" />
@@ -276,6 +334,8 @@ export function CatalogImporterResults({
           </div>
         </div>
       ) : null}
+
+      <CatalogImporterUnmatchedRows controller={controller} />
 
       {controller.reviewRows.length > 0 ? (
         <CatalogImporterReviewQuiz controller={controller} />
