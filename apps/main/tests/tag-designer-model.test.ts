@@ -215,6 +215,26 @@ describe("tag designer model", () => {
     );
   });
 
+  it("keeps wide-letter titles inside the printable width while growing", () => {
+    const cases = [
+      { title: "Whammer Jammer", maximumFontSize: 29.3 },
+      { title: "oooooooooooo", maximumFontSize: 35.8 },
+      { title: "COOL COLOR", maximumFontSize: 38.7 },
+    ];
+
+    for (const testCase of cases) {
+      const row = buildResolvedRowsForListing(
+        { ...listing, title: testCase.title },
+        createRowsFromTagTextTemplate("# {{title}}"),
+      )[0]!;
+      const title = row.cells[0]!;
+      const fittedFontSize = resolveCellFontSizePx(title, row, 3.5, true);
+
+      expect(fittedFontSize).toBeGreaterThan(title.fontSize);
+      expect(fittedFontSize).toBeLessThanOrEqual(testCase.maximumFontSize);
+    }
+  });
+
   it("caps short titles based on tag height", () => {
     const row = buildResolvedRowsForListing(
       { ...listing, title: "Clown" },
@@ -225,6 +245,29 @@ describe("tag designer model", () => {
     expect(resolveCellFontSizePx(title, row, 3.5, false, 0.75)).toBe(31.5);
     expect(resolveCellFontSizePx(title, row, 3.5, false, 1)).toBe(42);
     expect(resolveCellFontSizePx(title, row, 3.5, false, 2)).toBe(56);
+  });
+
+  it("reserves enough height for every row in raster exports", () => {
+    const rows = buildResolvedRowsForListing(
+      { ...listing, title: "Clown" },
+      createRowsFromTagTextTemplate(
+        "# {{title}}\n{{hybridizerYear}}\n## {{ploidy}} | {{price}}",
+      ),
+    );
+
+    const fittedRowSizes = rows.map((row) =>
+      Math.max(
+        ...row.cells.map((cell) =>
+          resolveCellFontSizePx(cell, row, 3.5, true, 1, rows),
+        ),
+      ),
+    );
+    const rasterContentHeight =
+      fittedRowSizes.reduce((total, fontSize) => total + fontSize * 1.39, 0) +
+      (rows.length - 1) * 2;
+    const availableHeight = (1 - 0.12) * 96;
+
+    expect(rasterContentHeight).toBeLessThanOrEqual(availableHeight);
   });
 
   it("preserves runs of interior blank lines as row spacing", () => {

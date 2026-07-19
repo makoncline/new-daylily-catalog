@@ -265,6 +265,7 @@ function TagPreviewCard({
                         widthInches,
                         Boolean(tag.qrCodeUrl),
                         heightInches,
+                        tag.rows,
                       )}px`,
                     }}
                   >

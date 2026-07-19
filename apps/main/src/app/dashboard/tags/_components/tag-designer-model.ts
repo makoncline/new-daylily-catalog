@@ -203,12 +203,21 @@ export const MIN_TAG_HEIGHT_INCHES = 0.5;
 export const MAX_TAG_HEIGHT_INCHES = 4;
 export const CSS_PIXELS_PER_INCH = 96;
 const TAG_HORIZONTAL_PADDING_INCHES = 0.16;
+export const TAG_VERTICAL_PADDING_INCHES = 0.12;
 const TAG_COLUMN_GAP_INCHES = 0.06;
 const MIN_FIT_FONT_SIZE_PX = 6;
 const AUTO_GROW_TITLE_FONT_SIZE_PX_PER_INCH = 42;
 const MAX_AUTO_GROW_TITLE_FONT_SIZE_PX = 56;
 const AVERAGE_CHARACTER_WIDTH_EM = 0.56;
 const FIT_FONT_SCALE_BUFFER = 0.95;
+export const TAG_RASTER_CELL_LINE_HEIGHT = 1.28;
+export const TAG_RASTER_CELL_PADDING_TOP_EM = 0.03;
+export const TAG_RASTER_CELL_PADDING_BOTTOM_EM = 0.08;
+export const TAG_RASTER_ROW_GAP_PX = 2;
+const TAG_RASTER_CELL_HEIGHT_EM =
+  TAG_RASTER_CELL_LINE_HEIGHT +
+  TAG_RASTER_CELL_PADDING_TOP_EM +
+  TAG_RASTER_CELL_PADDING_BOTTOM_EM;
 export const QR_SIZE_INCHES = 0.5;
 const QR_OFFSET_INCHES = 0.06;
 const QR_TEXT_GAP_INCHES = 0.04;
@@ -454,8 +463,34 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
+function estimateBoldTitleWidthEm(text: string) {
+  return [...text].reduce((width, character) => {
+    if (character === " ") return width + 0.28;
+    if (character === "W") return width + 1;
+    if (character === "M" || character === "w") return width + 0.84;
+    if (character === "m") return width + 0.89;
+    if ("GOQ".includes(character)) return width + 0.79;
+    if ("ABCDHKNRUVXY".includes(character)) return width + 0.73;
+    if ("EPSZ".includes(character)) return width + 0.68;
+    if ("FJLT".includes(character)) return width + 0.62;
+    if (character === "I") return width + 0.29;
+    if (/[0-9]/.test(character)) return width + 0.56;
+    if ("bdghnopqu".includes(character)) return width + 0.62;
+    if ("aceksvxyz".includes(character)) return width + 0.56;
+    if (character === "r") return width + 0.39;
+    if ("ft".includes(character)) return width + 0.34;
+    if ("ilj".includes(character)) return width + 0.28;
+    if ("'.,:;|!-()[]".includes(character)) return width + 0.34;
+    return width + 0.95;
+  }, 0);
+}
+
 function normalizeInches(value: number) {
   return Number(value.toFixed(2));
+}
+
+function floorToHundredth(value: number) {
+  return Math.floor(value * 100) / 100;
 }
 
 function toFiniteNumber(value: unknown) {
@@ -1254,12 +1289,19 @@ export function downloadSelectedListingsCsv(
   URL.revokeObjectURL(url);
 }
 
-export function resolveCellFontSizePx(
+function shouldGrowCellToFillWidth(cell: ResolvedCell, row: ResolvedRow) {
+  return (
+    row.cells.length === 1 &&
+    cell.bold &&
+    cell.fontSize >= LARGE_LINE_FONT_SIZE_PX
+  );
+}
+
+function resolveWidthFittedCellFontSizePx(
   cell: ResolvedCell,
   row: ResolvedRow,
   tagWidthInches: number,
   hasQrCode: boolean,
-  tagHeightInches = 1,
 ) {
   const shouldFit = cell.fit ?? true;
   if (cell.wrap) return cell.fontSize;
@@ -1280,32 +1322,106 @@ export function resolveCellFontSizePx(
 
   const cellWidthInches = innerWidthInches * (cell.width / rowTotalWidthUnits);
   const cellWidthPx = Math.max(cellWidthInches * CSS_PIXELS_PER_INCH, 1);
-  const estimatedTextWidthPx =
-    Math.max(cell.text.length, 1) * cell.fontSize * AVERAGE_CHARACTER_WIDTH_EM;
-  const shouldGrowToFillWidth =
-    row.cells.length === 1 &&
-    cell.bold &&
-    cell.fontSize >= LARGE_LINE_FONT_SIZE_PX;
-  const titleHeightLimitPx = Math.min(
-    MAX_AUTO_GROW_TITLE_FONT_SIZE_PX,
-    Math.max(
-      MIN_FIT_FONT_SIZE_PX,
-      tagHeightInches * AUTO_GROW_TITLE_FONT_SIZE_PX_PER_INCH,
-    ),
-  );
+  const shouldGrowToFillWidth = shouldGrowCellToFillWidth(cell, row);
+  const estimatedTextWidthPx = shouldGrowToFillWidth
+    ? Math.max(estimateBoldTitleWidthEm(cell.text), 1) * cell.fontSize
+    : Math.max(cell.text.length, 1) *
+      cell.fontSize *
+      AVERAGE_CHARACTER_WIDTH_EM;
 
   if (!shouldGrowToFillWidth && estimatedTextWidthPx <= cellWidthPx) {
     return cell.fontSize;
   }
 
-  return Number(
+  return floorToHundredth(
     clamp(
       (cellWidthPx / estimatedTextWidthPx) *
         cell.fontSize *
         FIT_FONT_SCALE_BUFFER,
       MIN_FIT_FONT_SIZE_PX,
-      shouldGrowToFillWidth ? titleHeightLimitPx : cell.fontSize,
-    ).toFixed(2),
+      shouldGrowToFillWidth ? MAX_AUTO_GROW_TITLE_FONT_SIZE_PX : cell.fontSize,
+    ),
+  );
+}
+
+function resolveTitleHeightLimitPx(
+  rows: ResolvedRow[],
+  tagWidthInches: number,
+  hasQrCode: boolean,
+  tagHeightInches: number,
+) {
+  const titleRows = rows.filter(
+    (row) =>
+      row.cells[0] !== undefined &&
+      shouldGrowCellToFillWidth(row.cells[0], row),
+  );
+  if (titleRows.length === 0) return MAX_AUTO_GROW_TITLE_FONT_SIZE_PX;
+
+  const fixedRowsHeightPx = rows.reduce((height, row) => {
+    if (row.isSpacer) {
+      return height + TAG_SPACER_HEIGHT_INCHES * CSS_PIXELS_PER_INCH;
+    }
+    if (
+      row.cells[0] !== undefined &&
+      shouldGrowCellToFillWidth(row.cells[0], row)
+    ) {
+      return height;
+    }
+    const rowFontSize = Math.max(
+      ...row.cells.map((cell) =>
+        resolveWidthFittedCellFontSizePx(cell, row, tagWidthInches, hasQrCode),
+      ),
+      0,
+    );
+    return height + rowFontSize * TAG_RASTER_CELL_HEIGHT_EM;
+  }, 0);
+  const rowGapsHeightPx = Math.max(rows.length - 1, 0) * TAG_RASTER_ROW_GAP_PX;
+  const availableHeightPx =
+    (tagHeightInches - TAG_VERTICAL_PADDING_INCHES) * CSS_PIXELS_PER_INCH;
+  const remainingTitleHeightPx = Math.max(
+    availableHeightPx - fixedRowsHeightPx - rowGapsHeightPx,
+    0,
+  );
+  const sharedTitleFontSizePx =
+    remainingTitleHeightPx / titleRows.length / TAG_RASTER_CELL_HEIGHT_EM;
+
+  return clamp(
+    Math.min(
+      sharedTitleFontSizePx,
+      tagHeightInches * AUTO_GROW_TITLE_FONT_SIZE_PX_PER_INCH,
+      MAX_AUTO_GROW_TITLE_FONT_SIZE_PX,
+    ),
+    MIN_FIT_FONT_SIZE_PX,
+    MAX_AUTO_GROW_TITLE_FONT_SIZE_PX,
+  );
+}
+
+export function resolveCellFontSizePx(
+  cell: ResolvedCell,
+  row: ResolvedRow,
+  tagWidthInches: number,
+  hasQrCode: boolean,
+  tagHeightInches = 1,
+  rows: ResolvedRow[] = [row],
+) {
+  const widthFittedFontSize = resolveWidthFittedCellFontSizePx(
+    cell,
+    row,
+    tagWidthInches,
+    hasQrCode,
+  );
+  if (!shouldGrowCellToFillWidth(cell, row)) return widthFittedFontSize;
+
+  return floorToHundredth(
+    Math.min(
+      widthFittedFontSize,
+      resolveTitleHeightLimitPx(
+        rows,
+        tagWidthInches,
+        hasQrCode,
+        tagHeightInches,
+      ),
+    ),
   );
 }
 
@@ -1321,7 +1437,7 @@ export function getTagPreviewWarnings({
   let hasSmallText = false;
   let hasVerticalOverflow = false;
   const availableHeightPx = Math.max(
-    (heightInches - 0.12) * CSS_PIXELS_PER_INCH,
+    (heightInches - TAG_VERTICAL_PADDING_INCHES) * CSS_PIXELS_PER_INCH,
     1,
   );
 
@@ -1336,13 +1452,23 @@ export function getTagPreviewWarnings({
       }
 
       const fittedSizes = row.cells.map((cell) =>
-        resolveCellFontSizePx(cell, row, widthInches, hasQrCode, heightInches),
+        resolveCellFontSizePx(
+          cell,
+          row,
+          widthInches,
+          hasQrCode,
+          heightInches,
+          tag.rows,
+        ),
       );
       if (fittedSizes.some((fontSize) => fontSize < 10)) {
         hasSmallText = true;
       }
-      estimatedHeightPx += Math.max(...fittedSizes, 0) * 1.2;
+      estimatedHeightPx +=
+        Math.max(...fittedSizes, 0) * TAG_RASTER_CELL_HEIGHT_EM;
     }
+    estimatedHeightPx +=
+      Math.max(tag.rows.length - 1, 0) * TAG_RASTER_ROW_GAP_PX;
 
     if (estimatedHeightPx > availableHeightPx) {
       hasVerticalOverflow = true;

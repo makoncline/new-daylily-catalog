@@ -2,6 +2,10 @@
 
 import {
   QR_SIZE_INCHES,
+  TAG_RASTER_CELL_LINE_HEIGHT,
+  TAG_RASTER_CELL_PADDING_BOTTOM_EM,
+  TAG_RASTER_CELL_PADDING_TOP_EM,
+  TAG_RASTER_ROW_GAP_PX,
   TAG_SPACER_HEIGHT_INCHES,
   buildQrCodeSvgMarkup,
   resolveCellFontSizePx,
@@ -48,10 +52,14 @@ export function createTagPrintDocumentHtml({
 }) {
   const isRasterMode = mode === "raster";
   const rowAlignItems = isRasterMode ? "start" : "baseline";
-  const rowMarginTopPixels = isRasterMode ? 2 : 1;
-  const cellLineHeight = isRasterMode ? 1.28 : 1.2;
-  const cellPaddingTop = isRasterMode ? "0.03em" : "0";
-  const cellPaddingBottom = isRasterMode ? "0.08em" : "0";
+  const rowMarginTopPixels = isRasterMode ? TAG_RASTER_ROW_GAP_PX : 1;
+  const cellLineHeight = isRasterMode ? TAG_RASTER_CELL_LINE_HEIGHT : 1.2;
+  const cellPaddingTop = isRasterMode
+    ? `${TAG_RASTER_CELL_PADDING_TOP_EM}em`
+    : "0";
+  const cellPaddingBottom = isRasterMode
+    ? `${TAG_RASTER_CELL_PADDING_BOTTOM_EM}em`
+    : "0";
 
   const tagMarkup = tags
     .map((tag) => {
@@ -70,6 +78,7 @@ export function createTagPrintDocumentHtml({
                   widthInches,
                   hasQrCode,
                   heightInches,
+                  tag.rows,
                 ),
               };
               return `<div class="cell" style="${cellStyleAsCss(fittedCell)}">${escapeHtml(cell.text)}</div>`;
@@ -232,6 +241,7 @@ export function getSheetMarkup({
                       slotWidthInches,
                       hasQrCode,
                       slotHeightInches,
+                      tag.rows,
                     ),
                   };
                   return `<div class="cell" style="${cellStyleAsCss(fittedCell)}">${escapeHtml(cell.text)}</div>`;
