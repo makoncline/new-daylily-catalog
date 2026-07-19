@@ -48,30 +48,41 @@ that only need part of the interface. Full catalog experiences should prefer
 the registry and panel so labels, filter semantics, facet splitting, ranges,
 active-filter summaries, and responsive behavior do not diverge.
 
-## Enriched workbook
+## Cleaned workbook
 
-The download creates a new workbook containing:
+The uploaded file is never modified. Download creates a new prepared copy that
+keeps the seller's other worksheets, columns, included rows, and non-catalog
+data while cleaning the mapped listing fields:
 
-- every original cell value and column;
-- every original sheet's cell values;
-- rows that remain unmatched; and
-- the user's non-catalog data.
+- a linked listing name becomes the registered cultivar name;
+- an unmatched listing keeps the seller's original name;
+- mapped description and private-note whitespace is normalized;
+- a resolved price becomes a numeric value or an approved blank;
+- a resolved image URL becomes the normalized, approved URL;
+- unresolved seller price and image values remain unchanged; and
+- only rows the seller explicitly removes are omitted.
 
-XLSX formatting, formulas, merged cells, drawings, and other workbook-level
-features are not copied. The browser flow is a data preparation tool, not a
-general-purpose Excel editor.
+The selected sheet receives three identity columns:
 
-The selected sheet receives three columns:
+| Column                          | Meaning                                                                     |
+| ------------------------------- | --------------------------------------------------------------------------- |
+| `Daylily Catalog ID`            | Stable, validated cultivar identity and future import key.                  |
+| `Daylily Catalog Cultivar Name` | Human-readable registered cultivar name for the linked ID.                  |
+| `Daylily Catalog Cultivar URL`  | Permanent Daylily Catalog cultivar page, useful from the seller's workbook. |
 
-| Column                   | Meaning                                                                  |
-| ------------------------ | ------------------------------------------------------------------------ |
-| `Daylily Catalog ID`     | Stable cultivar ID; unknown saved IDs remain until resolved or cleared.  |
-| `registeredCultivarName` | Human-readable registered cultivar name for the linked ID.               |
-| `cultivarUrl`            | Permanent Daylily Catalog cultivar page, useful from the seller's sheet. |
+A known-invalid saved ID is cleared from the prepared identity field so a
+future importer cannot mistake it for a valid link. The row remains in the
+workbook and can still be deliberately linked or left unmatched.
 
-CSV input produces enriched CSV. XLSX input produces a new XLSX workbook
-containing each sheet's cell values. Duplicate rows explicitly removed in the
-issues flow are the only source rows omitted from the output.
+Legacy `cultivarReferenceId`, `registeredCultivarName`, and `cultivarUrl`
+headers are recognized and renamed instead of duplicated.
+
+CSV input produces cleaned CSV. XLSX input produces a new XLSX workbook with
+each sheet reconstructed from the cell values available to the browser reader.
+Formatting, formula expressions, comments, merged cells, drawings, validation,
+and hidden-sheet state are not copied. When the reader supplies a formula's
+calculated value, that value is written as an ordinary cell. This is a catalog
+data preparation tool, not a general-purpose Excel editor.
 
 ## Future importer contract
 
@@ -84,10 +95,10 @@ maps to the internal `cultivarReferenceId` field:
    deliberately match the row by name; never silently replace it.
 3. Only when the ID is blank should name matching propose or establish a link.
 
-`registeredCultivarName` remains useful for people, search, and diagnostics,
-but a normalized name is not a durable foreign key. Names and normalization
-rules can change, and an approximate or ambiguous name must never override a
-valid ID.
+`Daylily Catalog Cultivar Name` remains useful for people, search, and
+diagnostics, but a normalized name is not a durable foreign key. Names and
+normalization rules can change, and an approximate or ambiguous name must never
+override a valid ID.
 
 There is no database-writing importer in this stage. The dashboard continuation
 should consume `Daylily Catalog ID`, validate it against the current database,

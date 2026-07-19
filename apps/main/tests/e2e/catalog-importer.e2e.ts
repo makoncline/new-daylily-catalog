@@ -386,12 +386,13 @@ test.describe("catalog importer", () => {
     expect(downloadPath).not.toBeNull();
     const csv = await readFile(downloadPath, "utf8");
     expect(csv.split("\r\n")[0]).toBe(
-      "name,price,description,privateNote,imageUrl,Daylily Catalog ID,registeredCultivarName,cultivarUrl",
+      "name,price,description,privateNote,imageUrl,Daylily Catalog ID,Daylily Catalog Cultivar Name,Daylily Catalog Cultivar URL",
     );
     expect(csv).toContain("Mystery Bloom");
     expect(csv).toContain(
       "cultivar-vanguard,Vanguard,https://daylilycatalog.com/cultivar/vanguard",
     );
+    expect(csv).not.toContain("Vanguard 2");
     expect(csv).toContain("Daylily 2,12.5");
     expect(csv.split("\r\n")).toHaveLength(26);
   });

@@ -8,23 +8,23 @@ decisions, evidence, and blockers.
 
 ## Live status
 
-| Field           | Current value                                                                                                                                                   |
-| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Overall status  | Planning complete; implementation not started                                                                                                                   |
-| Current phase   | Phase A — Contract and state foundation                                                                                                                         |
-| Current slice   | Slice 0 — Verify and freeze the cleaned-workbook contract                                                                                                       |
-| Last updated    | 2026-07-18                                                                                                                                                      |
-| Branch          | `agent/catalog-importer-v1`                                                                                                                                     |
-| Baseline commit | `0db6486e`                                                                                                                                                      |
-| Pull request    | [#352 — Prepare daylily catalog spreadsheets](https://github.com/makoncline/new-daylily-catalog/pull/352)                                                       |
-| Current blocker | None                                                                                                                                                            |
-| Next action     | Start Slice 0 with visible workbook-contract verification                                                                                                       |
-| Latest evidence | Existing focused tests, importer E2E, typecheck, lint, and visible Chrome flow passed before this plan was written; each slice must record fresh evidence below |
+| Field           | Current value                                                                                                           |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Overall status  | Implementation in progress                                                                                              |
+| Current phase   | Phase A — Contract and state foundation                                                                                 |
+| Current slice   | Slice 1 — Make importer state, provenance, and counts explicit                                                          |
+| Last updated    | 2026-07-18                                                                                                              |
+| Branch          | `agent/catalog-importer-v1`                                                                                             |
+| Baseline commit | `7b5a81ad`                                                                                                              |
+| Pull request    | [#352 — Prepare daylily catalog spreadsheets](https://github.com/makoncline/new-daylily-catalog/pull/352)               |
+| Current blocker | None                                                                                                                    |
+| Next action     | Audit overlapping row status fields and count ownership for Slice 1                                                     |
+| Latest evidence | Slice 0 passed 25 focused tests, 3 E2Es, typecheck, real Chrome download, value comparison, and LibreOffice open/resave |
 
 ### Progress
 
 - [ ] Phase A — Contract and state foundation
-  - [ ] Slice 0 — Verify and freeze the cleaned-workbook contract
+  - [x] Slice 0 — Verify and freeze the cleaned-workbook contract
   - [ ] Slice 1 — Make importer state, provenance, and counts explicit
 - [ ] Phase B — Reveal and explore
   - [ ] Slice 2 — Refine upload, mapping, persistence, and processing feedback
@@ -48,18 +48,20 @@ decisions, evidence, and blockers.
 Use this area for short-lived details needed to resume the active slice.
 Move durable decisions to the decision log and completed work to the work log.
 
-- The original uploaded file must remain untouched.
-- The downloaded file is a cleaned copy, not a byte-for-byte workbook clone.
-- Verify the current output before changing its behavior or copy.
-- Do not begin Slice 1 until the output contract and its tests are accepted.
+- Slice 0 is complete and awaiting its commit/push.
+- Begin Slice 1 by inventorying existing `matchStatus`, `skipped`, `removed`,
+  warning, duplicate, and provenance logic before renaming any state.
+- Prefer pure selectors over storing additional counts or flags.
+- Preserve the newly frozen cleaned-workbook contract.
 
 ### User update
 
 Use this as the source for concise progress updates.
 
-> Planning is complete. The existing importer implementation is committed on
-> PR #352. The next work item is to verify and freeze exactly how the cleaned
-> workbook changes seller data before changing the results workspace.
+> Slice 0 is complete: the cleaned-copy contract is implemented, documented,
+> and verified with the real 1,087-row workbook from visible Chrome. The next
+> slice will simplify row state and make every summary count come from shared
+> pure selectors.
 
 ## How the goal agent must use this file
 
@@ -154,6 +156,8 @@ The selected listing sheet should:
   note values unless the seller explicitly changes them;
 - write an approved, normalized image URL when one exists;
 - preserve the original image value when its issue remains unresolved; and
+- clear a known-invalid saved ID from the prepared identity field while
+  retaining the source row; and
 - add the identity columns defined below.
 
 Visible identity columns:
@@ -174,19 +178,20 @@ merged cells, drawings, comments, macros, validation, and hidden state.
 
 ## Decision log
 
-| Date       | Decision                                                                                       | Reason                                                                                                                       |
-| ---------- | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| 2026-07-18 | Build the complete preparation experience before adding a paywall.                             | The product needs to prove its full value before deciding which future import or publishing capabilities to gate.            |
-| 2026-07-18 | Keep the preview before repair.                                                                | Photos, filters, and insights provide the immediate value reveal that motivates cleanup.                                     |
-| 2026-07-18 | Download a cleaned copy while leaving the uploaded file untouched.                             | Sellers want useful corrected data, but the browser flow must not mutate their source file.                                  |
-| 2026-07-18 | Use `Daylily Catalog ID` as the future import identity.                                        | Names and normalization rules can change; a validated stable ID is unambiguous.                                              |
-| 2026-07-18 | Keep uncertain candidates out of preview and insights.                                         | One conspicuously incorrect photo damages trust in every match.                                                              |
-| 2026-07-18 | Keep one-at-a-time cultivar review but show issue groups together.                             | Identity is a judgment task; price and duplicate repair benefit from comparison and batch context.                           |
-| 2026-07-18 | Use cards only for listings, search/filter surfaces, and discrete match choices.               | Most workspace sections need hierarchy, not decorative containers.                                                           |
-| 2026-07-18 | Reuse the shared catalog search registry and controlled components.                            | Search labels and filter semantics should not diverge across importer and existing catalog surfaces.                         |
-| 2026-07-18 | Prefer event-driven transitions and derived selectors; add no new synchronization `useEffect`. | This avoids the render loops and split state ownership already encountered in the importer.                                  |
-| 2026-07-18 | Do not add a metadata sheet or speculative import fields yet.                                  | The current output needs only the three stable identity fields; future import requirements should justify additional schema. |
-| 2026-07-18 | Keep automatic Codex review outside this goal.                                                 | The user will explicitly trigger review when desired.                                                                        |
+| Date       | Decision                                                                                       | Reason                                                                                                                                  |
+| ---------- | ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-07-18 | Build the complete preparation experience before adding a paywall.                             | The product needs to prove its full value before deciding which future import or publishing capabilities to gate.                       |
+| 2026-07-18 | Keep the preview before repair.                                                                | Photos, filters, and insights provide the immediate value reveal that motivates cleanup.                                                |
+| 2026-07-18 | Download a cleaned copy while leaving the uploaded file untouched.                             | Sellers want useful corrected data, but the browser flow must not mutate their source file.                                             |
+| 2026-07-18 | Use `Daylily Catalog ID` as the future import identity.                                        | Names and normalization rules can change; a validated stable ID is unambiguous.                                                         |
+| 2026-07-18 | Keep uncertain candidates out of preview and insights.                                         | One conspicuously incorrect photo damages trust in every match.                                                                         |
+| 2026-07-18 | Keep one-at-a-time cultivar review but show issue groups together.                             | Identity is a judgment task; price and duplicate repair benefit from comparison and batch context.                                      |
+| 2026-07-18 | Use cards only for listings, search/filter surfaces, and discrete match choices.               | Most workspace sections need hierarchy, not decorative containers.                                                                      |
+| 2026-07-18 | Reuse the shared catalog search registry and controlled components.                            | Search labels and filter semantics should not diverge across importer and existing catalog surfaces.                                    |
+| 2026-07-18 | Prefer event-driven transitions and derived selectors; add no new synchronization `useEffect`. | This avoids the render loops and split state ownership already encountered in the importer.                                             |
+| 2026-07-18 | Do not add a metadata sheet or speculative import fields yet.                                  | The current output needs only the three stable identity fields; future import requirements should justify additional schema.            |
+| 2026-07-18 | Clear known-invalid saved IDs from prepared identity fields.                                   | Without a separate match-state column, retaining an invalid ID could make a future importer treat unresolved identity as authoritative. |
+| 2026-07-18 | Keep automatic Codex review outside this goal.                                                 | The user will explicitly trigger review when desired.                                                                                   |
 
 ## Phase A — Contract and state foundation
 
@@ -197,42 +202,53 @@ what a prepared download changes and preserves.
 
 Tasks:
 
-- [ ] Inspect current CSV and XLSX generation without changing it.
-- [ ] Exercise all three supplied sample workbooks.
-- [ ] Exercise the real 1,087-row, three-sheet workbook in visible Chrome.
-- [ ] Inventory current behavior for mapped values, other columns, other
+- [x] Inspect current CSV and XLSX generation without changing it.
+- [x] Exercise all three supplied sample workbooks.
+- [x] Exercise the real 1,087-row, three-sheet workbook in visible Chrome.
+- [x] Inventory current behavior for mapped values, other columns, other
       worksheets, formulas, formatting, merges, drawings, comments, validation,
       hidden state, duplicate removal, and legacy identity columns.
-- [ ] Write focused integration tests for the accepted output contract.
-- [ ] Implement the cleaned-download rules in **Cleaned-download contract**.
-- [ ] Rename output headers to the three approved `Daylily Catalog …` names.
-- [ ] Continue recognizing supported legacy ID/name/link headers on re-upload.
-- [ ] Keep Daylily Catalog ID mapping automatic and absent from column mapping.
-- [ ] Update `catalog-list-cleaner.md` to match verified behavior.
-- [ ] Verify the prepared XLSX opens correctly in a spreadsheet application.
+- [x] Write focused integration tests for the accepted output contract.
+- [x] Implement the cleaned-download rules in **Cleaned-download contract**.
+- [x] Rename output headers to the three approved `Daylily Catalog …` names.
+- [x] Continue recognizing supported legacy ID/name/link headers on re-upload.
+- [x] Keep Daylily Catalog ID mapping automatic and absent from column mapping.
+- [x] Update `catalog-list-cleaner.md` to match verified behavior.
+- [x] Verify the prepared XLSX opens correctly in a spreadsheet application.
 
 Acceptance:
 
-- [ ] The uploaded source file is never modified.
-- [ ] A linked row receives the registered name, validated ID, and URL.
-- [ ] An unmatched row retains its original name.
-- [ ] Approved price, image, and duplicate decisions appear in the prepared
+- [x] The uploaded source file is never modified.
+- [x] A linked row receives the registered name, validated ID, and URL.
+- [x] An unmatched row retains its original name.
+- [x] Approved price, image, and duplicate decisions appear in the prepared
       file with their documented meaning.
-- [ ] An unresolved current-workbook download preserves unresolved source
+- [x] An unresolved current-workbook download preserves unresolved source
       values.
-- [ ] Other seller-owned columns and worksheets retain their verified values.
-- [ ] Workbook-fidelity limitations are stated accurately.
-- [ ] Download failures are reported separately and can be retried without
+- [x] Other seller-owned columns and worksheets retain their verified values.
+- [x] Workbook-fidelity limitations are stated accurately.
+- [x] Download failures are reported separately and can be retried without
       upload, remapping, or rematching.
 
 Evidence to record:
 
-- Test command and result:
-- Workbooks checked:
+- Test command and result: `pnpm main test -- catalog-importer.test.ts
+catalog-importer-file.test.ts catalog-importer-workbench.test.tsx` — 25
+  passed; `BASE_URL=http://localhost:3017 pnpm playwright test
+tests/e2e/catalog-importer.e2e.ts` — 3 passed; typecheck passed.
+- Lint result: zero errors; one pre-existing dashboard `useEffect` dependency
+  warning outside importer scope.
+- Workbooks checked: `2023 LIST ALPHABETICAL.xlsx` (568 rows),
+  `VarietyPedigrees.xlsx` (559 rows), and `Daylilies info.xlsx` (three sheets;
+  1,087 rows on the selected sheet).
 - Downloaded file path:
-- Visible Chrome result:
-- Spreadsheet-open result:
-- Commit:
+  `/Users/makon/Downloads/daylilies-info-daylily-catalog (4).xlsx`
+- Visible Chrome result: restored real draft, 1,034 of 1,086 listings linked,
+  download completed without a page error.
+- Spreadsheet-open result: artifact spreadsheet import and three-sheet value
+  comparison passed; LibreOffice opened and resaved the exact Chrome download,
+  and the resaved file reopened with three expected sheets and ranges.
+- Commit: this Slice 0 commit.
 
 ### Slice 1 — Make importer state, provenance, and counts explicit
 
@@ -788,23 +804,24 @@ The goal is complete only when:
 
 ## Risks and open decisions
 
-| Status           | Question or risk                                                                                       | Resolution path                                                                                                  |
-| ---------------- | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
-| Open in Slice 0  | Which XLSX features does the current reconstruction actually preserve?                                 | Inspect the generated real workbook and make UI/docs state only verified facts.                                  |
-| Open in Slice 0  | Should an approved bundle price write only numeric unit price or also populate an existing note field? | Preserve the original commercial meaning without inventing a new column; decide from sample workbook structures. |
-| Open in Slice 4  | Is a Catalog view/Data review toggle necessary?                                                        | First try customer-facing cards plus a simple details/change-match action; add a mode only if that is unclear.   |
-| Open in Slice 5  | Which insights are useful for very small catalogs?                                                     | Rank available facts and prefer concise narrative metrics over empty or low-information charts.                  |
-| Open in Slice 10 | What exact sign-in return URL preserves the local project?                                             | Reuse the existing auth return pattern and verify IndexedDB remains available on the same origin.                |
-| Open in Slice 12 | Does the preview need virtualization?                                                                  | Add it only if real measurements show the existing bounded rendering is not responsive.                          |
+| Status              | Question or risk                                                                                       | Resolution path                                                                                                                                           |
+| ------------------- | ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Resolved            | Which XLSX features does the current reconstruction actually preserve?                                 | It reconstructs browser-readable cell values and sheets; formulas, formatting, comments, merges, drawings, validation, and hidden state are not retained. |
+| Deferred to Slice 8 | Should an approved bundle price write only numeric unit price or also populate an existing note field? | Preserve the original commercial meaning without inventing a new column; decide with the issue-repair UI.                                                 |
+| Open in Slice 4     | Is a Catalog view/Data review toggle necessary?                                                        | First try customer-facing cards plus a simple details/change-match action; add a mode only if that is unclear.                                            |
+| Open in Slice 5     | Which insights are useful for very small catalogs?                                                     | Rank available facts and prefer concise narrative metrics over empty or low-information charts.                                                           |
+| Open in Slice 10    | What exact sign-in return URL preserves the local project?                                             | Reuse the existing auth return pattern and verify IndexedDB remains available on the same origin.                                                         |
+| Open in Slice 12    | Does the preview need virtualization?                                                                  | Add it only if real measurements show the existing bounded rendering is not responsive.                                                                   |
 
 ## Work log
 
 Add new entries at the top. Keep descriptions factual and link commits or
 artifacts when useful.
 
-| Date       | Slice    | Status   | What changed                                                                                                                  | Verification                                                   | Commit / notes                      |
-| ---------- | -------- | -------- | ----------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ----------------------------------- |
-| 2026-07-18 | Planning | Complete | Converted the full UI/UX review into a 14-slice implementation tracker; made cleaned-copy semantics the first gated contract. | Plan reviewed against the current product doc and PR boundary. | Implementation begins with Slice 0. |
+| Date       | Slice    | Status   | What changed                                                                                                                  | Verification                                                                                                                                                              | Commit / notes                      |
+| ---------- | -------- | -------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| 2026-07-18 | Slice 0  | Complete | Implemented cleaned mapped fields and canonical identity headers; documented the verified XLSX value-copy contract.           | 25 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, real Chrome download, full three-sheet value comparison, LibreOffice open/resave. | This Slice 0 commit.                |
+| 2026-07-18 | Planning | Complete | Converted the full UI/UX review into a 14-slice implementation tracker; made cleaned-copy semantics the first gated contract. | Plan reviewed against the current product doc and PR boundary.                                                                                                            | Implementation begins with Slice 0. |
 
 ## Deferred follow-ups
 

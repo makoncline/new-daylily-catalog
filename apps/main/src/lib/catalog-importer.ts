@@ -264,8 +264,20 @@ const CATALOG_IMPORT_TEMPLATE_HEADERS = [
 ] as const;
 const CATALOG_ENRICHMENT_HEADERS = {
   cultivarReferenceId: "Daylily Catalog ID",
-  registeredCultivarName: "registeredCultivarName",
-  cultivarUrl: "cultivarUrl",
+  registeredCultivarName: "Daylily Catalog Cultivar Name",
+  cultivarUrl: "Daylily Catalog Cultivar URL",
+} as const;
+const LEGACY_CATALOG_ENRICHMENT_HEADERS = {
+  cultivarReferenceId: [
+    "cultivar reference id",
+    "cultivarreferenceid",
+    "daylily catalog cultivar id",
+  ],
+  registeredCultivarName: [
+    "registered cultivar name",
+    "registeredcultivarname",
+  ],
+  cultivarUrl: ["cultivar url", "cultivarurl"],
 } as const;
 const DAYLILY_CATALOG_BASE_URL = "https://daylilycatalog.com";
 function isBlankCell(cell: SpreadsheetCell | undefined) {
@@ -698,14 +710,13 @@ function ensureEnrichmentColumns(
       const canonicalIndex = headerRow.findIndex(
         (cell) => cellToText(cell).toLowerCase() === header.toLowerCase(),
       );
-      const legacyIndex =
-        field === "cultivarReferenceId"
-          ? headerRow.findIndex(
-              (cell) =>
-                getHeaderMatchScore("cultivarReferenceId", cellToText(cell)) >=
-                0,
-            )
-          : -1;
+      const legacyHeaders: readonly string[] =
+        LEGACY_CATALOG_ENRICHMENT_HEADERS[
+          field as keyof typeof LEGACY_CATALOG_ENRICHMENT_HEADERS
+        ];
+      const legacyIndex = headerRow.findIndex((cell) =>
+        legacyHeaders.includes(cellToText(cell).toLowerCase()),
+      );
       const existingIndex = canonicalIndex >= 0 ? canonicalIndex : legacyIndex;
       const index = existingIndex >= 0 ? existingIndex : nextColumnIndex++;
       headerRow[index] = header;
@@ -785,15 +796,26 @@ export function createCatalogEnrichedSpreadsheet({
     const outputRow = originalRows[outputRowIndex] ?? [];
     originalRows[outputRowIndex] = outputRow;
 
+    if (mapping.title !== null && row.match) {
+      outputRow[mapping.title] = row.match.displayName;
+    }
     if (mapping.price !== null && row.priceWarning === null) {
       outputRow[mapping.price] = row.price ?? "";
+    }
+    if (mapping.description !== null) {
+      outputRow[mapping.description] = row.description;
+    }
+    if (mapping.privateNote !== null) {
+      outputRow[mapping.privateNote] = row.privateNote;
     }
     if (mapping.imageUrl !== null && row.imageUrlWarning === null) {
       outputRow[mapping.imageUrl] = row.imageUrl;
     }
 
     outputRow[enrichmentColumns.cultivarReferenceId] =
-      row.match?.cultivarReferenceId ?? row.sourceCultivarReferenceId;
+      row.cultivarReferenceIdWarning === null
+        ? (row.match?.cultivarReferenceId ?? row.sourceCultivarReferenceId)
+        : "";
     outputRow[enrichmentColumns.registeredCultivarName] =
       row.match?.displayName ?? "";
     outputRow[enrichmentColumns.cultivarUrl] = getCultivarUrl(row.match);

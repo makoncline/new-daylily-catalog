@@ -117,11 +117,18 @@ node apps/main/scripts/run-atlas-flow.mjs catalog-importer --output=local/atlas/
 ```
 
 In the visible Chrome walkthrough, use a real spreadsheet and confirm the
-download keeps every original cell value, column, and sheet, then adds:
+download retains seller-owned columns, included rows, and worksheet values;
+applies only documented listing-field cleanup; and adds:
 
 ```text
-Daylily Catalog ID,registeredCultivarName,cultivarUrl
+Daylily Catalog ID,Daylily Catalog Cultivar Name,Daylily Catalog Cultivar URL
 ```
+
+Confirm linked names use the registered cultivar name, unmatched names and
+unresolved seller values are retained, known-invalid saved IDs are blank, and
+only explicitly removed rows are omitted. XLSX formatting, formulas, comments,
+merges, drawings, validation, and hidden-sheet state are outside the prepared
+data-copy contract.
 
 The preview reuses the full `PublicCatalogSearchAdvancedPanel`, shared filter
 registry, and shared catalog-search columns. Its cultivar mode adds the same

@@ -100,9 +100,9 @@ export function CatalogImporterResults({
               : "Download your progress"}
           </h2>
           <p className="text-muted-foreground mt-1 text-sm">
-            Downloads a new workbook with your original cell values and sheets,
-            plus Daylily Catalog IDs and cultivar links. XLSX formatting and
-            formulas are not copied.
+            Downloads a cleaned copy with your sheets and seller-owned columns.
+            Linked names, approved fixes, and Daylily Catalog identity columns
+            are included. XLSX formatting and formulas are not copied.
           </p>
         </div>
         <Button
