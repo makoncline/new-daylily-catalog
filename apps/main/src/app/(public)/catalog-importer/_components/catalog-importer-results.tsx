@@ -1,12 +1,16 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import type { ColumnFiltersState } from "@tanstack/react-table";
 import { CircleAlert, Download, Undo2 } from "lucide-react";
 import { SellerIntentLink } from "@/components/seller-intent-link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { CatalogImporterAnalysis } from "@/app/(public)/catalog-importer/_components/catalog-importer-analysis";
+import {
+  CatalogImporterAnalysis,
+  type CatalogImporterInsightFilter,
+} from "@/app/(public)/catalog-importer/_components/catalog-importer-analysis";
 import { CatalogImporterIssues } from "@/app/(public)/catalog-importer/_components/catalog-importer-issues";
 import {
   CatalogImporterCatalogPreview,
@@ -26,6 +30,8 @@ export function CatalogImporterResults({
   controller,
 }: CatalogImporterResultsProps) {
   const [matchEditorRowId, setMatchEditorRowId] = useState<string | null>(null);
+  const [previewColumnFilters, setPreviewColumnFilters] =
+    useState<ColumnFiltersState>([]);
   const matchEditorRow =
     controller.includedRows.find((row) => row.id === matchEditorRowId) ?? null;
   const readyToDownload =
@@ -33,6 +39,17 @@ export function CatalogImporterResults({
   const handleOpenReview = useCallback((row: CatalogImportRow) => {
     setMatchEditorRowId(row.id);
   }, []);
+  const handleApplyInsightFilter = useCallback(
+    (insightFilter: CatalogImporterInsightFilter) => {
+      setPreviewColumnFilters((currentFilters) => [
+        ...currentFilters.filter(
+          (currentFilter) => currentFilter.id !== insightFilter.id,
+        ),
+        insightFilter,
+      ]);
+    },
+    [],
+  );
   const hasPreparationWork =
     controller.reviewRows.length > 0 || controller.issueCount > 0;
   const nextPreparationAction =
@@ -51,11 +68,16 @@ export function CatalogImporterResults({
       <CatalogImporterOverview controller={controller} />
 
       <CatalogImporterCatalogPreview
+        columnFilters={previewColumnFilters}
         controller={controller}
+        onColumnFiltersChange={setPreviewColumnFilters}
         onOpenReview={handleOpenReview}
       />
 
-      <CatalogImporterAnalysis rows={controller.includedRows} />
+      <CatalogImporterAnalysis
+        rows={controller.includedRows}
+        onApplyFilter={handleApplyInsightFilter}
+      />
 
       {hasPreparationWork ? (
         <section

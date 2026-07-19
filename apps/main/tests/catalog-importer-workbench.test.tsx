@@ -384,6 +384,32 @@ describe("CatalogImporterWorkbench", () => {
     const insights = screen.getByRole("heading", {
       name: "Explore your catalog",
     });
+    expect(
+      screen.getByText(
+        "Based on 7 linked unique cultivars. 2 unresolved listings are not included.",
+      ),
+    ).toBeVisible();
+    const topHybridizerInsight = screen.getByRole("link", {
+      name: "Show 4 cultivars for Example One",
+    });
+    expect(topHybridizerInsight).toBeVisible();
+    fireEvent.click(topHybridizerInsight);
+    expect(
+      screen.getByRole("button", { name: /Hybridizer: Example One/ }),
+    ).toBeVisible();
+    expect(
+      within(
+        screen.getByRole("region", { name: "Catalog listings" }),
+      ).queryByRole("heading", { name: "Happy Returns" }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", { name: /Hybridizer: Example One/ }),
+    );
+    expect(
+      within(
+        screen.getByRole("region", { name: "Catalog listings" }),
+      ).getByRole("heading", { name: "Happy Returns" }),
+    ).toBeVisible();
     const preparation = screen.getByRole("heading", {
       name: "Finish preparing your workbook",
     });
@@ -438,6 +464,11 @@ describe("CatalogImporterWorkbench", () => {
         selector: "[data-testid='linked-listing-count']",
       }),
     ).toBeVisible();
+    expect(
+      screen.getByText(
+        "Based on 8 linked unique cultivars. 1 unresolved listing is not included.",
+      ),
+    ).toBeVisible();
 
     fireEvent.click(screen.getByRole("button", { name: "Undo cultivar link" }));
     await waitFor(() =>
@@ -451,6 +482,11 @@ describe("CatalogImporterWorkbench", () => {
       screen.getByText("8", {
         selector: "[data-testid='linked-listing-count']",
       }),
+    ).toBeVisible();
+    expect(
+      screen.getByText(
+        "Based on 7 linked unique cultivars. 2 unresolved listings are not included.",
+      ),
     ).toBeVisible();
   });
 });

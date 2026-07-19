@@ -8,18 +8,18 @@ decisions, evidence, and blockers.
 
 ## Live status
 
-| Field           | Current value                                                                                                     |
-| --------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Overall status  | Implementation in progress                                                                                        |
-| Current phase   | Phase B — Reveal and explore                                                                                      |
-| Current slice   | Slice 5 — Make collection insights accurate and interactive                                                       |
-| Last updated    | 2026-07-18                                                                                                        |
-| Branch          | `agent/catalog-importer-v1`                                                                                       |
-| Baseline commit | `7b5a81ad`                                                                                                        |
-| Pull request    | [#352 — Prepare daylily catalog spreadsheets](https://github.com/makoncline/new-daylily-catalog/pull/352)         |
-| Current blocker | None                                                                                                              |
-| Next action     | Audit insight counting basis, small-catalog usefulness, and the shared preview-filter interaction boundary        |
-| Latest evidence | Slice 4 passed 38 focused tests, 3 E2Es, typecheck, lint, and real Chrome review of the trusted 1,087-row preview |
+| Field           | Current value                                                                                                    |
+| --------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Overall status  | Implementation in progress                                                                                       |
+| Current phase   | Phase B — Reveal and explore                                                                                     |
+| Current slice   | Slice 6 — Add persistent workspace status and navigation                                                         |
+| Last updated    | 2026-07-18                                                                                                       |
+| Branch          | `agent/catalog-importer-v1`                                                                                      |
+| Baseline commit | `7b5a81ad`                                                                                                       |
+| Pull request    | [#352 — Prepare daylily catalog spreadsheets](https://github.com/makoncline/new-daylily-catalog/pull/352)        |
+| Current blocker | None                                                                                                             |
+| Next action     | Audit the existing page anchors, task-priority selectors, and nonoverlapping sticky-control boundary             |
+| Latest evidence | Slice 5 passed 38 focused tests, 3 E2Es, typecheck, lint, and real Chrome interaction with the 1,087-row catalog |
 
 ### Progress
 
@@ -30,7 +30,7 @@ decisions, evidence, and blockers.
   - [x] Slice 2 — Refine upload, mapping, persistence, and processing feedback
   - [x] Slice 3 — Build the personalized results reveal and workspace order
   - [x] Slice 4 — Make catalog preview trusted and useful
-  - [ ] Slice 5 — Make collection insights accurate and interactive
+  - [x] Slice 5 — Make collection insights accurate and interactive
   - [ ] Slice 6 — Add persistent workspace status and navigation
 - [ ] Phase C — Repair
   - [ ] Slice 7 — Complete cultivar review, revision, and undo
@@ -48,22 +48,22 @@ decisions, evidence, and blockers.
 Use this area for short-lived details needed to resume the active slice.
 Move durable decisions to the decision log and completed work to the work log.
 
-- Slice 4 is complete and packaged for PR #352.
-- Begin Slice 5 with unique-cultivar counts; duplicate seller listings should
-  not inflate collection analysis.
-- Reuse the existing preview table's filter definitions rather than creating a
-  second interpretation of facets.
-- Prefer a few personalized, clickable discoveries over adding more chart
-  types.
+- Slice 5 is complete and ready to package for PR #352.
+- Begin Slice 6 by reusing the existing section anchors and derived review/
+  issue counts.
+- Keep one desktop sticky status surface and one compact mobile surface; do not
+  create a second navigation system.
+- Sticky controls must not compete with the existing preview return-to-top
+  control or cover repair actions.
 
 ### User update
 
 Use this as the source for concise progress updates.
 
-> Slice 4 is complete: only explicitly linked rows enter the preview, catalog
-> cards no longer show confidence percentages, seller/reference photos are
-> labeled, and the existing link control opens full match revision. Confirming
-> a match adds and highlights the listing with View and Undo actions.
+> Slice 5 is complete: collection analysis now counts linked unique cultivars,
+> states its basis, gives useful narrative facts, and applies the existing
+> removable catalog filters. The real workbook correctly showed 1,034 unique
+> cultivars, 1,017 reference photos, 84 award winners, and 52 unresolved rows.
 
 ## How the goal agent must use this file
 
@@ -486,29 +486,43 @@ to the matching catalog results.
 
 Tasks:
 
-- [ ] Base cultivar facts on linked unique cultivar IDs, not listing rows.
-- [ ] State the basis and excluded unresolved count.
-- [ ] Prioritize high-salience discoveries:
-  - [ ] top hybridizers;
-  - [ ] registration-year span or decades;
-  - [ ] award-winning cultivars;
-  - [ ] ploidy;
-  - [ ] bloom season;
-  - [ ] flower form; and
-  - [ ] reference-photo coverage.
-- [ ] Use narrative metrics when a chart would contain mostly values of one.
-- [ ] Make each useful insight apply the existing preview filter.
-- [ ] Preserve compatible active filters and show a removable filter summary.
-- [ ] Move the seller back to preview after applying an insight.
-- [ ] Recompute insights after match confirmation, change, undo, or exclusion.
-- [ ] Lift only the controlled filter state required to connect insights and
+- [x] Base cultivar facts on linked unique cultivar IDs, not listing rows.
+- [x] State the basis and excluded unresolved count.
+- [x] Prioritize high-salience discoveries:
+  - [x] top hybridizers;
+  - [x] registration-year span or decades;
+  - [x] award-winning cultivars;
+  - [x] ploidy;
+  - [x] bloom season;
+  - [x] flower form; and
+  - [x] reference-photo coverage.
+- [x] Use narrative metrics when a chart would contain mostly values of one.
+- [x] Make each useful insight apply the existing preview filter.
+- [x] Preserve compatible active filters and show a removable filter summary.
+- [x] Move the seller back to preview after applying an insight.
+- [x] Recompute insights after match confirmation, change, undo, or exclusion.
+- [x] Lift only the controlled filter state required to connect insights and
       preview; do not add a generic workspace context.
 
 Acceptance:
 
-- [ ] Duplicate listings do not inflate unique-cultivar facts.
-- [ ] Every interactive insight produces the expected preview result.
-- [ ] Small catalogs still receive useful prose instead of empty charts.
+- [x] Duplicate listings do not inflate unique-cultivar facts.
+- [x] Every interactive insight produces the expected preview result.
+- [x] Small catalogs still receive useful prose instead of empty charts.
+
+Evidence (2026-07-18):
+
+- 38 focused importer tests passed, including duplicate-safe analysis,
+  controlled insight filtering, filter-chip removal, and confirmation/undo
+  recomputation.
+- All 3 importer E2Es passed, including the phone-width overflow check.
+- Typecheck passed. Lint has zero errors and one unrelated existing dashboard
+  warning.
+- Visible Chrome showed the real workbook basis as 1,034 linked unique
+  cultivars with 52 unresolved listings excluded, 1,017 reference photos, 84
+  award winners, years 1956–2023, and a top-hybridizer ranking. Selecting
+  Stamile applied the shared removable filter and reduced the preview from
+  1,034 to 52 listings.
 
 ### Slice 6 — Add persistent workspace status and navigation
 
@@ -881,7 +895,8 @@ artifacts when useful.
 
 | Date       | Slice    | Status   | What changed                                                                                                                                           | Verification                                                                                                                                                              | Commit / notes                      |
 | ---------- | -------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
-| 2026-07-18 | Slice 4  | Complete | Restricted preview to explicit links; removed confidence badges; labeled image provenance; added match confirmation, highlighting, revision, and undo. | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome verification against the 1,087-row preview.                    | This Slice 4 commit.                |
+| 2026-07-18 | Slice 5  | Complete | Counted linked unique cultivars; added narrative discoveries and clickable rankings that drive the shared removable preview filters.                   | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and real Chrome filtering of the 1,087-row catalog from 1,034 to 52 listings.     | This Slice 5 commit.                |
+| 2026-07-18 | Slice 4  | Complete | Restricted preview to explicit links; removed confidence badges; labeled image provenance; added match confirmation, highlighting, revision, and undo. | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome verification against the 1,087-row preview.                    | `b1442747`                          |
 | 2026-07-18 | Slice 3  | Complete | Replaced the generic overview with a personalized enrichment reveal; reordered preview, insights, preparation, repair, download, and Pro continuation. | 37 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome verification with the rebuilt 1,087-row workbook.              | `1d999a90`                          |
 | 2026-07-18 | Slice 2  | Complete | Clarified browser-local privacy and file actions; added confirmed resets and event-driven processing stages without timed delays or effects.           | 36 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome verification with the restored real workbook.                  | `bda585ad`                          |
 | 2026-07-18 | Slice 1  | Complete | Replaced overlapping row flags with explicit row/output/link/provenance state; centralized counts and enrichment; migrated v2 browser drafts to v3.    | 33 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome restoration of the 1,087-row workbook.                         | `01e838c0`                          |

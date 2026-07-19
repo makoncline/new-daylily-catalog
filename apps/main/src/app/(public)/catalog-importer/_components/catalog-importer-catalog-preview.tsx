@@ -2,7 +2,11 @@
 
 import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
-import { useReactTable } from "@tanstack/react-table";
+import {
+  type ColumnFiltersState,
+  type OnChangeFn,
+  useReactTable,
+} from "@tanstack/react-table";
 import {
   ArrowUp,
   ChevronDown,
@@ -167,10 +171,14 @@ function CatalogPreviewDescription({
 }
 
 export function CatalogImporterCatalogPreview({
+  columnFilters,
   controller,
+  onColumnFiltersChange,
   onOpenReview,
 }: {
+  columnFilters: ColumnFiltersState;
   controller: CatalogImporterWorkbenchController;
+  onColumnFiltersChange: OnChangeFn<ColumnFiltersState>;
   onOpenReview: (row: CatalogImportRow) => void;
 }) {
   const [mode, setMode] = useState<PublicCatalogSearchMode>("basic");
@@ -239,6 +247,10 @@ export function CatalogImporterCatalogPreview({
     ...defaultTableConfig<CatalogImporterPreviewListing>(),
     columns: PREVIEW_SEARCH_COLUMNS,
     data: previewListings,
+    state: {
+      columnFilters,
+    },
+    onColumnFiltersChange,
     initialState: {
       pagination: {
         pageIndex: 0,
