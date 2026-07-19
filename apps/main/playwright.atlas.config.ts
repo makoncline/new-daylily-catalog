@@ -48,6 +48,7 @@ export default defineConfig({
     {
       name: "member",
       testMatch: [
+        "dashboard-home.atlas.ts",
         "listing-management.atlas.ts",
         "listing-media.atlas.ts",
         "list-management.atlas.ts",

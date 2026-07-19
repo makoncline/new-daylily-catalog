@@ -54,6 +54,7 @@ const baseURL =
   `http://localhost:${process.env.ATLAS_PORT ?? "3210"}`;
 const explicitDatabaseUrl = process.env.DATABASE_URL;
 let disposableDatabase;
+let atlasDatabaseUrl = explicitDatabaseUrl;
 const runtimeFlagsPath = path.join(
   tmpdir(),
   `daylily-atlas-feature-flags-${process.pid}.json`,
@@ -142,6 +143,7 @@ async function startServer() {
     });
     databaseUrl = `file:${disposableDatabase.databasePath}`;
   }
+  atlasDatabaseUrl = databaseUrl;
   serverLogFd = openSync(serverLogPath, "w");
   writeFileSync(runtimeFlagsPath, '{"publicCultivarSearch":true}');
   server = spawn("pnpm", ["dev", "--", "--port", new URL(baseURL).port], {
@@ -204,6 +206,7 @@ try {
         env: {
           ...process.env,
           BASE_URL: baseURL,
+          ATLAS_DATABASE_URL: atlasDatabaseUrl,
           ATLAS_OUTPUT_DIR: flowOutputDirectory,
           ATLAS_CAPTURE_DIR: captureDirectory,
           ATLAS_AUTH_STATE: path.join(flowOutputDirectory, ".auth/member.json"),
