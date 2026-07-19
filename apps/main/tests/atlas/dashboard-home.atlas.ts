@@ -216,6 +216,13 @@ function restoreRealisticPersona() {
         originalSubscriptionValue,
         now,
       );
+      database
+        .prepare("DELETE FROM KeyValue WHERE key = ?")
+        .run(fixtureStripeKey);
+      database
+        .prepare("DELETE FROM UserProfile WHERE id = ?")
+        .run(fixtureProfileId);
+      database.prepare("DELETE FROM User WHERE id = ?").run(fixtureUserId);
     }),
   );
 }
