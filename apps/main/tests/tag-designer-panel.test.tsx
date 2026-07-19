@@ -26,6 +26,7 @@ const sampleListings: TagListingData[] = [
       bloomSize: '6"',
       scapeHeight: '32"',
       bloomSeason: "M",
+      ploidy: "Tetraploid",
     },
   },
 ];
@@ -328,6 +329,9 @@ describe("TagDesignerPanel", () => {
       screen.getByRole("button", { name: /Garden ID/i }),
     ).toBeInTheDocument();
     expect(
+      screen.getByRole("button", { name: /^Grower ID/i }),
+    ).toBeInTheDocument();
+    expect(
       screen.getByRole("button", { name: /Sale tag/i }),
     ).toBeInTheDocument();
     expect(
@@ -347,6 +351,17 @@ describe("TagDesignerPanel", () => {
     });
 
     expect(screen.getByText("Smith, 2015 · $18.50")).toBeInTheDocument();
+  });
+
+  it("applies the two-line Grower ID template with an auto-sized title", () => {
+    render(<TagDesignerPanel listings={sampleListings} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /^Grower ID/i }));
+
+    expect(screen.getByText("Smith, 2015 tet")).toBeInTheDocument();
+    expect(
+      Number.parseFloat(screen.getByText("Moonlit Smile").style.fontSize),
+    ).toBeGreaterThan(22);
   });
 
   it("does not erase formatting syntax while the user is typing", () => {

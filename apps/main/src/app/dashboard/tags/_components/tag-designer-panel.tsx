@@ -264,6 +264,7 @@ function TagPreviewCard({
                         row,
                         widthInches,
                         Boolean(tag.qrCodeUrl),
+                        heightInches,
                       )}px`,
                     }}
                   >
@@ -1083,6 +1084,8 @@ interface TagDesignerControlsProps {
 const TEMPLATE_DESCRIPTIONS: Record<string, string> = {
   "template-simple-name": 'Cultivar name · recommended 1" tag',
   "default-template": 'Name, hybridizer/year, and ploidy · recommended 1"',
+  "template-grower-id":
+    'Two-line name, hybridizer/year, and ploidy · recommended 1"',
   "template-sale-tag": 'Name, identity, ploidy, and price · recommended 1"',
   "template-grower-details":
     'Identity and growing traits · recommended 2" × 4" card',
@@ -1354,12 +1357,12 @@ function TagDesignerControls({
                 <p className="text-muted-foreground text-xs">
                   One row per line. Listing fields use{" "}
                   <code>{"{{fieldName}}"}</code>. Text stays on one line and
-                  shrinks to fit.
+                  fits to the available width.
                 </p>
                 <p className="text-muted-foreground text-xs">
-                  <code>#</code> large bold · <code>##</code> medium bold ·{" "}
-                  <code>-</code> small · <code>|</code> left/right columns ·
-                  blank line adds space
+                  <code>#</code> full-width auto-size title · <code>##</code>{" "}
+                  medium bold · <code>-</code> small · <code>|</code> left/right
+                  columns · blank line adds space
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">

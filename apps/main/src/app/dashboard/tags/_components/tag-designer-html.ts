@@ -69,6 +69,7 @@ export function createTagPrintDocumentHtml({
                   row,
                   widthInches,
                   hasQrCode,
+                  heightInches,
                 ),
               };
               return `<div class="cell" style="${cellStyleAsCss(fittedCell)}">${escapeHtml(cell.text)}</div>`;
@@ -230,6 +231,7 @@ export function getSheetMarkup({
                       row,
                       slotWidthInches,
                       hasQrCode,
+                      slotHeightInches,
                     ),
                   };
                   return `<div class="cell" style="${cellStyleAsCss(fittedCell)}">${escapeHtml(cell.text)}</div>`;

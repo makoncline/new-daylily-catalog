@@ -189,6 +189,7 @@ export const TAG_SHEET_CREATOR_STORAGE_KEY = "tag-sheet-creator-state-v1";
 const TEMPLATE_DEFAULT_ID = "default-template";
 export const TEMPLATE_CUSTOM_ID = "custom-template";
 const TEMPLATE_SIMPLE_NAME_ID = "template-simple-name";
+const TEMPLATE_GROWER_ID_ID = "template-grower-id";
 const TEMPLATE_SALE_TAG_ID = "template-sale-tag";
 const TEMPLATE_GROWER_DETAILS_ID = "template-grower-details";
 const LARGE_LINE_FONT_SIZE_PX = 22;
@@ -204,6 +205,8 @@ export const CSS_PIXELS_PER_INCH = 96;
 const TAG_HORIZONTAL_PADDING_INCHES = 0.16;
 const TAG_COLUMN_GAP_INCHES = 0.06;
 const MIN_FIT_FONT_SIZE_PX = 6;
+const AUTO_GROW_TITLE_FONT_SIZE_PX_PER_INCH = 42;
+const MAX_AUTO_GROW_TITLE_FONT_SIZE_PX = 56;
 const AVERAGE_CHARACTER_WIDTH_EM = 0.56;
 const FIT_FONT_SCALE_BUFFER = 0.95;
 export const QR_SIZE_INCHES = 0.5;
@@ -350,6 +353,7 @@ function createTemplateCell(
 
 const SIMPLE_NAME_TEMPLATE = "# {{title}}";
 const GARDEN_ID_TEMPLATE = "# {{title}}\n{{hybridizerYear}}\n- {{ploidy}}";
+const GROWER_ID_TEMPLATE = "# {{title}}\n{{hybridizerYear}} {{ploidy}}";
 const SALE_TAG_TEMPLATE =
   "# {{title}}\n{{hybridizerYear}}\n## {{ploidy}} | {{price}}";
 const GROWER_DETAILS_TEMPLATE =
@@ -407,6 +411,17 @@ export const BUILTIN_TAG_LAYOUT_TEMPLATES: Array<
     id: TEMPLATE_DEFAULT_ID,
     name: "Garden ID",
     layout: DEFAULT_TAG_DESIGNER_STATE,
+  },
+  {
+    id: TEMPLATE_GROWER_ID_ID,
+    name: "Grower ID",
+    layout: {
+      sizePresetId: "brother-tze-1",
+      customWidthInches: 3.5,
+      customHeightInches: 1,
+      showQrCode: true,
+      rows: createBuiltinTemplateRows("grower-id-row", GROWER_ID_TEMPLATE),
+    },
   },
   {
     id: TEMPLATE_SALE_TAG_ID,
@@ -819,8 +834,8 @@ Return only the finished template text. Each line becomes one printed line.
 Tag size: ${widthInches.toFixed(2)}" × ${heightInches.toFixed(2)}".
 QR code: ${showQrCode ? "on; it always occupies the right side" : "off"}.
 Use no more than ${recommendedRows} nonblank rows and no more than two columns per row.
-Text never wraps and shrinks to fit its line. Start a line with:
-- # for large bold
+Text never wraps and fits to its available width. Start a line with:
+- # for a large bold title that grows to fill the available width
 - ## for medium bold
 - - for small detail text
 Use | to space columns apart. Insert listing data with {{fieldName}}
@@ -1244,6 +1259,7 @@ export function resolveCellFontSizePx(
   row: ResolvedRow,
   tagWidthInches: number,
   hasQrCode: boolean,
+  tagHeightInches = 1,
 ) {
   const shouldFit = cell.fit ?? true;
   if (cell.wrap) return cell.fontSize;
@@ -1266,8 +1282,21 @@ export function resolveCellFontSizePx(
   const cellWidthPx = Math.max(cellWidthInches * CSS_PIXELS_PER_INCH, 1);
   const estimatedTextWidthPx =
     Math.max(cell.text.length, 1) * cell.fontSize * AVERAGE_CHARACTER_WIDTH_EM;
+  const shouldGrowToFillWidth =
+    row.cells.length === 1 &&
+    cell.bold &&
+    cell.fontSize >= LARGE_LINE_FONT_SIZE_PX;
+  const titleHeightLimitPx = Math.min(
+    MAX_AUTO_GROW_TITLE_FONT_SIZE_PX,
+    Math.max(
+      MIN_FIT_FONT_SIZE_PX,
+      tagHeightInches * AUTO_GROW_TITLE_FONT_SIZE_PX_PER_INCH,
+    ),
+  );
 
-  if (estimatedTextWidthPx <= cellWidthPx) return cell.fontSize;
+  if (!shouldGrowToFillWidth && estimatedTextWidthPx <= cellWidthPx) {
+    return cell.fontSize;
+  }
 
   return Number(
     clamp(
@@ -1275,7 +1304,7 @@ export function resolveCellFontSizePx(
         cell.fontSize *
         FIT_FONT_SCALE_BUFFER,
       MIN_FIT_FONT_SIZE_PX,
-      cell.fontSize,
+      shouldGrowToFillWidth ? titleHeightLimitPx : cell.fontSize,
     ).toFixed(2),
   );
 }
@@ -1307,7 +1336,7 @@ export function getTagPreviewWarnings({
       }
 
       const fittedSizes = row.cells.map((cell) =>
-        resolveCellFontSizePx(cell, row, widthInches, hasQrCode),
+        resolveCellFontSizePx(cell, row, widthInches, hasQrCode, heightInches),
       );
       if (fittedSizes.some((fontSize) => fontSize < 10)) {
         hasSmallText = true;

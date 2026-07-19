@@ -10,6 +10,7 @@ import {
   getTagTemplateValidationIssues,
   getTagTextTemplateFieldIds,
   getTagPreviewWarnings,
+  resolveCellFontSizePx,
   sanitizeTagDesignerState,
   tagDesignerStateToTemplateText,
 } from "@/app/dashboard/tags/_components/tag-designer-model";
@@ -198,6 +199,34 @@ describe("tag designer model", () => {
     ).toBe(template);
   });
 
+  it("grows a standard title line to use its available width", () => {
+    const rows = buildResolvedRowsForListing(
+      listing,
+      createRowsFromTagTextTemplate("# {{title}}\n{{hybridizerYear}}"),
+    );
+    const title = rows[0]!.cells[0]!;
+    const detail = rows[1]!.cells[0]!;
+
+    expect(resolveCellFontSizePx(title, rows[0]!, 3.5, false)).toBeGreaterThan(
+      title.fontSize,
+    );
+    expect(resolveCellFontSizePx(detail, rows[1]!, 3.5, false)).toBe(
+      detail.fontSize,
+    );
+  });
+
+  it("caps short titles based on tag height", () => {
+    const row = buildResolvedRowsForListing(
+      { ...listing, title: "Clown" },
+      createRowsFromTagTextTemplate("# {{title}}"),
+    )[0]!;
+    const title = row.cells[0]!;
+
+    expect(resolveCellFontSizePx(title, row, 3.5, false, 0.75)).toBe(31.5);
+    expect(resolveCellFontSizePx(title, row, 3.5, false, 1)).toBe(42);
+    expect(resolveCellFontSizePx(title, row, 3.5, false, 2)).toBe(56);
+  });
+
   it("preserves runs of interior blank lines as row spacing", () => {
     const template = "# {{title}}\n\n\n- {{hybridizerYear}}";
     const rows = createRowsFromTagTextTemplate(template);
@@ -261,7 +290,9 @@ describe("tag designer model", () => {
     expect(instructions).toContain("no more than 3 nonblank rows");
     expect(instructions).toContain("no more than two columns per row");
     expect(instructions).toContain("no code fence");
-    expect(instructions).toContain("# for large bold");
+    expect(instructions).toContain(
+      "# for a large bold title that grows to fill the available width",
+    );
     expect(instructions).toContain("| to space columns apart");
     expect(instructions).toContain("{{hybridizerYear}}: Hybridizer, Year");
     expect(instructions).toContain("{{privateNote}}: Private Note");
@@ -322,10 +353,16 @@ describe("tag designer model", () => {
     );
   });
 
-  it("offers four job-based presets with safe template text", () => {
+  it("offers job-based presets with safe template text", () => {
     expect(
       BUILTIN_TAG_LAYOUT_TEMPLATES.map((template) => template.name),
-    ).toEqual(["Simple name", "Garden ID", "Sale tag", "Grower details"]);
+    ).toEqual([
+      "Simple name",
+      "Garden ID",
+      "Grower ID",
+      "Sale tag",
+      "Grower details",
+    ]);
     expect(
       BUILTIN_TAG_LAYOUT_TEMPLATES.map((template) =>
         tagDesignerStateToTemplateText(template.layout),
@@ -333,6 +370,7 @@ describe("tag designer model", () => {
     ).toEqual([
       "# {{title}}",
       "# {{title}}\n{{hybridizerYear}}\n- {{ploidy}}",
+      "# {{title}}\n{{hybridizerYear}} {{ploidy}}",
       "# {{title}}\n{{hybridizerYear}}\n## {{ploidy}} | {{price}}",
       "# {{title}}\n## {{hybridizerYear}}\n{{ploidy}} | {{foliageType}}\nBloom {{bloomSize}} | Scape {{scapeHeight}}\n- Season {{bloomSeason}} | Habit {{bloomHabit}}",
     ]);
