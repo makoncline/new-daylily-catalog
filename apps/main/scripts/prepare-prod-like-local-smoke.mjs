@@ -184,7 +184,23 @@ function writeIfChanged(filePath, contents, mode) {
   fs.writeFileSync(filePath, contents, mode ? { mode } : undefined);
 }
 
-function writeComposeOverride(buildEnv) {
+function getGitCommitSha() {
+  const result = spawnSync("git", ["rev-parse", "--verify", "HEAD"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+
+  if (result.status !== 0) {
+    throw new Error(
+      `Failed to resolve the current Git commit\n${result.stderr.trim()}`,
+    );
+  }
+
+  return result.stdout.trim();
+}
+
+function writeComposeOverride(buildEnv, gitCommitSha) {
   const fingerprint = crypto
     .createHash("sha256")
     .update(buildEnv)
@@ -198,6 +214,7 @@ function writeComposeOverride(buildEnv) {
       dockerfile: apps/main/Dockerfile
       args:
         BUILD_ENV_FINGERPRINT: prod-like-${fingerprint}
+        GIT_COMMIT_SHA: ${gitCommitSha}
     volumes:
       - ./prisma/local-prod-copy-daylily-catalog.db:/data/daylilycatalog.sqlite
 
@@ -238,10 +255,7 @@ function updateTunnelConfig({ tunnelHost, localPort }) {
     const serviceLine = `${entryIndent}  service: http://127.0.0.1:${localPort}`;
     const nextEntryPattern = new RegExp(`^${escapeRegExp(entryIndent)}-\\s+`);
     let blockEnd = i + 1;
-    while (
-      blockEnd < lines.length &&
-      !nextEntryPattern.test(lines[blockEnd])
-    ) {
+    while (blockEnd < lines.length && !nextEntryPattern.test(lines[blockEnd])) {
       blockEnd++;
     }
 
@@ -300,11 +314,12 @@ function main() {
     : pullRemoteEnv(options);
   const runtimeEnv = buildRuntimeEnv(envSource, options);
   const buildEnv = buildBuildEnv(runtimeEnv);
+  const gitCommitSha = getGitCommitSha();
 
   prepareBuildDb();
   writeIfChanged(runtimeEnvPath, runtimeEnv, 0o600);
   writeIfChanged(buildEnvPath, buildEnv, 0o600);
-  writeComposeOverride(buildEnv);
+  writeComposeOverride(buildEnv, gitCommitSha);
 
   const tunnelBackup = options.skipTunnelConfig
     ? null
