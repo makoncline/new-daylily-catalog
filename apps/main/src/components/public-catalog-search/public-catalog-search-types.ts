@@ -56,4 +56,5 @@ export interface PublicCatalogSearchAdvancedPanelProps<
   onCollapsedChange: (collapsed: boolean) => void;
   onSearchSubmit?: () => void;
   showCultivarFacets?: boolean;
+  toolbarFilterIds?: string[];
 }

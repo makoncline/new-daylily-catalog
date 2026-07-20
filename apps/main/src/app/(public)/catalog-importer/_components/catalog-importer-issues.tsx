@@ -137,13 +137,32 @@ function DuplicateGroupTable({
   const title = rows[0]?.title ?? "this cultivar";
 
   return (
-    <div className="space-y-4 py-6 first:pt-0 last:pb-0">
-      <div>
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h4 className="font-semibold">Multiple listings for {title}</h4>
-        <p className="text-muted-foreground mt-1 text-sm">
-          All rows are kept unless you exclude one from the prepared workbook.
-          Your uploaded file stays untouched.
-        </p>
+        <div className="flex items-center gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() =>
+              controller.keepDuplicateRows(rows.map((row) => row.id))
+            }
+          >
+            Keep all
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="text-destructive hover:text-destructive"
+            onClick={() =>
+              controller.excludeDuplicateRows(rows.map((row) => row.id))
+            }
+          >
+            Exclude all
+          </Button>
+        </div>
       </div>
 
       <Table
@@ -182,13 +201,13 @@ function DuplicateGroupTable({
                 <Button
                   type="button"
                   variant="ghost"
-                  size="sm"
-                  className="text-destructive hover:text-destructive"
+                  size="icon"
+                  className="text-destructive hover:text-destructive size-8"
                   aria-label={`Exclude row ${row.sourceRow} from prepared workbook`}
+                  title={`Exclude row ${row.sourceRow}`}
                   onClick={() => controller.removeDuplicateRow(row.id)}
                 >
                   <Trash2 className="size-4" />
-                  Exclude row {row.sourceRow}
                 </Button>
               </TableCell>
               <TableHead
@@ -249,148 +268,66 @@ function PriceIssuesTable({
 
   return (
     <section aria-labelledby="catalog-importer-price-issues-heading">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h3
-            id="catalog-importer-price-issues-heading"
-            className="font-semibold"
-          >
-            Price formats need review
-          </h3>
-          <p className="text-muted-foreground mt-1 text-sm">
-            The catalog price field needs one numeric unit price. You can leave
-            a row unresolved; a current-workbook download keeps its original
-            value.
-          </p>
-        </div>
-        {rows.length > 1 ? (
-          <Button
-            type="button"
-            variant="outline"
-            disabled={!canSaveAll}
-            onClick={() =>
-              controller.resolvePriceIssues(
-                parsedRows.flatMap(({ canSave, parsed, row, suggestion }) =>
-                  canSave
-                    ? [
-                        {
-                          preserveOriginalOffer: suggestion !== null,
-                          price: parsed.value,
-                          rowId: row.id,
-                        },
-                      ]
-                    : [],
-                ),
-              )
-            }
-          >
-            Save all
-          </Button>
-        ) : null}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3
+          id="catalog-importer-price-issues-heading"
+          className="font-semibold"
+        >
+          Price formats need review
+        </h3>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={!canSaveAll}
+          onClick={() =>
+            controller.resolvePriceIssues(
+              parsedRows.flatMap(({ canSave, parsed, row, suggestion }) =>
+                canSave
+                  ? [
+                      {
+                        preserveOriginalOffer: suggestion !== null,
+                        price: parsed.value,
+                        rowId: row.id,
+                      },
+                    ]
+                  : [],
+              ),
+            )
+          }
+        >
+          Save all
+        </Button>
       </div>
 
-      <Table
-        aria-label="Price format rows"
-        className="mt-4 min-w-0 sm:min-w-[48rem]"
-      >
-        <TableHeader className="hidden sm:table-header-group">
+      <Table aria-label="Price format rows" className="mt-3 min-w-[34rem]">
+        <TableHeader>
           <TableRow>
+            <TableHead
+              scope="col"
+              className="bg-background sticky left-0 z-10 w-px"
+            >
+              <span className="sr-only">Save</span>
+            </TableHead>
             <TableHead scope="col" className="w-px">
               Row
             </TableHead>
             <TableHead scope="col">Name</TableHead>
             <TableHead scope="col">Original price</TableHead>
-            <TableHead scope="col" className="min-w-56">
-              Corrected price
-            </TableHead>
-            <TableHead scope="col" className="w-px">
-              <span className="sr-only">Save</span>
+            <TableHead scope="col" className="w-40">
+              Price
             </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {parsedRows.map(({ canSave, parsed, row, suggestion }) => (
-            <TableRow
-              key={row.id}
-              className="grid gap-3 py-4 sm:table-row sm:py-0"
-            >
-              <TableHead
-                scope="row"
-                className="text-muted-foreground flex h-auto items-center gap-2 p-0 font-mono text-xs font-normal sm:table-cell sm:p-2"
-              >
-                <span className="font-sans font-medium sm:hidden">Row</span>
-                {row.sourceRow}
-              </TableHead>
-              <TableCell className="p-0 font-medium sm:table-cell sm:p-2">
-                <span className="text-muted-foreground mb-1 block text-xs font-medium sm:hidden">
-                  Name
-                </span>
-                {row.sourceTitle}
-              </TableCell>
-              <TableCell className="text-muted-foreground p-0 sm:table-cell sm:p-2">
-                <span className="mb-1 block text-xs font-medium sm:hidden">
-                  Original price
-                </span>
-                <span>{row.sourcePrice}</span>
-                {suggestion !== null ? (
-                  <span className="mt-1 block text-xs">
-                    Suggested unit price: {suggestion.toFixed(2)}
-                  </span>
-                ) : null}
-              </TableCell>
-              <TableCell className="p-0 sm:table-cell sm:p-2">
-                <span className="text-muted-foreground mb-1 block text-xs font-medium sm:hidden">
-                  Corrected price
-                </span>
-                <Input
-                  aria-label={`Correct price for row ${row.sourceRow}`}
-                  aria-invalid={!parsed.valid}
-                  aria-describedby={
-                    !parsed.valid || suggestion !== null
-                      ? `catalog-importer-price-message-${row.sourceRow}`
-                      : undefined
-                  }
-                  inputMode="decimal"
-                  value={values[row.id] ?? row.sourcePrice}
-                  onChange={(event) => {
-                    const value = event.currentTarget.value;
-                    setValues((current) => ({
-                      ...current,
-                      [row.id]: value,
-                    }));
-                  }}
-                />
-                {!parsed.valid ? (
-                  <p
-                    id={`catalog-importer-price-message-${row.sourceRow}`}
-                    className="text-destructive mt-1 text-xs"
-                  >
-                    Use one price, such as 12 or 12.50.
-                  </p>
-                ) : suggestion !== null &&
-                  controller.mapping.privateNote !== null ? (
-                  <p
-                    id={`catalog-importer-price-message-${row.sourceRow}`}
-                    className="text-muted-foreground mt-1 text-xs"
-                  >
-                    Saving also adds “Original price: {row.sourcePrice}” to the
-                    private note.
-                  </p>
-                ) : suggestion !== null ? (
-                  <p
-                    id={`catalog-importer-price-message-${row.sourceRow}`}
-                    className="text-muted-foreground mt-1 text-xs"
-                  >
-                    Map a private note column to preserve the original bundle
-                    offer, or leave this row unresolved.
-                  </p>
-                ) : null}
-              </TableCell>
-              <TableCell className="flex justify-end p-0 sm:table-cell sm:p-2">
+            <TableRow key={row.id}>
+              <TableCell className="bg-background sticky left-0 z-10">
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
+                  className="size-8"
                   disabled={!canSave}
                   aria-label={`Save price for row ${row.sourceRow}`}
                   title={`Save price for row ${row.sourceRow}`}
@@ -408,6 +345,56 @@ function PriceIssuesTable({
                 >
                   <Save className="size-4" />
                 </Button>
+              </TableCell>
+              <TableHead
+                scope="row"
+                className="text-muted-foreground h-auto font-mono text-xs font-normal"
+              >
+                {row.sourceRow}
+              </TableHead>
+              <TableCell className="font-medium">{row.sourceTitle}</TableCell>
+              <TableCell className="text-muted-foreground">
+                {row.sourcePrice}
+              </TableCell>
+              <TableCell>
+                <Input
+                  aria-label={`Correct price for row ${row.sourceRow}`}
+                  aria-invalid={!parsed.valid}
+                  aria-describedby={
+                    !parsed.valid ||
+                    (suggestion !== null &&
+                      controller.mapping.privateNote === null)
+                      ? `catalog-importer-price-message-${row.sourceRow}`
+                      : undefined
+                  }
+                  inputMode="decimal"
+                  className="h-8 w-32"
+                  value={values[row.id] ?? row.sourcePrice}
+                  onChange={(event) => {
+                    const value = event.currentTarget.value;
+                    setValues((current) => ({
+                      ...current,
+                      [row.id]: value,
+                    }));
+                  }}
+                />
+                {!parsed.valid ? (
+                  <p
+                    id={`catalog-importer-price-message-${row.sourceRow}`}
+                    className="text-destructive mt-1 text-xs"
+                  >
+                    Use one price, such as 12 or 12.50.
+                  </p>
+                ) : suggestion !== null &&
+                  controller.mapping.privateNote === null ? (
+                  <p
+                    id={`catalog-importer-price-message-${row.sourceRow}`}
+                    className="text-muted-foreground mt-1 text-xs"
+                  >
+                    Map a private note column to preserve the original bundle
+                    offer, or leave this row unresolved.
+                  </p>
+                ) : null}
               </TableCell>
             </TableRow>
           ))}
@@ -571,19 +558,39 @@ function ImageUrlIssuesTable({
   );
 }
 
-function ImagePreviewWarningsTable({ rows }: { rows: CatalogImportRow[] }) {
+function ImagePreviewWarningsTable({
+  controller,
+  rows,
+}: {
+  controller: CatalogImporterWorkbenchController;
+  rows: CatalogImportRow[];
+}) {
   return (
     <section aria-labelledby="catalog-importer-image-warnings-heading">
-      <div>
-        <h3
-          id="catalog-importer-image-warnings-heading"
-          className="font-semibold"
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h3
+            id="catalog-importer-image-warnings-heading"
+            className="font-semibold"
+          >
+            Seller images could not be previewed
+          </h3>
+          <p className="text-muted-foreground mt-1 text-sm">
+            The image host may block browser previews.
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() =>
+            controller.acknowledgeImagePreviewWarnings(
+              rows.map((row) => row.id),
+            )
+          }
         >
-          Seller images could not be previewed
-        </h3>
-        <p className="text-muted-foreground mt-1 text-sm">
-          The URLs are kept. The image host may block browser previews.
-        </p>
+          Keep {rows.length === 1 ? "URL" : "URLs"}
+        </Button>
       </div>
 
       <Table aria-label="Seller image preview warnings" className="mt-4">
@@ -664,9 +671,7 @@ function SavedIdIssuesTable({
             Saved cultivar IDs not found
           </h3>
           <p className="text-muted-foreground mt-1 text-sm">
-            These IDs no longer identify a cultivar. A single confident name
-            match replaces the ID automatically; uncertain names move to manual
-            review. Invalid IDs are never exported as resolved identity.
+            Match these rows by name. Invalid IDs are not exported as resolved.
           </p>
         </div>
         {rows.length > 1 ? (
@@ -782,32 +787,34 @@ export function CatalogImporterIssues({
       id="catalog-importer-issues"
       role="region"
       aria-labelledby="catalog-importer-issues-heading"
-      className="!scroll-mt-16 border-t pt-10"
+      className="!scroll-mt-16"
     >
-      <div>
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <h2
           id="catalog-importer-issues-heading"
           className="text-xl font-semibold tracking-tight"
         >
           Review spreadsheet data
         </h2>
-        <p className="text-muted-foreground mt-1 text-sm tabular-nums">
+        <p className="text-muted-foreground text-sm tabular-nums">
+          {controller.completedIssueCount.toLocaleString()} of{" "}
+          {controller.issueProgressTotal.toLocaleString()} completed
           {requiredIssueCount > 0
-            ? `${requiredIssueCount.toLocaleString()} ${requiredIssueCount === 1 ? "item needs" : "items need"} action`
-            : "No required changes"}
+            ? ` · ${requiredIssueCount.toLocaleString()} ${requiredIssueCount === 1 ? "needs" : "need"} action`
+            : ""}
           {warningCount > 0
             ? ` · ${warningCount.toLocaleString()} ${warningCount === 1 ? "warning" : "warnings"}`
             : ""}
         </p>
       </div>
 
-      <div className="mt-6 divide-y border-y">
+      <div className="mt-5 space-y-8">
         {duplicateGroups.length > 0 ? (
-          <section className="py-6" aria-labelledby="duplicate-issues-heading">
+          <section aria-labelledby="duplicate-issues-heading">
             <h3 id="duplicate-issues-heading" className="font-semibold">
               Possible duplicate listings
             </h3>
-            <div className="divide-y">
+            <div className="mt-3 space-y-6">
               {duplicateGroups.map((group) => (
                 <DuplicateGroupTable
                   key={group.id}
@@ -820,25 +827,28 @@ export function CatalogImporterIssues({
         ) : null}
 
         {priceRows.length > 0 ? (
-          <div className="py-6">
+          <div>
             <PriceIssuesTable controller={controller} rows={priceRows} />
           </div>
         ) : null}
 
         {imageUrlRows.length > 0 ? (
-          <div className="py-6">
+          <div>
             <ImageUrlIssuesTable controller={controller} rows={imageUrlRows} />
           </div>
         ) : null}
 
         {imagePreviewWarningRows.length > 0 ? (
-          <div className="py-6">
-            <ImagePreviewWarningsTable rows={imagePreviewWarningRows} />
+          <div>
+            <ImagePreviewWarningsTable
+              controller={controller}
+              rows={imagePreviewWarningRows}
+            />
           </div>
         ) : null}
 
         {savedIdRows.length > 0 ? (
-          <div className="py-6">
+          <div>
             <SavedIdIssuesTable controller={controller} rows={savedIdRows} />
           </div>
         ) : null}

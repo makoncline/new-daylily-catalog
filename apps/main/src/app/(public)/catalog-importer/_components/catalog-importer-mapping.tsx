@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronUp, CircleHelp, RotateCcw } from "lucide-react";
+import { CircleHelp, RotateCcw } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,11 +14,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import {
   Field,
   FieldContent,
@@ -155,101 +150,67 @@ function MappingField({
 
 function SpreadsheetPreview({
   controller,
-  defaultOpen = true,
-}: Pick<CatalogImporterMappingProps, "controller"> & {
-  defaultOpen?: boolean;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
-
+}: Pick<CatalogImporterMappingProps, "controller">) {
   return (
-    <Collapsible open={open} onOpenChange={setOpen}>
-      <section className="min-w-0">
-        <div className="flex items-start justify-between gap-4 pb-4">
-          <div className="space-y-1.5">
-            <h2 className="text-xl font-semibold tracking-tight">
-              Spreadsheet preview
-            </h2>
-          </div>
-          <CollapsibleTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="shrink-0"
-            >
-              {open ? (
-                <ChevronUp className="size-4" />
-              ) : (
-                <ChevronDown className="size-4" />
-              )}
-              <span className="sr-only">
-                {open ? "Hide spreadsheet preview" : "Show spreadsheet preview"}
-              </span>
-            </Button>
-          </CollapsibleTrigger>
-        </div>
-        <CollapsibleContent>
-          <div className="max-w-full overflow-x-auto rounded-md border">
-            <table className="w-max min-w-full border-collapse text-left text-xs">
-              <caption className="sr-only">
-                First {controller.sourcePreviewRows.length.toLocaleString()}{" "}
-                rows of {controller.selectedSheet?.name ?? "the selected sheet"}
-              </caption>
-              <thead className="bg-muted/60">
-                <tr>
-                  <th
-                    scope="col"
-                    className="text-muted-foreground sticky left-0 z-10 border-r border-b bg-inherit px-2 py-2 font-mono font-normal"
+    <section className="min-w-0">
+      <h2 className="pb-2 font-semibold">Spreadsheet preview</h2>
+      <div className="max-w-full overflow-x-auto rounded-md border">
+        <table className="w-max min-w-full border-collapse text-left text-xs">
+          <caption className="sr-only">
+            First {controller.sourcePreviewRows.length.toLocaleString()} rows of{" "}
+            {controller.selectedSheet?.name ?? "the selected sheet"}
+          </caption>
+          <thead className="bg-muted/60">
+            <tr>
+              <th
+                scope="col"
+                className="text-muted-foreground sticky left-0 z-10 border-r border-b bg-inherit px-2 py-2 font-mono font-normal"
+              >
+                Row
+              </th>
+              {controller.sourcePreviewColumnIndexes.map((columnIndex) => (
+                <th
+                  key={columnIndex}
+                  scope="col"
+                  className="text-muted-foreground border-r border-b px-3 py-2 font-mono font-normal whitespace-nowrap last:border-r-0"
+                >
+                  {columnIndexToLabel(columnIndex)}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {controller.sourcePreviewRows.map((row, rowIndex) => (
+              <tr
+                key={rowIndex}
+                className={
+                  rowIndex === controller.headerRowIndex
+                    ? "bg-primary/5 font-medium"
+                    : "bg-background"
+                }
+              >
+                <th
+                  scope="row"
+                  className="text-muted-foreground sticky left-0 z-10 border-r border-b bg-inherit px-2 py-2 font-mono font-normal"
+                >
+                  {rowIndex + 1}
+                </th>
+                {controller.sourcePreviewColumnIndexes.map((columnIndex) => (
+                  <td
+                    key={columnIndex}
+                    className="max-w-72 border-r border-b px-3 py-2 align-top last:border-r-0"
                   >
-                    Row
-                  </th>
-                  {controller.sourcePreviewColumnIndexes.map((columnIndex) => (
-                    <th
-                      key={columnIndex}
-                      scope="col"
-                      className="text-muted-foreground border-r border-b px-3 py-2 font-mono font-normal whitespace-nowrap last:border-r-0"
-                    >
-                      {columnIndexToLabel(columnIndex)}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {controller.sourcePreviewRows.map((row, rowIndex) => (
-                  <tr
-                    key={rowIndex}
-                    className={
-                      rowIndex === controller.headerRowIndex
-                        ? "bg-primary/5 font-medium"
-                        : "bg-background"
-                    }
-                  >
-                    <th
-                      scope="row"
-                      className="text-muted-foreground sticky left-0 z-10 border-r border-b bg-inherit px-2 py-2 font-mono font-normal"
-                    >
-                      {rowIndex + 1}
-                    </th>
-                    {controller.sourcePreviewColumnIndexes.map(
-                      (columnIndex) => (
-                        <td
-                          key={columnIndex}
-                          className="max-w-72 border-r border-b px-3 py-2 align-top last:border-r-0"
-                        >
-                          <span className="line-clamp-3 whitespace-normal">
-                            {getSourcePreviewCellText(row[columnIndex] ?? null)}
-                          </span>
-                        </td>
-                      ),
-                    )}
-                  </tr>
+                    <span className="line-clamp-3 whitespace-normal">
+                      {getSourcePreviewCellText(row[columnIndex] ?? null)}
+                    </span>
+                  </td>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        </CollapsibleContent>
-      </section>
-    </Collapsible>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }
 
@@ -278,168 +239,152 @@ export function CatalogImporterMapping({
   return (
     <section
       aria-labelledby="catalog-importer-mapping-heading"
-      className="space-y-4"
+      className="space-y-6"
     >
-      <div className="grid min-w-0 gap-8 pt-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(22rem,0.65fr)]">
-        <div className="order-2 min-w-0 lg:order-1">
-          <SpreadsheetPreview
-            controller={controller}
-            defaultOpen={controller.matchedRows === null}
-          />
-        </div>
+      <SpreadsheetPreview controller={controller} />
 
-        <section className="order-1 lg:order-2 lg:border-l lg:pl-8">
-          <div className="mb-5 flex flex-col items-start justify-between gap-3 sm:flex-row">
-            <div className="space-y-1.5">
-              <h2
-                id="catalog-importer-mapping-heading"
-                className="text-xl font-semibold tracking-tight"
-              >
-                Map your columns
-              </h2>
-              <p className="text-muted-foreground text-sm">
-                Confirm which workbook columns become listing fields. Only
-                cultivar name is required.
-              </p>
-            </div>
-            {mappingChanged ? (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="shrink-0"
-                    disabled={controller.processingStage !== null}
+      <section className="max-w-xl">
+        <div className="mb-4 flex flex-col items-start justify-between gap-3 sm:flex-row">
+          <h2
+            id="catalog-importer-mapping-heading"
+            className="text-xl font-semibold tracking-tight"
+          >
+            Map your columns
+          </h2>
+          {mappingChanged ? (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0"
+                  disabled={controller.processingStage !== null}
+                >
+                  <RotateCcw className="size-4" />
+                  Reset
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Reset column mapping?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Restore the detected header and column choices?
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() =>
+                      controller.configureSheet(
+                        controller.parsedSpreadsheet!,
+                        controller.selectedSheetIndex,
+                      )
+                    }
                   >
-                    <RotateCcw className="size-4" />
                     Reset
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Reset column mapping?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Restore the detected header and column choices?
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={() =>
-                        controller.configureSheet(
-                          controller.parsedSpreadsheet!,
-                          controller.selectedSheetIndex,
-                        )
-                      }
-                    >
-                      Reset
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            ) : null}
-          </div>
-          <div className="space-y-5">
-            <TooltipProvider delayDuration={200}>
-              <FieldGroup className="gap-5">
-                <Field className="gap-2">
-                  <div className="flex items-center gap-1.5">
-                    <FieldLabel htmlFor="catalog-importer-header-row">
-                      Header row
-                    </FieldLabel>
-                    <MappingHelp
-                      label="Header row"
-                      description="Pick the row that contains labels such as Name, Price, or Description."
-                    />
-                  </div>
-                  <FieldContent>
-                    <Select
-                      disabled={controller.processingStage !== null}
-                      value={
-                        controller.headerRowIndex === null
-                          ? "none"
-                          : String(controller.headerRowIndex)
-                      }
-                      onValueChange={controller.handleHeaderChange}
-                    >
-                      <SelectTrigger id="catalog-importer-header-row">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          <SelectItem value="none">
-                            No header row — use column letters
-                          </SelectItem>
-                          {controller.selectedSheet.rows
-                            .slice(0, 12)
-                            .map((row, rowIndex) => (
-                              <SelectItem
-                                key={rowIndex}
-                                value={String(rowIndex)}
-                              >
-                                {getHeaderRowSummary(row, rowIndex)}
-                              </SelectItem>
-                            ))}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                  </FieldContent>
-                </Field>
-
-                {CATALOG_IMPORTER_MAPPING_FIELDS.map((definition) => (
-                  <MappingField
-                    key={definition.field}
-                    controller={controller}
-                    definition={definition}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          ) : null}
+        </div>
+        <div className="space-y-4">
+          <TooltipProvider delayDuration={200}>
+            <FieldGroup className="gap-4">
+              <Field className="gap-2">
+                <div className="flex items-center gap-1.5">
+                  <FieldLabel htmlFor="catalog-importer-header-row">
+                    Header row
+                  </FieldLabel>
+                  <MappingHelp
+                    label="Header row"
+                    description="Pick the row that contains labels such as Name, Price, or Description."
                   />
-                ))}
-              </FieldGroup>
-            </TooltipProvider>
-
-            {controller.processingStage ? (
-              <div
-                className="space-y-3 border-y py-4"
-                role="status"
-                aria-label="Building catalog preview"
-              >
-                <div className="flex items-center justify-between gap-4 text-sm">
-                  <span className="flex items-center gap-2">
-                    <Spinner />
-                    {PROCESSING_LABELS[controller.processingStage]}
-                  </span>
-                  {controller.matchingProgress ? (
-                    <span className="text-muted-foreground text-xs tabular-nums">
-                      {controller.matchingProgress.processed.toLocaleString()} /{" "}
-                      {controller.matchingProgress.total.toLocaleString()}
-                    </span>
-                  ) : null}
                 </div>
+                <FieldContent>
+                  <Select
+                    disabled={controller.processingStage !== null}
+                    value={
+                      controller.headerRowIndex === null
+                        ? "none"
+                        : String(controller.headerRowIndex)
+                    }
+                    onValueChange={controller.handleHeaderChange}
+                  >
+                    <SelectTrigger id="catalog-importer-header-row">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value="none">
+                          No header row — use column letters
+                        </SelectItem>
+                        {controller.selectedSheet.rows
+                          .slice(0, 12)
+                          .map((row, rowIndex) => (
+                            <SelectItem key={rowIndex} value={String(rowIndex)}>
+                              {getHeaderRowSummary(row, rowIndex)}
+                            </SelectItem>
+                          ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </FieldContent>
+              </Field>
+
+              {CATALOG_IMPORTER_MAPPING_FIELDS.map((definition) => (
+                <MappingField
+                  key={definition.field}
+                  controller={controller}
+                  definition={definition}
+                />
+              ))}
+            </FieldGroup>
+          </TooltipProvider>
+
+          {controller.processingStage ? (
+            <div
+              className="space-y-3 py-2"
+              role="status"
+              aria-label="Building catalog preview"
+            >
+              <div className="flex items-center justify-between gap-4 text-sm">
+                <span className="flex items-center gap-2">
+                  <Spinner />
+                  {PROCESSING_LABELS[controller.processingStage]}
+                </span>
                 {controller.matchingProgress ? (
-                  <Progress
-                    value={progressValue}
-                    aria-label="Cultivar matching progress"
-                  />
+                  <span className="text-muted-foreground text-xs tabular-nums">
+                    {controller.matchingProgress.processed.toLocaleString()} /{" "}
+                    {controller.matchingProgress.total.toLocaleString()}
+                  </span>
                 ) : null}
               </div>
-            ) : null}
+              {controller.matchingProgress ? (
+                <Progress
+                  value={progressValue}
+                  aria-label="Cultivar matching progress"
+                />
+              ) : null}
+            </div>
+          ) : null}
 
-            <Button
-              type="button"
-              className="w-full"
-              disabled={
-                controller.mapping.title === null ||
-                controller.processingStage !== null
-              }
-              onClick={onSubmit}
-            >
-              {controller.processingStage
-                ? "Building catalog preview…"
-                : "Build catalog preview"}
-            </Button>
-          </div>
-        </section>
-      </div>
+          <Button
+            type="button"
+            className="w-full"
+            disabled={
+              controller.mapping.title === null ||
+              controller.processingStage !== null
+            }
+            onClick={onSubmit}
+          >
+            {controller.processingStage
+              ? "Building catalog preview…"
+              : "Build catalog preview"}
+          </Button>
+        </div>
+      </section>
     </section>
   );
 }

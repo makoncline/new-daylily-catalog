@@ -51,18 +51,18 @@ export function PublicCatalogSearchAdvancedPanel<TData>({
   onCollapsedChange,
   onSearchSubmit,
   showCultivarFacets = false,
+  toolbarFilterIds,
 }: PublicCatalogSearchAdvancedPanelProps<TData>) {
   const isAdvanced = mode === "advanced";
   const panelContext = { table, listOptions, facetOptions };
   const sectionDefinitions = showCultivarFacets
     ? PUBLIC_CATALOG_SEARCH_CULTIVAR_SECTION_DEFINITIONS
     : PUBLIC_CATALOG_SEARCH_SECTION_DEFINITIONS;
-  const toolbarFilters =
-    listOptions.length > 0
-      ? PUBLIC_CATALOG_SEARCH_TOOLBAR_FILTERS
-      : PUBLIC_CATALOG_SEARCH_TOOLBAR_FILTERS.filter(
-          (definition) => definition.id !== "lists",
-        );
+  const toolbarFilters = PUBLIC_CATALOG_SEARCH_TOOLBAR_FILTERS.filter(
+    (definition) =>
+      (listOptions.length > 0 || definition.id !== "lists") &&
+      (!toolbarFilterIds || toolbarFilterIds.includes(definition.id)),
+  );
 
   if (collapsed) {
     return (

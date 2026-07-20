@@ -12,6 +12,8 @@ import type {
 export interface CatalogImporterDraft {
   activeReviewRowId: string | null;
   headerRowIndex: number | null;
+  initialIssueCount?: number;
+  initialReviewCount?: number;
   mapping: CatalogColumnMapping;
   matchedRows: CatalogImportRow[] | null;
   matchedRowsKey: string | null;

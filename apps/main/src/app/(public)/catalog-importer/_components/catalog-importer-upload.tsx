@@ -91,29 +91,24 @@ export function CatalogImporterUpload({
     return (
       <section
         aria-label="Uploaded spreadsheet"
-        className="flex min-w-0 flex-col gap-3 border-y py-3 lg:flex-row lg:items-center"
+        className="flex min-w-0 flex-wrap items-center gap-2"
       >
-        <div className="flex min-w-0 flex-1 items-center gap-3">
-          <div className="bg-muted flex size-9 shrink-0 items-center justify-center rounded-md">
-            <FileSpreadsheet className="text-muted-foreground size-4" />
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium">
+        <div className="flex min-w-48 flex-1 items-center gap-2">
+          <FileSpreadsheet className="text-muted-foreground size-4 shrink-0" />
+          <p className="flex min-w-0 items-baseline gap-1 text-sm">
+            <span className="truncate font-medium">
               {controller.parsedSpreadsheet.fileName}
-            </p>
-            <p className="text-muted-foreground text-xs">
-              {controller.selectedSheet?.rows.length.toLocaleString() ?? 0} rows
-              in selected sheet
-            </p>
-          </div>
+            </span>
+            <span className="text-muted-foreground font-normal">
+              · {controller.selectedSheet?.rows.length.toLocaleString() ?? 0}{" "}
+              rows
+            </span>
+          </p>
         </div>
 
-        <div className="grid gap-2 lg:flex lg:items-center">
+        <div className="flex flex-wrap items-center gap-1">
           {controller.parsedSpreadsheet.sheets.length > 1 ? (
             <div className="flex items-center gap-2">
-              <span className="text-muted-foreground text-xs font-medium">
-                Sheet
-              </span>
               <Select
                 value={String(controller.selectedSheetIndex)}
                 onValueChange={(value) => {
@@ -125,7 +120,7 @@ export function CatalogImporterUpload({
                 }}
               >
                 <SelectTrigger
-                  className="h-8 min-w-0 flex-1 lg:w-56"
+                  className="h-8 w-48"
                   aria-label="Spreadsheet sheet"
                 >
                   <SelectValue />
@@ -149,7 +144,7 @@ export function CatalogImporterUpload({
           {onEditMapping ? (
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               size="sm"
               className="h-8"
               onClick={onEditMapping}
@@ -161,9 +156,15 @@ export function CatalogImporterUpload({
 
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button type="button" variant="ghost" size="sm" className="h-8">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8"
+                aria-label="Clear local progress"
+              >
                 <Trash2 className="size-4" />
-                Clear local progress
+                Clear
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
@@ -189,23 +190,15 @@ export function CatalogImporterUpload({
 
   return (
     <section aria-labelledby="catalog-importer-upload-heading">
-      <div className="mb-4">
-        <h2
-          id="catalog-importer-upload-heading"
-          className="text-xl font-semibold"
-        >
-          Start with a spreadsheet
-        </h2>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Choose an XLSX or CSV file containing the listings for your catalog.
-        </p>
-      </div>
+      <h2 id="catalog-importer-upload-heading" className="sr-only">
+        Upload spreadsheet
+      </h2>
       <div className="space-y-4">
         <div
           {...getRootProps({
             "aria-label": "Upload spreadsheet",
             className: cn(
-              "border-muted-foreground/35 bg-muted/20 hover:bg-muted/40 focus-visible:ring-ring flex min-h-56 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-6 py-10 text-center transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
+              "border-muted-foreground/35 bg-muted/20 hover:bg-muted/40 focus-visible:ring-ring flex min-h-40 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed px-6 py-8 text-center transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
               isDragActive && "border-primary bg-primary/5",
               controller.readingFile && "pointer-events-none opacity-60",
             ),
@@ -213,7 +206,7 @@ export function CatalogImporterUpload({
           })}
         >
           <input {...getInputProps()} />
-          <div className="bg-background mb-4 flex size-12 items-center justify-center rounded-full border shadow-sm">
+          <div className="mb-3 flex size-10 items-center justify-center">
             {controller.readingFile ? (
               <Spinner className="size-5" />
             ) : (

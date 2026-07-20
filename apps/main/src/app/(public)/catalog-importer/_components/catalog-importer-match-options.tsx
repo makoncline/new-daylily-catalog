@@ -50,16 +50,18 @@ function CandidateChoice({
   const suggestionReason =
     candidate.confidence === 100
       ? "Exact normalized-name match"
-      : `Suggested because the names are ${candidate.confidence}% similar`;
+      : `${candidate.confidence}% name similarity`;
 
   return (
     <article
       role="listitem"
-      className="focus-within:border-primary hover:border-foreground/30 grid h-40 grid-cols-[7.25rem_minmax(0,1fr)] gap-3 overflow-hidden rounded-md border p-3 transition-colors motion-reduce:transition-none sm:grid-cols-[8.5rem_minmax(0,1fr)] sm:gap-4 sm:p-4"
+      className="focus-within:bg-muted/50 hover:bg-muted/30 grid min-h-24 cursor-pointer grid-cols-[7.25rem_minmax(0,1fr)] gap-3 overflow-hidden rounded-md p-3 transition-colors motion-reduce:transition-none sm:grid-cols-[8.5rem_minmax(0,1fr)] sm:gap-4"
+      onClick={() => onChoose(candidate)}
     >
       <div
         data-testid="candidate-choice-media"
         className="flex items-center gap-3"
+        onClick={(event) => event.stopPropagation()}
       >
         <Button
           type="button"
@@ -87,10 +89,12 @@ function CandidateChoice({
             </span>
           ) : null}
         </h3>
-        <p className="text-muted-foreground mt-1 line-clamp-2 text-xs leading-relaxed break-words sm:text-sm">
+        <p className="text-muted-foreground mt-0.5 line-clamp-2 text-xs leading-snug break-words sm:text-sm">
           {registryDescription}
         </p>
-        <p className="text-muted-foreground mt-1 text-xs">{suggestionReason}</p>
+        <p className="text-muted-foreground mt-0.5 text-xs">
+          {suggestionReason}
+        </p>
       </div>
     </article>
   );
@@ -99,28 +103,70 @@ function CandidateChoice({
 export function CatalogImporterCandidateList({
   ariaLabel,
   candidates,
+  onExclude,
+  onLeaveUnmatched,
   onChoose,
-  startIndex = 0,
 }: {
   ariaLabel: string;
   candidates: CultivarMatchCandidate[];
+  onExclude?: () => void;
+  onLeaveUnmatched: () => void;
   onChoose: (candidate: CultivarMatchCandidate) => void;
-  startIndex?: number;
 }) {
+  const leaveUnmatchedChoiceNumber = candidates.length + 1;
+  const excludeChoiceNumber = candidates.length + 2;
+
   return (
-    <div
-      role="list"
-      aria-label={ariaLabel}
-      className="max-h-[31.5rem] space-y-3 overflow-y-auto overscroll-contain pr-1"
-    >
-      {candidates.map((candidate, candidateIndex) => (
-        <CandidateChoice
-          key={candidate.cultivarReferenceId}
-          candidate={candidate}
-          choiceNumber={startIndex + candidateIndex + 1}
-          onChoose={onChoose}
-        />
-      ))}
+    <div role="list" aria-label={ariaLabel} className="space-y-1">
+      <div className="max-h-72 space-y-1 overflow-y-auto overscroll-contain">
+        {candidates.map((candidate, candidateIndex) => (
+          <CandidateChoice
+            key={candidate.cultivarReferenceId}
+            candidate={candidate}
+            choiceNumber={candidateIndex + 1}
+            onChoose={onChoose}
+          />
+        ))}
+      </div>
+      <div role="listitem">
+        <button
+          type="button"
+          className="hover:bg-muted/30 focus-visible:ring-ring flex min-h-11 w-full items-center gap-3 rounded-md p-3 text-left transition-colors outline-none focus-visible:ring-2 motion-reduce:transition-none"
+          aria-label="Leave unmatched"
+          aria-keyshortcuts={String(leaveUnmatchedChoiceNumber)}
+          title="Keep this row in the workbook without a Daylily Catalog cultivar ID or link"
+          onClick={onLeaveUnmatched}
+        >
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-md border text-base font-semibold tabular-nums">
+            {leaveUnmatchedChoiceNumber}
+          </span>
+          <span className="font-medium">Leave unmatched</span>
+          <span className="sr-only">
+            Leave unmatched keeps this row in the prepared workbook without a
+            Daylily Catalog cultivar ID or link.
+          </span>
+        </button>
+      </div>
+      {onExclude ? (
+        <div role="listitem">
+          <button
+            type="button"
+            className="hover:bg-muted/30 focus-visible:ring-ring flex min-h-11 w-full items-center gap-3 rounded-md p-3 text-left transition-colors outline-none focus-visible:ring-2 motion-reduce:transition-none"
+            aria-label="Exclude from catalog"
+            aria-keyshortcuts={String(excludeChoiceNumber)}
+            title="Exclude this row from the prepared workbook"
+            onClick={onExclude}
+          >
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-md border text-base font-semibold tabular-nums">
+              {excludeChoiceNumber}
+            </span>
+            <span className="font-medium">Exclude from catalog</span>
+            <span className="sr-only">
+              This row will not be included in the prepared workbook.
+            </span>
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -134,39 +180,54 @@ export function CatalogImporterSourceRow({
   row: CatalogImportRow;
   sourceCells: CatalogImporterSourceCell[];
 }) {
+  const titleCellIndex = sourceCells.findIndex(
+    (cell) => cell.value.trim() === row.sourceTitle.trim(),
+  );
+
   return (
     <div className="space-y-2">
-      <div>
-        <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-          {label} · Source row {row.sourceRow}
-        </p>
-        <h3 className="mt-1 text-xl font-semibold break-words">
-          {row.sourceTitle}
-        </h3>
-      </div>
+      <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+        {label} · Spreadsheet row {row.sourceRow}
+      </p>
 
-      <div className="max-w-full overflow-x-auto rounded-md border">
+      <dl
+        aria-label={`Uploaded spreadsheet row ${row.sourceRow}`}
+        className="divide-y rounded-md border md:hidden"
+      >
+        {sourceCells.map((cell, cellIndex) => (
+          <div
+            key={cell.column}
+            className="grid grid-cols-[7rem_1fr] gap-3 px-3 py-2"
+          >
+            <dt className="text-muted-foreground text-xs font-medium break-words">
+              {cell.label}
+            </dt>
+            <dd
+              className={
+                cellIndex === titleCellIndex
+                  ? "text-sm font-medium break-words"
+                  : "min-w-0 text-sm break-words"
+              }
+            >
+              {cell.value || <span className="text-muted-foreground">—</span>}
+            </dd>
+          </div>
+        ))}
+      </dl>
+
+      <div className="hidden max-w-full overflow-x-auto rounded-md border md:block">
         <table className="w-max min-w-full border-collapse text-left text-sm">
           <caption className="sr-only">
             Uploaded spreadsheet row {row.sourceRow}
           </caption>
           <thead className="bg-muted/60">
             <tr>
-              <th
-                scope="col"
-                className="text-muted-foreground sticky left-0 z-10 border-r border-b bg-inherit px-3 py-2 font-mono text-xs font-normal"
-              >
-                Row
-              </th>
               {sourceCells.map((cell) => (
                 <th
                   key={cell.column}
                   scope="col"
-                  className="min-w-32 border-r border-b px-3 py-2 align-bottom font-medium whitespace-normal last:border-r-0"
+                  className="min-w-32 border-r border-b px-3 py-2 font-medium whitespace-normal last:border-r-0"
                 >
-                  <span className="text-muted-foreground block font-mono text-[0.6875rem] font-normal">
-                    {cell.column}
-                  </span>
                   {cell.label}
                 </th>
               ))}
@@ -174,19 +235,19 @@ export function CatalogImporterSourceRow({
           </thead>
           <tbody>
             <tr>
-              <th
-                scope="row"
-                className="text-muted-foreground bg-background sticky left-0 z-10 border-r px-3 py-3 font-mono text-xs font-normal"
-              >
-                {row.sourceRow}
-              </th>
-              {sourceCells.map((cell) => (
+              {sourceCells.map((cell, cellIndex) => (
                 <td
                   key={cell.column}
-                  className="max-w-80 border-r px-3 py-3 align-top whitespace-normal last:border-r-0"
+                  className="max-w-80 border-r px-3 py-2 align-top whitespace-normal last:border-r-0"
                 >
-                  {cell.value || (
-                    <span className="text-muted-foreground">—</span>
+                  {cellIndex === titleCellIndex ? (
+                    <h3 className="text-sm font-medium break-words">
+                      {cell.value}
+                    </h3>
+                  ) : (
+                    cell.value || (
+                      <span className="text-muted-foreground">—</span>
+                    )
                   )}
                 </td>
               ))}

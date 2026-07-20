@@ -77,9 +77,35 @@ describe("CatalogImporterWorkbench", () => {
     expect(
       screen.queryByRole("button", { name: "Reset" }),
     ).not.toBeInTheDocument();
-    fireEvent.click(
-      await screen.findByRole("button", { name: "Build catalog preview" }),
-    );
+    expect(
+      screen.getByRole("heading", { name: "Spreadsheet preview" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Hide spreadsheet preview" }),
+    ).not.toBeInTheDocument();
+    const uploadedSpreadsheet = screen.getByRole("region", {
+      name: "Uploaded spreadsheet",
+    });
+    const spreadsheetPreview = screen.getByRole("heading", {
+      name: "Spreadsheet preview",
+    });
+    const columnMapping = screen.getByRole("heading", {
+      name: "Map your columns",
+    });
+    const buildPreview = await screen.findByRole("button", {
+      name: "Build catalog preview",
+    });
+    for (const [earlier, later] of [
+      [uploadedSpreadsheet, spreadsheetPreview],
+      [spreadsheetPreview, columnMapping],
+      [columnMapping, buildPreview],
+    ] as const) {
+      expect(
+        earlier.compareDocumentPosition(later) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    }
+    fireEvent.click(buildPreview);
 
     await waitFor(() => {
       expect(capturePosthogEventMock).toHaveBeenCalledWith(
@@ -228,8 +254,8 @@ describe("CatalogImporterWorkbench", () => {
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
 
     expect(
-      await screen.findByRole("heading", {
-        name: "Your private catalog preview is ready",
+      await screen.findByRole("region", {
+        name: "Catalog preview ready",
       }),
     ).toBeVisible();
     expect(requestCultivarMatchesMock.mock.calls.length).toBeGreaterThanOrEqual(
@@ -341,11 +367,9 @@ describe("CatalogImporterWorkbench", () => {
     fireEvent.click(
       await screen.findByRole("button", { name: "Build catalog preview" }),
     );
-    const downloadButton = within(
-      await screen.findByRole("navigation", {
-        name: "Catalog preparation workspace",
-      }),
-    ).getByRole("button", { name: "Download current workbook" });
+    const downloadButton = await screen.findByRole("button", {
+      name: "Download current workbook",
+    });
 
     fireEvent.click(downloadButton);
     expect(
@@ -353,7 +377,7 @@ describe("CatalogImporterWorkbench", () => {
         name: "Download before review is complete?",
       }),
     ).toHaveTextContent(
-      "You have 10 potential matches to review. You have 1 issue to review.",
+      "You have 10 potential matches to review. You have 2 spreadsheet items to review.",
     );
     fireEvent.click(
       screen.getByRole("button", {
@@ -415,11 +439,9 @@ describe("CatalogImporterWorkbench", () => {
       }),
     ).not.toBeInTheDocument();
     expect(
-      within(
-        await screen.findByRole("navigation", {
-          name: "Catalog preparation workspace",
-        }),
-      ).getByRole("button", { name: "Download current workbook" }),
+      await screen.findByRole("button", {
+        name: "Download current workbook",
+      }),
     ).toBeVisible();
   });
 
@@ -490,9 +512,14 @@ describe("CatalogImporterWorkbench", () => {
       await screen.findByRole("button", { name: "Build catalog preview" }),
     );
 
-    const reveal = await screen.findByRole("heading", {
-      name: "Your private catalog preview is ready",
+    const reveal = await screen.findByRole("region", {
+      name: "Catalog preview ready",
     });
+    expect(
+      within(reveal).getByRole("heading", {
+        name: "We matched 8 listings to 7 registered cultivars",
+      }),
+    ).toBeVisible();
     expect(
       screen.getByText("8", {
         selector: "[data-testid='linked-listing-count']",
@@ -504,14 +531,9 @@ describe("CatalogImporterWorkbench", () => {
       }),
     ).toBeVisible();
     expect(
-      screen.getByText("1", {
+      screen.getByText("2", {
         selector: "[data-testid='issue-count']",
       }),
-    ).toBeVisible();
-    expect(
-      screen.getByText(
-        "Linked listings now include Daylily Catalog photos and registry details.",
-      ),
     ).toBeVisible();
     expect(
       screen.queryByText(/Private browser preview/),
@@ -536,46 +558,47 @@ describe("CatalogImporterWorkbench", () => {
       ),
     );
     const workspaceNavigation = screen.getByRole("navigation", {
-      name: "Catalog preparation workspace",
-    });
-    expect(workspaceNavigation).toHaveTextContent("8 linked");
-    expect(
-      within(workspaceNavigation).getByRole("link", {
-        name: "Review names (2)",
-      }),
-    ).toHaveAttribute("href", "#catalog-importer-review-quiz");
-    expect(
-      within(workspaceNavigation).getByRole("link", {
-        name: "Fix data (1)",
-      }),
-    ).toHaveAttribute("href", "#catalog-importer-issues");
-    expect(
-      within(workspaceNavigation).getByRole("button", {
-        name: "Download current workbook",
-      }),
-    ).toBeVisible();
-    const mobileActions = screen.getByRole("navigation", {
       name: "Catalog preparation actions",
     });
     expect(
-      within(mobileActions).getByRole("link", { name: /Review 2/ }),
+      within(workspaceNavigation).getByRole("link", {
+        name: "Review 0/2",
+      }),
     ).toHaveAttribute("href", "#catalog-importer-review-quiz");
-
+    expect(
+      within(workspaceNavigation).getByRole("link", {
+        name: "Issues 0/2",
+      }),
+    ).toHaveAttribute("href", "#catalog-importer-issues");
+    expect(
+      within(workspaceNavigation).getByRole("link", {
+        name: "Download",
+      }),
+    ).toHaveAttribute("href", "#catalog-importer-download");
+    expect(
+      screen.getByRole("button", {
+        name: "Download current workbook",
+      }),
+    ).toBeVisible();
     const preview = screen.getByRole("heading", {
       name: "Your catalog preview",
     });
     const insights = screen.getByRole("heading", {
-      name: "Explore your catalog",
+      name: "Collection insights",
     });
-    expect(
-      screen.getByText(
-        "Based on 7 linked unique cultivars. 2 unresolved listings are not included.",
-      ),
-    ).toBeVisible();
+    expect(screen.getByText("7 linked cultivars")).toBeVisible();
     const topHybridizerInsight = screen.getByRole("link", {
       name: "Show 4 cultivars for Example One",
     });
     expect(topHybridizerInsight).toBeVisible();
+    expect(
+      screen.getByText(
+        "Example One is your most represented hybridizer, with 4 cultivars.",
+      ),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("radio", { name: "Flower show" }),
+    ).not.toBeInTheDocument();
     fireEvent.click(topHybridizerInsight);
     expect(capturePosthogEventMock).toHaveBeenCalledWith(
       "catalog_import_preview_interacted",
@@ -602,10 +625,18 @@ describe("CatalogImporterWorkbench", () => {
     ).toBeVisible();
 
     fireEvent.click(screen.getByText("By year", { exact: true }));
-    expect(screen.getAllByTestId("catalog-analysis-bar")).toHaveLength(7);
+    expect(
+      screen.getByText(/^Your collection spans \d+ years of registrations,/),
+    ).toBeVisible();
+    expect(screen.getAllByTestId("catalog-analysis-bar")).toHaveLength(5);
     for (const bar of screen.getAllByTestId("catalog-analysis-bar")) {
       expect(bar).toHaveStyle({ width: "100%" });
     }
+
+    fireEvent.click(screen.getByText("Bloom size", { exact: true }));
+    expect(
+      screen.getByText("Your largest recorded bloom is 5 inches."),
+    ).toBeVisible();
 
     fireEvent.click(screen.getByText("Award winning", { exact: true }));
     expect(
@@ -620,14 +651,22 @@ describe("CatalogImporterWorkbench", () => {
     expect(
       within(listingRegion).queryByText("Reference photo", { exact: true }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: "Your catalog preview" }),
+    ).toHaveTextContent(
+      "8 of 10 listings are linked and shown. 2 still need a cultivar decision.",
+    );
     fireEvent.click(
       within(listingRegion).getAllByRole("button", {
         name: "View details for Stella de Oro",
       })[0]!,
     );
-    expect(
-      screen.getByRole("dialog", { name: "Stella de Oro" }),
-    ).toHaveTextContent("Lambert-Webster / Lenington All-American Awards");
+    const listingDetails = screen.getByRole("dialog", {
+      name: "Stella de Oro",
+    });
+    expect(listingDetails).toHaveTextContent("Daylily Database Data");
+    expect(listingDetails).toHaveTextContent("Scape Height");
+    expect(listingDetails).toHaveTextContent('24"');
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
 
     const review = screen.getByRole("heading", {
@@ -636,12 +675,10 @@ describe("CatalogImporterWorkbench", () => {
     const issues = screen.getByRole("heading", {
       name: "Review spreadsheet data",
     });
-    expect(
-      screen.queryByRole("heading", {
-        name: "Your current workbook is ready",
-      }),
-    ).not.toBeInTheDocument();
-    expect(screen.queryByText("File details")).not.toBeInTheDocument();
+    const download = screen.getByRole("heading", {
+      name: "Download your current workbook",
+    });
+    expect(screen.getByText("File details")).toBeVisible();
     const membership = screen.getByRole("heading", {
       name: "Imagine this as your public catalog",
     });
@@ -653,11 +690,12 @@ describe("CatalogImporterWorkbench", () => {
     );
 
     for (const [earlier, later] of [
-      [reveal, preview],
-      [preview, insights],
-      [insights, membership],
+      [reveal, insights],
+      [insights, preview],
+      [preview, membership],
       [membership, review],
       [review, issues],
+      [issues, download],
     ] as const) {
       expect(
         earlier.compareDocumentPosition(later) &
@@ -665,7 +703,7 @@ describe("CatalogImporterWorkbench", () => {
       ).toBeTruthy();
     }
     expect(membership.parentElement).toHaveTextContent(
-      "Your prepared workbook remains free",
+      "Your prepared workbook stays free",
     );
     expect(
       within(membership.closest("section")!).queryByRole("button", {
@@ -687,11 +725,32 @@ describe("CatalogImporterWorkbench", () => {
     expect(reviewQuiz).toHaveTextContent(
       "Leave unmatched keeps this row in the prepared workbook without a Daylily Catalog cultivar ID or link.",
     );
+    fireEvent.click(
+      within(reviewQuiz).getByRole("button", {
+        name: "Find a different cultivar",
+      }),
+    );
+    const alternateMatchSheet = await screen.findByRole("dialog", {
+      name: "Change cultivar match",
+    });
+    const alternateSearch =
+      within(alternateMatchSheet).getByLabelText("Cultivar name");
+    expect(alternateSearch).toHaveValue("Vanguard 2");
+    fireEvent.change(alternateSearch, { target: { value: "Ruby Spider" } });
+    fireEvent.click(
+      within(alternateMatchSheet).getByRole("button", { name: "Search" }),
+    );
+    await waitFor(() =>
+      expect(requestCultivarMatchesMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ names: ["Ruby Spider"] }),
+      ),
+    );
+    fireEvent.click(
+      within(alternateMatchSheet).getByRole("button", { name: "Close" }),
+    );
 
     fireEvent.keyDown(reviewQuiz, { key: "x" });
-    expect(
-      screen.getByText("2 manual matches remaining", { exact: false }),
-    ).toBeVisible();
+    expect(within(reviewQuiz).getByText("0 of 2 completed")).toBeVisible();
     expect(
       within(reviewQuiz).getByRole("heading", { name: "Aerial Art" }),
     ).toBeVisible();
@@ -701,7 +760,9 @@ describe("CatalogImporterWorkbench", () => {
       }),
     );
     fireEvent.click(
-      within(reviewQuiz).getByRole("button", { name: "Leave unmatched" }),
+      await within(reviewQuiz).findByRole("button", {
+        name: "Leave unmatched",
+      }),
     );
     expect(capturePosthogEventMock).toHaveBeenCalledWith(
       "catalog_import_identity_decided",
@@ -713,17 +774,44 @@ describe("CatalogImporterWorkbench", () => {
       }),
     );
     expect(
-      await screen.findByRole("region", { name: "Listings left unmatched" }),
+      await screen.findByRole("region", { name: "Left unmatched (1)" }),
     ).toHaveTextContent("Vanguard 2");
+    expect(
+      screen.getByRole("heading", { name: "Your catalog preview" })
+        .parentElement,
+    ).toHaveTextContent("1 is left unmatched.");
     fireEvent.click(
       screen.getByRole("button", { name: "Review Vanguard 2 again" }),
     );
     expect(
-      await screen.findByText("2 manual matches remaining", { exact: false }),
+      await within(reviewQuiz).findByText("0 of 2 completed"),
+    ).toBeVisible();
+    fireEvent.click(
+      within(reviewQuiz).getByRole("button", {
+        name: "Exclude from catalog",
+      }),
+    );
+    expect(
+      await screen.findByText(
+        "Vanguard 2 was excluded from the prepared workbook.",
+      ),
+    ).toBeVisible();
+    expect(
+      within(workspaceNavigation).getByRole("link", {
+        name: "Review 1/2",
+      }),
+    ).toBeVisible();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Undo identity decision" }),
+    );
+    expect(
+      within(workspaceNavigation).getByRole("link", {
+        name: "Review 0/2",
+      }),
     ).toBeVisible();
 
     fireEvent.click(
-      within(reviewQuiz).getByRole("button", {
+      await within(reviewQuiz).findByRole("button", {
         name: "Use match 1: Vanguard",
       }),
     );
@@ -744,14 +832,10 @@ describe("CatalogImporterWorkbench", () => {
     ).toBeVisible();
     expect(
       within(workspaceNavigation).getByRole("link", {
-        name: "Review names (1)",
+        name: "Review 1/2",
       }),
     ).toBeVisible();
-    expect(
-      screen.getByText(
-        "Based on 8 linked unique cultivars. 1 unresolved listing is not included.",
-      ),
-    ).toBeVisible();
+    expect(screen.getByText("8 linked cultivars")).toBeVisible();
 
     fireEvent.click(
       screen.getByRole("button", { name: "Undo identity decision" }),
@@ -770,14 +854,10 @@ describe("CatalogImporterWorkbench", () => {
     ).toBeVisible();
     expect(
       within(workspaceNavigation).getByRole("link", {
-        name: "Review names (2)",
+        name: "Review 0/2",
       }),
     ).toBeVisible();
-    expect(
-      screen.getByText(
-        "Based on 7 linked unique cultivars. 2 unresolved listings are not included.",
-      ),
-    ).toBeVisible();
+    expect(screen.getByText("7 linked cultivars")).toBeVisible();
 
     fireEvent.click(
       screen.getAllByRole("button", {
@@ -799,14 +879,14 @@ describe("CatalogImporterWorkbench", () => {
       within(matchSheet).getByRole("button", { name: "Leave unmatched" }),
     );
     expect(
-      await screen.findByRole("region", { name: "Listings left unmatched" }),
+      await screen.findByRole("region", { name: "Left unmatched (1)" }),
     ).toHaveTextContent("Stella de Oro");
     fireEvent.click(
       screen.getByRole("button", { name: "Undo identity decision" }),
     );
     await waitFor(() =>
       expect(
-        screen.queryByRole("region", { name: "Listings left unmatched" }),
+        screen.queryByRole("region", { name: /Left unmatched/ }),
       ).not.toBeInTheDocument(),
     );
 
@@ -833,5 +913,11 @@ describe("CatalogImporterWorkbench", () => {
         resolved_count: 1,
       }),
     );
-  });
+    await waitFor(async () => {
+      await expect(readCatalogImporterDraft()).resolves.toMatchObject({
+        initialIssueCount: 2,
+        initialReviewCount: 2,
+      });
+    });
+  }, 10_000);
 });

@@ -61,13 +61,8 @@ describe("catalog importer quiet launch", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: "Turn your daylily spreadsheet into a catalog-ready collection",
+        name: "Build your daylily catalog",
       }),
-    ).toBeVisible();
-    expect(
-      screen.getByText(
-        /Your workbook stays in this browser; only cultivar names and saved Daylily Catalog IDs are sent for matching/,
-      ),
     ).toBeVisible();
     expect(screen.getByText(/Spreadsheet tools · Prompts on/)).toBeVisible();
     expect(generateMetadata().robots).toEqual({

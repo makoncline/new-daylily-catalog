@@ -44,6 +44,7 @@ function controller(
   overrides: Partial<CatalogImporterWorkbenchController> = {},
 ) {
   return {
+    acknowledgeImagePreviewWarnings: vi.fn(),
     activeReviewIndex: 0,
     activeReviewRow: rows[0] ?? null,
     activeReviewSourceCells: [
@@ -51,12 +52,16 @@ function controller(
     ],
     candidateResult: null,
     clearCultivarReferenceIdIssues: vi.fn(),
+    completedIssueCount: 0,
+    completedReviewCount: 0,
+    excludeReviewRow: vi.fn(),
     finishReviewRow: vi.fn(),
     getSourceCellsForRow: (row: CatalogImportRow) => [
       { column: "A", label: "Name", value: row.sourceTitle },
     ],
     includedRows: rows,
     issueCount: 0,
+    issueProgressTotal: 1,
     mapping: {
       cultivarReferenceId: null,
       description: null,
@@ -66,12 +71,16 @@ function controller(
       title: 0,
     },
     moveReviewRow: vi.fn(),
+    excludeDuplicateRows: vi.fn(),
+    keepDuplicateRows: vi.fn(),
     removeDuplicateRow: vi.fn(),
+    remainingIssueCount: 1,
     resetCandidateSearch: vi.fn(),
     resolveImageUrlIssues: vi.fn(),
     resolvePriceIssues: vi.fn(),
     reviewQuery: rows[0]?.sourceTitle ?? "",
     reviewRows: rows,
+    reviewProgressTotal: rows.length,
     searchCandidateResult: null,
     searchCandidates: vi.fn(),
     setReviewQuery: vi.fn(),
@@ -101,7 +110,7 @@ const vanguardCandidate: CultivarMatchCandidate = {
 };
 
 describe("catalog importer repair UI", () => {
-  it("keeps possible duplicates by default and offers only explicit exclusion", () => {
+  it("offers group and row actions for possible duplicates", () => {
     const first = importRow({
       id: "row-2",
       linkState: "linked",
@@ -120,17 +129,24 @@ describe("catalog importer repair UI", () => {
       title: "Vanguard",
     });
 
+    const keepDuplicateRows = vi.fn();
+    const excludeDuplicateRows = vi.fn();
     render(
-      <CatalogImporterIssues controller={controller([first, duplicate])} />,
+      <CatalogImporterIssues
+        controller={controller([first, duplicate], {
+          excludeDuplicateRows,
+          keepDuplicateRows,
+        })}
+      />,
     );
 
     expect(
       screen.getByRole("heading", { name: "Possible duplicate listings" }),
     ).toBeVisible();
-    expect(screen.getByText(/All rows are kept unless/)).toBeVisible();
-    expect(
-      screen.queryByRole("button", { name: /Keep (both|all)/ }),
-    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Keep all" }));
+    expect(keepDuplicateRows).toHaveBeenCalledWith(["row-2", "row-3"]);
+    fireEvent.click(screen.getByRole("button", { name: "Exclude all" }));
+    expect(excludeDuplicateRows).toHaveBeenCalledWith(["row-2", "row-3"]);
     expect(
       screen.getByRole("button", {
         name: "Exclude row 3 from prepared workbook",
@@ -138,31 +154,86 @@ describe("catalog importer repair UI", () => {
     ).toBeVisible();
   });
 
-  it("shows an unloadable valid image as a warning without an edit-and-save task", () => {
+  it("edits every price issue in one spreadsheet table", () => {
+    const resolvePriceIssues = vi.fn();
+    const first = importRow({
+      id: "row-2",
+      priceWarning: "Use one numeric price.",
+      sourcePrice: "two for $30",
+      sourceRow: 2,
+      sourceTitle: "Vanguard",
+    });
+    const second = importRow({
+      id: "row-3",
+      priceWarning: "Use one numeric price.",
+      sourcePrice: "$18 each",
+      sourceRow: 3,
+      sourceTitle: "Aerial Art",
+    });
+
+    render(
+      <CatalogImporterIssues
+        controller={controller([first, second], {
+          mapping: {
+            cultivarReferenceId: null,
+            description: null,
+            imageUrl: null,
+            price: 1,
+            privateNote: 2,
+            title: 0,
+          },
+          resolvePriceIssues,
+        })}
+      />,
+    );
+
+    const table = screen.getByRole("table", { name: "Price format rows" });
+    expect(within(table).getAllByRole("row")).toHaveLength(3);
+    fireEvent.change(
+      within(table).getByRole("textbox", {
+        name: "Correct price for row 3",
+      }),
+      { target: { value: "18" } },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Save all" }));
+    expect(resolvePriceIssues).toHaveBeenCalledWith([
+      { preserveOriginalOffer: true, price: 15, rowId: "row-2" },
+      { preserveOriginalOffer: false, price: 18, rowId: "row-3" },
+    ]);
+  });
+
+  it("keeps an unloadable valid image URL without an edit-and-save task", () => {
     const imageUrl = "https://seller.example/daylily.jpg";
     const row = importRow({
       imageUrlWarning: `${CATALOG_IMPORT_IMAGE_PREVIEW_WARNING_PREFIX}${imageUrl}`,
       sourceImageUrl: imageUrl,
     });
+    const acknowledgeImagePreviewWarnings = vi.fn();
 
-    render(<CatalogImporterIssues controller={controller([row])} />);
+    render(
+      <CatalogImporterIssues
+        controller={controller([row], { acknowledgeImagePreviewWarnings })}
+      />,
+    );
 
     const warning = screen.getByRole("region", {
       name: "Seller images could not be previewed",
     });
-    expect(warning).toHaveTextContent("The URLs are kept");
     expect(warning).toHaveTextContent(imageUrl);
     expect(within(warning).queryByRole("textbox")).not.toBeInTheDocument();
-    expect(
-      within(warning).queryByRole("button", { name: /Save/ }),
-    ).not.toBeInTheDocument();
+    fireEvent.click(within(warning).getByRole("button", { name: "Keep URL" }));
+    expect(acknowledgeImagePreviewWarnings).toHaveBeenCalledWith(["row-2"]);
   });
 
-  it("removes navigation and reset controls when the only review item cannot use them", () => {
+  it("uses numbered actions to leave unmatched or exclude a review item", () => {
     const row = importRow();
+    const excludeReviewRow = vi.fn();
     const moveReviewRow = vi.fn();
-    const { rerender } = render(
+    const onFindDifferentCultivar = vi.fn();
+    const skipReviewRow = vi.fn();
+    render(
       <CatalogImporterReviewQuiz
+        onFindDifferentCultivar={onFindDifferentCultivar}
         controller={controller([row], {
           candidateResult: {
             candidates: [vanguardCandidate],
@@ -171,10 +242,17 @@ describe("catalog importer repair UI", () => {
             query: row.title,
             rowId: row.id,
           },
+          excludeReviewRow,
           moveReviewRow,
+          skipReviewRow,
         })}
       />,
     );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Find a different cultivar" }),
+    );
+    expect(onFindDifferentCultivar).toHaveBeenCalledWith(row);
 
     const review = screen.getByRole("region", {
       name: "Review potential matches",
@@ -191,27 +269,22 @@ describe("catalog importer repair UI", () => {
       within(review).queryByRole("button", { name: "Decide later" }),
     ).not.toBeInTheDocument();
     expect(
-      within(review).queryByRole("button", { name: "Reset" }),
+      within(review).queryByText("Search another cultivar", { exact: true }),
     ).not.toBeInTheDocument();
 
     fireEvent.keyDown(review, { key: "x" });
     expect(moveReviewRow).not.toHaveBeenCalled();
 
-    rerender(
-      <CatalogImporterReviewQuiz
-        controller={controller([row], {
-          candidateResult: {
-            candidates: [vanguardCandidate],
-            error: null,
-            loading: false,
-            query: row.title,
-            rowId: row.id,
-          },
-          moveReviewRow,
-          reviewQuery: "",
-        })}
-      />,
-    );
-    expect(within(review).getByRole("button", { name: "Reset" })).toBeVisible();
+    expect(
+      within(review).getByRole("button", { name: "Leave unmatched" }),
+    ).toHaveAttribute("aria-keyshortcuts", "2");
+    fireEvent.keyDown(review, { key: "2" });
+    expect(skipReviewRow).toHaveBeenCalledOnce();
+    expect(
+      within(review).getByRole("button", { name: "Exclude from catalog" }),
+    ).toHaveAttribute("aria-keyshortcuts", "3");
+    fireEvent.keyDown(review, { key: "3" });
+    expect(excludeReviewRow).toHaveBeenCalledOnce();
+    expect(within(review).queryByRole("textbox")).not.toBeInTheDocument();
   });
 });

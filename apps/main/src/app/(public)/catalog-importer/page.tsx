@@ -62,15 +62,18 @@ export default async function CatalogImporterPage() {
     await shouldShowCatalogImporterMembershipPrompts();
 
   return (
-    <div className="bg-background min-w-0">
+    <div className="bg-background min-w-0 [&:has([data-workbook-active=true])_[data-importer-upload-copy]]:hidden">
       <div className="mx-auto w-full max-w-[1440px] px-3 py-8 lg:px-8 lg:py-12">
-        <header className="mb-8 max-w-3xl">
+        <header className="mb-6 max-w-3xl">
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-            Turn your daylily spreadsheet into a catalog-ready collection
+            Build your daylily catalog
           </h1>
-          <p className="text-muted-foreground mt-3 text-base sm:text-lg">
-            Upload an XLSX or CSV file. We’ll link registered cultivars, reveal
-            a private catalog preview, and return a prepared copy.
+          <p
+            data-importer-upload-copy
+            className="text-muted-foreground mt-2 text-base sm:text-lg"
+          >
+            Upload an XLSX or CSV file to match cultivars, preview your catalog,
+            and prepare a clean copy.
           </p>
         </header>
 

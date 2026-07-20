@@ -17,16 +17,40 @@ import type {
 } from "@/lib/catalog-importer";
 
 export interface CatalogImporterInsightFilter {
-  id: "award" | "bloomSeason" | "form" | "hybridizer" | "ploidy" | "year";
+  id:
+    | "award"
+    | "bloomHabit"
+    | "bloomSeason"
+    | "bloomSize"
+    | "branches"
+    | "budcount"
+    | "flowerShow"
+    | "foliageType"
+    | "form"
+    | "fragrance"
+    | "hybridizer"
+    | "ploidy"
+    | "scapeHeight"
+    | "sculptedType"
+    | "year";
   value: string | string[];
 }
 
 type AnalysisView =
   | "awards"
+  | "bloomHabit"
   | "bloomSeason"
+  | "bloomSize"
+  | "branches"
+  | "budCount"
+  | "flowerShow"
+  | "foliageType"
   | "form"
+  | "fragrance"
   | "hybridizer"
   | "ploidy"
+  | "scapeHeight"
+  | "sculptedType"
   | "year";
 
 interface AnalysisFacet {
@@ -36,6 +60,64 @@ interface AnalysisFacet {
   value: AnalysisView;
   filterValue: (label: string) => CatalogImporterInsightFilter["value"];
   values: (match: CultivarMatchCandidate) => string[];
+}
+
+interface NumericBucket {
+  label: string;
+  max?: number;
+  min?: number;
+}
+
+const BLOOM_SIZE_BUCKETS: NumericBucket[] = [
+  { label: "Under 4 in.", max: 3.99 },
+  { label: "4–5.9 in.", min: 4, max: 5.99 },
+  { label: "6 in. and larger", min: 6 },
+];
+const SCAPE_HEIGHT_BUCKETS: NumericBucket[] = [
+  { label: "Under 24 in.", max: 23.99 },
+  { label: "24–35 in.", min: 24, max: 35.99 },
+  { label: "36 in. and taller", min: 36 },
+];
+const BUD_COUNT_BUCKETS: NumericBucket[] = [
+  { label: "Under 15 buds", max: 14 },
+  { label: "15–24 buds", min: 15, max: 24 },
+  { label: "25 or more buds", min: 25 },
+];
+const BRANCH_COUNT_BUCKETS: NumericBucket[] = [
+  { label: "0–2 branches", max: 2 },
+  { label: "3–4 branches", min: 3, max: 4 },
+  { label: "5 or more branches", min: 5 },
+];
+
+function getNumericBucket(
+  value: number | null | undefined,
+  buckets: NumericBucket[],
+) {
+  if (value === null || value === undefined) return [];
+
+  const bucket = buckets.find(
+    ({ max, min }) =>
+      (min === undefined || value >= min) &&
+      (max === undefined || value <= max),
+  );
+  return bucket ? [bucket.label] : [];
+}
+
+function getNumericBucketFilter(label: string, buckets: NumericBucket[]) {
+  const bucket = buckets.find((option) => option.label === label);
+  if (!bucket) return "";
+  return `${bucket.min ?? ""}:${bucket.max ?? ""}`;
+}
+
+function getBloomHabitValues(match: CultivarMatchCandidate) {
+  const values = splitFacetValue(match.bloomHabit);
+  if (
+    match.rebloom === true &&
+    !values.some((value) => value.toLowerCase() === "reblooms")
+  ) {
+    values.push("Reblooms");
+  }
+  return values;
 }
 
 const ANALYSIS_FACETS: AnalysisFacet[] = [
@@ -88,9 +170,82 @@ const ANALYSIS_FACETS: AnalysisFacet[] = [
     filterValue: (label) => [label],
     values: (match) => splitFormFacetValue(match.form),
   },
+  {
+    filterId: "bloomSize",
+    label: "Bloom size",
+    title: "Bloom sizes",
+    value: "bloomSize",
+    filterValue: (label) => getNumericBucketFilter(label, BLOOM_SIZE_BUCKETS),
+    values: (match) => getNumericBucket(match.bloomSizeIn, BLOOM_SIZE_BUCKETS),
+  },
+  {
+    filterId: "scapeHeight",
+    label: "Scape height",
+    title: "Scape heights",
+    value: "scapeHeight",
+    filterValue: (label) => getNumericBucketFilter(label, SCAPE_HEIGHT_BUCKETS),
+    values: (match) =>
+      getNumericBucket(match.scapeHeightIn, SCAPE_HEIGHT_BUCKETS),
+  },
+  {
+    filterId: "bloomHabit",
+    label: "Bloom behavior",
+    title: "Bloom behavior",
+    value: "bloomHabit",
+    filterValue: (label) => [label],
+    values: getBloomHabitValues,
+  },
+  {
+    filterId: "fragrance",
+    label: "Fragrance",
+    title: "Fragrance",
+    value: "fragrance",
+    filterValue: (label) => [label],
+    values: (match) => splitFacetValue(match.fragrance),
+  },
+  {
+    filterId: "foliageType",
+    label: "Foliage type",
+    title: "Foliage types",
+    value: "foliageType",
+    filterValue: (label) => [label],
+    values: (match) => splitFacetValue(match.foliageType),
+  },
+  {
+    filterId: "flowerShow",
+    label: "Flower show",
+    title: "Flower show classifications",
+    value: "flowerShow",
+    filterValue: (label) => [label],
+    values: (match) => splitFacetValue(match.flowerShow),
+  },
+  {
+    filterId: "sculptedType",
+    label: "Sculpting",
+    title: "Sculpted forms",
+    value: "sculptedType",
+    filterValue: (label) => [label],
+    values: (match) => splitFacetValue(match.sculptedTypes),
+  },
+  {
+    filterId: "budcount",
+    label: "Bud count",
+    title: "Bud counts",
+    value: "budCount",
+    filterValue: (label) => getNumericBucketFilter(label, BUD_COUNT_BUCKETS),
+    values: (match) => getNumericBucket(match.budCount, BUD_COUNT_BUCKETS),
+  },
+  {
+    filterId: "branches",
+    label: "Branch count",
+    title: "Branch counts",
+    value: "branches",
+    filterValue: (label) => getNumericBucketFilter(label, BRANCH_COUNT_BUCKETS),
+    values: (match) => getNumericBucket(match.branches, BRANCH_COUNT_BUCKETS),
+  },
 ];
 
-const MAX_VALUES = 7;
+const MAX_VALUES = 5;
 
 function getLinkedUniqueRows(rows: CatalogImportRow[]) {
   const rowsByCultivarId = new Map<string, CatalogImportRow>();
@@ -116,13 +271,123 @@ function getRankedValues(rows: CatalogImportRow[], facet: AnalysisFacet) {
     }
   }
 
+  const allValues = [...counts.entries()].sort(
+    (left, right) => right[1] - left[1] || left[0].localeCompare(right[0]),
+  );
+
   return {
-    values: [...counts.entries()]
-      .sort(
-        (left, right) => right[1] - left[1] || left[0].localeCompare(right[0]),
-      )
-      .slice(0, MAX_VALUES),
+    allValues,
+    values: allValues.slice(0, MAX_VALUES),
   };
+}
+
+function formatCultivarCount(count: number) {
+  return `${count.toLocaleString()} ${count === 1 ? "cultivar" : "cultivars"}`;
+}
+
+function getMaximum(
+  rows: CatalogImportRow[],
+  value: (match: CultivarMatchCandidate) => number | null | undefined,
+) {
+  const values = rows
+    .map((row) => (row.match ? value(row.match) : null))
+    .filter((item): item is number => item !== null && item !== undefined);
+  return values.length > 0 ? Math.max(...values) : null;
+}
+
+function getInsightSummary({
+  facet,
+  ranking,
+  rows,
+}: {
+  facet: AnalysisFacet;
+  ranking: ReturnType<typeof getRankedValues>;
+  rows: CatalogImportRow[];
+}) {
+  const top = ranking.values[0];
+  if (!top) return null;
+  const [topLabel, topCount] = top;
+
+  switch (facet.value) {
+    case "hybridizer": {
+      if (topCount === 1) {
+        return `Your collection represents ${ranking.allValues.length.toLocaleString()} hybridizers.`;
+      }
+      const tiedHybridizers = ranking.allValues.filter(
+        ([, count]) => count === topCount,
+      ).length;
+      if (tiedHybridizers > 1) {
+        return `${tiedHybridizers.toLocaleString()} hybridizers share the top spot, with ${formatCultivarCount(topCount)} each.`;
+      }
+      return `${topLabel} is your most represented hybridizer, with ${formatCultivarCount(topCount)}.`;
+    }
+    case "year": {
+      const years = rows
+        .map((row) => row.match?.year)
+        .filter((year): year is number => year !== null && year !== undefined);
+      const earliest = Math.min(...years);
+      const latest = Math.max(...years);
+      return earliest === latest
+        ? `Your linked cultivars were registered in ${earliest}.`
+        : `Your collection spans ${latest - earliest} years of registrations, from ${earliest} to ${latest}.`;
+    }
+    case "awards": {
+      const awarded = rows.filter(
+        (row) => splitFacetValue(row.match?.awardNames).length > 0,
+      ).length;
+      return `${formatCultivarCount(awarded)} in your collection ${awarded === 1 ? "has" : "have"} received recognized awards.`;
+    }
+    case "bloomSize": {
+      const largest = getMaximum(rows, (match) => match.bloomSizeIn);
+      return largest === null
+        ? null
+        : `Your largest recorded bloom is ${largest.toLocaleString()} inches.`;
+    }
+    case "scapeHeight": {
+      const tallest = getMaximum(rows, (match) => match.scapeHeightIn);
+      return tallest === null
+        ? null
+        : `Your tallest registered scape is ${tallest.toLocaleString()} inches.`;
+    }
+    case "bloomHabit": {
+      const rebloomers = rows.filter(
+        (row) => row.match?.rebloom === true,
+      ).length;
+      return rebloomers > 0
+        ? `${formatCultivarCount(rebloomers)} ${rebloomers === 1 ? "is" : "are"} registered as reblooming.`
+        : `${topLabel} is the most common bloom behavior in your collection.`;
+    }
+    case "budCount": {
+      const highest = getMaximum(rows, (match) => match.budCount);
+      return highest === null
+        ? null
+        : `Your highest registered bud count is ${highest.toLocaleString()}.`;
+    }
+    case "branches": {
+      const highest = getMaximum(rows, (match) => match.branches);
+      return highest === null
+        ? null
+        : `Your highest registered branch count is ${highest.toLocaleString()}.`;
+    }
+    case "fragrance": {
+      const recorded = rows.filter(
+        (row) => splitFacetValue(row.match?.fragrance).length > 0,
+      ).length;
+      return `${formatCultivarCount(recorded)} ${recorded === 1 ? "has" : "have"} fragrance recorded.`;
+    }
+    case "bloomSeason":
+      return `${topLabel} is your most common bloom season.`;
+    case "form":
+      return `${topLabel} is your most common flower form.`;
+    case "ploidy":
+      return `${topLabel} is the most common ploidy in your collection.`;
+    case "foliageType":
+      return `${topLabel} is the most common foliage type in your collection.`;
+    case "flowerShow":
+      return `${topLabel} is your most common flower show classification.`;
+    case "sculptedType":
+      return `${topLabel} is your most common sculpted form.`;
+  }
 }
 
 export function CatalogImporterAnalysis({
@@ -139,16 +404,9 @@ export function CatalogImporterAnalysis({
       ANALYSIS_FACETS.map((facet) => ({
         facet,
         ranking: getRankedValues(uniqueRows, facet),
-      })).filter(
-        ({ ranking }) =>
-          ranking.values.length > 1 ||
-          (ranking.values[0]?.[1] ?? uniqueRows.length) < uniqueRows.length,
-      ),
+      })).filter(({ ranking }) => ranking.values.length > 0),
     [uniqueRows],
   );
-  const unresolvedListingCount = rows.filter(
-    (row) => row.linkState !== "linked",
-  ).length;
   const referencePhotoCount = uniqueRows.filter(
     (row) => getCultivarImage(row.match) !== null,
   ).length;
@@ -178,33 +436,34 @@ export function CatalogImporterAnalysis({
   const largestCount = selected
     ? Math.max(1, ...selected.ranking.values.map(([, count]) => count))
     : 1;
+  const summary = selected
+    ? getInsightSummary({
+        facet: selected.facet,
+        ranking: selected.ranking,
+        rows: uniqueRows,
+      })
+    : null;
 
   return (
     <section
       id="catalog-importer-insights"
       aria-labelledby="catalog-importer-analysis-heading"
-      className="!scroll-mt-16 border-t pt-10"
+      className="!scroll-mt-16"
     >
       <h2
         id="catalog-importer-analysis-heading"
         className="text-xl font-semibold tracking-tight"
       >
-        Explore your catalog
+        Collection insights
       </h2>
-      <p className="text-muted-foreground mt-2 text-sm">
-        Based on {uniqueRows.length.toLocaleString()} linked unique{" "}
-        {uniqueRows.length === 1 ? "cultivar" : "cultivars"}.
-        {unresolvedListingCount > 0
-          ? ` ${unresolvedListingCount.toLocaleString()} unresolved ${
-              unresolvedListingCount === 1 ? "listing is" : "listings are"
-            } not included.`
-          : ""}
-      </p>
-      <div className="mt-5 grid gap-x-8 gap-y-3 border-y py-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
-        <span className="font-medium">
+      <div className="text-muted-foreground mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+        <span>
+          {uniqueRows.length.toLocaleString()} linked{" "}
+          {uniqueRows.length === 1 ? "cultivar" : "cultivars"}
+        </span>
+        <span>
           {referencePhotoCount.toLocaleString()}{" "}
-          {referencePhotoCount === 1 ? "cultivar has" : "cultivars have"} a
-          reference photo
+          {referencePhotoCount === 1 ? "photo" : "photos"}
         </span>
         {awardWinningCount > 0 && awardWinningCount < uniqueRows.length ? (
           <a
@@ -212,28 +471,23 @@ export function CatalogImporterAnalysis({
             onClick={() => {
               onApplyFilter({ id: "award", value: awardFilters });
             }}
-            className="hover:text-primary focus-visible:ring-ring rounded-sm font-medium underline-offset-4 hover:underline focus-visible:ring-2"
+            className="hover:text-primary focus-visible:ring-ring rounded-sm underline-offset-4 hover:underline focus-visible:ring-2"
           >
-            {awardWinningCount.toLocaleString()} award-winning{" "}
-            {awardWinningCount === 1 ? "cultivar" : "cultivars"}
+            {awardWinningCount.toLocaleString()} award winning
           </a>
         ) : awardWinningCount > 0 ? (
-          <span className="font-medium">
-            {awardWinningCount.toLocaleString()} award-winning{" "}
-            {awardWinningCount === 1 ? "cultivar" : "cultivars"}
-          </span>
+          <span>{awardWinningCount.toLocaleString()} award winning</span>
         ) : null}
         {earliestYear !== null && latestYear !== null ? (
-          <span className="font-medium">
-            Registrations span{" "}
+          <span>
             {earliestYear === latestYear
-              ? earliestYear
+              ? `Registered ${earliestYear}`
               : `${earliestYear}–${latestYear}`}
           </span>
         ) : null}
       </div>
       {selected ? (
-        <div className="mt-5 space-y-4">
+        <div className="mt-4 space-y-3">
           {availableRankings.length > 1 ? (
             <ToggleGroup
               type="single"
@@ -258,8 +512,11 @@ export function CatalogImporterAnalysis({
           ) : null}
 
           <div aria-live="polite">
+            {summary ? (
+              <p className="mb-3 max-w-2xl text-sm font-medium">{summary}</p>
+            ) : null}
             <h3 className="font-medium">{selected.facet.title}</h3>
-            <ol className="mt-4 space-y-3">
+            <ol className="mt-3 space-y-2">
               {selected.ranking.values.map(([label, count]) => (
                 <li key={label} className="text-sm">
                   <a

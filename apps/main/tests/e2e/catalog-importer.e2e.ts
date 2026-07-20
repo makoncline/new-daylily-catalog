@@ -186,7 +186,7 @@ test.describe("catalog importer", () => {
     await expect(page.getByRole("main")).toHaveCount(1);
     await expect(
       page.getByRole("heading", {
-        name: "Turn your daylily spreadsheet into a catalog-ready collection",
+        name: "Build your daylily catalog",
       }),
     ).toBeVisible();
     await expect(
@@ -229,7 +229,7 @@ test.describe("catalog importer", () => {
     await page.getByRole("option", { name: /^imageUrl —/i }).click();
     await expect(
       page.getByRole("region", {
-        name: "Your private catalog preview is ready",
+        name: "Catalog preview ready",
       }),
     ).toHaveCount(0);
     await page.getByRole("button", { name: "Build catalog preview" }).click();
@@ -238,7 +238,7 @@ test.describe("catalog importer", () => {
       page.getByRole("heading", { name: "Matches", exact: true }),
     ).toHaveCount(0);
     const catalogSummary = page.getByRole("region", {
-      name: "Your private catalog preview is ready",
+      name: "Catalog preview ready",
     });
     await expect(catalogSummary.getByTestId("linked-listing-count")).toHaveText(
       "23",
@@ -246,7 +246,7 @@ test.describe("catalog importer", () => {
     await expect(
       catalogSummary.getByTestId("pending-decision-count"),
     ).toHaveText("2");
-    await expect(catalogSummary.getByTestId("issue-count")).toHaveText("3");
+    await expect(catalogSummary.getByTestId("issue-count")).toHaveText("4");
     await expect(page.getByText("100%", { exact: true })).toHaveCount(0);
     await expect(
       page.getByRole("button", {
@@ -263,7 +263,7 @@ test.describe("catalog importer", () => {
       }),
     ).toBeVisible();
     await expect(
-      page.getByText("Your prepared workbook remains free", {
+      page.getByText("Your prepared workbook stays free", {
         exact: false,
       }),
     ).toBeVisible();
@@ -271,7 +271,9 @@ test.describe("catalog importer", () => {
     const issuesRegion = page.getByRole("region", {
       name: "Review spreadsheet data",
     });
-    await expect(issuesRegion).toContainText("3 items need action · 1 warning");
+    await expect(issuesRegion).toContainText(
+      "0 of 4 completed · 3 need action · 1 warning",
+    );
     await expect(
       issuesRegion.getByRole("heading", {
         name: "Price formats need review",
@@ -311,7 +313,9 @@ test.describe("catalog importer", () => {
     await priceIssues.getByLabel("Correct price for row 3").fill("12.50");
     await priceIssues.getByLabel("Correct price for row 5").fill("13.50");
     await priceIssues.getByRole("button", { name: "Save all" }).click();
-    await expect(issuesRegion).toContainText("1 item needs action · 1 warning");
+    await expect(issuesRegion).toContainText(
+      "2 of 4 completed · 1 needs action · 1 warning",
+    );
 
     const imageIssues = issuesRegion.getByRole("region", {
       name: "Seller images need review",
@@ -325,7 +329,7 @@ test.describe("catalog importer", () => {
       .click();
     await expect(
       page.getByRole("region", { name: "Review spreadsheet data" }),
-    ).toContainText("No required changes · 1 warning");
+    ).toContainText("3 of 4 completed · 1 warning");
     await expect
       .poll(async () =>
         JSON.stringify(await readSavedDraft(page)).includes(
@@ -338,7 +342,7 @@ test.describe("catalog importer", () => {
       page.getByRole("heading", { name: "Review potential matches" }),
     ).toBeVisible();
     await expect(
-      page.getByText("2 manual matches remaining", { exact: false }),
+      page.getByText("0 of 2 completed", { exact: true }),
     ).toBeVisible();
     await expect(
       page.getByRole("heading", { name: "Vanguard 2" }),
@@ -373,7 +377,7 @@ test.describe("catalog importer", () => {
       page.getByRole("button", { name: "Undo identity decision" }),
     ).toBeVisible();
     await expect(
-      page.getByText("1 manual match remaining", { exact: false }),
+      page.getByText("1 of 2 completed", { exact: true }),
     ).toBeVisible();
     await expect(
       page.getByRole("heading", { name: "Mystery Bloom" }),
@@ -394,11 +398,11 @@ test.describe("catalog importer", () => {
       page.getByRole("heading", { name: "Review potential matches" }),
     ).toBeVisible();
     await expect(
-      page.getByText("1 manual match remaining", { exact: false }),
+      page.getByText("1 of 2 completed", { exact: true }),
     ).toBeVisible();
     await expect(
       page.getByRole("region", { name: "Review spreadsheet data" }),
-    ).toContainText("No required changes · 1 warning");
+    ).toContainText("3 of 4 completed · 1 warning");
     await expect(
       page.getByRole("heading", { name: "Mystery Bloom" }),
     ).toBeVisible();
@@ -406,31 +410,34 @@ test.describe("catalog importer", () => {
       page.getByRole("button", { name: "Use match 1: Mystery Daylily" }),
     ).toBeVisible();
 
-    const closeMatches = page.getByRole("region", { name: "Close matches" });
-    await expect(
-      closeMatches.getByRole("button", { name: "Decide later" }),
-    ).toHaveCount(0);
     const restoredReviewQuiz = page.getByRole("region", {
       name: "Review potential matches",
     });
-    const reviewSearch = restoredReviewQuiz.getByLabel(
-      "Search a different cultivar spelling",
-    );
-    await reviewSearch.focus();
+    await expect(
+      restoredReviewQuiz.getByRole("button", { name: "Decide later" }),
+    ).toHaveCount(0);
+    await expect(
+      restoredReviewQuiz.getByText("Search another cultivar", {
+        exact: true,
+      }),
+    ).toHaveCount(0);
+    await expect(
+      restoredReviewQuiz.getByRole("button", { name: "Leave unmatched" }),
+    ).toHaveAttribute("aria-keyshortcuts", "2");
+    await restoredReviewQuiz.focus();
     await page.keyboard.press("x");
     await expect(
       page.getByRole("heading", { name: "Mystery Bloom" }),
     ).toBeVisible();
-    await expect(reviewSearch).toHaveValue("x");
-    await restoredReviewQuiz.getByRole("button", { name: "Reset" }).click();
-    await expect(reviewSearch).toHaveValue("Mystery Bloom");
-    await closeMatches.getByRole("button", { name: "Leave unmatched" }).focus();
+    await restoredReviewQuiz
+      .getByRole("button", { name: "Leave unmatched" })
+      .focus();
     await page.keyboard.press("Enter");
     await expect(
       page.getByRole("region", { name: "Review potential matches" }),
     ).toHaveCount(0);
     await expect(
-      page.getByRole("region", { name: "Listings left unmatched" }),
+      page.getByRole("region", { name: "Left unmatched (1)" }),
     ).toContainText("Mystery Bloom");
 
     await page.getByText("File details").click();
@@ -465,8 +472,14 @@ test.describe("catalog importer", () => {
 
     const downloadPromise = page.waitForEvent("download");
     await page
-      .getByRole("region", { name: "Your prepared workbook is ready" })
-      .getByRole("button", { name: "Download prepared workbook" })
+      .getByRole("region", { name: "Download your current workbook" })
+      .getByRole("button", { name: "Download current workbook" })
+      .click();
+    await page
+      .getByRole("alertdialog", {
+        name: "Download before review is complete?",
+      })
+      .getByRole("button", { name: "Continue" })
       .click();
     const download = await downloadPromise;
     const downloadPath = await download.path();
@@ -500,14 +513,14 @@ test.describe("catalog importer", () => {
       page.getByText("Sample daylily catalog.csv", { exact: true }),
     ).toBeVisible();
     const summary = page.getByRole("region", {
-      name: "Your private catalog preview is ready",
+      name: "Catalog preview ready",
     });
     await expect(summary.getByTestId("linked-listing-count")).toHaveText("9");
     await expect(summary.getByTestId("pending-decision-count")).toHaveText("1");
-    await expect(summary.getByTestId("issue-count")).toHaveText("1");
+    await expect(summary.getByTestId("issue-count")).toHaveText("2");
     await expect(
       page.getByRole("region", { name: "Review spreadsheet data" }),
-    ).toContainText("1 item needs action · 1 warning");
+    ).toContainText("0 of 2 completed · 1 needs action · 1 warning");
   });
 
   test("keeps the phone layout within the viewport", async ({ page }) => {
@@ -526,17 +539,15 @@ test.describe("catalog importer", () => {
     await page.getByRole("button", { name: "Build catalog preview" }).click();
 
     await expect(
-      page.getByRole("heading", {
-        name: "Your private catalog preview is ready",
+      page.getByRole("region", {
+        name: "Catalog preview ready",
       }),
     ).toBeVisible();
 
     await expect(
       page.getByRole("heading", { name: "Review potential matches" }),
     ).toBeVisible();
-    await expect(
-      page.getByRole("table", { name: "Uploaded spreadsheet row 13" }),
-    ).toBeVisible();
+    await expect(page.getByLabel("Uploaded spreadsheet row 13")).toBeVisible();
     await expect(
       page.getByRole("button", {
         name: "Preview Vanguard reference photo",
@@ -566,8 +577,6 @@ test.describe("catalog importer", () => {
       name: "Catalog preparation actions",
     });
     await expect(mobileActions).toBeVisible();
-    const mobileActionsBox = await mobileActions.boundingBox();
-    expect(mobileActionsBox).not.toBeNull();
 
     for (const control of [
       page.getByLabel("Correct price for row 3"),
@@ -575,25 +584,25 @@ test.describe("catalog importer", () => {
       page.getByLabel("Correct image URL for row 4"),
       page.getByRole("button", { name: "Save image URL for row 4" }),
     ]) {
-      await control.scrollIntoViewIfNeeded();
+      await control.evaluate((element) =>
+        element.scrollIntoView({ block: "center" }),
+      );
       await expect(control).toBeVisible();
       const box = await control.boundingBox();
       expect(box).not.toBeNull();
       expect(box!.x).toBeGreaterThanOrEqual(0);
       expect(box!.x + box!.width).toBeLessThanOrEqual(402);
-      expect(box!.y + box!.height).toBeLessThanOrEqual(mobileActionsBox!.y);
+      expect(box!.y + box!.height).toBeLessThanOrEqual(844);
     }
 
     await expect(
-      mobileActions.getByRole("button", {
+      mobileActions.getByRole("link", { name: "Download" }),
+    ).toHaveAttribute("href", "#catalog-importer-download");
+    await expect(
+      page.getByRole("button", {
         name: "Download current workbook",
       }),
     ).toBeVisible();
-    await expect(
-      page.getByRole("navigation", {
-        name: "Catalog preparation workspace",
-      }),
-    ).toBeHidden();
     await expect(
       page.getByRole("button", { name: "Return to top" }),
     ).toBeHidden();
@@ -610,12 +619,7 @@ test.describe("catalog importer", () => {
     expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth);
 
     await page.setViewportSize({ width: 820, height: 1180 });
-    await expect(mobileActions).toBeHidden();
-    await expect(
-      page.getByRole("navigation", {
-        name: "Catalog preparation workspace",
-      }),
-    ).toBeVisible();
+    await expect(mobileActions).toBeVisible();
     const tabletOverflow = await page.evaluate(() => ({
       clientWidth: document.documentElement.clientWidth,
       scrollWidth: document.documentElement.scrollWidth,

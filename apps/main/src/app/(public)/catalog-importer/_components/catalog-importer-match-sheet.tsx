@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
-import { RotateCcw, Search } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -65,73 +64,24 @@ export function CatalogImporterMatchSheet({
 }: CatalogImporterMatchSheetProps) {
   const [closeResult, setCloseResult] =
     useState<CatalogImporterCandidateResult | null>(null);
-  const [searchResult, setSearchResult] =
-    useState<CatalogImporterCandidateResult | null>(null);
-  const [query, setQuery] = useState(row?.sourceTitle ?? "");
+  const [searchQuery, setSearchQuery] = useState(row?.title ?? "");
   const closeRequestId = useRef(0);
-  const searchRequestId = useRef(0);
-  const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const loadCloseMatches = useCallback(async (activeRow: CatalogImportRow) => {
-    const requestId = closeRequestId.current + 1;
-    closeRequestId.current = requestId;
-    setCloseResult({
-      candidates: uniqueCandidates([activeRow.match, activeRow.suggestedMatch]),
-      error: null,
-      loading: true,
-      query: activeRow.title,
-      rowId: activeRow.id,
-    });
+  const loadCloseMatches = useCallback(
+    async (activeRow: CatalogImportRow, query: string) => {
+      const trimmedQuery = query.trim();
+      if (!trimmedQuery) return;
 
-    try {
-      const [result] = await requestCultivarMatches({
-        includeCandidates: true,
-        names: [activeRow.title],
-      });
-      if (closeRequestId.current !== requestId) {
-        return;
-      }
-
+      const requestId = closeRequestId.current + 1;
+      closeRequestId.current = requestId;
+      const isOriginalQuery =
+        trimmedQuery.toLocaleLowerCase() ===
+        activeRow.title.trim().toLocaleLowerCase();
+      const currentCandidates = isOriginalQuery
+        ? [activeRow.match, activeRow.suggestedMatch]
+        : [];
       setCloseResult({
-        candidates: uniqueCandidates([
-          activeRow.match,
-          activeRow.suggestedMatch,
-          ...(result?.candidates ?? []),
-        ]),
-        error: null,
-        loading: false,
-        query: activeRow.title,
-        rowId: activeRow.id,
-      });
-    } catch (error) {
-      if (closeRequestId.current !== requestId) {
-        return;
-      }
-
-      setCloseResult({
-        candidates: uniqueCandidates([
-          activeRow.match,
-          activeRow.suggestedMatch,
-        ]),
-        error: getErrorMessage(error),
-        loading: false,
-        query: activeRow.title,
-        rowId: activeRow.id,
-      });
-    }
-  }, []);
-
-  const searchOtherMatches = useCallback(
-    async (activeRow: CatalogImportRow, searchQuery: string) => {
-      const trimmedQuery = searchQuery.trim();
-      if (!trimmedQuery) {
-        return;
-      }
-
-      const requestId = searchRequestId.current + 1;
-      searchRequestId.current = requestId;
-      setSearchResult({
-        candidates: [],
+        candidates: uniqueCandidates(currentCandidates),
         error: null,
         loading: true,
         query: trimmedQuery,
@@ -143,24 +93,27 @@ export function CatalogImporterMatchSheet({
           includeCandidates: true,
           names: [trimmedQuery],
         });
-        if (searchRequestId.current !== requestId) {
+        if (closeRequestId.current !== requestId) {
           return;
         }
 
-        setSearchResult({
-          candidates: result?.candidates ?? [],
+        setCloseResult({
+          candidates: uniqueCandidates([
+            ...currentCandidates,
+            ...(result?.candidates ?? []),
+          ]),
           error: null,
           loading: false,
           query: trimmedQuery,
           rowId: activeRow.id,
         });
       } catch (error) {
-        if (searchRequestId.current !== requestId) {
+        if (closeRequestId.current !== requestId) {
           return;
         }
 
-        setSearchResult({
-          candidates: [],
+        setCloseResult({
+          candidates: uniqueCandidates(currentCandidates),
           error: getErrorMessage(error),
           loading: false,
           query: trimmedQuery,
@@ -178,20 +131,6 @@ export function CatalogImporterMatchSheet({
         : [],
     [closeResult, row?.id],
   );
-  const otherCandidates = useMemo(
-    () =>
-      searchResult?.rowId === row?.id
-        ? (searchResult?.candidates ?? []).slice(
-            0,
-            Math.max(0, 9 - closeCandidates.length),
-          )
-        : [],
-    [closeCandidates.length, row?.id, searchResult],
-  );
-  const keyboardCandidates = useMemo(
-    () => [...closeCandidates, ...otherCandidates],
-    [closeCandidates, otherCandidates],
-  );
 
   const chooseCandidate = useCallback(
     (candidate: CultivarMatchCandidate) => {
@@ -205,23 +144,20 @@ export function CatalogImporterMatchSheet({
     [controller, onOpenChange, row],
   );
 
-  const resetSearch = useCallback(() => {
+  const leaveUnmatched = useCallback(() => {
     if (!row) {
       return;
     }
 
-    searchRequestId.current += 1;
-    setQuery(row.sourceTitle);
-    setSearchResult(null);
-  }, [row]);
+    controller.leaveRowUnmatched(row.id);
+    onOpenChange(false);
+  }, [controller, onOpenChange, row]);
 
   if (!row) {
     return null;
   }
 
   const closeLoading = closeResult?.rowId === row.id && closeResult.loading;
-  const searchLoading = searchResult?.rowId === row.id && searchResult.loading;
-  const canResetSearch = query.trim() !== row.sourceTitle.trim();
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -236,14 +172,18 @@ export function CatalogImporterMatchSheet({
             return;
           }
 
-          const candidate = keyboardCandidates[Number(event.key) - 1];
+          const choiceIndex = Number(event.key) - 1;
+          const candidate = closeCandidates[choiceIndex];
           if (candidate) {
             event.preventDefault();
             chooseCandidate(candidate);
+          } else if (choiceIndex === closeCandidates.length) {
+            event.preventDefault();
+            leaveUnmatched();
           }
         }}
         onOpenAutoFocus={() => {
-          void loadCloseMatches(row);
+          void loadCloseMatches(row, row.title);
         }}
       >
         <SheetHeader className="border-b p-4 pr-12 text-left sm:p-6 sm:pr-12">
@@ -253,125 +193,59 @@ export function CatalogImporterMatchSheet({
           </SheetDescription>
         </SheetHeader>
 
-        <div className="space-y-6 p-4 sm:p-6">
+        <div className="space-y-2 p-4 sm:p-6">
           <CatalogImporterSourceRow
             row={row}
             sourceCells={controller.getSourceCellsForRow(row)}
           />
 
-          <div className="flex flex-col gap-3 border-y py-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-muted-foreground text-sm">
-              Leave unmatched keeps this row in the prepared workbook without a
-              Daylily Catalog cultivar ID or link.
-            </p>
+          <form
+            className="flex gap-2 py-1"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void loadCloseMatches(row, searchQuery);
+            }}
+          >
+            <Input
+              aria-label="Cultivar name"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+            />
             <Button
-              type="button"
+              type="submit"
               variant="outline"
-              className="shrink-0"
-              onClick={() => {
-                controller.leaveRowUnmatched(row.id);
-                onOpenChange(false);
-              }}
+              disabled={!searchQuery.trim() || closeLoading}
             >
-              Leave unmatched
+              Search
             </Button>
-          </div>
+          </form>
 
-          <section className="space-y-3" aria-labelledby="sheet-close-matches">
-            <h3 id="sheet-close-matches" className="font-semibold">
-              Close matches
-            </h3>
-
-            {closeResult?.error && closeResult.rowId === row.id ? (
-              <Alert variant="destructive">
-                <AlertTitle>Close match search failed</AlertTitle>
-                <AlertDescription>{closeResult.error}</AlertDescription>
-              </Alert>
-            ) : null}
-
-            {closeLoading && closeCandidates.length === 0 ? (
-              <div className="text-muted-foreground flex min-h-32 items-center justify-center gap-2 text-sm">
-                <Spinner />
-                Finding close names…
-              </div>
-            ) : closeCandidates.length > 0 ? (
+          {closeResult?.error && closeResult.rowId === row.id ? (
+            <Alert variant="destructive">
+              <AlertTitle>Match search failed</AlertTitle>
+              <AlertDescription>{closeResult.error}</AlertDescription>
+            </Alert>
+          ) : null}
+          {closeLoading ? (
+            <div className="text-muted-foreground flex items-center justify-center gap-2 py-6 text-sm">
+              <Spinner />
+              Finding matches…
+            </div>
+          ) : (
+            <>
+              {closeResult && closeCandidates.length === 0 ? (
+                <p className="text-muted-foreground py-2 text-sm">
+                  No matches found. Try another name.
+                </p>
+              ) : null}
               <CatalogImporterCandidateList
-                ariaLabel="Sheet close match results"
+                ariaLabel="Match options"
                 candidates={closeCandidates}
                 onChoose={chooseCandidate}
+                onLeaveUnmatched={leaveUnmatched}
               />
-            ) : !closeLoading ? (
-              <div className="rounded-md border border-dashed p-6 text-center">
-                <p className="font-medium">No close names found</p>
-              </div>
-            ) : null}
-          </section>
-
-          <section
-            className="space-y-3 border-t pt-5"
-            aria-labelledby="sheet-other-match"
-          >
-            <h3 id="sheet-other-match" className="font-semibold">
-              Other match
-            </h3>
-
-            <form
-              className={`grid min-w-0 gap-2 ${
-                canResetSearch
-                  ? "sm:grid-cols-[minmax(0,1fr)_auto_auto]"
-                  : "sm:grid-cols-[minmax(0,1fr)_auto]"
-              }`}
-              onSubmit={(event) => {
-                event.preventDefault();
-                searchInputRef.current?.blur();
-                void searchOtherMatches(row, query);
-              }}
-            >
-              <Input
-                ref={searchInputRef}
-                aria-label="Search another cultivar match"
-                value={query}
-                onChange={(event) => setQuery(event.currentTarget.value)}
-              />
-              {canResetSearch ? (
-                <Button type="button" variant="outline" onClick={resetSearch}>
-                  <RotateCcw className="size-4" />
-                  Reset
-                </Button>
-              ) : null}
-              <Button
-                type="submit"
-                disabled={searchLoading || query.trim().length === 0}
-              >
-                {searchLoading ? <Spinner /> : <Search className="size-4" />}
-                Search
-              </Button>
-            </form>
-
-            {searchResult?.error && searchResult.rowId === row.id ? (
-              <Alert variant="destructive">
-                <AlertTitle>Candidate search failed</AlertTitle>
-                <AlertDescription>{searchResult.error}</AlertDescription>
-              </Alert>
-            ) : searchLoading ? (
-              <div className="text-muted-foreground flex min-h-32 items-center justify-center gap-2 text-sm">
-                <Spinner />
-                Searching other names…
-              </div>
-            ) : searchResult?.rowId === row.id &&
-              otherCandidates.length === 0 ? (
-              <div className="rounded-md border border-dashed p-6 text-center">
-                <p className="font-medium">No other matches found</p>
-              </div>
-            ) : otherCandidates.length > 0 ? (
-              <CatalogImporterCandidateList
-                ariaLabel="Sheet other match results"
-                candidates={otherCandidates}
-                startIndex={closeCandidates.length}
-                onChoose={chooseCandidate}
-              />
-            ) : null}
-          </section>
+            </>
+          )}
         </div>
       </SheetContent>
     </Sheet>

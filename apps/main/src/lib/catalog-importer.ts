@@ -187,6 +187,7 @@ export interface CatalogImportRow {
   duplicateOfSourceRow: number | null;
   id: string;
   imageUrl: string;
+  imagePreviewAccepted?: boolean;
   imageUrlWarning: string | null;
   linkProvenance: CatalogImportLinkProvenance | null;
   linkState: CatalogImportLinkState;
@@ -436,6 +437,13 @@ const CATALOG_IMPORT_TEMPLATE_HEADERS = [
   "private note",
   "image url",
 ] as const;
+const CATALOG_MAPPED_OUTPUT_HEADERS = {
+  description: "Description",
+  imageUrl: "Image URL",
+  price: "Price",
+  privateNote: "Private Note",
+  title: "Name",
+} as const;
 const CATALOG_ENRICHMENT_HEADERS = {
   cultivarReferenceId: "Daylily Catalog ID",
   registeredCultivarName: "Daylily Catalog Cultivar Name",
@@ -838,6 +846,7 @@ export function createCatalogImportRows({
       duplicateOfSourceRow: null,
       id: `source-row-${sourceRow}`,
       imageUrl: image.imageUrl,
+      imagePreviewAccepted: false,
       imageUrlWarning: image.warning,
       linkProvenance: null,
       linkState: "pending",
@@ -954,6 +963,22 @@ function ensureEnrichmentColumns(
   ) as Record<keyof typeof CATALOG_ENRICHMENT_HEADERS, number>;
 }
 
+function renameMappedColumns(
+  rows: SpreadsheetCell[][],
+  headerRowIndex: number,
+  mapping: CatalogColumnMapping,
+) {
+  const headerRow = rows[headerRowIndex] ?? [];
+  rows[headerRowIndex] = headerRow;
+
+  for (const [field, header] of Object.entries(CATALOG_MAPPED_OUTPUT_HEADERS)) {
+    const columnIndex = mapping[field as keyof CatalogColumnMapping];
+    if (columnIndex !== null) {
+      headerRow[columnIndex] = header;
+    }
+  }
+}
+
 export function getCultivarUrl(candidate: CultivarMatchCandidate | null) {
   const segment = toCultivarRouteSegment(candidate?.normalizedName);
   return segment ? `${DAYLILY_CATALOG_BASE_URL}/cultivar/${segment}` : "";
@@ -1008,6 +1033,7 @@ export function createCatalogEnrichedSpreadsheet({
     }
   }
 
+  renameMappedColumns(originalRows, outputHeaderRowIndex, mapping);
   const enrichmentColumns = ensureEnrichmentColumns(
     originalRows,
     outputHeaderRowIndex,
@@ -1040,7 +1066,9 @@ export function createCatalogEnrichedSpreadsheet({
       outputRow[mapping.privateNote] = row.privateNote;
     }
     if (mapping.imageUrl !== null && row.imageUrlWarning === null) {
-      outputRow[mapping.imageUrl] = row.imageUrl;
+      outputRow[mapping.imageUrl] = row.imagePreviewAccepted
+        ? row.sourceImageUrl
+        : row.imageUrl;
     }
 
     outputRow[enrichmentColumns.cultivarReferenceId] =

@@ -7,6 +7,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { ArrowUp, ChevronDown, ImageIcon, Info, Link2 } from "lucide-react";
+import { AhsListingDisplay } from "@/components/ahs-listing-display";
 import { ImagePlaceholder } from "@/components/image-placeholder";
 import type { OptimizedImageSource } from "@/components/optimized-image";
 import { OptimizedImage } from "@/components/optimized-image";
@@ -15,8 +16,8 @@ import {
   type CatalogSearchListingRow,
   createPublicCatalogSearchColumns,
 } from "@/components/public-catalog-search/public-catalog-search-columns";
-import { buildPublicCatalogSearchFacetOptions } from "@/components/public-catalog-search/public-catalog-search-registry";
 import { splitFacetValue } from "@/components/public-catalog-search/public-catalog-search-filter-utils";
+import { buildPublicCatalogSearchFacetOptions } from "@/components/public-catalog-search/public-catalog-search-registry";
 import type {
   PublicCatalogSearchFacetOption,
   PublicCatalogSearchMode,
@@ -29,16 +30,21 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { H2, Muted, P } from "@/components/typography";
 import {
+  getCandidateAhsDisplayListing,
   getCandidateMeta,
-  getAwardDisplayName,
   getCultivarImage,
   getCultivarTraitSummary,
 } from "@/app/(public)/catalog-importer/_lib/catalog-importer-presentation";
 import type { CatalogImporterWorkbenchController } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
-import type { CatalogImportRow } from "@/lib/catalog-importer";
+import type {
+  CatalogImportRow,
+  CultivarMatchCandidate,
+} from "@/lib/catalog-importer";
 import { defaultTableConfig } from "@/lib/table-config";
 import { cn, formatPrice } from "@/lib/utils";
+import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
 
 const PREVIEW_PAGE_SIZE = 20;
 
@@ -84,6 +90,17 @@ export function getCatalogPreviewDescription(row: CatalogImportRow) {
   return row.match ? getCultivarTraitSummary(row.match).join(" · ") : "";
 }
 
+function getCatalogPreviewBloomHabit(match: CultivarMatchCandidate) {
+  const values = splitFacetValue(match.bloomHabit);
+  if (
+    match.rebloom === true &&
+    !values.some((value) => value.toLowerCase() === "reblooms")
+  ) {
+    values.push("Reblooms");
+  }
+  return values.join("|") || null;
+}
+
 export function CatalogImporterCatalogPreview({
   columnFilters,
   controller,
@@ -121,8 +138,7 @@ export function CatalogImporterCatalogPreview({
         return {
           ahsListing: {
             awardNames: match.awardNames ?? null,
-            bloomHabit:
-              match.bloomHabit ?? (match.rebloom === true ? "Reblooms" : null),
+            bloomHabit: getCatalogPreviewBloomHabit(match),
             bloomSeason: match.bloomSeason,
             bloomSize: match.bloomSizeIn,
             branches: match.branches ?? null,
@@ -153,12 +169,23 @@ export function CatalogImporterCatalogPreview({
       }),
     [linkedRows],
   );
+  const toolbarFilterIds = useMemo(() => {
+    const filterIds: string[] = [];
+    if (linkedRows.some((row) => row.price !== null)) filterIds.push("price");
+    if (linkedRows.some((row) => getCatalogPreviewImage(row) !== null)) {
+      filterIds.push("hasPhoto");
+    }
+    return filterIds;
+  }, [linkedRows]);
   const facetOptions = useMemo(
     () => buildPublicCatalogSearchFacetOptions(previewListings),
     [previewListings],
   );
   const showSearchPanel =
     previewListings.length > 1 || columnFilters.length > 0;
+  const intentionallyUnmatchedCount = controller.includedRows.filter(
+    (row) => row.linkState === "intentionally-unmatched",
+  ).length;
   // TanStack Table's hook intentionally returns mutable APIs; React Compiler warning is expected here.
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
@@ -214,7 +241,7 @@ export function CatalogImporterCatalogPreview({
     <section
       id="catalog-importer-preview"
       aria-labelledby="catalog-importer-preview-heading"
-      className="!scroll-mt-16 space-y-4 overflow-clip"
+      className="!scroll-mt-16 space-y-3 overflow-clip"
     >
       <div>
         <h2
@@ -223,22 +250,35 @@ export function CatalogImporterCatalogPreview({
         >
           Your catalog preview
         </h2>
-      </div>
-
-      {controller.counts.pendingCultivarDecisionCount > 0 ? (
-        <div className="flex flex-col gap-3 border-y py-4 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-muted-foreground text-sm">
-            {controller.counts.pendingCultivarDecisionCount.toLocaleString()}{" "}
-            {controller.counts.pendingCultivarDecisionCount === 1
-              ? "listing needs"
-              : "listings need"}{" "}
-            a cultivar match before appearing here.
+        {linkedRows.length < controller.includedRows.length ? (
+          <p className="text-muted-foreground mt-1 text-sm">
+            {linkedRows.length.toLocaleString()} of{" "}
+            {controller.includedRows.length.toLocaleString()} listings are
+            linked and shown.
+            {controller.reviewRows.length > 0 ? (
+              <>
+                {" "}
+                <a
+                  href="#catalog-importer-review-quiz"
+                  className="font-medium underline-offset-4 hover:underline"
+                >
+                  {controller.reviewRows.length.toLocaleString()} still need
+                  {controller.reviewRows.length === 1 ? "s" : ""} a cultivar
+                  decision.
+                </a>
+              </>
+            ) : null}
+            {intentionallyUnmatchedCount > 0 ? (
+              <>
+                {" "}
+                {intentionallyUnmatchedCount.toLocaleString()}{" "}
+                {intentionallyUnmatchedCount === 1 ? "is" : "are"} left
+                unmatched.
+              </>
+            ) : null}
           </p>
-          <Button asChild variant="outline" size="sm" className="shrink-0">
-            <a href="#catalog-importer-review-quiz">Review names</a>
-          </Button>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
 
       <div
         className={
@@ -260,6 +300,7 @@ export function CatalogImporterCatalogPreview({
               collapsed={panelCollapsed}
               onCollapsedChange={setPanelCollapsed}
               showCultivarFacets
+              toolbarFilterIds={toolbarFilterIds}
             />
           </div>
         ) : null}
@@ -367,7 +408,7 @@ export function CatalogImporterCatalogPreview({
               </div>
 
               {canShowMore ? (
-                <div className="mt-4 flex items-start justify-center border-t pt-4">
+                <div className="mt-4 flex items-start justify-center">
                   <Button
                     type="button"
                     variant="outline"
@@ -421,16 +462,23 @@ function CatalogPreviewDetailsSheet({
   const image = row ? getCatalogPreviewImage(row) : null;
   const imageLabel = row ? getCatalogPreviewImageLabel(row) : null;
   const description = row ? getCatalogPreviewDescription(row) : "";
+  const ahsListing = match ? getCandidateAhsDisplayListing(match) : null;
+  const cultivarRouteSegment = match
+    ? toCultivarRouteSegment(match.normalizedName)
+    : null;
+  const cultivarHref = cultivarRouteSegment
+    ? `/cultivar/${cultivarRouteSegment}`
+    : null;
 
   return (
     <Sheet open={row !== null} onOpenChange={onOpenChange}>
       <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
-        {row && match ? (
+        {row && match && ahsListing ? (
           <div className="space-y-5">
-            <SheetHeader className="pr-8">
+            <SheetHeader className="sr-only">
               <SheetTitle>{match.displayName}</SheetTitle>
               <SheetDescription>
-                {getCandidateMeta(match) || "Registered cultivar"}
+                View listing and cultivar data.
               </SheetDescription>
             </SheetHeader>
 
@@ -448,39 +496,28 @@ function CatalogPreviewDetailsSheet({
               </div>
             )}
 
-            <div className="flex items-center justify-between gap-4">
-              <p className="font-medium">{match.displayName}</p>
+            <div className="space-y-1">
+              <div className="flex items-center justify-between gap-4">
+                <H2>{match.displayName}</H2>
+              </div>
               {row.price !== null ? (
-                <p className="font-semibold">{formatPrice(row.price)}</p>
+                <P className="text-primary text-lg font-medium">
+                  {formatPrice(row.price)}
+                </P>
               ) : null}
             </div>
 
             {description ? (
-              <p className="text-muted-foreground text-sm leading-relaxed">
-                {description}
-              </p>
+              <P className="text-muted-foreground">{description}</P>
             ) : null}
 
-            {getCultivarTraitSummary(match).length > 0 ? (
-              <p className="text-muted-foreground border-t pt-4 text-sm">
-                {getCultivarTraitSummary(match).join(" · ")}
-              </p>
-            ) : null}
+            <Muted>Daylily Database Data</Muted>
+            <AhsListingDisplay
+              ahsListing={ahsListing}
+              cultivarHref={cultivarHref}
+            />
 
-            {splitFacetValue(match.awardNames).length > 0 ? (
-              <div className="border-t pt-4">
-                <p className="text-xs font-medium tracking-wide uppercase">
-                  Awards
-                </p>
-                <p className="text-muted-foreground mt-1 text-sm">
-                  {splitFacetValue(match.awardNames)
-                    .map(getAwardDisplayName)
-                    .join(" · ")}
-                </p>
-              </div>
-            ) : null}
-
-            <div className="border-t pt-4">
+            <div>
               <Button
                 type="button"
                 variant="outline"

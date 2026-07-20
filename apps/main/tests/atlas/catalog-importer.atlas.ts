@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test";
+import type { CultivarMatchCandidate } from "../../src/lib/catalog-importer";
 import { captureAtlasState, expect, test } from "./atlas-test";
 
 const desktop = { height: 900, width: 1280 };
@@ -8,8 +9,131 @@ function normalizeName(name: string) {
   return name.trim().toLowerCase().replaceAll(/\s+/g, " ");
 }
 
-function candidate(name: string, confidence: number) {
+const cultivarFixtures: Record<string, Partial<CultivarMatchCandidate>> = {
+  "chicago apache": {
+    bloomHabit: "Diurnal",
+    bloomSizeIn: 5,
+    bloomSeason: "Midseason",
+    color: "scarlet self with green throat",
+    cultivarReferenceId: "cr-ahs-16938",
+    flowerShow: "Large",
+    fragrance: null,
+    hybridizer: "Marsh-Klehm",
+    imageAsset: {
+      blurUrl:
+        "https://media.daylilycatalog.com/cultivars/cr-ahs-16938/cmqk1dnj9019025rkptkyd8mr/blur-20.webp",
+      displayUrl:
+        "https://media.daylilycatalog.com/cultivars/cr-ahs-16938/cmqk1dnj9019025rkptkyd8mr/display-800.webp",
+      id: "cmqk1dnj9019025rkptkyd8mr",
+      originalUrl:
+        "https://media.daylilycatalog.com/cultivars/cr-ahs-16938/cmqk1dnj9019025rkptkyd8mr/original.png",
+      status: "ready",
+      thumbUrl:
+        "https://media.daylilycatalog.com/cultivars/cr-ahs-16938/cmqk1dnj9019025rkptkyd8mr/thumb-200.webp",
+    },
+    imageUrl:
+      "https://media.daylilycatalog.com/cultivars/cr-ahs-16938/cmqk1dnj9019025rkptkyd8mr/display-800.webp",
+    parentage: null,
+    ploidy: "Tetraploid",
+    rebloom: false,
+    scapeHeightIn: 27,
+    year: 1981,
+  },
+  "happy returns": {
+    bloomHabit: "Extended",
+    bloomSizeIn: 3.12,
+    bloomSeason: "Extra Early",
+    color: "light yellow self",
+    cultivarReferenceId: "cr-ahs-24752",
+    flowerShow: "Small",
+    fragrance: "Fragrant",
+    hybridizer: "Darrel A. Apps",
+    imageAsset: {
+      blurUrl:
+        "https://media.daylilycatalog.com/cultivars/cr-ahs-24752/cmqk2xlum048825rk0rfvnok9/blur-20.webp",
+      displayUrl:
+        "https://media.daylilycatalog.com/cultivars/cr-ahs-24752/cmqk2xlum048825rk0rfvnok9/display-800.webp",
+      id: "cmqk2xlum048825rk0rfvnok9",
+      originalUrl:
+        "https://media.daylilycatalog.com/cultivars/cr-ahs-24752/cmqk2xlum048825rk0rfvnok9/original.png",
+      status: "ready",
+      thumbUrl:
+        "https://media.daylilycatalog.com/cultivars/cr-ahs-24752/cmqk2xlum048825rk0rfvnok9/thumb-200.webp",
+    },
+    imageUrl:
+      "https://media.daylilycatalog.com/cultivars/cr-ahs-24752/cmqk2xlum048825rk0rfvnok9/display-800.webp",
+    parentage: "(Suzie Wong × Stella De Oro)",
+    ploidy: "Diploid",
+    rebloom: false,
+    scapeHeightIn: 18,
+    year: 1986,
+  },
+  "ruby spider": {
+    awardNames: "L/W|PC",
+    bloomHabit: "Diurnal",
+    bloomSizeIn: 9,
+    bloomSeason: "Early",
+    color: "ruby red spider self with yellow throat",
+    cultivarReferenceId: "cr-ahs-9241",
+    flowerShow: "Unusual Form",
+    fragrance: null,
+    form: "Single|Unusual Form, Spatulate",
+    hybridizer: "Stamile",
+    imageAsset: {
+      blurUrl:
+        "https://media.daylilycatalog.com/cultivars/cr-ahs-9241/cmqk35a0304qu25rktj5qpgdo/blur-20.webp",
+      displayUrl:
+        "https://media.daylilycatalog.com/cultivars/cr-ahs-9241/cmqk35a0304qu25rktj5qpgdo/display-800.webp",
+      id: "cmqk35a0304qu25rktj5qpgdo",
+      originalUrl:
+        "https://media.daylilycatalog.com/cultivars/cr-ahs-9241/cmqk35a0304qu25rktj5qpgdo/original.png",
+      status: "ready",
+      thumbUrl:
+        "https://media.daylilycatalog.com/cultivars/cr-ahs-9241/cmqk35a0304qu25rktj5qpgdo/thumb-200.webp",
+    },
+    imageUrl:
+      "https://media.daylilycatalog.com/cultivars/cr-ahs-9241/cmqk35a0304qu25rktj5qpgdo/display-800.webp",
+    parentage: "(Velvet Widow × Tet. Open Hearth)",
+    ploidy: "Tetraploid",
+    rebloom: false,
+    scapeHeightIn: 34,
+    year: 1991,
+  },
+  "stella de oro": {
+    awardNames: "DFM|Stout",
+    bloomHabit: "Extended",
+    bloomSizeIn: 2.75,
+    bloomSeason: "Early-Midseason",
+    color: "gold self with very small green throat",
+    cultivarReferenceId: "cr-ahs-40557",
+    flowerShow: "Miniature",
+    fragrance: "Fragrant",
+    hybridizer: "Walter Jablonski",
+    imageAsset: {
+      blurUrl:
+        "https://media.daylilycatalog.com/cultivars/cr-ahs-40557/8e27c1ce-05e5-4ca2-80ad-8ef5c2034f73/blur-20.webp",
+      displayUrl:
+        "https://media.daylilycatalog.com/cultivars/cr-ahs-40557/8e27c1ce-05e5-4ca2-80ad-8ef5c2034f73/display-800.webp",
+      id: "8e27c1ce-05e5-4ca2-80ad-8ef5c2034f73",
+      originalUrl:
+        "https://media.daylilycatalog.com/cultivars/cr-ahs-40557/8e27c1ce-05e5-4ca2-80ad-8ef5c2034f73/original.png",
+      status: "ready",
+      thumbUrl:
+        "https://media.daylilycatalog.com/cultivars/cr-ahs-40557/8e27c1ce-05e5-4ca2-80ad-8ef5c2034f73/thumb-200.webp",
+    },
+    imageUrl:
+      "https://media.daylilycatalog.com/cultivars/cr-ahs-40557/8e27c1ce-05e5-4ca2-80ad-8ef5c2034f73/display-800.webp",
+    parentage: null,
+    ploidy: "Diploid",
+    rebloom: true,
+    scapeHeightIn: 11,
+    year: 1975,
+  },
+};
+
+function candidate(name: string, confidence: number): CultivarMatchCandidate {
   const normalizedName = normalizeName(name);
+  const fixture = cultivarFixtures[normalizedName] ?? {};
 
   return {
     bloomHabit: "Reblooms",
@@ -34,6 +158,7 @@ function candidate(name: string, confidence: number) {
     rebloom: true,
     scapeHeightIn: 24,
     year: 2020,
+    ...fixture,
   };
 }
 
@@ -41,9 +166,9 @@ async function mockCultivarMatches(page: Page) {
   await page.route("**/api/v1/cultivars/match", async (route) => {
     const payload = route.request().postDataJSON() as { names: string[] };
     const results = payload.names.map((name) => {
-      if (name.toLowerCase().includes("mystery")) {
+      if (name.toLowerCase().includes("ooro")) {
         return {
-          candidates: [candidate("Mystery Daylily", 82)],
+          candidates: [candidate("Stella de Oro", 86)],
           exactMatch: null,
           inputName: name,
           normalizedInput: normalizeName(name),
@@ -70,10 +195,10 @@ async function mockCultivarMatches(page: Page) {
 function sampleCsv() {
   return [
     "name,price,description,privateNote",
-    "Stella de Oro,12.00,Golden yellow rebloomer,Front bed",
     "Happy Returns,15.00,Pale yellow fragrant bloom,Display row",
     "Chicago Apache,18.00,Velvety red flower,Back border",
-    "Mystery Bloom,10.00,Needs a cultivar match,Holding area",
+    "Ruby Spider,24.00,Large ruby red spider,Feature bed",
+    "Stella de Ooro,12.00,Golden yellow rebloomer,Check spelling",
   ].join("\n");
 }
 
@@ -83,7 +208,7 @@ async function openCleaner(page: Page, viewport: typeof desktop) {
   await page.goto("/catalog-importer");
   await expect(
     page.getByRole("heading", {
-      name: "Turn your daylily spreadsheet into a catalog-ready collection",
+      name: "Build your daylily catalog",
     }),
   ).toBeVisible();
 }
@@ -96,9 +221,7 @@ async function uploadSpreadsheet(page: Page) {
   });
   await page.getByRole("button", { name: "Build catalog preview" }).click();
   await expect(
-    page.getByRole("heading", {
-      name: "Your private catalog preview is ready",
-    }),
+    page.getByRole("region", { name: "Catalog preview ready" }),
   ).toBeVisible();
 }
 

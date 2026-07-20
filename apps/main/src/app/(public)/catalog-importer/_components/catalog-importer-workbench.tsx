@@ -22,12 +22,12 @@ export function CatalogImporterWorkbench({
   const editingMapping = controller.matchedRows === null || mappingOpened;
 
   return (
-    <div>
+    <div data-workbook-active={controller.selectedSheet ? "true" : undefined}>
       <div className="space-y-4">
         <CatalogImporterUpload
           controller={controller}
           onEditMapping={
-            controller.matchedRows
+            controller.matchedRows && !editingMapping
               ? () => {
                   setMappingOpened(true);
                 }

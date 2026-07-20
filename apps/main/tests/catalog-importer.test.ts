@@ -160,9 +160,15 @@ describe("catalog importer normalization", () => {
       price: null,
       title: 3,
     });
+    const standardizedHeader = [...header];
+    standardizedHeader[3] = "Name";
+    standardizedHeader[12] = "Description";
+    standardizedHeader[13] = "Private Note";
+    standardizedHeader[14] = "Image URL";
+    standardizedHeader[16] = "Price";
     expect(enriched.sheets[0]?.rows).toEqual([
       [
-        ...header,
+        ...standardizedHeader,
         "Daylily Catalog ID",
         "Daylily Catalog Cultivar Name",
         "Daylily Catalog Cultivar URL",
@@ -280,9 +286,9 @@ describe("catalog importer normalization", () => {
 
     expect(enriched.sheets[0]?.rows).toEqual([
       [
-        "name",
-        "price",
-        "image URL",
+        "Name",
+        "Price",
+        "Image URL",
         "seller field",
         "Daylily Catalog ID",
         "Daylily Catalog Cultivar Name",
@@ -438,7 +444,7 @@ describe("catalog importer normalization", () => {
 
     expect(enriched.sheets[0]?.rows).toEqual([
       [
-        "name",
+        "Name",
         "Daylily Catalog ID",
         "Daylily Catalog Cultivar Name",
         "Daylily Catalog Cultivar URL",
@@ -729,6 +735,40 @@ describe("catalog importer normalization", () => {
     });
     expect(state.requiredDataDecisionRows).toHaveLength(1);
     expect(state.warningRows).toHaveLength(1);
+  });
+
+  it("keeps an accepted seller image URL in the prepared workbook", () => {
+    const imageUrl = "https://seller.example/daylily.jpg";
+    const rows: SpreadsheetCell[][] = [
+      ["name", "image url"],
+      ["Blocked preview", imageUrl],
+    ];
+    const mapping = suggestColumnMapping(rows, 0);
+    const [row] = createCatalogImportRows({
+      headerRowIndex: 0,
+      mapping,
+      rows,
+    });
+
+    const enriched = createCatalogEnrichedSpreadsheet({
+      headerRowIndex: 0,
+      mapping,
+      matchedRows: [
+        {
+          ...row!,
+          imagePreviewAccepted: true,
+          imageUrl: "",
+          imageUrlWarning: null,
+        },
+      ],
+      parsedSpreadsheet: {
+        fileName: "catalog.xlsx",
+        sheets: [{ name: "Catalog", rows }],
+      },
+      selectedSheetIndex: 0,
+    });
+
+    expect(enriched.sheets[0]?.rows[1]?.[1]).toBe(imageUrl);
   });
 
   it("keeps the best candidate for rows that still need review", () => {
