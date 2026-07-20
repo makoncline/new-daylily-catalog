@@ -27,6 +27,7 @@ const DEFAULT_TUNNEL_HOST = "dev.daylilycatalog.com";
 const DEFAULT_LOCAL_PORT = "3012";
 const DEFAULT_BUILD_DB_URL = "file:/app/apps/main/prisma/prod-like-build-db";
 const DEFAULT_RUNTIME_DB_URL = "file:/data/daylilycatalog.sqlite";
+const DEFAULT_LOCAL_RELEASE = "prod-like-local";
 
 function usage() {
   console.log(`Usage:
@@ -157,9 +158,11 @@ function buildRuntimeEnv(source, { tunnelHost }) {
 
   setEnvValue(lines, "APP_BASE_URL", `https://${tunnelHost}`);
   setEnvValue(lines, "DATABASE_URL", DEFAULT_RUNTIME_DB_URL);
+  setEnvValue(lines, "NEXT_PUBLIC_SENTRY_ENABLED", "false");
   setEnvValue(lines, "SENTRY_ENVIRONMENT", "prod-like");
   setEnvValue(lines, "PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS", "0");
   setEnvValue(lines, "NODE_OPTIONS", "--max-old-space-size=4096");
+  commentOutEnvValue(lines, "SENTRY_AUTH_TOKEN");
   commentOutEnvValue(lines, "TURSO_EMBEDDED_REPLICA_URL");
   commentOutEnvValue(lines, "TURSO_EMBEDDED_REPLICA_SYNC_INTERVAL_SECONDS");
   commentOutEnvValue(lines, "TURSO_EMBEDDED_REPLICA_SYNC_URL");
@@ -170,6 +173,7 @@ function buildRuntimeEnv(source, { tunnelHost }) {
 function buildBuildEnv(runtimeEnv) {
   const lines = parseEnvLines(runtimeEnv);
   setEnvValue(lines, "DATABASE_URL", DEFAULT_BUILD_DB_URL);
+  setEnvValue(lines, "SENTRY_SOURCEMAPS_DISABLED", "1");
   return `${lines.join("\n").replace(/\n*$/, "")}\n`;
 }
 
@@ -184,23 +188,7 @@ function writeIfChanged(filePath, contents, mode) {
   fs.writeFileSync(filePath, contents, mode ? { mode } : undefined);
 }
 
-function getGitCommitSha() {
-  const result = spawnSync("git", ["rev-parse", "--verify", "HEAD"], {
-    cwd: repoRoot,
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-
-  if (result.status !== 0) {
-    throw new Error(
-      `Failed to resolve the current Git commit\n${result.stderr.trim()}`,
-    );
-  }
-
-  return result.stdout.trim();
-}
-
-function writeComposeOverride(buildEnv, gitCommitSha) {
+function writeComposeOverride(buildEnv) {
   const fingerprint = crypto
     .createHash("sha256")
     .update(buildEnv)
@@ -214,7 +202,7 @@ function writeComposeOverride(buildEnv, gitCommitSha) {
       dockerfile: apps/main/Dockerfile
       args:
         BUILD_ENV_FINGERPRINT: prod-like-${fingerprint}
-        GIT_COMMIT_SHA: ${gitCommitSha}
+        GIT_COMMIT_SHA: ${DEFAULT_LOCAL_RELEASE}
     volumes:
       - ./prisma/local-prod-copy-daylily-catalog.db:/data/daylilycatalog.sqlite
 
@@ -314,12 +302,11 @@ function main() {
     : pullRemoteEnv(options);
   const runtimeEnv = buildRuntimeEnv(envSource, options);
   const buildEnv = buildBuildEnv(runtimeEnv);
-  const gitCommitSha = getGitCommitSha();
 
   prepareBuildDb();
   writeIfChanged(runtimeEnvPath, runtimeEnv, 0o600);
   writeIfChanged(buildEnvPath, buildEnv, 0o600);
-  writeComposeOverride(buildEnv, gitCommitSha);
+  writeComposeOverride(buildEnv);
 
   const tunnelBackup = options.skipTunnelConfig
     ? null
