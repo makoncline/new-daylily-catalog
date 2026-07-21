@@ -82,13 +82,18 @@ In the app:
 
 - Data-backed public document routes use `dynamic = "force-dynamic"` and must
   not export `revalidate` or `dynamic = "force-static"`.
-- Fixed-content public pages can remain statically prerendered.
+- Fixed-content public pages can remain statically prerendered. In-scope static
+  pages receive the same Cloudflare-specific TTL as dynamic public documents.
 - In-scope routes must not depend on Clerk, tRPC React context, request
   cookies, or per-user providers in their public render tree.
-- Public HTML document responses for the in-scope routes get
+- Public HTML document responses for the in-scope routes get a cacheable
   `Cloudflare-CDN-Cache-Control`.
-- Requests with an `Authorization` header or Clerk `__session` cookie do not
-  get the public CDN cache header.
+- Requests with an `Authorization` header or Clerk `__session` or
+  `__session_<suffix>` cookie do not get the public CDN cache header.
+- Excluded static documents explicitly send
+  `Cloudflare-CDN-Cache-Control: no-store` so their ordinary Next.js
+  `Cache-Control` header cannot make them eligible under the hostname-wide
+  Cloudflare rule.
 - App Router RSC and prefetch variants get no long-lived CDN cache directive.
   Public RSC requests keep `Cache-Control: no-store`.
 - Cloudflare must still exclude `_rsc` query variants at the edge. In
@@ -151,9 +156,12 @@ Use one Cache Rule for application response eligibility:
 - Hostname: the target hostname only.
 - Methods: `GET` and `HEAD`.
 - Exclude RSC/prefetch variants.
-- Exclude requests with an `Authorization` header or Clerk `__session` cookie.
-  Do not exclude every cookie: anonymous analytics and preference cookies do
-  not change the public document and should not bypass the app's cache header.
+- Exclude requests with an `Authorization` header or a cookie whose name starts
+  with `__session`, covering both Clerk's `__session` and
+  `__session_<suffix>` forms. Do not exclude every cookie: anonymous analytics
+  and preference cookies do not change the public document and should not
+  bypass the app's cache header. The cookie exclusion used in the rule is
+  `not (http.cookie wildcard "*__session*=*")`.
 - Cache eligibility: eligible for cache.
 - Edge TTL: use the origin cache-control header when present and bypass cache
   when absent (`bypass_by_default`). Do not set a successful-response TTL
@@ -165,10 +173,10 @@ Use one Cache Rule for application response eligibility:
 - Status-code guard in the same rule: `400-599` uses no-store.
 
 Do not maintain a second route allowlist or dashboard/API path exclusion list in
-this rule. Those responses do not send a public cache header, so
-`bypass_by_default` leaves them uncached. The credential, component-request,
-and status guards are narrow defense-in-depth boundaries, not a second cache
-policy.
+this rule. Dynamic excluded responses already send non-cacheable ordinary
+headers, and excluded static documents send Cloudflare-specific `no-store`.
+The credential, component-request, and status guards are narrow
+defense-in-depth boundaries, not a second cache policy.
 
 The status-code guard is intentionally the one successful-TTL exception. The app
 adds the CDN cache header before the page knows whether the route will become a
@@ -192,6 +200,8 @@ For a new public page:
 2. If it is a dynamic whole-document route, add its URL shape to the centralized
    classifier and matcher in `src/proxy.ts` so the app sends
    `Cloudflare-CDN-Cache-Control`.
+   If the page must remain uncached even though Next statically prerenders it,
+   add it to the centralized static no-store set instead.
 3. Verify the document response has the intended cache header and its RSC or
    prefetch variant remains `no-store`.
 
@@ -212,16 +222,20 @@ Use the prod-like local Docker smoke workflow:
 4. Disable any overlapping Cache Response Rule for public HTML.
 5. Verify the local origin first:
    - in-scope public documents include `Cloudflare-CDN-Cache-Control`
-   - credential-bearing public requests omit that public CDN cache header
+   - credential-bearing public requests, including suffixed Clerk session
+     cookies, omit that public CDN cache header
+   - excluded static documents include
+     `Cloudflare-CDN-Cache-Control: no-store`
    - RSC requests include `Cache-Control: no-store`
-   - search/dashboard/API/auth routes do not include the CDN cache header
+   - search/dashboard/API/auth routes do not include a cacheable CDN directive
 6. Verify anonymous Cloudflare document requests for each in-scope route:
    - first request: `cf-cache-status: MISS`
    - second request: `cf-cache-status: HIT`
 7. Verify exclusions:
    - `/:seller/search` is not cached.
    - `_rsc` requests are not cached.
-   - signed-in requests are not cached.
+   - signed-in requests, including suffixed Clerk session cookies, are not
+     cached.
    - dashboard/API/auth routes are not cached.
 8. Click through the site in Chrome as a user would, then use anonymous document
    requests for the clean cache proof. App Router clicks often fetch RSC, so
@@ -260,16 +274,22 @@ Local origin proof:
 - Public document routes returned
   `Cloudflare-CDN-Cache-Control: public, max-age=43200,
   stale-while-revalidate=604800, stale-if-error=86400`.
-- Authorization and Clerk `__session` requests omitted that header, while an
-  anonymous analytics cookie retained it.
-- Search, dashboard, and API routes omitted the CDN cache header. Real component
-  requests returned `Cache-Control: no-store`.
+- Authorization and Clerk `__session` and `__session_<suffix>` requests omitted
+  that header, while an anonymous analytics cookie retained it.
+- `/` and `/start-membership` returned
+  `Cloudflare-CDN-Cache-Control: no-store`, overriding their ordinary static or
+  ISR Next.js cache headers.
+- Search, dashboard, and API routes omitted the cacheable CDN directive. Real
+  component requests returned `Cache-Control: no-store`.
 
 Cloudflare dev proof:
 
 - Fresh variants for eight representative public routes returned `MISS` then
   `HIT`; the same was true with an anonymous analytics cookie.
-- Authorization, Clerk session, and RSC requests remained `DYNAMIC`.
+- Authorization, both Clerk session-cookie forms, and RSC requests remained
+  `DYNAMIC`.
+- `/` and `/start-membership` remained uncached despite their ordinary Next.js
+  static or ISR cache headers.
 - Search, API, dashboard, and `404` responses remained uncached; the `404`
   result verified the status-code guard.
 - Chrome navigation rendered seller page -> page 2 -> cultivar page without a

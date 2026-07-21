@@ -40,6 +40,15 @@ const PUBLIC_HTML_CLOUDFLARE_CDN_CACHE_CONTROL_HEADER =
   "Cloudflare-CDN-Cache-Control";
 const PUBLIC_HTML_CLOUDFLARE_CDN_CACHE_CONTROL =
   "public, max-age=43200, stale-while-revalidate=604800, stale-if-error=86400";
+const PUBLIC_HTML_CLOUDFLARE_CDN_NO_STORE = "no-store";
+
+const cloudflareUncachedStaticHtmlPaths = new Set([
+  "/",
+  "/auth-error",
+  "/kitchen-sink",
+  "/start-membership",
+  "/start-onboarding",
+]);
 
 const publicHtmlFirstSegmentExclusions = new Set([
   "_next",
@@ -106,7 +115,14 @@ function isAppRouterRscRequest(req: NextRequest) {
 }
 
 function hasRequestCredentials(req: NextRequest) {
-  return req.headers.has("authorization") || req.cookies.has("__session");
+  return (
+    req.headers.has("authorization") ||
+    req.cookies
+      .getAll()
+      .some(
+        ({ name }) => name === "__session" || name.startsWith("__session_"),
+      )
+  );
 }
 
 function uncachedRscResponse() {
@@ -178,6 +194,17 @@ function cloudflareCachedPublicHtmlResponse() {
   return response;
 }
 
+function cloudflareUncachedStaticHtmlResponse() {
+  const response = NextResponse.next();
+
+  response.headers.set(
+    PUBLIC_HTML_CLOUDFLARE_CDN_CACHE_CONTROL_HEADER,
+    PUBLIC_HTML_CLOUDFLARE_CDN_NO_STORE,
+  );
+
+  return response;
+}
+
 const protectedRouteProxy = clerkMiddleware(async (auth, req) => {
   if (!isProtectedRoute(req)) {
     return undefined;
@@ -236,12 +263,16 @@ export function proxy(req: NextRequest, event: NextFetchEvent) {
     });
   }
 
-  if (req.nextUrl.pathname === "/") {
-    return undefined;
-  }
-
   if (isAppRouterRscRequest(req) && !isProtectedRoute(req)) {
     return uncachedRscResponse();
+  }
+
+  if (
+    (req.method === "GET" || req.method === "HEAD") &&
+    !isPrefetchRequest(req) &&
+    cloudflareUncachedStaticHtmlPaths.has(req.nextUrl.pathname)
+  ) {
+    return cloudflareUncachedStaticHtmlResponse();
   }
 
   if (isPublicHtmlCloudflareCacheRequest(req)) {
