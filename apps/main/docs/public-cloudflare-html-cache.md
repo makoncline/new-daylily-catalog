@@ -80,10 +80,11 @@ The current official guidance points to this shape:
 
 In the app:
 
-- Public document routes in this rollout use `dynamic = "force-dynamic"`.
-- They must not export `revalidate` or `dynamic = "force-static"`.
-- They must not depend on Clerk, tRPC React context, request cookies, or
-  per-user providers in their public render tree.
+- Data-backed public document routes use `dynamic = "force-dynamic"` and must
+  not export `revalidate` or `dynamic = "force-static"`.
+- Fixed-content public pages can remain statically prerendered.
+- In-scope routes must not depend on Clerk, tRPC React context, request
+  cookies, or per-user providers in their public render tree.
 - Public HTML document responses for the in-scope routes get
   `Cloudflare-CDN-Cache-Control`.
 - Requests with an `Authorization` header or Clerk `__session` cookie do not
@@ -101,16 +102,19 @@ origin misses stay cheap and do not hit live Turso for normal public reads.
 
 ## Routes In Scope
 
-Cache these public document routes:
+Cache these dynamic public document routes:
 
 - `/catalogs`
 - `/cultivar/*`
-- `/privacy`
-- `/support`
-- `/terms`
 - `/:seller`
 - `/:seller/page/:page`
 - `/:seller/:listing`
+
+Cache these static public document routes:
+
+- `/privacy`
+- `/support`
+- `/terms`
 
 Leave these out of this rollout:
 
