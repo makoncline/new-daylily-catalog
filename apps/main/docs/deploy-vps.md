@@ -254,17 +254,7 @@ Committed source: `deploy/vps/caddy-route.caddy`
 
 ## Local Docker Compose Check
 
-For local verification against the pulled Vercel production env, use the local override:
-
-```sh
-docker compose -f compose.local.yaml up --build
-```
-
-Notes:
-
-- `compose.local.yaml` is for local testing only.
-- It binds `localhost:3012` so you can open the app in a browser.
-- Docker Compose correctly parses quoted values in `.env.production`, unlike `docker run --env-file`.
+Use the canonical [production-like local Docker smoke workflow](./prod-like-local-docker-smoke.md) for local production-container verification.
 
 ## Deploy Steps
 

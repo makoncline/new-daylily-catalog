@@ -157,9 +157,11 @@ function buildRuntimeEnv(source, { tunnelHost }) {
 
   setEnvValue(lines, "APP_BASE_URL", `https://${tunnelHost}`);
   setEnvValue(lines, "DATABASE_URL", DEFAULT_RUNTIME_DB_URL);
+  setEnvValue(lines, "NEXT_PUBLIC_SENTRY_ENABLED", "false");
   setEnvValue(lines, "SENTRY_ENVIRONMENT", "prod-like");
   setEnvValue(lines, "PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS", "0");
   setEnvValue(lines, "NODE_OPTIONS", "--max-old-space-size=4096");
+  commentOutEnvValue(lines, "SENTRY_AUTH_TOKEN");
   commentOutEnvValue(lines, "TURSO_EMBEDDED_REPLICA_URL");
   commentOutEnvValue(lines, "TURSO_EMBEDDED_REPLICA_SYNC_INTERVAL_SECONDS");
   commentOutEnvValue(lines, "TURSO_EMBEDDED_REPLICA_SYNC_URL");
@@ -170,6 +172,7 @@ function buildRuntimeEnv(source, { tunnelHost }) {
 function buildBuildEnv(runtimeEnv) {
   const lines = parseEnvLines(runtimeEnv);
   setEnvValue(lines, "DATABASE_URL", DEFAULT_BUILD_DB_URL);
+  setEnvValue(lines, "SENTRY_SOURCEMAPS_DISABLED", "1");
   return `${lines.join("\n").replace(/\n*$/, "")}\n`;
 }
 
@@ -198,6 +201,7 @@ function writeComposeOverride(buildEnv) {
       dockerfile: apps/main/Dockerfile
       args:
         BUILD_ENV_FINGERPRINT: prod-like-${fingerprint}
+        GIT_COMMIT_SHA: prod-like-local
     volumes:
       - ./prisma/local-prod-copy-daylily-catalog.db:/data/daylilycatalog.sqlite
 
