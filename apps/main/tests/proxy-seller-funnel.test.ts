@@ -67,6 +67,9 @@ describe("seller funnel proxy protection", () => {
     const publicDocumentUrls = [
       "http://localhost:3000/catalogs",
       "http://localhost:3000/cultivar/blue-crush",
+      "http://localhost:3000/privacy",
+      "http://localhost:3000/support",
+      "http://localhost:3000/terms",
       "http://localhost:3000/plantfancygardens",
       "http://localhost:3000/plantfancygardens/page/2",
       "http://localhost:3000/plantfancygardens/alienation",
@@ -160,6 +163,36 @@ describe("seller funnel proxy protection", () => {
     expect(
       prefetchResponse?.headers.get("cloudflare-cdn-cache-control") ?? null,
     ).toBeNull();
+  });
+
+  it("uses only Authorization and Clerk session as credential signals", async () => {
+    const middlewareEvent = {} as Parameters<NextMiddleware>[1];
+
+    for (const headers of [
+      new Headers({ authorization: "Bearer test-token" }),
+      new Headers({ cookie: "__session=test-session" }),
+    ]) {
+      const request = new NextRequest(
+        "http://localhost:3000/plantfancygardens",
+        { headers },
+      );
+      const response = await proxy(request, middlewareEvent);
+
+      expect(
+        response?.headers.get("cloudflare-cdn-cache-control") ?? null,
+      ).toBeNull();
+    }
+
+    const anonymousResponse = await proxy(
+      new NextRequest("http://localhost:3000/plantfancygardens", {
+        headers: { cookie: "analytics_test=1" },
+      }),
+      middlewareEvent,
+    );
+
+    expect(
+      anonymousResponse?.headers.get("cloudflare-cdn-cache-control"),
+    ).toContain("public");
   });
 
   it("runs protected routes through Clerk before public HTML cache eligibility", async () => {

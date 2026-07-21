@@ -86,6 +86,8 @@ In the app:
   per-user providers in their public render tree.
 - Public HTML document responses for the in-scope routes get
   `Cloudflare-CDN-Cache-Control`.
+- Requests with an `Authorization` header or Clerk `__session` cookie do not
+  get the public CDN cache header.
 - App Router RSC and prefetch variants get no long-lived CDN cache directive.
   Public RSC requests keep `Cache-Control: no-store`.
 - Cloudflare must still exclude `_rsc` query variants at the edge. In
@@ -103,6 +105,9 @@ Cache these public document routes:
 
 - `/catalogs`
 - `/cultivar/*`
+- `/privacy`
+- `/support`
+- `/terms`
 - `/:seller`
 - `/:seller/page/:page`
 - `/:seller/:listing`
@@ -128,30 +133,38 @@ shield.
 
 ## Cloudflare Rule
 
-Use positive inclusion, not "cache everything that is not excluded", while the
-public and dashboard apps share one hostname. This keeps future dashboard or
-auth routes from becoming cacheable by accident.
+Use one header-driven Cache Rule. Matching the rule only makes a request
+eligible for caching; the response is stored only when the app sends an
+explicit cache header. A response without a cache header bypasses Cloudflare.
+This lets the app remain the cache-policy owner without requiring a Cloudflare
+change for each new public page.
 
 Create the same shape in dev first on `dev.daylilycatalog.com`, then copy it to
 `daylilycatalog.com` after proof.
 
-Use one Cache Rule for public HTML eligibility:
+Use one Cache Rule for application response eligibility:
 
 - Hostname: the target hostname only.
 - Methods: `GET` and `HEAD`.
-- Route shape: only the in-scope public document routes above.
 - Exclude RSC/prefetch variants.
-- Exclude authenticated/session requests.
-- Cache eligibility: eligible / cache everything.
-- Edge TTL: respect origin cache headers. Do not set a successful-response Edge
-  TTL override.
+- Exclude requests with an `Authorization` header or Clerk `__session` cookie.
+  Do not exclude every cookie: anonymous analytics and preference cookies do
+  not change the public document and should not bypass the app's cache header.
+- Cache eligibility: eligible for cache.
+- Edge TTL: use the origin cache-control header when present and bypass cache
+  when absent (`bypass_by_default`). Do not set a successful-response TTL
+  override.
 - Browser TTL: respect origin.
 - Cache key: start with the default full URL key. Only ignore query strings
   later if we have verified that all public query variants are safe and `_rsc`
   remains excluded.
-- Status-code guard in the same rule:
-  - `400-499`: no-cache or no-store.
-  - `500-599`: no-store.
+- Status-code guard in the same rule: `400-599` uses no-store.
+
+Do not maintain a second route allowlist or dashboard/API path exclusion list in
+this rule. Those responses do not send a public cache header, so
+`bypass_by_default` leaves them uncached. The credential, component-request,
+and status guards are narrow defense-in-depth boundaries, not a second cache
+policy.
 
 The status-code guard is intentionally the one successful-TTL exception. The app
 adds the CDN cache header before the page knows whether the route will become a
@@ -167,6 +180,21 @@ Do not use a Worker or normal response-header transform for these directives.
 Workers and response transforms run at the wrong layer for deciding cache
 eligibility and would create another cache policy location.
 
+## Adding Routes
+
+For a new public page:
+
+1. Put the page in the `(public)` route group.
+2. If it is a dynamic whole-document route, add its URL shape to the centralized
+   classifier and matcher in `src/proxy.ts` so the app sends
+   `Cloudflare-CDN-Cache-Control`.
+3. Verify the document response has the intended cache header and its RSC or
+   prefetch variant remains `no-store`.
+
+No Cloudflare rule change is required for an individual public page. New pages
+under `/dashboard` inherit the dynamic, cookie-aware dashboard layout and stay
+uncached without page-specific cache configuration.
+
 ## Dev Rollout
 
 Use the prod-like local Docker smoke workflow:
@@ -175,11 +203,12 @@ Use the prod-like local Docker smoke workflow:
    `apps/main/docs/prod-like-local-docker-smoke.md`.
 2. Expose that app through the existing Cloudflare tunnel as
    `dev.daylilycatalog.com`.
-3. In Cloudflare, create or update the Cache Rule scoped only to
-   `dev.daylilycatalog.com`.
+3. In Cloudflare, create or update the header-driven Cache Rule scoped only to
+   `dev.daylilycatalog.com`, using the origin-header-or-bypass Edge TTL mode.
 4. Disable any overlapping Cache Response Rule for public HTML.
 5. Verify the local origin first:
    - in-scope public documents include `Cloudflare-CDN-Cache-Control`
+   - credential-bearing public requests omit that public CDN cache header
    - RSC requests include `Cache-Control: no-store`
    - search/dashboard/API/auth routes do not include the CDN cache header
 6. Verify anonymous Cloudflare document requests for each in-scope route:

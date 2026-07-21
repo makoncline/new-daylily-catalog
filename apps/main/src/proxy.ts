@@ -105,6 +105,10 @@ function isAppRouterRscRequest(req: NextRequest) {
   );
 }
 
+function hasRequestCredentials(req: NextRequest) {
+  return req.headers.has("authorization") || req.cookies.has("__session");
+}
+
 function uncachedRscResponse() {
   const response = NextResponse.next();
 
@@ -156,6 +160,7 @@ function isPublicHtmlCloudflareCacheRequest(req: NextRequest) {
   return (
     (req.method === "GET" || req.method === "HEAD") &&
     !isProtectedRoute(req) &&
+    !hasRequestCredentials(req) &&
     !isPrefetchRequest(req) &&
     !isAppRouterRscRequest(req) &&
     isPublicHtmlCloudflareCachePath(req.nextUrl.pathname)
