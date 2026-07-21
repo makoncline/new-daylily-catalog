@@ -1,6 +1,6 @@
 # Public Cloudflare HTML Cache
 
-Date: 2026-07-05
+Date: 2026-07-21
 
 This is the current cache-owner plan for public Daylily Catalog HTML after the
 July 2026 memory/OOM investigation. It intentionally replaces the earlier
@@ -229,8 +229,8 @@ After the app change is deployed:
 
 1. Confirm origin public HTML includes the CDN cache header on converted routes.
 2. Copy the proven dev Cache Rule to `daylilycatalog.com`.
-3. Test one route first, then expand the same rule to the remaining route
-   shapes.
+3. Verify representative cached and uncached routes without adding path filters
+   to the rule.
 4. Use targeted URL purges when needed. Purge canonical URLs first; purge query
    variants only if the rule still keys on full URL and a variant was cached.
 5. Monitor memory telemetry for 48-72 hours:
@@ -239,51 +239,37 @@ After the app change is deployed:
    - no OOM/137 restarts.
    - public origin request volume should drop for cached document routes.
 
-## 2026-07-05 Dev Proof
+## 2026-07-21 Dev Proof
 
 Test setup:
 
 - Local prod-like Docker app from `prod-like-local-docker-smoke.md`, backed by
   the local production DB copy.
 - Existing Cloudflare tunnel serving that app at `dev.daylilycatalog.com`.
-- `Cache anonymous public HTML` Cache Rule scoped to
-  `dev.daylilycatalog.com`.
-- Old `Test SWR for /catalogs` Cache Response Rule deleted, leaving zero active
-  Cache Response Rules.
+- `Honor explicit origin cache headers (dev)` Cache Rule scoped to
+  `dev.daylilycatalog.com`, using origin-header-or-bypass Edge TTL, browser TTL
+  respecting origin, and `400-599` no-store.
+- Zero active Cache Response Rules.
 
 Local origin proof:
 
-- `/catalogs`, `/cultivar/blue-crush`, `/plantfancygardens`, and
-  `/plantfancygardens/alienation` returned
+- Public document routes returned
   `Cloudflare-CDN-Cache-Control: public, max-age=43200,
   stale-while-revalidate=604800, stale-if-error=86400`.
-- `/plantfancygardens/search` did not return the Cloudflare CDN cache header.
-- Real component requests with `Accept: text/x-component` returned
-  `Cache-Control: no-store`.
+- Authorization and Clerk `__session` requests omitted that header, while an
+  anonymous analytics cookie retained it.
+- Search, dashboard, and API routes omitted the CDN cache header. Real component
+  requests returned `Cache-Control: no-store`.
 
 Cloudflare dev proof:
 
-- Fresh query variants for `/catalogs`, `/cultivar/blue-crush`,
-  `/plantfancygardens`, and `/plantfancygardens/alienation` returned `MISS` on
-  first request and `HIT` on second request.
-- An older cached `/catalogs` response returned `UPDATING` with an `Age` value,
-  confirming stale-while-revalidate behavior after the app header path replaced
-  the old response rule.
-- `/plantfancygardens/search`, bare `_rsc` query requests, real component RSC
-  requests, and cookie-bearing seller requests returned `cf-cache-status:
-  DYNAMIC`.
-- Chrome click-through on `dev.daylilycatalog.com` rendered home -> catalogs ->
-  seller -> listing dialog without a visible broken state. The seller grid opens
-  listing dialogs via `?viewing=...`; the full listing document route was
-  validated with direct document requests.
-
-Remaining before production:
-
-- Add and verify the same-rule status-code guard for error responses. The
-  dashboard custom select did not retain the row during this pass, so do not
-  copy the dev rule to production until `>= 400` responses are explicitly
-  protected from the successful-page TTL through the dashboard, API, or
-  Terraform.
+- Fresh variants for eight representative public routes returned `MISS` then
+  `HIT`; the same was true with an anonymous analytics cookie.
+- Authorization, Clerk session, and RSC requests remained `DYNAMIC`.
+- Search, API, dashboard, and `404` responses remained uncached; the `404`
+  result verified the status-code guard.
+- Chrome navigation rendered seller page -> page 2 -> cultivar page without a
+  visible broken state.
 
 ## Long-Term Split
 
