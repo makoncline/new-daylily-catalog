@@ -27,7 +27,6 @@ const DEFAULT_TUNNEL_HOST = "dev.daylilycatalog.com";
 const DEFAULT_LOCAL_PORT = "3012";
 const DEFAULT_BUILD_DB_URL = "file:/app/apps/main/prisma/prod-like-build-db";
 const DEFAULT_RUNTIME_DB_URL = "file:/data/daylilycatalog.sqlite";
-const DEFAULT_LOCAL_RELEASE = "prod-like-local";
 
 function usage() {
   console.log(`Usage:
@@ -202,7 +201,7 @@ function writeComposeOverride(buildEnv) {
       dockerfile: apps/main/Dockerfile
       args:
         BUILD_ENV_FINGERPRINT: prod-like-${fingerprint}
-        GIT_COMMIT_SHA: ${DEFAULT_LOCAL_RELEASE}
+        GIT_COMMIT_SHA: prod-like-local
     volumes:
       - ./prisma/local-prod-copy-daylily-catalog.db:/data/daylilycatalog.sqlite
 
@@ -243,7 +242,10 @@ function updateTunnelConfig({ tunnelHost, localPort }) {
     const serviceLine = `${entryIndent}  service: http://127.0.0.1:${localPort}`;
     const nextEntryPattern = new RegExp(`^${escapeRegExp(entryIndent)}-\\s+`);
     let blockEnd = i + 1;
-    while (blockEnd < lines.length && !nextEntryPattern.test(lines[blockEnd])) {
+    while (
+      blockEnd < lines.length &&
+      !nextEntryPattern.test(lines[blockEnd])
+    ) {
       blockEnd++;
     }
 

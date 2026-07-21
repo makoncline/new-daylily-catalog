@@ -2,11 +2,7 @@
 
 This process creates a local-only database from the latest production SQLite snapshot, preserves representative catalog content (including private notes), and replaces production Clerk and Stripe bindings with stage/test identities. It never modifies the source snapshot or deterministic integration seeds.
 
-This is the stage/test proof path. It is separate from
-[`prod-like-local-docker-smoke.md`](./prod-like-local-docker-smoke.md), which
-runs the actual production Docker image and production service configuration
-locally. The `prodlike+` personas below apply only to this seeded development
-path.
+This is separate from [`prod-like-local-docker-smoke.md`](./prod-like-local-docker-smoke.md), which runs the production Docker image locally.
 
 From the repository root:
 

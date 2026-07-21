@@ -6,22 +6,17 @@ using production Clerk domains and a local SQLite copy of production data.
 This workflow is intended for auth and routing regressions that only reproduce
 on a real `*.daylilycatalog.com` origin. It does not use the embedded replica.
 
-This is distinct from
-[`realistic-data-local-development.md`](./realistic-data-local-development.md):
-
-- Seeded realistic development runs `next dev` with stage Clerk, Stripe test
-  mode, and the documented `prodlike+` personas.
-- This workflow runs the actual production container with production service
-  configuration and a local production database copy. Stage persona
-  credentials do not apply here.
+For stage Clerk, Stripe test mode, and the `prodlike+` personas, use
+[`realistic-data-local-development.md`](./realistic-data-local-development.md)
+instead; those credentials do not apply to this production-service workflow.
 
 ## What It Does
 
 - Pulls the VPS runtime env from `/srv/stacks/daylilycatalog/.env`.
 - Writes ignored local env files under `apps/main`.
 - Overrides `DATABASE_URL` to use a local SQLite copy.
-- Disables Sentry runtime collection and source-map processing, removes the
-  build upload token, and uses the fixed local release `prod-like-local`.
+- Disables Sentry runtime reporting and source-map uploads, and uses the fixed
+  local release `prod-like-local`.
 - Comments out embedded replica env.
 - Sets `PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS=0`.
 - Creates an ignored Docker Compose override that mounts the local DB into
