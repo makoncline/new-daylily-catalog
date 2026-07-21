@@ -45,7 +45,6 @@ const PUBLIC_HTML_CLOUDFLARE_CDN_NO_STORE = "no-store";
 const cloudflareUncachedStaticHtmlPaths = new Set([
   "/",
   "/auth-error",
-  "/kitchen-sink",
   "/start-membership",
   "/start-onboarding",
 ]);
@@ -58,7 +57,6 @@ const publicHtmlFirstSegmentExclusions = new Set([
   "catalog",
   "catalogs",
   "dashboard",
-  "kitchen-sink",
   "onboarding",
   "openapi.json",
   "sign-in",
