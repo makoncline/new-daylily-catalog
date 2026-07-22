@@ -3,6 +3,11 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TRPCInternalContext } from "@/server/api/trpc";
 import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
+import {
+  CATALOG_IMPORTER_ENTRY_SOURCE,
+  CATALOG_IMPORTER_MEMBERSHIP_RETURN_PATH,
+  CATALOG_IMPORTER_RETURN_PATH,
+} from "@/lib/catalog-importer-membership";
 
 process.env.SKIP_ENV_VALIDATION = "1";
 process.env.DATABASE_URL ??= "file:./tests/.tmp/stripe-router.sqlite";
@@ -195,6 +200,40 @@ describe("stripe.generateCheckout", () => {
       expect.objectContaining({
         success_url: "https://daylilycatalog.com/subscribe/success",
         cancel_url: "https://daylilycatalog.com/dashboard",
+      }),
+    );
+  });
+
+  it("returns importer-originated checkout to the browser-local project", async () => {
+    const db = createMockDb();
+    const caller = createCaller(db, {
+      id: "user-importer",
+      stripeCustomerId: "cus_importer",
+    });
+    const conversionId = "123e4567-e89b-42d3-a456-426614174000";
+
+    await caller.generateCheckout({
+      conversionId,
+      entrySource: CATALOG_IMPORTER_ENTRY_SOURCE,
+      returnTo: CATALOG_IMPORTER_RETURN_PATH,
+    });
+
+    expect(stripeMocks.checkoutCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cancel_url: "https://daylilycatalog.com/catalog-importer",
+        success_url: `https://daylilycatalog.com/subscribe/success?redirect=${encodeURIComponent(CATALOG_IMPORTER_MEMBERSHIP_RETURN_PATH)}`,
+        metadata: {
+          userId: "user-importer",
+          conversion_id: conversionId,
+          entry_source: CATALOG_IMPORTER_ENTRY_SOURCE,
+        },
+        subscription_data: {
+          trial_period_days: SUBSCRIPTION_CONFIG.FREE_TRIAL_DAYS,
+          metadata: {
+            conversion_id: conversionId,
+            entry_source: CATALOG_IMPORTER_ENTRY_SOURCE,
+          },
+        },
       }),
     );
   });

@@ -9,6 +9,8 @@ interface PendingAnonymousCheckoutSession {
   email: string;
   status: string;
   created: number;
+  entrySource: string | null;
+  returnTo: string | null;
 }
 
 export interface LocalAnonymousCheckoutDetails {
@@ -17,6 +19,8 @@ export interface LocalAnonymousCheckoutDetails {
   email: string;
   status: string | null;
   created: number;
+  entrySource: string | null;
+  returnTo: string | null;
 }
 
 function getPendingSessionKey(sessionId: string) {
@@ -37,9 +41,13 @@ export function isLocalE2ECheckoutEnabled() {
 export async function createLocalE2ECheckoutSession({
   db,
   email,
+  entrySource = null,
+  returnTo = null,
 }: {
   db: PrismaClient;
   email: string;
+  entrySource?: string | null;
+  returnTo?: string | null;
 }) {
   const sessionId = `cs_test_onboarding_${randomUUID()}`;
   const customerId = `cus_e2e_${randomUUID().replace(/-/g, "").slice(0, 24)}`;
@@ -50,6 +58,8 @@ export async function createLocalE2ECheckoutSession({
     email,
     status: "trialing",
     created,
+    entrySource,
+    returnTo,
   };
   const subscriptionSnapshot = {
     subscriptionId: `sub_e2e_${sessionId}`,
@@ -104,6 +114,8 @@ export async function getLocalE2ECheckoutDetails(
       email: parsed.email.toLowerCase(),
       status: parsed.status,
       created: parsed.created,
+      entrySource: parsed.entrySource ?? null,
+      returnTo: parsed.returnTo ?? null,
     };
   } catch {
     return null;

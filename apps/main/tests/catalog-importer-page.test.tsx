@@ -1,30 +1,19 @@
 import { render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import CatalogImporterPage, {
   generateMetadata,
 } from "@/app/(public)/catalog-importer/page";
+import CatalogImporterLayout from "@/app/(public)/catalog-importer/layout";
 
 const featureState = vi.hoisted(() => ({ discoveryEnabled: false }));
-const audienceState = vi.hoisted(() => ({
-  proUserIds: new Set<string>(),
-  user: null as { id: string; stripeCustomerId: string | null } | null,
-  userId: null as string | null,
-}));
 
-vi.mock("@clerk/nextjs/server", () => ({
-  auth: () => Promise.resolve({ userId: audienceState.userId }),
-}));
-
-vi.mock("@/server/db", () => ({
-  replicaDb: {
-    user: {
-      findUnique: () => Promise.resolve(audienceState.user),
-    },
-  },
-}));
-
-vi.mock("@/server/db/getProUserIdSet", () => ({
-  getProUserIdSet: () => Promise.resolve(audienceState.proUserIds),
+vi.mock("@/server/stripe/get-membership-price-display", () => ({
+  getMembershipPriceDisplay: () =>
+    Promise.resolve({
+      amount: "$99",
+      interval: "/yr",
+      monthlyEquivalent: null,
+    }),
 }));
 
 vi.mock("@/config/feature-flags", () => ({
@@ -35,25 +24,21 @@ vi.mock(
   "@/app/(public)/catalog-importer/_components/catalog-importer-client",
   () => ({
     CatalogImporterClient: ({
-      showMembershipPrompts,
+      membershipStarted,
+      viewerState,
     }: {
-      showMembershipPrompts: boolean;
+      membershipStarted: boolean;
+      viewerState: string;
     }) => (
       <div>
-        Spreadsheet tools ·{" "}
-        {showMembershipPrompts ? "Prompts on" : "Prompts off"}
+        Spreadsheet tools · {viewerState} ·{" "}
+        {membershipStarted ? "Trial started" : "No return state"}
       </div>
     ),
   }),
 );
 
 describe("catalog importer quiet launch", () => {
-  beforeEach(() => {
-    audienceState.proUserIds = new Set();
-    audienceState.user = null;
-    audienceState.userId = null;
-  });
-
   it("keeps the direct page available while discovery is off", async () => {
     featureState.discoveryEnabled = false;
 
@@ -64,29 +49,35 @@ describe("catalog importer quiet launch", () => {
         name: "Build your daylily catalog",
       }),
     ).toBeVisible();
-    expect(screen.getByText(/Spreadsheet tools · Prompts on/)).toBeVisible();
+    expect(
+      screen.getByText(/Spreadsheet tools · anonymous · No return state/),
+    ).toBeVisible();
     expect(generateMetadata().robots).toEqual({
       follow: false,
       index: false,
     });
   });
 
+  it("centers the page in a landscape iPad-width layout container", () => {
+    render(
+      <CatalogImporterLayout>
+        <div>Importer content</div>
+      </CatalogImporterLayout>,
+    );
+
+    expect(screen.getByText("Importer content").parentElement).toHaveClass(
+      "mx-auto",
+      "w-full",
+      "max-w-[1024px]",
+    );
+    expect(
+      screen.getByText("Importer content").parentElement?.parentElement,
+    ).toHaveClass("bg-background", "flex", "flex-1", "flex-col");
+  });
+
   it("allows indexing only when importer discovery is enabled", () => {
     featureState.discoveryEnabled = true;
 
     expect(generateMetadata().robots).toBeUndefined();
-  });
-
-  it("suppresses acquisition prompts for an active Pro member", async () => {
-    audienceState.userId = "clerk-pro";
-    audienceState.user = {
-      id: "user-pro",
-      stripeCustomerId: "cus-pro",
-    };
-    audienceState.proUserIds = new Set(["user-pro"]);
-
-    render(await CatalogImporterPage());
-
-    expect(screen.getByText(/Spreadsheet tools · Prompts off/)).toBeVisible();
   });
 });

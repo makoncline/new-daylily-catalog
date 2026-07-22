@@ -18,8 +18,43 @@ export interface CatalogImporterDraft {
   matchedRows: CatalogImportRow[] | null;
   matchedRowsKey: string | null;
   parsedSpreadsheet: ParsedSpreadsheet | null;
+  projectId?: string;
   selectedSheetIndex: number;
   version: 3;
+}
+
+export function createCatalogImporterProjectId() {
+  return (
+    globalThis.crypto?.randomUUID?.() ??
+    `catalog-import-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  );
+}
+
+function normalizeCatalogImporterDraft(draft: CatalogImporterDraft) {
+  const projectId =
+    typeof draft.projectId === "string" && draft.projectId.length > 0
+      ? draft.projectId
+      : createCatalogImporterProjectId();
+  const matchedRows =
+    draft.matchedRows?.map((row) => ({
+      ...row,
+      existingListingDecision:
+        row.existingListingDecision === "create" ||
+        row.existingListingDecision === "use-existing"
+          ? row.existingListingDecision
+          : null,
+      imagePreviewAccepted: false,
+      imageUrl: "",
+      imageUrlWarning: null,
+      sourceImageUrl: "",
+    })) ?? null;
+
+  return {
+    ...draft,
+    mapping: { ...draft.mapping, imageUrl: null },
+    matchedRows,
+    projectId,
+  };
 }
 
 export interface DraftStorage {
@@ -119,6 +154,11 @@ function migrateCatalogImportRow(value: unknown): CatalogImportRow | null {
 
   return {
     ...current,
+    existingListingDecision:
+      legacy.existingListingDecision === "create" ||
+      legacy.existingListingDecision === "use-existing"
+        ? legacy.existingListingDecision
+        : null,
     linkProvenance,
     linkState,
     match,
@@ -220,7 +260,12 @@ export async function readCatalogImporterDraft(
   try {
     const draft = await selectedStorage.get(CATALOG_IMPORT_DRAFT_STORAGE_KEY);
     if (isCatalogImporterDraft(draft)) {
-      return draft;
+      const normalizedDraft = normalizeCatalogImporterDraft(draft);
+      await selectedStorage.set(
+        CATALOG_IMPORT_DRAFT_STORAGE_KEY,
+        normalizedDraft,
+      );
+      return normalizedDraft;
     }
     const migratedDraft = migrateDraft(draft);
     if (migratedDraft) {
@@ -228,14 +273,19 @@ export async function readCatalogImporterDraft(
         CATALOG_IMPORT_DRAFT_STORAGE_KEY,
         migratedDraft,
       );
-      return migratedDraft;
+      const normalizedDraft = normalizeCatalogImporterDraft(migratedDraft);
+      await selectedStorage.set(
+        CATALOG_IMPORT_DRAFT_STORAGE_KEY,
+        normalizedDraft,
+      );
+      return normalizedDraft;
     }
 
     if (!storage) {
       const legacyDraft =
         await migrateLegacyCatalogImporterDraft(selectedStorage);
       if (legacyDraft) {
-        return legacyDraft;
+        return normalizeCatalogImporterDraft(legacyDraft);
       }
     }
 

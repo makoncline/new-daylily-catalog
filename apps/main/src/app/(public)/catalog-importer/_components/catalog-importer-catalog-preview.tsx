@@ -24,6 +24,12 @@ import type {
 } from "@/components/public-catalog-search/public-catalog-search-types";
 import { Button } from "@/components/ui/button";
 import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+} from "@/components/ui/empty";
+import {
   Sheet,
   SheetContent,
   SheetDescription,
@@ -54,6 +60,9 @@ interface CatalogImporterPreviewListing extends CatalogSearchListingRow {
 
 const PREVIEW_SEARCH_COLUMNS =
   createPublicCatalogSearchColumns<CatalogImporterPreviewListing>();
+export const CATALOG_IMPORTER_PREVIEW_FILTER_IDS = PREVIEW_SEARCH_COLUMNS.map(
+  (column) => column.id,
+).filter((id): id is string => Boolean(id));
 const PREVIEW_LIST_OPTIONS: PublicCatalogSearchFacetOption[] = [];
 
 export function isCatalogPreviewRow(row: CatalogImportRow) {
@@ -87,7 +96,91 @@ export function getCatalogPreviewDescription(row: CatalogImportRow) {
     return row.description;
   }
 
+  return getCatalogPreviewDatabaseDescription(row);
+}
+
+export function getCatalogPreviewDatabaseDescription(row: CatalogImportRow) {
   return row.match ? getCultivarTraitSummary(row.match).join(" · ") : "";
+}
+
+function CatalogImporterListingCard({
+  highlighted = false,
+  onImageError,
+  onOpen,
+  openLabel,
+  row,
+}: {
+  highlighted?: boolean;
+  onImageError?: () => void;
+  onOpen: () => void;
+  openLabel?: string;
+  row: CatalogImportRow;
+}) {
+  const match = row.match;
+  if (!match) return null;
+
+  const image = getCatalogPreviewImage(row);
+  const imageLabel = getCatalogPreviewImageLabel(row);
+  const sellerDescription = row.description.trim();
+  const databaseDescription = getCatalogPreviewDatabaseDescription(row);
+
+  return (
+    <article
+      aria-label={match.displayName}
+      className={cn(
+        "bg-card overflow-hidden rounded-lg border transition-shadow motion-reduce:transition-none",
+        highlighted && "ring-primary ring-2 ring-offset-2",
+      )}
+    >
+      <button
+        type="button"
+        aria-label={openLabel ?? `View details for ${match.displayName}`}
+        className="focus-visible:ring-ring relative block w-full text-left outline-none focus-visible:ring-2 focus-visible:ring-inset"
+        onClick={onOpen}
+      >
+        {image ? (
+          <OptimizedImage
+            key={image.url}
+            image={image}
+            variant="thumb"
+            size="thumbnail"
+            alt={`${match.displayName} — ${imageLabel ?? "Cultivar photo"}`}
+            onImageError={onImageError}
+          />
+        ) : (
+          <ImagePlaceholder />
+        )}
+        {row.price !== null ? (
+          <span className="bg-background/90 absolute top-2 right-2 rounded-md px-2 py-1 text-xs font-semibold shadow-sm backdrop-blur">
+            {formatPrice(row.price)}
+          </span>
+        ) : null}
+        <span className="bg-background/90 text-foreground absolute right-2 bottom-2 flex size-8 items-center justify-center rounded-full border shadow-sm backdrop-blur">
+          <Info aria-hidden="true" className="size-3.5" />
+        </span>
+      </button>
+      <div className="space-y-2 p-3">
+        <div className="min-w-0">
+          <h3 className="line-clamp-2 text-sm leading-tight font-semibold">
+            {match.displayName}
+          </h3>
+          <p className="text-muted-foreground mt-1 truncate text-xs">
+            {getCandidateMeta(match) || "Registered cultivar"}
+          </p>
+        </div>
+        {sellerDescription ? (
+          <p className="text-muted-foreground line-clamp-3 text-xs leading-relaxed">
+            {sellerDescription}
+          </p>
+        ) : null}
+        {databaseDescription ? (
+          <p className="text-muted-foreground line-clamp-3 text-xs leading-relaxed">
+            {databaseDescription}
+          </p>
+        ) : null}
+      </div>
+    </article>
+  );
 }
 
 function getCatalogPreviewBloomHabit(match: CultivarMatchCandidate) {
@@ -104,18 +197,23 @@ function getCatalogPreviewBloomHabit(match: CultivarMatchCandidate) {
 export function CatalogImporterCatalogPreview({
   columnFilters,
   controller,
+  globalFilter,
   onColumnFiltersChange,
+  onGlobalFilterChange,
   onOpenReview,
 }: {
   columnFilters: ColumnFiltersState;
   controller: CatalogImporterWorkbenchController;
+  globalFilter: string;
   onColumnFiltersChange: OnChangeFn<ColumnFiltersState>;
+  onGlobalFilterChange: OnChangeFn<string>;
   onOpenReview: (row: CatalogImportRow) => void;
 }) {
   const [mode, setMode] = useState<PublicCatalogSearchMode>("basic");
   const [panelCollapsed, setPanelCollapsed] = useState(false);
   const [detailsRowId, setDetailsRowId] = useState<string | null>(null);
   const [listingAreaScrolled, setListingAreaScrolled] = useState(false);
+  const [searchPanelRequested, setSearchPanelRequested] = useState(false);
   const listingAreaRef = useRef<HTMLDivElement>(null);
 
   const linkedRows = useMemo(
@@ -182,7 +280,10 @@ export function CatalogImporterCatalogPreview({
     [previewListings],
   );
   const showSearchPanel =
-    previewListings.length > 1 || columnFilters.length > 0;
+    previewListings.length > 6 ||
+    columnFilters.length > 0 ||
+    Boolean(globalFilter) ||
+    searchPanelRequested;
   const intentionallyUnmatchedCount = controller.includedRows.filter(
     (row) => row.linkState === "intentionally-unmatched",
   ).length;
@@ -194,8 +295,10 @@ export function CatalogImporterCatalogPreview({
     data: previewListings,
     state: {
       columnFilters,
+      globalFilter,
     },
     onColumnFiltersChange,
+    onGlobalFilterChange,
     initialState: {
       pagination: {
         pageIndex: 0,
@@ -203,9 +306,7 @@ export function CatalogImporterCatalogPreview({
       },
     },
     meta: {
-      filterableColumns: PREVIEW_SEARCH_COLUMNS.map(
-        (column) => column.id,
-      ).filter((id): id is string => Boolean(id)),
+      filterableColumns: CATALOG_IMPORTER_PREVIEW_FILTER_IDS,
       getColumnLabel: (columnId) => columnId,
       pinnedColumns: { left: [], right: [] },
       storageKey: "catalog-importer-preview",
@@ -243,40 +344,52 @@ export function CatalogImporterCatalogPreview({
       aria-labelledby="catalog-importer-preview-heading"
       className="!scroll-mt-16 space-y-3 overflow-clip"
     >
-      <div>
-        <h2
-          id="catalog-importer-preview-heading"
-          className="text-xl font-semibold tracking-tight"
-        >
-          Your catalog preview
-        </h2>
-        {linkedRows.length < controller.includedRows.length ? (
-          <p className="text-muted-foreground mt-1 text-sm">
-            {linkedRows.length.toLocaleString()} of{" "}
-            {controller.includedRows.length.toLocaleString()} listings are
-            linked and shown.
-            {controller.reviewRows.length > 0 ? (
-              <>
-                {" "}
-                <a
-                  href="#catalog-importer-review-quiz"
-                  className="font-medium underline-offset-4 hover:underline"
-                >
-                  {controller.reviewRows.length.toLocaleString()} still need
-                  {controller.reviewRows.length === 1 ? "s" : ""} a cultivar
-                  decision.
-                </a>
-              </>
-            ) : null}
-            {intentionallyUnmatchedCount > 0 ? (
-              <>
-                {" "}
-                {intentionallyUnmatchedCount.toLocaleString()}{" "}
-                {intentionallyUnmatchedCount === 1 ? "is" : "are"} left
-                unmatched.
-              </>
-            ) : null}
-          </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2
+            id="catalog-importer-preview-heading"
+            className="text-xl font-semibold tracking-tight"
+          >
+            Your catalog preview
+          </h2>
+          {linkedRows.length < controller.includedRows.length ? (
+            <p className="text-muted-foreground mt-1 text-sm">
+              {linkedRows.length.toLocaleString()} of{" "}
+              {controller.includedRows.length.toLocaleString()} listings are
+              linked and shown.
+              {controller.reviewRows.length > 0 ? (
+                <>
+                  {" "}
+                  <a
+                    href="#catalog-importer-review-quiz"
+                    className="font-medium underline-offset-4 hover:underline"
+                  >
+                    {controller.reviewRows.length.toLocaleString()} still need
+                    {controller.reviewRows.length === 1 ? "s" : ""} a cultivar
+                    decision.
+                  </a>
+                </>
+              ) : null}
+              {intentionallyUnmatchedCount > 0 ? (
+                <>
+                  {" "}
+                  {intentionallyUnmatchedCount.toLocaleString()}{" "}
+                  {intentionallyUnmatchedCount === 1 ? "is" : "are"} left
+                  unmatched.
+                </>
+              ) : null}
+            </p>
+          ) : null}
+        </div>
+        {!showSearchPanel && previewListings.length > 1 ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setSearchPanelRequested(true)}
+          >
+            Search and filter
+          </Button>
         ) : null}
       </div>
 
@@ -335,74 +448,31 @@ export function CatalogImporterCatalogPreview({
               }
               className="bg-muted/10 max-h-[52rem] scroll-mt-24 overflow-y-auto overscroll-y-auto rounded-lg border p-3 pr-1 outline-none [scrollbar-gutter:stable] lg:max-h-[69rem] lg:pr-2 xl:max-h-[62rem]"
             >
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
+              <div className="grid grid-cols-2 gap-3">
                 {visiblePreviewRows.map((row) => {
-                  const match = row.match!;
-                  const image = getCatalogPreviewImage(row);
-                  const imageLabel = getCatalogPreviewImageLabel(row);
-                  const description = getCatalogPreviewDescription(row);
-
                   return (
-                    <article
+                    <div
                       key={row.id}
                       id={getCatalogPreviewRowId(row.id)}
-                      className={cn(
-                        "bg-card scroll-mt-24 overflow-hidden rounded-lg border transition-shadow motion-reduce:transition-none",
-                        controller.lastLinkAction?.rowId === row.id &&
-                          "ring-primary ring-2 ring-offset-2",
-                      )}
+                      className="scroll-mt-24"
                     >
-                      <button
-                        type="button"
-                        aria-label={`View details for ${match.displayName}`}
-                        className="focus-visible:ring-ring relative block w-full text-left outline-none focus-visible:ring-2 focus-visible:ring-inset"
-                        onClick={() => setDetailsRowId(row.id)}
-                      >
-                        {image ? (
-                          <OptimizedImage
-                            key={image.url}
-                            image={image}
-                            variant="thumb"
-                            size="thumbnail"
-                            alt={`${match.displayName} — ${imageLabel ?? "Cultivar photo"}`}
-                            onImageError={
-                              row.imageUrl
-                                ? () =>
-                                    controller.flagImageUrlIssue(
-                                      row.id,
-                                      row.imageUrl,
-                                    )
-                                : undefined
-                            }
-                          />
-                        ) : (
-                          <ImagePlaceholder />
-                        )}
-                        {row.price !== null ? (
-                          <span className="bg-background/90 absolute top-2 right-2 rounded-md px-2 py-1 text-xs font-semibold shadow-sm backdrop-blur">
-                            {formatPrice(row.price)}
-                          </span>
-                        ) : null}
-                        <span className="bg-background/90 text-foreground absolute right-2 bottom-2 flex size-8 items-center justify-center rounded-full border shadow-sm backdrop-blur">
-                          <Info aria-hidden="true" className="size-3.5" />
-                        </span>
-                      </button>
-                      <div className="space-y-2 p-3">
-                        <div className="min-w-0">
-                          <h3 className="line-clamp-2 text-sm leading-tight font-semibold">
-                            {match.displayName}
-                          </h3>
-                          <p className="text-muted-foreground mt-1 truncate text-xs">
-                            {getCandidateMeta(match) || "Registered cultivar"}
-                          </p>
-                        </div>
-                        {description ? (
-                          <p className="text-muted-foreground line-clamp-3 text-xs leading-relaxed">
-                            {description}
-                          </p>
-                        ) : null}
-                      </div>
-                    </article>
+                      <CatalogImporterListingCard
+                        row={row}
+                        highlighted={
+                          controller.lastLinkAction?.rowId === row.id
+                        }
+                        onOpen={() => setDetailsRowId(row.id)}
+                        onImageError={
+                          row.imageUrl
+                            ? () =>
+                                controller.flagImageUrlIssue(
+                                  row.id,
+                                  row.imageUrl,
+                                )
+                            : undefined
+                        }
+                      />
+                    </div>
                   );
                 })}
               </div>
@@ -431,10 +501,27 @@ export function CatalogImporterCatalogPreview({
             </div>
           </div>
         ) : (
-          <div className="text-muted-foreground flex min-h-48 flex-col items-center justify-center gap-2 rounded-lg border border-dashed text-center text-sm">
-            <ImageIcon aria-hidden="true" className="size-8" />
-            <p>No linked cultivars match these filters.</p>
-          </div>
+          <Empty className="min-h-48 border">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <ImageIcon aria-hidden="true" />
+              </EmptyMedia>
+              <EmptyDescription>
+                No linked cultivars match these filters.
+              </EmptyDescription>
+            </EmptyHeader>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                table.resetColumnFilters();
+                table.resetGlobalFilter();
+              }}
+            >
+              Clear filters
+            </Button>
+          </Empty>
         )}
       </div>
 

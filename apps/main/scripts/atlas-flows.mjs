@@ -16,6 +16,9 @@ const stateFor =
 const publicState = stateFor("tests/atlas/public-catalog.atlas.ts");
 const cultivarState = stateFor("tests/atlas/cultivar-search.atlas.ts");
 const importerState = stateFor("tests/atlas/catalog-importer.atlas.ts");
+const dashboardImporterState = stateFor(
+  "tests/atlas/dashboard-catalog-importer.atlas.ts",
+);
 const onboardingState = stateFor("tests/atlas/onboarding-membership.atlas.ts");
 const listingState = stateFor("tests/atlas/listing-management.atlas.ts");
 const listingMediaState = stateFor("tests/atlas/listing-media.atlas.ts");
@@ -289,6 +292,13 @@ export const ATLAS_FLOWS = [
             "The same upload state at phone width.",
             "/catalog-importer",
           ),
+          importerState(
+            "catalog-importer-desktop-mapping",
+            "Desktop column mapping",
+            "The source spreadsheet preview and compact field mapping before processing.",
+            "/catalog-importer",
+            false,
+          ),
         ],
       },
       {
@@ -305,6 +315,13 @@ export const ATLAS_FLOWS = [
             "catalog-importer-mobile-results",
             "Mobile catalog results",
             "The personalized reveal and persistent preparation actions at phone width.",
+            "/catalog-importer",
+            false,
+          ),
+          importerState(
+            "catalog-importer-desktop-details",
+            "Cultivar details sheet",
+            "A preview listing opened with the shared Daylily Database display.",
             "/catalog-importer",
             false,
           ),
@@ -327,6 +344,32 @@ export const ATLAS_FLOWS = [
             "/catalog-importer",
             false,
           ),
+          importerState(
+            "catalog-importer-desktop-review-complete",
+            "Cultivar review complete",
+            "The compact outcome after the final uncertain name is resolved.",
+            "/catalog-importer",
+            false,
+          ),
+        ],
+      },
+      {
+        title: "Repair spreadsheet data",
+        states: [
+          importerState(
+            "catalog-importer-desktop-issues",
+            "Desktop spreadsheet issues",
+            "Duplicate and price decisions shown in spreadsheet-shaped tables.",
+            "/catalog-importer",
+            false,
+          ),
+          importerState(
+            "catalog-importer-mobile-issues",
+            "Mobile spreadsheet issues",
+            "The same repair work at phone width without clipped controls.",
+            "/catalog-importer",
+            false,
+          ),
         ],
       },
       {
@@ -344,6 +387,182 @@ export const ATLAS_FLOWS = [
             "Mobile catalog preview",
             "The searchable cards, advanced filters, and persistent preparation actions at phone width.",
             "/catalog-importer",
+            false,
+          ),
+        ],
+      },
+      {
+        title: "Download the prepared spreadsheet",
+        states: [
+          importerState(
+            "catalog-importer-desktop-download",
+            "Desktop spreadsheet download",
+            "Both prepared workbook choices with their exact output boundaries.",
+            "/catalog-importer",
+            false,
+          ),
+          importerState(
+            "catalog-importer-mobile-download",
+            "Mobile spreadsheet download",
+            "The prepared workbook choices at phone width without clipped actions.",
+            "/catalog-importer",
+            false,
+          ),
+          importerState(
+            "catalog-importer-desktop-download-confirm",
+            "Incomplete download confirmation",
+            "The explicit remaining-work confirmation before an early download.",
+            "/catalog-importer",
+            false,
+          ),
+        ],
+      },
+    ],
+  },
+  {
+    id: "dashboard-catalog-importer",
+    audience: "member",
+    title: "Create listings from a prepared catalog",
+    description:
+      "Resume or start a spreadsheet import, review the create-only listing set, and inspect row data before committing database writes.",
+    tests: {
+      unit: [],
+      integration: [
+        testRef("integration", "tests/dashboard-import-table.test.tsx"),
+        testRef(
+          "integration",
+          "tests/dashboard-import-existing-listings.test.tsx",
+        ),
+        testRef("integration", "tests/dashboard-import-start-over.test.tsx"),
+      ],
+      e2e: [testRef("e2e", "tests/e2e/catalog-importer.e2e.ts")],
+    },
+    steps: [
+      {
+        title: "Start or resume",
+        states: [
+          dashboardImporterState(
+            "dashboard-importer-start",
+            "Dashboard importer start",
+            "The signed-in upload starting point with the dashboard page context intact.",
+            "/dashboard/imports",
+          ),
+        ],
+      },
+      {
+        title: "Review listings to create",
+        states: [
+          dashboardImporterState(
+            "dashboard-importer-ready",
+            "Dashboard listings ready",
+            "The adaptive listing table before review and creation.",
+            "/dashboard/imports",
+            false,
+          ),
+          dashboardImporterState(
+            "dashboard-importer-mobile-ready",
+            "Mobile dashboard listings ready",
+            "The same listing review at phone width without page-level overflow.",
+            "/dashboard/imports",
+            false,
+          ),
+          dashboardImporterState(
+            "dashboard-importer-row-editor",
+            "Dashboard import row editor",
+            "A listing edit with the original spreadsheet row retained for reference.",
+            "/dashboard/imports",
+            false,
+          ),
+          dashboardImporterState(
+            "dashboard-importer-mobile-row-editor",
+            "Mobile dashboard import row editor",
+            "The same listing edit and source-row reference at phone width.",
+            "/dashboard/imports",
+            false,
+          ),
+        ],
+      },
+      {
+        title: "Resolve catalog data",
+        states: [
+          dashboardImporterState(
+            "dashboard-importer-review",
+            "Dashboard cultivar review",
+            "The shared cultivar decision flow with import-specific outcomes.",
+            "/dashboard/imports",
+            false,
+          ),
+          dashboardImporterState(
+            "dashboard-importer-mobile-review",
+            "Mobile dashboard cultivar review",
+            "The same required cultivar decision with every action visible at phone width.",
+            "/dashboard/imports",
+            false,
+          ),
+          dashboardImporterState(
+            "dashboard-importer-issues",
+            "Dashboard spreadsheet issues",
+            "Duplicate and price decisions before listings can be created.",
+            "/dashboard/imports",
+            false,
+          ),
+          dashboardImporterState(
+            "dashboard-importer-mobile-issues",
+            "Mobile dashboard spreadsheet issues",
+            "The same duplicate and price repairs with unclipped controls at phone width.",
+            "/dashboard/imports",
+            false,
+          ),
+        ],
+      },
+      {
+        title: "Resolve existing listings",
+        states: [
+          dashboardImporterState(
+            "dashboard-importer-existing",
+            "Existing listing decision",
+            "A differing spreadsheet row compared with its existing catalog listing.",
+            "/dashboard/imports",
+            false,
+          ),
+          dashboardImporterState(
+            "dashboard-importer-mobile-existing",
+            "Mobile existing listing decision",
+            "The same two distinct existing-listing decisions at phone width.",
+            "/dashboard/imports",
+            false,
+          ),
+          dashboardImporterState(
+            "dashboard-importer-already-exists",
+            "Exact existing listing",
+            "An identical catalog listing disclosed before it is skipped.",
+            "/dashboard/imports",
+            false,
+          ),
+        ],
+      },
+      {
+        title: "Confirm and create",
+        states: [
+          dashboardImporterState(
+            "dashboard-importer-confirm",
+            "Create-only confirmation",
+            "The exact new-listing count and create-only consequences before the write.",
+            "/dashboard/imports",
+            false,
+          ),
+          dashboardImporterState(
+            "dashboard-importer-complete",
+            "Catalog import complete",
+            "The terminal state after retry-safe listing creation succeeds.",
+            "/dashboard/imports",
+            false,
+          ),
+          dashboardImporterState(
+            "dashboard-importer-all-existing",
+            "All listings already exist",
+            "The no-write terminal state when every incoming listing is already present.",
+            "/dashboard/imports",
             false,
           ),
         ],

@@ -20,6 +20,7 @@ export interface SpreadsheetSheet {
 
 export interface ParsedSpreadsheet {
   fileName: string;
+  source?: "manual" | "sample" | "upload";
   sheets: SpreadsheetSheet[];
 }
 
@@ -179,12 +180,14 @@ export type CatalogImportLinkProvenance =
   | "exact-name"
   | "saved-id"
   | "user-confirmed";
+export type CatalogImportExistingListingDecision = "create" | "use-existing";
 
 export interface CatalogImportRow {
   cultivarReferenceIdWarning: string | null;
   description: string;
   duplicateAccepted: boolean;
   duplicateOfSourceRow: number | null;
+  existingListingDecision?: CatalogImportExistingListingDecision | null;
   id: string;
   imageUrl: string;
   imagePreviewAccepted?: boolean;
@@ -277,15 +280,10 @@ export function getCatalogImportState(
     (row) => row.cultivarReferenceIdWarning !== null,
   );
   const requiredDataDecisionRows = includedRows.filter(
-    (row) =>
-      row.priceWarning !== null ||
-      (row.imageUrlWarning !== null &&
-        !isCatalogImportImagePreviewWarning(row.imageUrlWarning)),
+    (row) => row.priceWarning !== null,
   );
   const warningRows = includedRows.filter(
-    (row) =>
-      row.duplicateOfSourceRow !== null ||
-      isCatalogImportImagePreviewWarning(row.imageUrlWarning),
+    (row) => row.duplicateOfSourceRow !== null,
   );
   const duplicateGroupCount = new Set(
     includedRows
@@ -295,12 +293,7 @@ export function getCatalogImportState(
   const priceIssueCount = includedRows.filter(
     (row) => row.priceWarning !== null,
   ).length;
-  const imageIssueCount = includedRows.filter(
-    (row) => row.imageUrlWarning !== null,
-  ).length;
-  const imagePreviewWarningCount = includedRows.filter((row) =>
-    isCatalogImportImagePreviewWarning(row.imageUrlWarning),
-  ).length;
+  const imageIssueCount = 0;
   const savedIdIssueCount = savedIdIssueRows.length;
   const uniqueMatches = [
     ...new Map(
@@ -360,7 +353,7 @@ export function getCatalogImportState(
       savedIdIssueCount,
       sourceRowCount,
       uniqueCultivarCount: uniqueMatches.length,
-      warningCount: duplicateGroupCount + imagePreviewWarningCount,
+      warningCount: duplicateGroupCount,
     },
     detectedRows,
     enrichment: {
@@ -435,11 +428,9 @@ const CATALOG_IMPORT_TEMPLATE_HEADERS = [
   "price",
   "description",
   "private note",
-  "image url",
 ] as const;
 const CATALOG_MAPPED_OUTPUT_HEADERS = {
   description: "Description",
-  imageUrl: "Image URL",
   price: "Price",
   privateNote: "Private Note",
   title: "Name",
@@ -449,6 +440,32 @@ const CATALOG_ENRICHMENT_HEADERS = {
   registeredCultivarName: "Daylily Catalog Cultivar Name",
   cultivarUrl: "Daylily Catalog Cultivar URL",
 } as const;
+const CATALOG_IMPORT_DISPLAY_HEADERS: Record<
+  keyof CatalogColumnMapping,
+  string
+> = {
+  cultivarReferenceId: CATALOG_ENRICHMENT_HEADERS.cultivarReferenceId,
+  description: CATALOG_MAPPED_OUTPUT_HEADERS.description,
+  imageUrl: "Image URL",
+  price: CATALOG_MAPPED_OUTPUT_HEADERS.price,
+  privateNote: CATALOG_MAPPED_OUTPUT_HEADERS.privateNote,
+  title: CATALOG_MAPPED_OUTPUT_HEADERS.title,
+};
+
+export function getCatalogImportMappedColumnLabel(
+  mapping: CatalogColumnMapping,
+  columnIndex: number,
+) {
+  const mappedField = (
+    Object.keys(CATALOG_IMPORT_DISPLAY_HEADERS) as Array<
+      keyof CatalogColumnMapping
+    >
+  ).find((field) => mapping[field] === columnIndex);
+
+  return mappedField === undefined
+    ? null
+    : CATALOG_IMPORT_DISPLAY_HEADERS[mappedField];
+}
 const LEGACY_CATALOG_ENRICHMENT_HEADERS = {
   cultivarReferenceId: [
     "cultivar reference id",
@@ -671,6 +688,18 @@ function findHeaderMappedColumn(
   );
 }
 
+function findUniqueCanonicalHeaderColumn(
+  field: "description" | "price" | "privateNote",
+  columns: SourceColumn[],
+) {
+  const canonicalPattern = HEADER_PATTERNS[field][0];
+  const matches = columns.filter((column) =>
+    canonicalPattern.test(column.label.trim().toLowerCase()),
+  );
+
+  return matches.length === 1 ? (matches[0]?.index ?? null) : null;
+}
+
 function getColumnStats(
   rows: SpreadsheetCell[][],
   headerRowIndex: number | null,
@@ -714,16 +743,14 @@ export function suggestColumnMapping(
     cultivarReferenceId: findHeaderMappedColumn("cultivarReferenceId", columns),
     description: isCatalogImportTemplate
       ? findHeaderMappedColumn("description", columns)
-      : null,
-    imageUrl: isCatalogImportTemplate
-      ? findHeaderMappedColumn("imageUrl", columns)
-      : null,
+      : findUniqueCanonicalHeaderColumn("description", columns),
+    imageUrl: null,
     price: isCatalogImportTemplate
       ? findHeaderMappedColumn("price", columns)
-      : null,
+      : findUniqueCanonicalHeaderColumn("price", columns),
     privateNote: isCatalogImportTemplate
       ? findHeaderMappedColumn("privateNote", columns)
-      : null,
+      : findUniqueCanonicalHeaderColumn("privateNote", columns),
     title: findHeaderMappedColumn("title", columns),
   };
   const stats = new Map(
@@ -818,9 +845,7 @@ export function createCatalogImportRows({
     const price = parsePriceValue(
       mapping.price === null ? undefined : row[mapping.price],
     );
-    const image = getImageUrl(
-      mapping.imageUrl === null ? undefined : row[mapping.imageUrl],
-    );
+    const image = getImageUrl(undefined);
     const description =
       mapping.description === null ? "" : cellToText(row[mapping.description]);
     const sourcePrivateNote =
@@ -832,7 +857,7 @@ export function createCatalogImportRows({
     const sourceRow = rowIndex + 1;
 
     const hasMappedDetails = Boolean(
-      price.source || description || sourcePrivateNote || image.source,
+      price.source || description || sourcePrivateNote,
     );
     const rowKind =
       SECTION_HEADING_PATTERN.test(title) && !hasMappedDetails
@@ -844,6 +869,7 @@ export function createCatalogImportRows({
       description,
       duplicateAccepted: false,
       duplicateOfSourceRow: null,
+      existingListingDecision: null,
       id: `source-row-${sourceRow}`,
       imageUrl: image.imageUrl,
       imagePreviewAccepted: false,
@@ -889,15 +915,10 @@ export function getCatalogImportDownloadSummary({
 
     const originalPriceHadIssue =
       parsePriceValue(row.sourcePrice).warning !== null;
-    const originalImage = getImageUrl(row.sourceImageUrl);
     const priceWasCorrected =
       originalPriceHadIssue && row.priceWarning === null;
-    const imageWasCorrected =
-      row.imageUrlWarning === null &&
-      (originalImage.warning !== null ||
-        originalImage.imageUrl !== row.imageUrl);
 
-    return count + Number(priceWasCorrected) + Number(imageWasCorrected);
+    return count + Number(priceWasCorrected);
   }, 0);
 
   return {
@@ -989,12 +1010,14 @@ export function createCatalogEnrichedSpreadsheet({
   mapping,
   matchedRows,
   parsedSpreadsheet,
+  retainExcludedRows = false,
   selectedSheetIndex,
 }: {
   headerRowIndex: number | null;
   mapping: CatalogColumnMapping;
   matchedRows: CatalogImportRow[];
   parsedSpreadsheet: ParsedSpreadsheet;
+  retainExcludedRows?: boolean;
   selectedSheetIndex: number;
 }): ParsedSpreadsheet {
   const sheets = parsedSpreadsheet.sheets.map((sheet) => ({
@@ -1065,12 +1088,6 @@ export function createCatalogEnrichedSpreadsheet({
     if (mapping.privateNote !== null) {
       outputRow[mapping.privateNote] = row.privateNote;
     }
-    if (mapping.imageUrl !== null && row.imageUrlWarning === null) {
-      outputRow[mapping.imageUrl] = row.imagePreviewAccepted
-        ? row.sourceImageUrl
-        : row.imageUrl;
-    }
-
     outputRow[enrichmentColumns.cultivarReferenceId] =
       row.cultivarReferenceIdWarning === null
         ? (row.match?.cultivarReferenceId ?? row.sourceCultivarReferenceId)
@@ -1080,17 +1097,58 @@ export function createCatalogEnrichedSpreadsheet({
     outputRow[enrichmentColumns.cultivarUrl] = getCultivarUrl(row.match);
   }
 
-  selectedSheet.rows = originalRows.filter((_, outputRowIndex) => {
-    if (outputRowIndex === outputHeaderRowIndex) {
-      return true;
-    }
-    const sourceRow = outputRowIndex + 1 - (insertedHeaderRow ? 1 : 0);
-    return !removedSourceRows.has(sourceRow);
-  });
+  selectedSheet.rows = retainExcludedRows
+    ? originalRows
+    : originalRows.filter((_, outputRowIndex) => {
+        if (outputRowIndex === outputHeaderRowIndex) {
+          return true;
+        }
+        const sourceRow = outputRowIndex + 1 - (insertedHeaderRow ? 1 : 0);
+        return !removedSourceRows.has(sourceRow);
+      });
 
   return {
     ...parsedSpreadsheet,
     sheets,
+  };
+}
+
+export function createCatalogCleanSpreadsheet({
+  matchedRows,
+  parsedSpreadsheet,
+}: {
+  matchedRows: CatalogImportRow[];
+  parsedSpreadsheet: ParsedSpreadsheet;
+}): ParsedSpreadsheet {
+  const headers = [
+    "Name",
+    "Price",
+    "Description",
+    "Private Note",
+    CATALOG_ENRICHMENT_HEADERS.cultivarReferenceId,
+    CATALOG_ENRICHMENT_HEADERS.registeredCultivarName,
+    CATALOG_ENRICHMENT_HEADERS.cultivarUrl,
+  ];
+  const rows = matchedRows
+    .filter(
+      (row) => row.rowKind === "listing" && row.outputState === "included",
+    )
+    .map((row) => [
+      row.match?.displayName ?? row.title,
+      row.priceWarning === null ? (row.price ?? "") : row.sourcePrice,
+      row.description,
+      row.privateNote,
+      row.cultivarReferenceIdWarning === null
+        ? (row.match?.cultivarReferenceId ?? row.sourceCultivarReferenceId)
+        : "",
+      row.match?.displayName ?? "",
+      getCultivarUrl(row.match),
+    ]);
+
+  return {
+    fileName: parsedSpreadsheet.fileName,
+    source: parsedSpreadsheet.source,
+    sheets: [{ name: "Catalog", rows: [headers, ...rows] }],
   };
 }
 
@@ -1108,7 +1166,6 @@ export function createCatalogImportTemplateCsv() {
       "12.00",
       "Golden yellow reblooming daylily",
       "Front garden",
-      "https://example.com/daylily.jpg",
     ]
       .map(escapeCsv)
       .join(","),
@@ -1118,68 +1175,46 @@ export function createCatalogImportTemplateCsv() {
 export function createCatalogImportSampleSpreadsheet(): ParsedSpreadsheet {
   return {
     fileName: "Sample daylily catalog.csv",
+    source: "sample",
     sheets: [
       {
         name: "Sample catalog",
         rows: [
-          ["name", "price", "description", "private note", "image url"],
-          [
-            "Stella de Oro",
-            "12.00",
-            "Golden yellow rebloomer",
-            "Front border",
-            "",
-          ],
+          ["name", "price", "description", "private note"],
+          ["Stella de Oro", "12.00", "Golden yellow rebloomer", "Front border"],
           [
             "Happy Returns",
             "15.00",
             "Soft yellow fragrant flowers",
             "Display row",
-            "",
           ],
-          [
-            "Ruby Spider",
-            "18.00",
-            "Large ruby red unusual form",
-            "North bed",
-            "",
-          ],
+          ["Ruby Spider", "18.00", "Large ruby red unusual form", "North bed"],
           [
             "Primal Scream",
             "20.00",
             "Bright tangerine unusual form",
             "Feature bed",
-            "",
           ],
-          ["Orange Velvet", "16.00", "Rich orange self", "South border", ""],
+          ["Orange Velvet", "16.00", "Rich orange self", "South border"],
           [
             "Action Figure",
             "24.00",
             "Pleated sculpted form",
             "New introductions",
-            "",
           ],
           [
             "My Favorite Martian",
             "28.00",
             "Cristate extra-large bloom",
             "Seedling garden",
-            "",
           ],
-          [
-            "Vanguard 2",
-            "22.00",
-            "Name needs confirmation",
-            "Holding area",
-            "",
-          ],
-          ["Stella de Oro", "10.00", "Second-size division", "Pot row", ""],
+          ["Vanguard 2", "22.00", "Name needs confirmation", "Holding area"],
+          ["Stella de Oro", "10.00", "Second-size division", "Pot row"],
           [
             "Aerial Art",
             "two for $30",
             "Graceful unusual form",
             "Price needs cleanup",
-            "",
           ],
         ],
       },

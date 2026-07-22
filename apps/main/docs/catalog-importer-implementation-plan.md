@@ -8,18 +8,18 @@ decisions, evidence, and blockers.
 
 ## Live status
 
-| Field           | Current value                                                                                                                                                                          |
-| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Overall status  | Implementation complete                                                                                                                                                                |
-| Current phase   | Complete                                                                                                                                                                               |
-| Current slice   | Reduction pass complete                                                                                                                                                                |
-| Last updated    | 2026-07-19                                                                                                                                                                             |
-| Branch          | `agent/catalog-importer-v1`                                                                                                                                                            |
-| Baseline commit | `7b5a81ad`                                                                                                                                                                             |
-| Pull request    | [#352 — Prepare daylily catalog spreadsheets](https://github.com/makoncline/new-daylily-catalog/pull/352)                                                                              |
-| Current blocker | Visible in-app browser verification was blocked by its localhost URL policy                                                                                                            |
-| Next action     | User review of the reduction pass in PR #352; no automatic Codex review was run                                                                                                        |
-| Latest evidence | Reduction pass passed 37 focused tests, all 3 importer E2Es, typecheck, changed-file lint, and `git diff --check`; in-app browser verification was blocked by its localhost URL policy |
+| Field           | Current value                                                                                                    |
+| --------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Overall status  | Public preparation plus dashboard create-only import implemented and verified                                    |
+| Current phase   | Phase H — Interface reduction audit                                                                              |
+| Current slice   | Slice 29 — Complete                                                                                              |
+| Last updated    | 2026-07-22                                                                                                       |
+| Branch          | `agent/catalog-importer-v1`                                                                                      |
+| Baseline commit | `7b5a81ad`                                                                                                       |
+| Pull request    | [#352 — Prepare daylily catalog spreadsheets](https://github.com/makoncline/new-daylily-catalog/pull/352)        |
+| Current blocker | None                                                                                                             |
+| Next action     | User review, then commit and push when requested                                                                 |
+| Latest evidence | 39 focused tests, typecheck, lint with no errors, 16 public Atlas states, and 15 dashboard importer Atlas states |
 
 ### Progress
 
@@ -42,6 +42,23 @@ decisions, evidence, and blockers.
   - [x] Slice 11 — Fix mobile and accessibility blockers
   - [x] Slice 12 — Verify large-workbook performance and add only proven scaling controls
   - [x] Slice 13 — Complete analytics, Atlas, documentation, and real-workbook proof
+- [x] Phase F — Guided acquisition workflow
+  - [x] Slice 14 — Add the concise introduction and tabbed workflow
+  - [x] Slice 15 — Add spreadsheet, sample, and manual starting paths
+  - [x] Slice 16 — Add the personalized results reveal and Pro story
+  - [x] Slice 17 — Add clean and enriched-original downloads plus sample logging
+  - [x] Slice 18 — Verify browser, Atlas, and workbook behavior
+  - [x] Slice 19 — Close second-pass correctness and presentation gaps
+  - [x] Slice 20 — Stabilize the spreadsheet-to-catalog reveal
+  - [x] Slice 21 — Remove the post-Build reveal step
+  - [x] Slice 22 — Use facet-specific shadcn collection charts
+- [x] Phase G — Dashboard mass import
+  - [x] Slice 23 — Restore the browser-local project in a separate dashboard shell
+  - [x] Slice 24 — Add the listings summary, corrections, exclusions, and duplicate warnings
+  - [x] Slice 25 — Add a create-only, retry-safe listing import mutation
+  - [x] Slice 26 — Add dashboard navigation and verify the full local handoff
+- [x] Phase H — Interface reduction audit
+  - [x] Slice 27 — Remove redundant UI and verify every importer state
 
 ### Current-slice notes
 
@@ -62,19 +79,84 @@ Move durable decisions to the decision log and completed work to the work log.
   pending decisions; the final sample-file checks did not alter its decisions.
 - The route remains a browser-local preparation experience. It does not create
   database listings or publish a catalog.
+- The public shell now transitions from the personalized preview to a
+  source-aware Pro checkout. It flushes the IndexedDB project before leaving,
+  skips generic profile/sample-listing onboarding, and returns to the same
+  browser-local project after checkout and authentication.
+- This public shell is not the permanent Pro importer. A future dashboard Pro
+  shell may reuse the existing parsing, mapping, matching, review,
+  issue-resolution, and preview boundaries, but its completion step will be a
+  separate listing-creation workflow.
+- The existing seven-day trial remains unchanged. A possible paid introductory
+  offer is a separate pricing decision.
+- The workflow now uses six lightweight tabs: Start, Prepare, Preview, Review,
+  Issues, and Download. Navigation is a compact border rail rather than a row
+  of cards.
+- First-time visitors see a short four-scene introduction. Build opens the
+  populated catalog preview directly.
+- Sellers can upload a spreadsheet, use the sample, or build a ten-listing
+  spreadsheet-like catalog manually. All three paths converge on the same
+  matching, preview, repair, and download flow.
+- Download now offers a clean normalized catalog and an enriched original.
+  Both retain Daylily Catalog identity fields for reliable re-upload; only the
+  enriched original retains every original sheet, row, and unrelated column.
+- During quiet launch, Build sends only the detected header and first five
+  nonempty rows to a bounded server log. The full workbook remains local, and
+  the logging endpoint can be disabled with
+  `CATALOG_IMPORTER_SAMPLE_LOGGING_ENABLED=false`.
+- The second-pass audit keeps manual entry intentionally create/delete-only and
+  closes small slideshow, count-copy, and download-state gaps.
+- The separate post-Build reveal was removed after user review. Build now
+  lands directly on the real catalog preview without an intermediate button or
+  timed presentation.
+- The dashboard now has a separate `/dashboard/imports` shell and an **Import
+  catalog** navigation item. It restores the same-device IndexedDB project
+  after checkout, or shows the complete upload/sample/manual workflow when no
+  project exists.
+- The dashboard summary uses a listings table with linked cultivar identity,
+  seller fields, source rows, row-level include/exclude, duplicate warnings,
+  and a narrow edit sheet for price, description, and private note. Reset
+  restores those fields from the spreadsheet.
+- The final dashboard action creates listings in 100-row transactions. Stable
+  per-project import keys make retries idempotent; existing listings are never
+  updated. The completed local proof created 567 listings, including 520
+  cultivar links, and then cleared the completed browser draft.
+- Seller image URLs are outside this MVP. They are not mapped or imported; an
+  original image column remains untouched in the enriched-original workbook.
+- The interface reduction audit removed zero-value statuses, duplicated
+  columns, repeated explanations, no-op bulk decisions, sparse charts, and
+  image-repair UI that is outside the MVP. Small catalogs keep search
+  available behind one action instead of opening the full filter panel.
+- The issue tables retain their spreadsheet layout on desktop and use labeled
+  rows on phones so duplicate context, price inputs, and save actions never
+  extend beyond the viewport.
 
 ### User update
 
 Use this as the source for concise progress updates.
 
-> The catalog-importer plan is complete. The final slice added aggregate-only
-> funnel measurement, refreshed eight importer Atlas states, preserved the
-> focused E2E contract, and passed visible Chrome checks with all three supplied
-> workbooks. A follow-up simplification pass also fixed the sample year view,
-> full award labels, listing detail Sheet, unfinished-download confirmation,
-> catalog scroll handoff, redundant controls, duplicate handling, and image
-> warning semantics. The reduction passed 37 focused tests and all three
-> importer E2Es. Nothing was imported or published.
+> The public importer now has a source-aware transition from the personalized
+> preview to Pro membership. Anonymous sellers go directly to an email and
+> checkout step; signed-in non-Pro sellers go directly to checkout; existing
+> Pro members see no acquisition prompt. The IndexedDB project is flushed
+> before navigation and restored after checkout/authentication. Importer-origin
+> users skip generic profile and sample-listing onboarding. The public outcome
+> remains a prepared workbook, and nothing is imported or published.
+>
+> The experience now begins with a concise four-part introduction, supports
+> upload, sample, or ten-listing manual entry, opens the enriched catalog
+> preview directly after Build, and moves through compact Preview, Review,
+> Issues, and Download tabs.
+> Sellers can download either a clean normalized catalog or an enriched copy
+> of the original workbook, and the same browser-local project continues into
+> the source-aware Pro checkout path.
+>
+> After checkout, that project now opens in the separate dashboard importer.
+> Existing users can reach the same flow from **Import catalog** in dashboard
+> navigation. The dashboard presents a listing table, supports exclusions and
+> narrow seller-field corrections, warns about duplicates, and creates new
+> listings in retry-safe batches. It never updates existing listings, and image
+> URLs remain outside this MVP.
 
 ## How the goal agent must use this file
 
@@ -148,6 +230,28 @@ paid importer can consume the prepared workbook.
 
 The governing phrase is **Pro-grade, not Pro-gated**.
 
+### Dashboard import contract
+
+The authenticated dashboard flow is a separate shell over the reusable
+browser-local preparation work. It may start with a restored public project or
+with a fresh spreadsheet, sample, or manual list.
+
+- The summary is a listing table, not a hosted-catalog preview.
+- Sellers may include or exclude rows and adjust price, description, and
+  private note before creation.
+- Cultivar review and spreadsheet issue repair reuse the focused public-flow
+  components.
+- Potential duplicates are warnings. Multiple listings for one cultivar remain
+  valid and included by default.
+- The completion action creates new listings only; it never updates an existing
+  listing.
+- Stable project-and-row import keys make a failed or interrupted batch safe to
+  retry.
+- The completed browser draft is cleared after every included row is confirmed
+  created.
+- Seller image URLs are not mapped, validated, uploaded, or imported in this
+  MVP.
+
 ### Cleaned-download contract
 
 The uploaded file remains untouched. Download creates a new prepared copy.
@@ -167,8 +271,7 @@ The selected listing sheet should:
 - preserve the original price in an unresolved current-workbook download;
 - apply only safe whitespace normalization to mapped description and private
   note values unless the seller explicitly changes them;
-- write an approved, normalized image URL when one exists;
-- preserve the original image value when its issue remains unresolved; and
+- leave any seller image URL column untouched and outside the mapped output;
 - clear a known-invalid saved ID from the prepared identity field while
   retaining the source row; and
 - add the identity columns defined below.
@@ -208,6 +311,11 @@ merged cells, drawings, comments, macros, validation, and hidden state.
 | 2026-07-19 | Keep the existing bounded preview rendering and add no new scaling mechanism.                  | The real and 5,000-listing measurements stayed usable; added virtualization, pagination controls, or queue modes would be unsupported complexity. |
 | 2026-07-19 | Keep duplicates and remote image-preview failures as nonblocking warnings.                     | Duplicate cultivar listings are common seller data, and a valid remote image URL can fail only because the host blocks browser previews.          |
 | 2026-07-19 | Consolidate each preview card into one details interaction.                                    | Image zoom, full description, registry details, awards, and match revision do not need separate competing controls on the same card.              |
+| 2026-07-20 | Keep public preparation and future dashboard import as separate shells.                        | The public flow ends in a prepared workbook and Pro CTA; the future dashboard flow will explicitly create listings without redefining this shell. |
+| 2026-07-20 | Keep the existing seven-day trial while implementing the source-aware handoff.                 | Introductory pricing is a separate product decision and should not block or reshape the acquisition path.                                         |
+| 2026-07-21 | Keep dashboard import as a separate create-only shell.                                         | The public flow remains acquisition and workbook preparation; the authenticated flow may create listings without changing existing ones.          |
+| 2026-07-21 | Continue the same-device draft through checkout using IndexedDB.                               | Cross-device transfer is unnecessary for the MVP, and no workbook needs to be copied to the server.                                               |
+| 2026-07-21 | Leave seller image URLs outside both import shells.                                            | Image ownership and upload verification need their own later workflow; reference photos can still identify linked cultivars during preparation.   |
 
 ## Phase A — Contract and state foundation
 
@@ -784,6 +892,14 @@ Tasks:
       engines.
 - [x] Reuse existing membership link tracking rather than adding a new funnel
       abstraction.
+- [x] Route anonymous importer users to a source-aware email and checkout step
+      instead of the generic profile/sample-listing builder.
+- [x] Route signed-in non-Pro users directly to authenticated checkout.
+- [x] Flush pending IndexedDB writes before leaving the importer.
+- [x] Return importer-origin memberships to `/catalog-importer` and verify
+      active membership before showing success.
+- [x] Carry aggregate conversion attribution through Stripe and webhook events
+      without spreadsheet content or seller values.
 
 Acceptance:
 
@@ -1008,6 +1124,217 @@ Run proportionate checks after each slice, then all gates before completion.
 - [x] Dirty worktree contains no unexplained files.
 - [x] Each completed slice is committed and pushed to PR #352.
 
+## Phase F — Guided acquisition workflow
+
+### Slice 14 — Concise introduction and tabbed workflow
+
+- [x] Add a short first-visit sequence explaining input, reveal, preparation,
+      and Pro continuation.
+- [x] Replace the single long results page with Start, Prepare, Preview, Review,
+      Issues, and Download tabs.
+- [x] Keep progress counts in the tab labels and preserve their original
+      totals.
+- [x] Use typography, borders, tables, and spacing instead of new cards.
+- [x] Avoid state-synchronization effects; keep transitions event-driven.
+
+### Slice 15 — Three starting paths
+
+- [x] Keep XLSX/CSV upload and sample catalog paths.
+- [x] Add a ten-listing manual path using a spreadsheet-like editor.
+- [x] Let manual sellers search registered cultivars or add an unlinked name.
+- [x] Keep manual rows create/delete-only so a visible name can never drift
+      from its hidden saved cultivar ID.
+- [x] Converge every source on the existing matching and repair engine.
+
+### Slice 16 — Results and Pro story
+
+- [x] Open the useful catalog preview immediately after Build.
+- [x] Keep the existing source-aware email, checkout, authentication, and
+      browser-project return path.
+- [x] Explain that Pro adds seller images, editable listings, lists, unlinked
+      plants, a dashboard, and a hosted public catalog.
+- [x] Keep all acquisition prompts out of the Pro-member experience.
+
+### Slice 17 — Two reusable downloads and quiet-launch sample logging
+
+- [x] Add a clean normalized catalog download.
+- [x] Add an enriched-original download retaining all original sheets, rows,
+      and unrelated columns while applying documented mapped-field corrections
+      and standardizing mapped headers.
+- [x] Include stable Daylily Catalog ID, cultivar name, and URL fields in both
+      outputs so either can be re-uploaded without losing matching work.
+- [x] Keep excluded rows out of the clean catalog but present in the enriched
+      original.
+- [x] Log only the detected header and first five nonempty rows when Build is
+      submitted; never send the full workbook.
+- [x] Bound and disable the temporary server log independently from importer
+      availability.
+- [x] Cover data-use language on the general terms page.
+
+### Slice 18 — Verification and closeout
+
+- [x] Cover the manual source, tabbed journey, retry, clean download, and
+      enriched-original reconstruction with focused integration tests.
+- [x] Run the focused importer E2E through upload, tabs, repair,
+      restoration, and download.
+- [x] Run all eight importer Atlas states and inspect desktop/mobile captures.
+- [x] Verify both download actions in visible Chrome and the re-upload data
+      contract in focused integration coverage.
+- [x] Capture and send the updated full-page screenshot.
+- [x] Run typecheck, lint, formatting, and `git diff --check`.
+
+### Slice 19 — Second-pass correctness and presentation
+
+- [x] Make manually created rows immutable after selection, with only Add and
+      Remove actions.
+- [x] (Superseded by Slice 21) Drive the post-Build reveal from real matched
+      rows and preview image data.
+- [x] Stop introduction autoplay after a seller explicitly selects a slide.
+- [x] Correct singular count labels and completed-download copy.
+- [x] Keep unresolved warnings out of the `prepared` download analytics state.
+- [x] Run focused tests, E2E, typecheck, lint, formatting, and visible browser
+      verification.
+
+### Slice 20 — Stable spreadsheet-to-catalog reveal
+
+Superseded and removed by Slice 21.
+
+- [x] Keep the reveal heading, controls, and content stage at fixed dimensions.
+- [x] Show three real spreadsheet rows in a full-width table first.
+- [x] Crossfade into three cards rendered by the shared catalog-preview listing
+      card component.
+- [x] Keep inactive transition content out of accessibility and keyboard
+      navigation.
+- [x] Verify both live states, page width, focused tests, E2E, typecheck, lint,
+      formatting, and `git diff --check`.
+
+### Slice 21 — Direct Build-to-preview transition
+
+- [x] Remove the reveal component and its local workflow state.
+- [x] Open the populated catalog preview immediately after a successful Build.
+- [x] Remove reveal-only branches and controls from integration, E2E, and Atlas
+      coverage.
+- [x] Verify focused tests, E2E, typecheck, lint, browser behavior, and the
+      final full-page screenshot.
+
+### Slice 22 — Facet-specific collection charts
+
+- [x] Use shadcn Chart primitives for the collection-insight visualizations.
+- [x] Use ranked horizontal bars for long categorical facets.
+- [x] Use a responsive word cloud for hybridizers.
+- [x] Pack hybridizers on a deterministic center-out spiral so the highest
+      counts anchor the middle without layout shifts or a new dependency.
+- [x] Use compact donut charts for exclusive facets such as ploidy and foliage.
+- [x] Plot year, bloom size, scape height, bud count, and branch count as
+      continuous bucketed histograms, including empty buckets.
+- [x] Scale year resolution up to roughly 20 buckets based on the observed
+      registration span while allowing the responsive axis to thin labels.
+- [x] Order bloom seasons chronologically and flower-show classes by size before
+      form-only classifications.
+- [x] Keep chart values connected to the existing catalog filters.
+- [x] Make visible category and bucket labels activate the same catalog filter
+      as their chart marks, with pointer and keyboard input.
+- [x] Present each facet's derived collection fact in a compact shadcn Item
+      with a facet-specific icon.
+- [x] Store the selected insight and preview facet filters in the URL so Back,
+      Forward, refresh, and shared URLs restore the same catalog view.
+- [x] Replace the current preview filters when a collection-insight value is
+      selected so insights never combine into an empty result accidentally.
+- [x] Keep accessible data tables alongside the visual charts.
+- [x] Complete focused tests, E2E, typecheck, lint, browser verification, and
+      the final full-page screenshot.
+
+## Phase G — Dashboard mass import
+
+### Slice 23 — Separate dashboard shell and restoration
+
+- [x] Add `/dashboard/imports` without changing the public importer's terminal
+      workbook-download contract.
+- [x] Restore the same-device IndexedDB project after checkout and sign-in.
+- [x] Show the complete source and mapping workflow when no project exists.
+- [x] Keep the dashboard shell free of public acquisition messaging.
+
+### Slice 24 — Import summary and decisions
+
+- [x] Present every listing in a dashboard-style table.
+- [x] Show cultivar links, reference images, seller fields, and source rows.
+- [x] Allow row-level inclusion and exclusion.
+- [x] Allow narrow corrections to price, description, and private note, with a
+      reset to the spreadsheet value.
+- [x] Warn about duplicates in the source project and existing dashboard
+      listings without treating duplicates as invalid.
+- [x] Reuse the cultivar-review and issue-repair components.
+
+### Slice 25 — Create-only import
+
+- [x] Add a protected, Pro-entitled, 100-row listing-import mutation.
+- [x] Validate cultivar IDs before creation.
+- [x] Preserve unlinked listings and unresolved original price text.
+- [x] Add stable per-project row keys and a database uniqueness constraint so
+      retries do not duplicate completed batches.
+- [x] Redact spreadsheet values from mutation audit logs.
+- [x] Clear the completed browser draft only after every batch succeeds.
+
+### Slice 26 — Navigation and proof
+
+- [x] Add **Import catalog** to dashboard navigation for existing users.
+- [x] Route importer-originated checkout completion to `/dashboard/imports`.
+- [x] Remove Image URL from mapping, normalized output, and listing creation.
+- [x] Verify a visible 567-row local import and confirm all rows appear in the
+      dashboard listings page.
+- [x] Verify a fresh post-completion visit starts at the complete source-choice
+      experience.
+
+## Phase H — Interface reduction audit
+
+### Slice 27 — State-by-state simplification
+
+- [x] Remove repeated counts, zero-value statuses, duplicated fields, and
+      controls that do not change the outcome.
+- [x] Keep small-catalog insights useful without drawing sparse or empty
+      charts.
+- [x] Keep full search available without making it dominate small previews.
+- [x] Make public review, issue, membership, and download language describe
+      the exact next action and output.
+- [x] Adapt the dashboard ready table to the data that is actually present.
+- [x] Reduce existing-listing decisions to the two distinct choices.
+- [x] Add deterministic Atlas coverage for public mapping, details, completed
+      review, issues, download confirmation, and dashboard start/ready/edit
+      states.
+- [x] Verify the full public and dashboard state sets at desktop and phone
+      widths, including visible issue controls with no page overflow.
+
+### Slice 28 — Second-pass state and transition audit
+
+- [x] Keep the public step heading visible when changing steps from a scrolled
+      page without adding effect-driven synchronization.
+- [x] Capture and inspect the actual public download screens at desktop and
+      phone widths, not only the incomplete-download confirmation.
+- [x] Keep both download choices readable and consistent on narrow screens.
+- [x] Make dashboard review and issue steps block the import transition until
+      their remaining decisions are complete.
+- [x] Make zero-ready and exact-existing-only summaries grammatical and
+      outcome-specific.
+- [x] Make possible-existing and exact-existing decisions usable on phones
+      without horizontal tables or clipped controls.
+- [x] Capture and inspect dashboard review, issues, possible existing, exact
+      existing, confirmation, already-existing, and completion states.
+- [x] Keep the disposable realistic Atlas seed schema-aligned without changing
+      the live or shared development database.
+
+### Slice 29 — Third-pass mobile and redundancy audit
+
+- [x] Replace the clipped phone-width ready table with labeled rows that keep
+      include, listing data, and edit controls visible without horizontal
+      scrolling.
+- [x] Remove the duplicate ready-row footer count when there is no pagination
+      or batch include action.
+- [x] Remove the duplicate exact-existing count from the zero-ready summary.
+- [x] Add phone-width Atlas states for the row editor, cultivar review, and data
+      issue workflows.
+- [x] Assert that every dashboard phone state has no page-level horizontal
+      overflow.
+
 ## Final exit gates
 
 The goal is complete only when:
@@ -1020,15 +1347,17 @@ The goal is complete only when:
 - [x] the prepared workbook opens and re-uploads correctly;
 - [x] browser-local restoration survives refresh, client navigation, and
       sign-in return where applicable;
-- [x] nothing is published and no database listings are created;
+- [x] the public flow publishes and creates nothing; only the explicit
+      authenticated dashboard confirmation creates listings;
 - [x] the user receives a final summary of behavior, evidence, remaining
       non-goals, and PR state.
 
 ## Explicit non-goals
 
-- Creating database listings.
 - Publishing a catalog.
-- Building the future dashboard importer.
+- Updating existing listings through mass import.
+- Importing seller image URLs or uploading seller images.
+- Moving browser-local projects between devices.
 - Adding an open-ended AI chat surface.
 - Sending or storing complete workbooks on the server.
 - Paywalling repair or download in this version.
@@ -1055,25 +1384,38 @@ The goal is complete only when:
 Add new entries at the top. Keep descriptions factual and link commits or
 artifacts when useful.
 
-| Date       | Slice     | Status   | What changed                                                                                                                                                          | Verification                                                                                                                                                              | Commit / notes                      |
-| ---------- | --------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
-| 2026-07-19 | Reduction | Complete | Reduced reveal/navigation/copy, consolidated listing-card interactions, hid no-op controls, default-kept duplicates, and separated image fixes from preview warnings. | 37 focused tests, 3 importer E2Es, typecheck, changed-file lint, and `git diff --check`; in-app browser blocked localhost verification.                                   | Reduction commit                   |
-| 2026-07-19 | Follow-up | Complete | Fixed sparse insight bars and award labels; added unfinished-download confirmation and listing details Sheet; simplified privacy, overview, file, and scroll UI.      | 42 focused tests, 3 importer E2Es, typecheck, changed-file lint, `git diff --check`, and visible Chrome sample-catalog verification.                                      | `3bae39bb`                          |
-| 2026-07-19 | Slice 13  | Complete | Added aggregate funnel analytics; refreshed docs and Atlas descriptions; closed importer, shared-search, sample-file, and real-workbook proof.                        | 71 focused tests, 3 importer E2Es, 31 passing Atlas states, typecheck, lint, formatting, and visible Chrome with all three supplied workbooks.                            | This Slice 13 commit.               |
-| 2026-07-19 | Slice 12  | Complete | Measured the real and 5,000-listing browser workflows; existing bounded preview rendering stayed responsive, so no scaling mechanism was added.                       | Real parse, match, preview, filter, insight, issue, restore, and download timings plus deterministic 5,000-listing timings and visible Chrome restoration.                | `06bea555`                          |
-| 2026-07-19 | Slice 11  | Complete | Fixed demonstrated narrow-width issue controls; improved image/action names, touch and focus targets, table relationships, live announcements, and motion.            | 53 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, and visible Chrome desktop plus phone/tablet verification.                                 | `7a72aed4`                          |
-| 2026-07-18 | Slice 10  | Complete | Added guest/Pro-aware continuation, quiet and completed prompts, session dismissal, honest capability copy, and uncached optional Clerk audience detection.           | 52 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, and real Chrome Pro/restoration verification with the 1,087-row workbook.                  | `c45ac14d`                          |
-| 2026-07-18 | Slice 9   | Complete | Added exact pre-download summary, current/prepared labels, stable prepared filenames, explicit output/fidelity copy, and deterministic re-upload proof.               | 39 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, visible Chrome summary, and reopened three-sheet real-workbook output.                     | `30449348`                          |
-| 2026-07-18 | Slice 8   | Complete | Grouped issue repair; preserved bundle-price meaning; clarified duplicate/image consequences; added stale-ID rematching and issue Undo.                               | 39 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, plus preserved visible real-workbook state in Chrome.                                      | `cb47bb01`                          |
-| 2026-07-18 | Slice 7   | Complete | Separated defer and intentional-unmatched decisions; added explicit candidate actions, restoration, linked-row unlinking, and identity Undo.                          | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, and visible Chrome verification against the real 52-row review queue.                      | `10e70ca7`                          |
-| 2026-07-18 | Slice 6   | Complete | Added responsive persistent workspace navigation, prioritized next-task links, and always-available current/prepared download without duplicate state.                | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, and real Chrome verification of sticky anchors and the 1,087-row workflow.                 | `086da3d8`                          |
-| 2026-07-18 | Slice 5   | Complete | Counted linked unique cultivars; added narrative discoveries and clickable rankings that drive the shared removable preview filters.                                  | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and real Chrome filtering of the 1,087-row catalog from 1,034 to 52 listings.     | `dd181675`                          |
-| 2026-07-18 | Slice 4   | Complete | Restricted preview to explicit links; removed confidence badges; labeled image provenance; added match confirmation, highlighting, revision, and undo.                | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome verification against the 1,087-row preview.                    | `b1442747`                          |
-| 2026-07-18 | Slice 3   | Complete | Replaced the generic overview with a personalized enrichment reveal; reordered preview, insights, preparation, repair, download, and Pro continuation.                | 37 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome verification with the rebuilt 1,087-row workbook.              | `1d999a90`                          |
-| 2026-07-18 | Slice 2   | Complete | Clarified browser-local privacy and file actions; added confirmed resets and event-driven processing stages without timed delays or effects.                          | 36 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome verification with the restored real workbook.                  | `bda585ad`                          |
-| 2026-07-18 | Slice 1   | Complete | Replaced overlapping row flags with explicit row/output/link/provenance state; centralized counts and enrichment; migrated v2 browser drafts to v3.                   | 33 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome restoration of the 1,087-row workbook.                         | `01e838c0`                          |
-| 2026-07-18 | Slice 0   | Complete | Implemented cleaned mapped fields and canonical identity headers; documented the verified XLSX value-copy contract.                                                   | 25 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, real Chrome download, full three-sheet value comparison, LibreOffice open/resave. | `1d643703`                          |
-| 2026-07-18 | Planning  | Complete | Converted the full UI/UX review into a 14-slice implementation tracker; made cleaned-copy semantics the first gated contract.                                         | Plan reviewed against the current product doc and PR boundary.                                                                                                            | Implementation begins with Slice 0. |
+| Date       | Slice       | Status   | What changed                                                                                                                                                                                   | Verification                                                                                                                                                                     | Commit / notes                      |
+| ---------- | ----------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| 2026-07-22 | Slice 29    | Complete | Replaced the clipped mobile ready table with labeled rows, removed repeated small-state counts, and added mobile editor, review, issue, and overflow coverage.                                 | 39 focused tests, typecheck, lint with zero errors and one unrelated warning, 16 public Atlas states, 15 dashboard product states, and inspected final desktop/mobile captures.  | Awaiting commit                     |
+| 2026-07-22 | Slice 28    | Complete | Rechecked transitions and terminal states; fixed public step positioning and mobile downloads, blocked premature dashboard transitions, and simplified mobile and exact-existing decisions.    | 39 focused tests, typecheck, lint with zero errors and one unrelated warning, 16 public Atlas states, 12 dashboard product states, and inspected desktop/mobile captures.        | Awaiting commit                     |
+| 2026-07-22 | Slice 27    | Complete | Audited every public and dashboard importer state; removed redundant UI, simplified data-adaptive tables and decisions, hid out-of-scope image repair, and fixed the phone issue layout.       | 39 focused tests, typecheck, lint with zero errors and one unrelated warning, 14 public Atlas states, 4 dashboard Atlas states, and inspected desktop/mobile full-page captures. | Awaiting commit                     |
+| 2026-07-21 | Phase G     | Complete | Added the separate dashboard importer shell, dashboard navigation, same-device draft restoration, editable create summary, duplicate warnings, idempotent batched creation, and no image URLs. | 72 focused tests, typecheck, lint, visible 567-row local create, 520 saved cultivar links, 567 dashboard results, fresh post-completion start, and full-page sample screenshot.  | Awaiting commit                     |
+| 2026-07-21 | Slice 22    | Complete | Made each collection-insight selection replace the preview's existing filters instead of accumulating incompatible facets.                                                                     | Focused importer integration coverage and live sample-catalog URL/result verification.                                                                                           | Awaiting commit                     |
+| 2026-07-21 | Slice 22    | Complete | Gave every derived collection fact a compact shadcn Item treatment and a facet-specific icon.                                                                                                  | Focused importer integration coverage, typecheck, lint, and live sample-catalog inspection.                                                                                      | Awaiting commit                     |
+| 2026-07-21 | Slice 22    | Complete | Made ranked-category and distribution-axis labels activate the same catalog filters as their chart marks.                                                                                      | Focused importer integration coverage, typecheck, and live browser Back/Forward verification.                                                                                    | Awaiting commit                     |
+| 2026-07-21 | Slice 22    | Complete | Added a center-out spiral hybridizer word cloud, facet-specific charts, and URL-owned insight/filter state while preserving summaries and preview filtering.                                   | Focused importer tests, typecheck, live 508-cultivar verification, Back/Forward/reload restoration, all 20 cloud terms placed without text collisions, and no overflow.          | Awaiting commit                     |
+| 2026-07-21 | Slice 21    | Complete | Removed the post-Build reveal component and workflow state so successful matching opens the populated catalog preview directly.                                                                | 75 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, `git diff --check`, and live browser proof at 1280px with no horizontal overflow.        | Awaiting commit                     |
+| 2026-07-21 | Slice 20    | Complete | Replaced the shifting three-scene reveal with a fixed spreadsheet-to-catalog stage and reused the actual preview listing card for the three matched examples.                                  | 75 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and live browser proof of a 1376×791 stable reveal with no horizontal overflow.          | Awaiting commit                     |
+| 2026-07-21 | Slice 19    | Complete | Made manual rows create/delete-only; used real linked rows, prices, and optimized images in the reveal; stopped manual slide choices from autoplaying away; corrected copy and download state. | 75 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, formatting, `git diff --check`, and live browser desktop/manual/reveal verification.     | Awaiting commit                     |
+| 2026-07-20 | Phase F     | Complete | Added the sparse introduction, six-step workflow, manual source table, personalized reveal, two reusable downloads, temporary bounded sample logging, and updated Pro story.                   | 62 focused tests, 3 importer E2Es, 8 Atlas states, typecheck, lint, formatting, `git diff --check`, visible Chrome downloads, zero browser diagnostics, and full-page capture.   | Awaiting commit                     |
+| 2026-07-20 | Pro handoff | Complete | Added a preview-first, source-aware Pro CTA; direct anonymous/signed-in checkout paths; browser-project flush/return; Pro suppression; and aggregate attribution.                              | Eight anonymous Atlas states; focused importer, checkout, claim, and webhook tests; typecheck; lint; `git diff --check`; direct route 200 after clean local restart.             | Awaiting commit                     |
+| 2026-07-19 | Reduction   | Complete | Reduced reveal/navigation/copy, consolidated listing-card interactions, hid no-op controls, default-kept duplicates, and separated image fixes from preview warnings.                          | 37 focused tests, 3 importer E2Es, typecheck, changed-file lint, and `git diff --check`; in-app browser blocked localhost verification.                                          | Reduction commit                    |
+| 2026-07-19 | Follow-up   | Complete | Fixed sparse insight bars and award labels; added unfinished-download confirmation and listing details Sheet; simplified privacy, overview, file, and scroll UI.                               | 42 focused tests, 3 importer E2Es, typecheck, changed-file lint, `git diff --check`, and visible Chrome sample-catalog verification.                                             | `3bae39bb`                          |
+| 2026-07-19 | Slice 13    | Complete | Added aggregate funnel analytics; refreshed docs and Atlas descriptions; closed importer, shared-search, sample-file, and real-workbook proof.                                                 | 71 focused tests, 3 importer E2Es, 31 passing Atlas states, typecheck, lint, formatting, and visible Chrome with all three supplied workbooks.                                   | This Slice 13 commit.               |
+| 2026-07-19 | Slice 12    | Complete | Measured the real and 5,000-listing browser workflows; existing bounded preview rendering stayed responsive, so no scaling mechanism was added.                                                | Real parse, match, preview, filter, insight, issue, restore, and download timings plus deterministic 5,000-listing timings and visible Chrome restoration.                       | `06bea555`                          |
+| 2026-07-19 | Slice 11    | Complete | Fixed demonstrated narrow-width issue controls; improved image/action names, touch and focus targets, table relationships, live announcements, and motion.                                     | 53 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, and visible Chrome desktop plus phone/tablet verification.                                        | `7a72aed4`                          |
+| 2026-07-18 | Slice 10    | Complete | Added guest/Pro-aware continuation, quiet and completed prompts, session dismissal, honest capability copy, and uncached optional Clerk audience detection.                                    | 52 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, and real Chrome Pro/restoration verification with the 1,087-row workbook.                         | `c45ac14d`                          |
+| 2026-07-18 | Slice 9     | Complete | Added exact pre-download summary, current/prepared labels, stable prepared filenames, explicit output/fidelity copy, and deterministic re-upload proof.                                        | 39 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, visible Chrome summary, and reopened three-sheet real-workbook output.                            | `30449348`                          |
+| 2026-07-18 | Slice 8     | Complete | Grouped issue repair; preserved bundle-price meaning; clarified duplicate/image consequences; added stale-ID rematching and issue Undo.                                                        | 39 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, plus preserved visible real-workbook state in Chrome.                                             | `cb47bb01`                          |
+| 2026-07-18 | Slice 7     | Complete | Separated defer and intentional-unmatched decisions; added explicit candidate actions, restoration, linked-row unlinking, and identity Undo.                                                   | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, and visible Chrome verification against the real 52-row review queue.                             | `10e70ca7`                          |
+| 2026-07-18 | Slice 6     | Complete | Added responsive persistent workspace navigation, prioritized next-task links, and always-available current/prepared download without duplicate state.                                         | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated warning, and real Chrome verification of sticky anchors and the 1,087-row workflow.                        | `086da3d8`                          |
+| 2026-07-18 | Slice 5     | Complete | Counted linked unique cultivars; added narrative discoveries and clickable rankings that drive the shared removable preview filters.                                                           | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and real Chrome filtering of the 1,087-row catalog from 1,034 to 52 listings.            | `dd181675`                          |
+| 2026-07-18 | Slice 4     | Complete | Restricted preview to explicit links; removed confidence badges; labeled image provenance; added match confirmation, highlighting, revision, and undo.                                         | 38 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome verification against the 1,087-row preview.                           | `b1442747`                          |
+| 2026-07-18 | Slice 3     | Complete | Replaced the generic overview with a personalized enrichment reveal; reordered preview, insights, preparation, repair, download, and Pro continuation.                                         | 37 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome verification with the rebuilt 1,087-row workbook.                     | `1d999a90`                          |
+| 2026-07-18 | Slice 2     | Complete | Clarified browser-local privacy and file actions; added confirmed resets and event-driven processing stages without timed delays or effects.                                                   | 36 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome verification with the restored real workbook.                         | `bda585ad`                          |
+| 2026-07-18 | Slice 1     | Complete | Replaced overlapping row flags with explicit row/output/link/provenance state; centralized counts and enrichment; migrated v2 browser drafts to v3.                                            | 33 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, and visible Chrome restoration of the 1,087-row workbook.                                | `01e838c0`                          |
+| 2026-07-18 | Slice 0     | Complete | Implemented cleaned mapped fields and canonical identity headers; documented the verified XLSX value-copy contract.                                                                            | 25 focused tests, 3 importer E2Es, typecheck, lint with one unrelated existing warning, real Chrome download, full three-sheet value comparison, LibreOffice open/resave.        | `1d643703`                          |
+| 2026-07-18 | Planning    | Complete | Converted the full UI/UX review into a 14-slice implementation tracker; made cleaned-copy semantics the first gated contract.                                                                  | Plan reviewed against the current product doc and PR boundary.                                                                                                                   | Implementation begins with Slice 0. |
 
 ## Deferred follow-ups
 
@@ -1081,9 +1423,10 @@ Record worthwhile ideas that are intentionally outside this goal. Do not pull
 them into an active slice without updating the product contract and receiving
 user direction.
 
-- Future dashboard/database import using validated `Daylily Catalog ID`.
-- Onboarding integration or public acquisition limits.
+- Replacing or restructuring the generic signed-in onboarding flow.
+- Public acquisition limits.
 - Server-side workbook storage or cross-device project sync.
 - Structured bundle-pricing data model.
 - Seller listing creation from the preview.
+- Seller image ownership verification and bulk image upload.
 - Broader cross-browser performance benchmarks.

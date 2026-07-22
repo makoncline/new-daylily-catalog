@@ -194,7 +194,7 @@ async function mockCultivarMatches(page: Page) {
 
 function sampleCsv() {
   return [
-    "name,price,description,privateNote",
+    "name,price,description,private note",
     "Happy Returns,15.00,Pale yellow fragrant bloom,Display row",
     "Chicago Apache,18.00,Velvety red flower,Back border",
     "Ruby Spider,24.00,Large ruby red spider,Feature bed",
@@ -213,12 +213,16 @@ async function openCleaner(page: Page, viewport: typeof desktop) {
   ).toBeVisible();
 }
 
-async function uploadSpreadsheet(page: Page) {
+async function loadSpreadsheet(page: Page, csv = sampleCsv()) {
   await page.locator('input[type="file"]').setInputFiles({
     name: "spring-catalog.csv",
     mimeType: "text/csv",
-    buffer: Buffer.from(sampleCsv()),
+    buffer: Buffer.from(csv),
   });
+}
+
+async function uploadSpreadsheet(page: Page) {
+  await loadSpreadsheet(page);
   await page.getByRole("button", { name: "Build catalog preview" }).click();
   await expect(
     page.getByRole("region", { name: "Catalog preview ready" }),
@@ -226,6 +230,7 @@ async function uploadSpreadsheet(page: Page) {
 }
 
 async function openReviewQuiz(page: Page) {
+  await page.getByRole("button", { name: "Review 0/1" }).click();
   await expect(
     page.getByRole("heading", { name: "Review potential matches" }),
   ).toBeVisible();
@@ -241,6 +246,15 @@ test("Mobile importer upload", async ({ page }) => {
   await captureAtlasState(page, "catalog-importer-mobile-upload");
 });
 
+test("Desktop importer column mapping", async ({ page }) => {
+  await openCleaner(page, desktop);
+  await loadSpreadsheet(page);
+  await expect(
+    page.getByRole("button", { name: "Build catalog preview" }),
+  ).toBeVisible();
+  await captureAtlasState(page, "catalog-importer-desktop-mapping");
+});
+
 test("Desktop importer results", async ({ page }) => {
   await openCleaner(page, desktop);
   await uploadSpreadsheet(page);
@@ -251,6 +265,16 @@ test("Mobile importer results", async ({ page }) => {
   await openCleaner(page, mobile);
   await uploadSpreadsheet(page);
   await captureAtlasState(page, "catalog-importer-mobile-results");
+});
+
+test("Desktop importer listing details", async ({ page }) => {
+  await openCleaner(page, desktop);
+  await uploadSpreadsheet(page);
+  await page
+    .getByRole("button", { name: "View details for Happy Returns" })
+    .click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await captureAtlasState(page, "catalog-importer-desktop-details");
 });
 
 test("Desktop importer review", async ({ page }) => {
@@ -267,10 +291,67 @@ test("Mobile importer review", async ({ page }) => {
   await captureAtlasState(page, "catalog-importer-mobile-review");
 });
 
+test("Desktop importer review complete", async ({ page }) => {
+  await openCleaner(page, desktop);
+  await uploadSpreadsheet(page);
+  await openReviewQuiz(page);
+  await page.getByRole("button", { name: /Use match 1/ }).click();
+  await expect(page.getByText("Names reviewed", { exact: true })).toBeVisible();
+  await captureAtlasState(page, "catalog-importer-desktop-review-complete");
+});
+
+test("Desktop importer issues", async ({ page }) => {
+  await openCleaner(page, desktop);
+  await page.getByRole("button", { name: "Use sample catalog" }).click();
+  await page.getByRole("button", { name: "Build catalog preview" }).click();
+  await page.getByRole("button", { name: /Issues 0\// }).click();
+  await expect(
+    page.getByRole("region", { name: "Review spreadsheet data" }),
+  ).toBeVisible();
+  await captureAtlasState(page, "catalog-importer-desktop-issues");
+});
+
+test("Mobile importer issues", async ({ page }) => {
+  await openCleaner(page, mobile);
+  await page.getByRole("button", { name: "Use sample catalog" }).click();
+  await page.getByRole("button", { name: "Build catalog preview" }).click();
+  await page.getByRole("button", { name: /Issues 0\// }).click();
+  await captureAtlasState(page, "catalog-importer-mobile-issues");
+});
+
+test("Desktop importer incomplete download", async ({ page }) => {
+  await openCleaner(page, desktop);
+  await uploadSpreadsheet(page);
+  await page.getByRole("button", { name: "Download" }).click();
+  await page
+    .getByRole("button", { name: "Download original workbook" })
+    .click();
+  await expect(page.getByRole("alertdialog")).toBeVisible();
+  await captureAtlasState(page, "catalog-importer-desktop-download-confirm");
+});
+
+test("Desktop importer download", async ({ page }) => {
+  await openCleaner(page, desktop);
+  await uploadSpreadsheet(page);
+  await page.getByRole("button", { name: "Download" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Download your current spreadsheet" }),
+  ).toBeVisible();
+  await captureAtlasState(page, "catalog-importer-desktop-download");
+});
+
+test("Mobile importer download", async ({ page }) => {
+  await openCleaner(page, mobile);
+  await uploadSpreadsheet(page);
+  await page.getByRole("button", { name: "Download" }).click();
+  await captureAtlasState(page, "catalog-importer-mobile-download");
+});
+
 test("Desktop importer preview", async ({ page }) => {
   await openCleaner(page, desktop);
   await uploadSpreadsheet(page);
   await page.locator("#catalog-importer-preview").scrollIntoViewIfNeeded();
+  await page.getByRole("button", { name: "Search and filter" }).click();
   await page.getByRole("switch", { name: "Advanced" }).click();
   await captureAtlasState(page, "catalog-importer-desktop-preview");
 });
@@ -279,6 +360,7 @@ test("Mobile importer preview", async ({ page }) => {
   await openCleaner(page, mobile);
   await uploadSpreadsheet(page);
   await page.locator("#catalog-importer-preview").scrollIntoViewIfNeeded();
+  await page.getByRole("button", { name: "Search and filter" }).click();
   await page.getByRole("switch", { name: "Advanced" }).click();
   await captureAtlasState(page, "catalog-importer-mobile-preview");
 });

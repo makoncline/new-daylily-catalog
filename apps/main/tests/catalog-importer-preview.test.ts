@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  getCatalogPreviewDatabaseDescription,
   getCatalogPreviewDescription,
   getCatalogPreviewImage,
   getCatalogPreviewImageLabel,
@@ -84,6 +85,7 @@ describe("catalog importer preview content", () => {
     });
     expect(getCatalogPreviewImageLabel(row)).toBe("Seller photo");
     expect(getCatalogPreviewDescription(row)).toBe("Seller description");
+    expect(getCatalogPreviewDatabaseDescription(row)).toContain("Purple");
 
     const fallbackRow = previewRow({ description: "", imageUrl: "" });
     expect(getCatalogPreviewImage(fallbackRow)).toMatchObject({

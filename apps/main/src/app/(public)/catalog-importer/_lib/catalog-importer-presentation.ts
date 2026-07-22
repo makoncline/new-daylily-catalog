@@ -49,11 +49,6 @@ export const CATALOG_IMPORTER_MAPPING_FIELDS: CatalogImporterMappingFieldDefinit
       description:
         "Garden location, source, inventory, or other internal notes.",
     },
-    {
-      field: "imageUrl",
-      label: "Image URL",
-      description: "A direct http or https URL for the listing image.",
-    },
   ];
 
 export function getErrorMessage(error: unknown) {
@@ -120,9 +115,9 @@ export function getCandidateAhsDisplayListing(
 }
 
 export function getUploadedImages(
-  row: CatalogImportRow,
+  _row: CatalogImportRow,
 ): OptimizedImageSource[] {
-  return row.imageUrl ? [{ id: `uploaded-${row.id}`, url: row.imageUrl }] : [];
+  return [];
 }
 
 export function getCandidateMeta(candidate: CultivarMatchCandidate) {
@@ -185,9 +180,6 @@ export function getRowIssues(row: CatalogImportRow) {
   if (row.priceWarning) {
     issues.push(`Price could not be cleaned: ${row.priceWarning}`);
   }
-  if (row.imageUrlWarning) {
-    issues.push(`Image URL could not be used: ${row.imageUrlWarning}`);
-  }
   if (row.cultivarReferenceIdWarning) {
     issues.push(
       `Daylily Catalog ID was not found: ${row.cultivarReferenceIdWarning}`,
@@ -208,4 +200,20 @@ export function getDownloadFileName(fileName: string) {
       .toLowerCase() || "daylily-catalog";
 
   return `${safeName}-daylily-catalog-prepared.${extension}`;
+}
+
+export function getCatalogImporterDownloadFileName(
+  fileName: string,
+  kind: "clean" | "enriched",
+) {
+  const extension = fileName.toLowerCase().endsWith(".csv") ? "csv" : "xlsx";
+  const baseName = fileName.replace(/\.[^.]+$/, "");
+  const safeName =
+    baseName
+      .trim()
+      .replace(/[^a-zA-Z0-9_-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .toLowerCase() || "daylily-catalog";
+
+  return `${safeName}-${kind === "clean" ? "clean-catalog" : "enriched-original"}.${extension}`;
 }

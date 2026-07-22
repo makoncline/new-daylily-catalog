@@ -1,7 +1,7 @@
 "use client";
 
 import { TableImagePreview } from "@/components/data-table/table-image-preview";
-import { Button } from "@/components/ui/button";
+import { Kbd } from "@/components/ui/kbd";
 import type {
   CatalogImportRow,
   CultivarMatchCandidate,
@@ -12,9 +12,13 @@ import {
   getCultivarTraitSummary,
 } from "@/app/(public)/catalog-importer/_lib/catalog-importer-presentation";
 
+export const LEAVE_UNMATCHED_SHORTCUT = "U";
+export const EXCLUDE_FROM_CATALOG_SHORTCUT = "X";
+
 export interface CatalogImporterSourceCell {
   column: string;
   label: string;
+  mapped?: boolean;
   value: string;
 }
 
@@ -48,9 +52,7 @@ function CandidateChoice({
     getCultivarTraitSummary(candidate).join(" · ") ||
     "Registry description unavailable";
   const suggestionReason =
-    candidate.confidence === 100
-      ? "Exact normalized-name match"
-      : `${candidate.confidence}% name similarity`;
+    candidate.confidence === 100 ? "Exact name match" : null;
 
   return (
     <article
@@ -63,16 +65,19 @@ function CandidateChoice({
         className="flex items-center gap-3"
         onClick={(event) => event.stopPropagation()}
       >
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
+        <Kbd
+          asChild
           className="size-10 shrink-0 text-base font-semibold tabular-nums"
-          aria-label={`Use match ${choiceNumber}: ${candidate.displayName}`}
-          onClick={() => onChoose(candidate)}
         >
-          {choiceNumber}
-        </Button>
+          <button
+            type="button"
+            aria-label={`Use match ${choiceNumber}: ${candidate.displayName}`}
+            aria-keyshortcuts={String(choiceNumber)}
+            onClick={() => onChoose(candidate)}
+          >
+            {choiceNumber}
+          </button>
+        </Kbd>
         <CandidateImage candidate={candidate} />
       </div>
 
@@ -92,9 +97,11 @@ function CandidateChoice({
         <p className="text-muted-foreground mt-0.5 line-clamp-2 text-xs leading-snug break-words sm:text-sm">
           {registryDescription}
         </p>
-        <p className="text-muted-foreground mt-0.5 text-xs">
-          {suggestionReason}
-        </p>
+        {suggestionReason ? (
+          <p className="text-muted-foreground mt-0.5 text-xs">
+            {suggestionReason}
+          </p>
+        ) : null}
       </div>
     </article>
   );
@@ -103,22 +110,21 @@ function CandidateChoice({
 export function CatalogImporterCandidateList({
   ariaLabel,
   candidates,
+  destination = "workbook",
   onExclude,
   onLeaveUnmatched,
   onChoose,
 }: {
   ariaLabel: string;
   candidates: CultivarMatchCandidate[];
+  destination?: "import" | "workbook";
   onExclude?: () => void;
   onLeaveUnmatched: () => void;
   onChoose: (candidate: CultivarMatchCandidate) => void;
 }) {
-  const leaveUnmatchedChoiceNumber = candidates.length + 1;
-  const excludeChoiceNumber = candidates.length + 2;
-
   return (
-    <div role="list" aria-label={ariaLabel} className="space-y-1">
-      <div className="max-h-72 space-y-1 overflow-y-auto overscroll-contain">
+    <div role="list" aria-label={ariaLabel} className="flex flex-col gap-1">
+      <div className="flex max-h-72 flex-col gap-1 overflow-y-auto overscroll-contain">
         {candidates.map((candidate, candidateIndex) => (
           <CandidateChoice
             key={candidate.cultivarReferenceId}
@@ -128,43 +134,41 @@ export function CatalogImporterCandidateList({
           />
         ))}
       </div>
-      <div role="listitem">
-        <button
-          type="button"
-          className="hover:bg-muted/30 focus-visible:ring-ring flex min-h-11 w-full items-center gap-3 rounded-md p-3 text-left transition-colors outline-none focus-visible:ring-2 motion-reduce:transition-none"
-          aria-label="Leave unmatched"
-          aria-keyshortcuts={String(leaveUnmatchedChoiceNumber)}
-          title="Keep this row in the workbook without a Daylily Catalog cultivar ID or link"
-          onClick={onLeaveUnmatched}
-        >
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-md border text-base font-semibold tabular-nums">
-            {leaveUnmatchedChoiceNumber}
-          </span>
-          <span className="font-medium">Leave unmatched</span>
-          <span className="sr-only">
-            Leave unmatched keeps this row in the prepared workbook without a
-            Daylily Catalog cultivar ID or link.
-          </span>
-        </button>
-      </div>
-      {onExclude ? (
-        <div role="listitem">
+      <div role="listitem" className="flex min-h-11 items-center gap-3 p-3">
+        <Kbd asChild className="size-10 shrink-0 text-base font-semibold">
           <button
             type="button"
-            className="hover:bg-muted/30 focus-visible:ring-ring flex min-h-11 w-full items-center gap-3 rounded-md p-3 text-left transition-colors outline-none focus-visible:ring-2 motion-reduce:transition-none"
-            aria-label="Exclude from catalog"
-            aria-keyshortcuts={String(excludeChoiceNumber)}
-            title="Exclude this row from the prepared workbook"
-            onClick={onExclude}
+            aria-label="Leave unmatched"
+            aria-keyshortcuts={LEAVE_UNMATCHED_SHORTCUT}
+            title={`Keep this row in the ${destination} without a Daylily Catalog cultivar ID or link`}
+            onClick={onLeaveUnmatched}
           >
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-md border text-base font-semibold tabular-nums">
-              {excludeChoiceNumber}
-            </span>
-            <span className="font-medium">Exclude from catalog</span>
-            <span className="sr-only">
-              This row will not be included in the prepared workbook.
-            </span>
+            {LEAVE_UNMATCHED_SHORTCUT}
           </button>
+        </Kbd>
+        <span className="font-medium">Leave unmatched</span>
+        <span className="sr-only">
+          Leave unmatched keeps this row in the {destination} without a Daylily
+          Catalog cultivar ID or link.
+        </span>
+      </div>
+      {onExclude ? (
+        <div role="listitem" className="flex min-h-11 items-center gap-3 p-3">
+          <Kbd asChild className="size-10 shrink-0 text-base font-semibold">
+            <button
+              type="button"
+              aria-label="Exclude from catalog"
+              aria-keyshortcuts={EXCLUDE_FROM_CATALOG_SHORTCUT}
+              title={`Exclude this row from the ${destination}`}
+              onClick={onExclude}
+            >
+              {EXCLUDE_FROM_CATALOG_SHORTCUT}
+            </button>
+          </Kbd>
+          <span className="font-medium">Exclude from catalog</span>
+          <span className="sr-only">
+            This row will not be included in the {destination}.
+          </span>
         </div>
       ) : null}
     </div>

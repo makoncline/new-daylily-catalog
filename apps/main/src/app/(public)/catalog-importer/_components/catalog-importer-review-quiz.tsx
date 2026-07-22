@@ -1,9 +1,9 @@
 "use client";
 
 import { type KeyboardEvent, useCallback, useMemo } from "react";
-import { ChevronLeft, ChevronRight, SkipForward } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Kbd } from "@/components/ui/kbd";
 import { Spinner } from "@/components/ui/spinner";
 import type {
   CatalogImportRow,
@@ -12,11 +12,14 @@ import type {
 import {
   CatalogImporterCandidateList,
   CatalogImporterSourceRow,
+  EXCLUDE_FROM_CATALOG_SHORTCUT,
+  LEAVE_UNMATCHED_SHORTCUT,
 } from "@/app/(public)/catalog-importer/_components/catalog-importer-match-options";
 import type { CatalogImporterWorkbenchController } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
 
 interface CatalogImporterReviewQuizProps {
   controller: CatalogImporterWorkbenchController;
+  destination?: "import" | "workbook";
   onFindDifferentCultivar: (row: CatalogImportRow) => void;
 }
 
@@ -32,6 +35,7 @@ function isTypingTarget(target: EventTarget | null) {
 
 export function CatalogImporterReviewQuiz({
   controller,
+  destination = "workbook",
   onFindDifferentCultivar,
 }: CatalogImporterReviewQuizProps) {
   const activeRow = controller.activeReviewRow;
@@ -43,7 +47,7 @@ export function CatalogImporterReviewQuiz({
   const closeCandidates = useMemo(
     () =>
       closeCandidateResult && closeCandidateResult.rowId === activeRow?.id
-        ? closeCandidateResult.candidates.slice(0, 5)
+        ? closeCandidateResult.candidates.slice(0, 3)
         : [],
     [activeRow?.id, closeCandidateResult],
   );
@@ -53,6 +57,9 @@ export function CatalogImporterReviewQuiz({
       closeCandidateResult.loading,
   );
   const canMove = controller.reviewRows.length > 1;
+  const focusReview = useCallback((review: HTMLElement | null) => {
+    review?.focus();
+  }, []);
 
   const chooseCandidate = useCallback(
     (candidate: CultivarMatchCandidate) => {
@@ -74,25 +81,23 @@ export function CatalogImporterReviewQuiz({
       return;
     }
 
-    if (/^[1-9]$/.test(event.key)) {
+    if (/^[1-3]$/.test(event.key)) {
       const choiceIndex = Number(event.key) - 1;
       const candidate = closeCandidates[choiceIndex];
       if (candidate) {
         event.preventDefault();
         chooseCandidate(candidate);
-      } else if (choiceIndex === closeCandidates.length) {
-        event.preventDefault();
-        skipReviewRow();
-      } else if (choiceIndex === closeCandidates.length + 1) {
-        event.preventDefault();
-        excludeReviewRow();
       }
       return;
     }
 
-    if (event.key.toLowerCase() === "x" && canMove) {
+    const shortcut = event.key.toUpperCase();
+    if (shortcut === LEAVE_UNMATCHED_SHORTCUT) {
       event.preventDefault();
-      moveReviewRow(1);
+      skipReviewRow();
+    } else if (shortcut === EXCLUDE_FROM_CATALOG_SHORTCUT) {
+      event.preventDefault();
+      excludeReviewRow();
     } else if (event.key === "ArrowLeft" && canMove) {
       event.preventDefault();
       moveReviewRow(-1);
@@ -108,13 +113,13 @@ export function CatalogImporterReviewQuiz({
 
   return (
     <section
+      key={activeRow.id}
+      ref={focusReview}
       id="catalog-importer-review-quiz"
       role="region"
       aria-labelledby="catalog-importer-review-heading"
       aria-keyshortcuts={
-        canMove
-          ? "1 2 3 4 5 6 7 8 9 X ArrowLeft ArrowRight"
-          : "1 2 3 4 5 6 7 8 9"
+        canMove ? "1 2 3 U X ArrowLeft ArrowRight" : "1 2 3 U X"
       }
       tabIndex={0}
       onKeyDown={handleKeyDown}
@@ -136,52 +141,31 @@ export function CatalogImporterReviewQuiz({
 
         {canMove ? (
           <div className="flex shrink-0 items-center gap-2">
-            <span className="text-muted-foreground hidden text-xs lg:inline">
-              <kbd className="font-mono">1–9</kbd> select ·{" "}
-              <kbd className="font-mono">X</kbd> decide later ·{" "}
-              <kbd className="font-mono">← →</kbd> move
-            </span>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="size-10"
-              aria-label="Decide later"
-              aria-keyshortcuts="X"
-              title="Decide later (X)"
-              onClick={() => moveReviewRow(1)}
-            >
-              <SkipForward className="size-4" />
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="size-10"
-              aria-label="Previous unmatched name"
-              onClick={() => controller.moveReviewRow(-1)}
-            >
-              <ChevronLeft className="size-4" />
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="size-10"
-              aria-label="Next unmatched name"
-              onClick={() => controller.moveReviewRow(1)}
-            >
-              <ChevronRight className="size-4" />
-            </Button>
+            <Kbd asChild className="size-10 text-base font-semibold">
+              <button
+                type="button"
+                aria-label="Previous unmatched name"
+                aria-keyshortcuts="ArrowLeft"
+                onClick={() => controller.moveReviewRow(-1)}
+              >
+                ←
+              </button>
+            </Kbd>
+            <Kbd asChild className="size-10 text-base font-semibold">
+              <button
+                type="button"
+                aria-label="Next unmatched name"
+                aria-keyshortcuts="ArrowRight"
+                onClick={() => controller.moveReviewRow(1)}
+              >
+                →
+              </button>
+            </Kbd>
           </div>
-        ) : (
-          <span className="text-muted-foreground hidden text-xs lg:inline">
-            <kbd className="font-mono">1–9</kbd> select
-          </span>
-        )}
+        ) : null}
       </div>
 
-      <div className="space-y-2">
+      <div className="flex flex-col gap-2">
         <CatalogImporterSourceRow
           row={activeRow}
           sourceCells={controller.activeReviewSourceCells}
@@ -203,20 +187,23 @@ export function CatalogImporterReviewQuiz({
           <CatalogImporterCandidateList
             ariaLabel="Match options"
             candidates={closeCandidates}
+            destination={destination}
             onChoose={chooseCandidate}
             onExclude={excludeReviewRow}
             onLeaveUnmatched={skipReviewRow}
           />
         )}
-        <Button
-          type="button"
-          variant="link"
-          size="sm"
-          className="h-auto px-3 py-1"
-          onClick={() => onFindDifferentCultivar(activeRow)}
-        >
-          Find a different cultivar
-        </Button>
+        <div className="flex flex-wrap gap-1">
+          <Button
+            type="button"
+            variant="link"
+            size="sm"
+            className="h-auto px-3 py-1"
+            onClick={() => onFindDifferentCultivar(activeRow)}
+          >
+            Find a different cultivar
+          </Button>
+        </div>
       </div>
     </section>
   );

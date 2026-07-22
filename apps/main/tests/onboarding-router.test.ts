@@ -4,6 +4,10 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TRPCInternalContext } from "@/server/api/trpc";
 import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 import { withTempAppDb } from "@/lib/test-utils/app-test-db";
+import {
+  CATALOG_IMPORTER_ENTRY_SOURCE,
+  CATALOG_IMPORTER_RETURN_PATH,
+} from "@/lib/catalog-importer-membership";
 
 process.env.SKIP_ENV_VALIDATION = "1";
 process.env.DATABASE_URL ??= "file:./tests/.tmp/onboarding-router.sqlite";
@@ -165,6 +169,37 @@ describe("onboarding router", () => {
     );
   });
 
+  it("carries importer attribution and returns canceled checkout to the importer", async () => {
+    const caller = createPublicCaller({ user: {} });
+    const conversionId = "123e4567-e89b-42d3-a456-426614174000";
+
+    await caller.createCheckout({
+      conversionId,
+      draftId: conversionId,
+      email: "seller@example.com",
+      entrySource: CATALOG_IMPORTER_ENTRY_SOURCE,
+      returnTo: CATALOG_IMPORTER_RETURN_PATH,
+    });
+
+    expect(stripeMocks.checkoutCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cancel_url: "https://daylilycatalog.test/catalog-importer",
+        metadata: expect.objectContaining({
+          conversion_id: conversionId,
+          entry_source: CATALOG_IMPORTER_ENTRY_SOURCE,
+          return_to: CATALOG_IMPORTER_RETURN_PATH,
+        }),
+        subscription_data: expect.objectContaining({
+          metadata: expect.objectContaining({
+            conversion_id: conversionId,
+            entry_source: CATALOG_IMPORTER_ENTRY_SOURCE,
+            return_to: CATALOG_IMPORTER_RETURN_PATH,
+          }),
+        }),
+      }),
+    );
+  });
+
   it("does not fall through to Stripe when local e2e checkout details are missing", async () => {
     process.env.PLAYWRIGHT_LOCAL_E2E = "true";
 
@@ -249,6 +284,61 @@ describe("onboarding router", () => {
       await expect(
         db.listing.count({ where: { userId: user.id } }),
       ).resolves.toBe(0);
+    });
+  });
+
+  it("claims an importer checkout without importing an onboarding profile", async () => {
+    process.env.PLAYWRIGHT_LOCAL_E2E = "true";
+
+    await withTempAppDb(async () => {
+      const { db } = await import("@/server/db");
+      const { createCaller } = await import("@/server/api/root");
+      const conversionId = "123e4567-e89b-42d3-a456-426614174000";
+      const publicCaller = createCaller(async () => ({
+        db,
+        headers: new Headers(),
+      }));
+      const checkout = await publicCaller.onboarding.createCheckout({
+        conversionId,
+        draftId: conversionId,
+        email: "importer@example.com",
+        entrySource: CATALOG_IMPORTER_ENTRY_SOURCE,
+        returnTo: CATALOG_IMPORTER_RETURN_PATH,
+      });
+      const sessionId = new URL(checkout.url).searchParams.get("session_id");
+      const status = await publicCaller.onboarding.getCheckoutStatus({
+        sessionId: sessionId!,
+      });
+      expect(status).toMatchObject({
+        entrySource: CATALOG_IMPORTER_ENTRY_SOURCE,
+        returnTo: CATALOG_IMPORTER_RETURN_PATH,
+      });
+
+      const user = await db.user.create({
+        data: { clerkUserId: "clerk_importer_user" },
+      });
+      const authedCaller = createCaller(async () => ({
+        db,
+        headers: new Headers(),
+        _authUser: {
+          ...user,
+          clerk: { email: "importer@example.com", createdAt: Date.now() },
+        } as unknown as TRPCInternalContext["_authUser"],
+      }));
+      const claim = await authedCaller.onboarding.claimCheckout({
+        sessionId: sessionId!,
+        profile: {
+          gardenName: "Should not import",
+          location: "Denver, CO",
+          description: "Importer checkout should not create this profile.",
+          profileImageDataUrl: null,
+        },
+      });
+
+      expect(claim).toMatchObject({ ok: true, importedProfile: false });
+      await expect(
+        db.userProfile.findUnique({ where: { userId: user.id } }),
+      ).resolves.toBeNull();
     });
   });
 

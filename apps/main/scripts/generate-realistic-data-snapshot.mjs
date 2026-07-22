@@ -146,7 +146,15 @@ async function main() {
   console.log("Aligning realistic-data snapshot with the current schema...");
   execFileSync(
     "pnpm",
-    ["exec", "prisma", "db", "push", "--url", `file:${outputPath}`],
+    [
+      "exec",
+      "prisma",
+      "db",
+      "push",
+      "--accept-data-loss",
+      "--url",
+      `file:${outputPath}`,
+    ],
     { cwd: appRoot, env: process.env, stdio: "inherit" },
   );
   execFileSync(

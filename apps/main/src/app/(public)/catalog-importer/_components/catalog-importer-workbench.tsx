@@ -5,35 +5,85 @@ import { CircleAlert, Info } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { CatalogImporterMapping } from "@/app/(public)/catalog-importer/_components/catalog-importer-mapping";
+import { CatalogImporterManualTable } from "@/app/(public)/catalog-importer/_components/catalog-importer-manual-table";
 import { CatalogImporterResults } from "@/app/(public)/catalog-importer/_components/catalog-importer-results";
+import {
+  CatalogImporterStepNav,
+  type CatalogImporterStep,
+} from "@/app/(public)/catalog-importer/_components/catalog-importer-step-nav";
 import { CatalogImporterUpload } from "@/app/(public)/catalog-importer/_components/catalog-importer-upload";
 import { useCatalogImporterWorkbench } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
 import type { CatalogImporterDraft } from "@/lib/catalog-importer-draft";
+import type { CatalogImporterViewerState } from "@/lib/catalog-importer-membership";
+import type { MembershipPriceDisplay } from "@/server/stripe/membership-price-display";
 
 export function CatalogImporterWorkbench({
   initialDraft = null,
-  showMembershipPrompts = true,
+  membershipPriceDisplay = null,
+  membershipStarted = false,
+  viewerState = "anonymous",
 }: {
   initialDraft?: CatalogImporterDraft | null;
-  showMembershipPrompts?: boolean;
+  membershipPriceDisplay?: MembershipPriceDisplay | null;
+  membershipStarted?: boolean;
+  viewerState?: CatalogImporterViewerState;
 }) {
   const controller = useCatalogImporterWorkbench(initialDraft);
-  const [mappingOpened, setMappingOpened] = useState(false);
-  const editingMapping = controller.matchedRows === null || mappingOpened;
+  const [activeStep, setActiveStep] = useState<CatalogImporterStep>(() =>
+    initialDraft?.matchedRows
+      ? "preview"
+      : initialDraft?.parsedSpreadsheet
+        ? "prepare"
+        : "start",
+  );
+  const changeStep = (step: CatalogImporterStep) => {
+    setActiveStep(step);
+    requestAnimationFrame(() =>
+      document
+        .getElementById("catalog-importer-workbench")
+        ?.scrollIntoView?.({ block: "start" }),
+    );
+  };
+  const buildCatalog = async () => {
+    const built = await controller.buildCatalogPreview();
+    if (built) {
+      changeStep("preview");
+    }
+  };
+  const reset = () => {
+    changeStep("start");
+  };
+  const manualRowCount = Math.max(
+    0,
+    (controller.selectedSheet?.rows.length ?? 1) - 1,
+  );
 
   return (
-    <div data-workbook-active={controller.selectedSheet ? "true" : undefined}>
+    <div
+      id="catalog-importer-workbench"
+      data-workbook-active={controller.selectedSheet ? "true" : undefined}
+    >
       <div className="space-y-4">
-        <CatalogImporterUpload
+        <CatalogImporterStepNav
+          activeStep={activeStep}
           controller={controller}
-          onEditMapping={
-            controller.matchedRows && !editingMapping
-              ? () => {
-                  setMappingOpened(true);
-                }
-              : undefined
-          }
+          onStepChange={changeStep}
         />
+
+        {activeStep === "start" ? (
+          <div className="space-y-8 pt-2">
+            <CatalogImporterUpload
+              controller={controller}
+              onClear={reset}
+              onSourceReady={() => changeStep("prepare")}
+            />
+            {controller.parsedSpreadsheet ? (
+              <Button type="button" onClick={() => changeStep("prepare")}>
+                Continue preparing
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
 
         {controller.fileError ? (
           <Alert variant="destructive">
@@ -51,14 +101,39 @@ export function CatalogImporterWorkbench({
           </Alert>
         ) : null}
 
-        {controller.selectedSheet && editingMapping ? (
-          <CatalogImporterMapping
-            controller={controller}
-            onSubmit={() => {
-              setMappingOpened(false);
-              controller.buildCatalogPreview();
-            }}
-          />
+        {activeStep === "prepare" && controller.selectedSheet ? (
+          <div className="space-y-6 pt-2">
+            <CatalogImporterUpload
+              controller={controller}
+              onClear={reset}
+              onEditMapping={undefined}
+            />
+            {controller.parsedSpreadsheet?.source === "manual" ? (
+              <>
+                <CatalogImporterManualTable controller={controller} />
+                <div className="max-w-xl">
+                  <Button
+                    type="button"
+                    className="w-full"
+                    disabled={
+                      manualRowCount === 0 ||
+                      controller.processingStage !== null
+                    }
+                    onClick={() => void buildCatalog()}
+                  >
+                    {controller.processingStage
+                      ? "Building catalog preview…"
+                      : "Build catalog preview"}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <CatalogImporterMapping
+                controller={controller}
+                onSubmit={() => void buildCatalog()}
+              />
+            )}
+          </div>
         ) : null}
 
         {controller.selectedSheet && controller.mapping.title === null ? (
@@ -82,7 +157,7 @@ export function CatalogImporterWorkbench({
                 type="button"
                 size="sm"
                 variant="outline"
-                onClick={controller.buildCatalogPreview}
+                onClick={() => void buildCatalog()}
               >
                 Try again
               </Button>
@@ -90,12 +165,14 @@ export function CatalogImporterWorkbench({
           </Alert>
         ) : null}
 
-        {controller.mapping.title !== null &&
-        controller.matchedRows &&
-        !editingMapping ? (
+        {controller.mapping.title !== null && controller.matchedRows ? (
           <CatalogImporterResults
+            activeStep={activeStep}
             controller={controller}
-            showMembershipPrompts={showMembershipPrompts}
+            membershipPriceDisplay={membershipPriceDisplay}
+            membershipStarted={membershipStarted}
+            onStepChange={changeStep}
+            viewerState={viewerState}
           />
         ) : null}
       </div>

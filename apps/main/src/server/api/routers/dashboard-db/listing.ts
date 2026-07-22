@@ -13,6 +13,8 @@ import {
 import { APP_CONFIG } from "@/config/constants";
 import { getStripeSubscriptionResult } from "@/server/stripe/sync-subscription";
 import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
+import { slugify } from "@/lib/utils/slugify";
+import { getCatalogImportExistingListingMatch } from "@/lib/catalog-import-existing-listings";
 
 const listingSelect = {
   id: true,
@@ -28,7 +30,189 @@ const listingSelect = {
   cultivarReferenceId: true,
 } as const;
 
+const importListingSchema = z.object({
+  allowExistingDuplicate: z.boolean().default(false),
+  cultivarReferenceId: z.string().trim().min(1).nullable(),
+  description: z.string().trim().max(10_000).nullable(),
+  importKey: z.string().trim().min(1).max(300),
+  price: z.number().nonnegative().nullable(),
+  privateNote: z.string().trim().max(10_000).nullable(),
+  title: z.string().trim().min(1).max(200),
+});
+
+function reserveUniqueSlug(title: string, reservedSlugs: Set<string>) {
+  const baseSlug = slugify(title);
+  let slug = baseSlug;
+  let suffix = 1;
+
+  while (reservedSlugs.has(slug)) {
+    slug = `${baseSlug}-${suffix}`;
+    suffix += 1;
+  }
+
+  reservedSlugs.add(slug);
+  return slug;
+}
+
 export const dashboardDbListingRouter = createTRPCRouter({
+  importRows: protectedProcedure
+    .input(
+      z.object({
+        rows: z.array(importListingSchema).min(1).max(100),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const rowsByImportKey = new Map(
+        input.rows.map((row) => [row.importKey, row]),
+      );
+      if (rowsByImportKey.size !== input.rows.length) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Each imported row must have a unique import key.",
+        });
+      }
+
+      const cultivarReferenceIds = [
+        ...new Set(
+          input.rows.flatMap((row) =>
+            row.cultivarReferenceId ? [row.cultivarReferenceId] : [],
+          ),
+        ),
+      ];
+      if (cultivarReferenceIds.length > 0) {
+        const references = await ctx.db.cultivarReference.findMany({
+          where: { id: { in: cultivarReferenceIds } },
+          select: { id: true },
+        });
+        const validIds = new Set(references.map((reference) => reference.id));
+        const invalidId = cultivarReferenceIds.find((id) => !validIds.has(id));
+        if (invalidId) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: `Cultivar reference not found: ${invalidId}`,
+          });
+        }
+      }
+
+      const subscriptionResult = await getStripeSubscriptionResult(
+        ctx.user.stripeCustomerId,
+      );
+
+      return ctx.db.$transaction(async (tx) => {
+        const existingImportedRows = await tx.listing.findMany({
+          where: {
+            userId: ctx.user.id,
+            importKey: { in: [...rowsByImportKey.keys()] },
+          },
+          select: { id: true, importKey: true },
+        });
+        const existingImportKeys = new Set(
+          existingImportedRows.flatMap((row) =>
+            row.importKey ? [row.importKey] : [],
+          ),
+        );
+        const newImportRows = input.rows.filter(
+          (row) => !existingImportKeys.has(row.importKey),
+        );
+
+        const existingListings = await tx.listing.findMany({
+          where: { userId: ctx.user.id },
+          select: {
+            cultivarReferenceId: true,
+            description: true,
+            id: true,
+            price: true,
+            privateNote: true,
+            title: true,
+          },
+        });
+        const classifiedRows = newImportRows.map((row) => ({
+          match: getCatalogImportExistingListingMatch(row, existingListings),
+          row,
+        }));
+        const unresolvedExistingRow = classifiedRows.find(
+          ({ match, row }) =>
+            match.kind === "possible" && !row.allowExistingDuplicate,
+        );
+        if (unresolvedExistingRow) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: `Review the existing listing for ${unresolvedExistingRow.row.title} before importing.`,
+          });
+        }
+        const skippedExactCount = classifiedRows.filter(
+          ({ match, row }) =>
+            match.kind === "exact" && !row.allowExistingDuplicate,
+        ).length;
+        const rowsToCreate = classifiedRows.flatMap(({ match, row }) =>
+          match.kind === "exact" && !row.allowExistingDuplicate ? [] : [row],
+        );
+
+        if (
+          subscriptionResult.confirmed &&
+          !hasActiveSubscription(subscriptionResult.subscription.status)
+        ) {
+          const listingCount = await tx.listing.count({
+            where: { userId: ctx.user.id },
+          });
+          if (
+            listingCount + rowsToCreate.length >
+            APP_CONFIG.LISTING.FREE_TIER_MAX_LISTINGS
+          ) {
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message: "Upgrade to Pro to import this catalog.",
+            });
+          }
+        }
+
+        if (rowsToCreate.length === 0) {
+          return {
+            createdCount: 0,
+            existingCount: existingImportedRows.length,
+            listingIds: existingImportedRows.map((row) => row.id),
+            skippedExactCount,
+          };
+        }
+
+        const existingSlugs = await tx.listing.findMany({
+          where: { userId: ctx.user.id },
+          select: { slug: true },
+        });
+        const reservedSlugs = new Set(
+          existingSlugs.map((listing) => listing.slug),
+        );
+
+        await tx.listing.createMany({
+          data: rowsToCreate.map((row) => ({
+            cultivarReferenceId: row.cultivarReferenceId,
+            description: row.description,
+            importKey: row.importKey,
+            price: row.price,
+            privateNote: row.privateNote,
+            slug: reserveUniqueSlug(row.title, reservedSlugs),
+            title: row.title,
+            userId: ctx.user.id,
+          })),
+        });
+
+        const importedRows = await tx.listing.findMany({
+          where: {
+            userId: ctx.user.id,
+            importKey: { in: [...rowsByImportKey.keys()] },
+          },
+          select: { id: true },
+        });
+
+        return {
+          createdCount: rowsToCreate.length,
+          existingCount: existingImportedRows.length,
+          listingIds: importedRows.map((row) => row.id),
+          skippedExactCount,
+        };
+      });
+    }),
+
   create: protectedProcedure
     .input(
       z.object({

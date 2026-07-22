@@ -105,4 +105,110 @@ describe("dashboard listing creation entitlements", () => {
       ).resolves.toBe(APP_CONFIG.LISTING.FREE_TIER_MAX_LISTINGS + 1);
     });
   });
+
+  it("imports listing rows once when a batch is retried", async () => {
+    getStripeSubscriptionResult.mockResolvedValue({
+      subscription: { status: "trialing" },
+      confirmed: true,
+    });
+
+    await withTempAppDb(async ({ user }) => {
+      const { caller, db } = await createAuthedCaller(user.id);
+      const rows = [
+        {
+          cultivarReferenceId: null,
+          description: "First import row",
+          importKey: "project-1:source-row-2",
+          price: 12,
+          privateNote: "Front bed",
+          title: "Stella de Oro",
+        },
+        {
+          cultivarReferenceId: null,
+          description: "Second size",
+          importKey: "project-1:source-row-3",
+          price: 10,
+          privateNote: null,
+          title: "Stella de Oro",
+        },
+      ];
+
+      await expect(
+        caller.dashboardDb.listing.importRows({ rows }),
+      ).resolves.toMatchObject({ createdCount: 2, existingCount: 0 });
+      await expect(
+        caller.dashboardDb.listing.importRows({ rows }),
+      ).resolves.toMatchObject({ createdCount: 0, existingCount: 2 });
+
+      const listings = await db.listing.findMany({
+        where: { userId: user.id },
+        orderBy: { slug: "asc" },
+      });
+      expect(listings).toHaveLength(2);
+      expect(listings.map((listing) => listing.slug)).toEqual([
+        "stella-de-oro",
+        "stella-de-oro-1",
+      ]);
+      expect(listings[0]).toMatchObject({
+        description: "First import row",
+        importKey: "project-1:source-row-2",
+        price: 12,
+        privateNote: "Front bed",
+      });
+    });
+  });
+
+  it("skips exact existing listings and requires a decision for changed ones", async () => {
+    getStripeSubscriptionResult.mockResolvedValue({
+      subscription: { status: "trialing" },
+      confirmed: true,
+    });
+
+    await withTempAppDb(async ({ user }) => {
+      const { caller, db } = await createAuthedCaller(user.id);
+      await db.listing.create({
+        data: {
+          description: "Display row",
+          price: 15,
+          privateNote: "Front bed",
+          slug: "happy-returns",
+          title: "Happy Returns",
+          userId: user.id,
+        },
+      });
+
+      const exactRow = {
+        cultivarReferenceId: null,
+        description: "Display row",
+        importKey: "project-2:source-row-2",
+        price: 15,
+        privateNote: "Front bed",
+        title: "Happy Returns",
+      };
+      await expect(
+        caller.dashboardDb.listing.importRows({ rows: [exactRow] }),
+      ).resolves.toMatchObject({
+        createdCount: 0,
+        skippedExactCount: 1,
+      });
+
+      const changedRow = {
+        ...exactRow,
+        importKey: "project-2:source-row-3",
+        price: 18,
+      };
+      await expect(
+        caller.dashboardDb.listing.importRows({ rows: [changedRow] }),
+      ).rejects.toMatchObject({ code: "CONFLICT" });
+
+      await expect(
+        caller.dashboardDb.listing.importRows({
+          rows: [{ ...changedRow, allowExistingDuplicate: true }],
+        }),
+      ).resolves.toMatchObject({ createdCount: 1, skippedExactCount: 0 });
+      await expect(
+        db.listing.count({ where: { userId: user.id } }),
+      ).resolves.toBe(2);
+    });
+  });
 });

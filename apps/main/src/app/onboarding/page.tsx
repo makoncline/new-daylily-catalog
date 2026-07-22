@@ -7,6 +7,11 @@ import { getMembershipPriceDisplay } from "@/server/stripe/get-membership-price-
 import { getOnboardingExampleCultivars } from "./anonymous-onboarding-example-cultivars";
 import { AnonymousOnboardingPageClient } from "./anonymous-onboarding-layout";
 import { OnboardingStatusPage } from "./onboarding-status-page";
+import {
+  CATALOG_IMPORTER_ENTRY_SOURCE,
+  CATALOG_IMPORTER_RETURN_PATH,
+} from "@/lib/catalog-importer-membership";
+import { CatalogImporterCheckoutStart } from "./catalog-importer-checkout-start";
 
 export const dynamic = "force-dynamic";
 
@@ -24,13 +29,45 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function OnboardingPage() {
-  const { userId } = await auth();
+export default async function OnboardingPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{
+    conversion_id?: string;
+    entry?: string;
+    return_to?: string;
+  }>;
+} = {}) {
+  const [{ userId }, params] = await Promise.all([
+    auth(),
+    searchParams ??
+      Promise.resolve<{
+        conversion_id?: string;
+        entry?: string;
+        return_to?: string;
+      }>({}),
+  ]);
   if (userId) {
     return <SignedInOnboardingMessage />;
   }
 
   const membershipPriceDisplay = await getMembershipPriceDisplay();
+  const isCatalogImporterCheckout =
+    params.entry === CATALOG_IMPORTER_ENTRY_SOURCE &&
+    params.return_to === CATALOG_IMPORTER_RETURN_PATH &&
+    typeof params.conversion_id === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      params.conversion_id,
+    );
+  if (isCatalogImporterCheckout) {
+    return (
+      <CatalogImporterCheckoutStart
+        conversionId={params.conversion_id!}
+        membershipPriceDisplay={membershipPriceDisplay}
+      />
+    );
+  }
+
   const exampleCultivars = await getOnboardingExampleCultivars();
   return (
     <AnonymousOnboardingPageClient

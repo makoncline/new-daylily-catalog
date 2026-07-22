@@ -1,5 +1,7 @@
 # Agents
 
+- [2026-07-22] Realistic seed schema alignment: `generate-realistic-data-snapshot.mjs` aligns a freshly copied, sanitized local snapshot with the current Prisma schema. Keep `prisma db push --accept-data-loss` scoped to that generated output; otherwise legitimate new indexes or constraints can block `pnpm db:seed:prepare` and every disposable Atlas run.
+
 - [2026-07-19] AHS award code display collision: V2 AHS award data uses `L/W` for both the Lambert-Webster Award and the Lenington All-American Award, so `awardNames` alone cannot identify only one expansion. When showing full labels from the importer/search index, use a combined label or preserve the award URL identity instead of assuming one code maps to one award.
 - [2026-07-18] Codex review is user-triggered only: Running `codex review` from an agent can recursively launch nested reviews when the reviewer follows the same closeout skill. Do not start Codex autoreview in this repo unless the user explicitly asks for it; rely on the requested test and browser verification otherwise.
 - [2026-07-18] Public importer has no React Query provider: `/catalog-importer` renders outside the dashboard query-provider tree. When fetching close matches there, use the importer's event-driven request helpers or explicitly add a provider; a bare `useQuery` fails at runtime even if unit tests wrap the component.

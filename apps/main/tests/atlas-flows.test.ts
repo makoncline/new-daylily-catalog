@@ -135,15 +135,30 @@ describe("Atlas flow contract", () => {
       "Start from a spreadsheet",
       "Reveal the prepared catalog",
       "Resolve uncertain matches",
+      "Repair spreadsheet data",
       "Preview the catalog",
+      "Download the prepared spreadsheet",
     ]);
-    expect(statesForFlow(importer)).toHaveLength(8);
+    expect(statesForFlow(importer)).toHaveLength(16);
     expect(
       getAtlasState("catalog-importer-desktop-results").urlReproducible,
     ).toBe(false);
     expect(
       getAtlasState("catalog-importer-mobile-review").urlReproducible,
     ).toBe(false);
+  });
+
+  it("declares the signed-in create-only catalog import journey", () => {
+    const importer = getAtlasFlow("dashboard-catalog-importer");
+
+    expect(importer.steps.map(({ title }) => title)).toEqual([
+      "Start or resume",
+      "Review listings to create",
+      "Resolve catalog data",
+      "Resolve existing listings",
+      "Confirm and create",
+    ]);
+    expect(statesForFlow(importer)).toHaveLength(15);
   });
 
   it.each([

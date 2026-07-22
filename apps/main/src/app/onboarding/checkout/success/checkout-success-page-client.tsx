@@ -11,12 +11,18 @@ import {
   clearAnonymousOnboardingDraft,
   readAnonymousOnboardingDraft,
 } from "../../anonymous-onboarding-draft";
+import {
+  CATALOG_IMPORTER_ENTRY_SOURCE,
+  CATALOG_IMPORTER_MEMBERSHIP_RETURN_PATH,
+} from "@/lib/catalog-importer-membership";
 
 interface CheckoutStatus {
   sessionId: string;
   email: string;
   status: string | null;
   isActive: boolean;
+  entrySource: string | null;
+  returnTo: string | null;
 }
 
 interface CheckoutSuccessPageClientProps {
@@ -38,7 +44,7 @@ export function CheckoutSuccessPageClient({
       )}`
     : "/onboarding";
 
-  const claimCheckoutAndOpenDashboard = useCallback(() => {
+  const claimCheckoutAndContinue = useCallback(() => {
     if (!activeSessionId || hasStartedClaim.current) {
       return;
     }
@@ -57,6 +63,10 @@ export function CheckoutSuccessPageClient({
       },
       {
         onSuccess: () => {
+          if (status?.entrySource === CATALOG_IMPORTER_ENTRY_SOURCE) {
+            router.replace(CATALOG_IMPORTER_MEMBERSHIP_RETURN_PATH);
+            return;
+          }
           clearAnonymousOnboardingDraft();
           router.replace("/dashboard?subscriptionSynced=1");
         },
@@ -65,7 +75,7 @@ export function CheckoutSuccessPageClient({
         },
       },
     );
-  }, [activeSessionId, claimCheckout, router]);
+  }, [activeSessionId, claimCheckout, router, status?.entrySource]);
 
   useEffect(() => {
     if (!isLoaded || !userId || !activeSessionId) {
@@ -77,8 +87,8 @@ export function CheckoutSuccessPageClient({
     }
 
     autoClaimedSessionId.current = activeSessionId;
-    claimCheckoutAndOpenDashboard();
-  }, [activeSessionId, claimCheckoutAndOpenDashboard, isLoaded, userId]);
+    claimCheckoutAndContinue();
+  }, [activeSessionId, claimCheckoutAndContinue, isLoaded, userId]);
 
   if (!status) {
     return (
@@ -119,15 +129,23 @@ export function CheckoutSuccessPageClient({
     return (
       <CheckoutShell
         eyebrow="Trial active"
-        title="Opening your dashboard"
-        description="Your trial is active. We are setting up your dashboard and adding the profile you built."
+        title={
+          status.entrySource === CATALOG_IMPORTER_ENTRY_SOURCE
+            ? "Opening your catalog import"
+            : "Opening your dashboard"
+        }
+        description={
+          status.entrySource === CATALOG_IMPORTER_ENTRY_SOURCE
+            ? "Your trial is active. Your browser-local catalog project will continue in the dashboard."
+            : "Your trial is active. We are setting up your dashboard and adding the profile you built."
+        }
       >
         {claimCheckout.error ? (
           <div className="space-y-3">
             <p className="text-destructive text-sm">
               {claimCheckout.error.message}
             </p>
-            <Button type="button" onClick={claimCheckoutAndOpenDashboard}>
+            <Button type="button" onClick={claimCheckoutAndContinue}>
               Try again
             </Button>
           </div>
@@ -139,7 +157,10 @@ export function CheckoutSuccessPageClient({
   }
 
   return (
-    <CheckoutAuthShell data-testid="checkout-clerk-sign-in">
+    <CheckoutAuthShell
+      data-testid="checkout-clerk-sign-in"
+      returningToImporter={status.entrySource === CATALOG_IMPORTER_ENTRY_SOURCE}
+    >
       <SignIn
         routing="virtual"
         forceRedirectUrl={returnTo}
@@ -178,25 +199,27 @@ function CheckoutShell({
 function CheckoutAuthShell({
   children,
   "data-testid": testId,
+  returningToImporter = false,
 }: {
   children: React.ReactNode;
   "data-testid"?: string;
+  returningToImporter?: boolean;
 }) {
   return (
-    <div
-      className="bg-muted/20"
-      data-testid="onboarding-checkout-success"
-    >
-      <div
-        className="mx-auto grid w-full max-w-6xl gap-8 px-4 py-14 sm:py-20 lg:grid-cols-[minmax(0,1fr)_28rem] lg:px-8 lg:py-24"
-      >
+    <div className="bg-muted/20" data-testid="onboarding-checkout-success">
+      <div className="mx-auto grid w-full max-w-6xl gap-8 px-4 py-14 sm:py-20 lg:grid-cols-[minmax(0,1fr)_28rem] lg:px-8 lg:py-24">
         <div className="max-w-2xl space-y-4">
           <p className="text-primary text-sm font-semibold">Trial active</p>
-          <h1 className="text-4xl leading-tight font-semibold tracking-tight text-balance sm:text-5xl">
-            Sign in to open your dashboard.
+          <h1 className="text-2xl leading-tight font-semibold tracking-tight text-balance sm:text-3xl">
+            {returningToImporter
+              ? "Verify your email to continue."
+              : "Sign in to open your dashboard."}
           </h1>
           <p className="text-muted-foreground max-w-xl text-lg leading-8">
             Use the email from checkout. We will send your one-time login code.
+            {returningToImporter
+              ? " Your spreadsheet and progress remain in this browser."
+              : null}
           </p>
         </div>
 

@@ -2,6 +2,17 @@
 
 import { useMemo, useState } from "react";
 import { Save, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
@@ -25,6 +36,11 @@ interface DuplicateGroup {
 }
 
 type ParsedInput<T> = { valid: true; value: T } | { valid: false; value: null };
+
+// Seller image transfer is intentionally outside the importer MVP. Keep the
+// existing repair helpers dormant until image ownership and upload are handled
+// by the dashboard image flow.
+const SHOW_IMAGE_ISSUES = false;
 
 function getDuplicateGroups(rows: CatalogImportRow[]) {
   const rowsBySourceRow = new Map(rows.map((row) => [row.sourceRow, row]));
@@ -124,9 +140,11 @@ function parseImageUrl(value: string): ParsedInput<string> {
 
 function DuplicateGroupTable({
   controller,
+  destination,
   rows,
 }: {
   controller: CatalogImporterWorkbenchController;
+  destination: "import" | "workbook";
   rows: CatalogImportRow[];
 }) {
   const sourceRows = rows.map((row) => ({
@@ -167,9 +185,9 @@ function DuplicateGroupTable({
 
       <Table
         aria-label={`Duplicate rows for ${title}`}
-        className="w-max min-w-full"
+        className="min-w-0 md:w-max md:min-w-full"
       >
-        <TableHeader>
+        <TableHeader className="hidden md:table-header-group">
           <TableRow>
             <TableHead
               scope="col"
@@ -186,9 +204,11 @@ function DuplicateGroupTable({
                 scope="col"
                 className="min-w-32 align-bottom whitespace-normal"
               >
-                <span className="text-muted-foreground block font-mono text-[0.6875rem] font-normal">
-                  {column.column}
-                </span>
+                {!column.mapped ? (
+                  <span className="text-muted-foreground block font-mono text-[0.6875rem] font-normal">
+                    {column.column}
+                  </span>
+                ) : null}
                 {column.label}
               </TableHead>
             ))}
@@ -196,14 +216,20 @@ function DuplicateGroupTable({
         </TableHeader>
         <TableBody>
           {sourceRows.map(({ row, sourceCells }) => (
-            <TableRow key={row.id}>
-              <TableCell className="bg-background sticky left-0 z-10 w-px">
+            <TableRow
+              key={row.id}
+              className="grid gap-3 py-4 md:table-row md:py-0"
+            >
+              <TableCell className="flex items-center justify-between p-0 md:table-cell md:p-2">
+                <span className="text-muted-foreground font-mono text-xs md:hidden">
+                  Row {row.sourceRow}
+                </span>
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
                   className="text-destructive hover:text-destructive size-8"
-                  aria-label={`Exclude row ${row.sourceRow} from prepared workbook`}
+                  aria-label={`Exclude row ${row.sourceRow} from ${destination}`}
                   title={`Exclude row ${row.sourceRow}`}
                   onClick={() => controller.removeDuplicateRow(row.id)}
                 >
@@ -212,15 +238,18 @@ function DuplicateGroupTable({
               </TableCell>
               <TableHead
                 scope="row"
-                className="text-muted-foreground h-auto font-mono text-xs font-normal"
+                className="text-muted-foreground hidden h-auto font-mono text-xs font-normal md:table-cell"
               >
                 {row.sourceRow}
               </TableHead>
               {sourceCells.map((cell) => (
                 <TableCell
                   key={cell.column}
-                  className="max-w-80 align-top whitespace-normal"
+                  className="max-w-80 p-0 align-top whitespace-normal md:table-cell md:p-2"
                 >
+                  <span className="text-muted-foreground mb-1 block text-xs font-medium md:hidden">
+                    {cell.label}
+                  </span>
                   {cell.value || (
                     <span className="text-muted-foreground">—</span>
                   )}
@@ -275,33 +304,71 @@ function PriceIssuesTable({
         >
           Price formats need review
         </h3>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={!canSaveAll}
-          onClick={() =>
-            controller.resolvePriceIssues(
-              parsedRows.flatMap(({ canSave, parsed, row, suggestion }) =>
-                canSave
-                  ? [
-                      {
-                        preserveOriginalOffer: suggestion !== null,
-                        price: parsed.value,
+        <div className="flex flex-wrap gap-2">
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button type="button" variant="outline" size="sm">
+                Mark all unpriced
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  Mark {rows.length.toLocaleString()} listings unpriced?
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  Their original price text will be kept in the private note.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() =>
+                    controller.resolvePriceIssues(
+                      rows.map((row) => ({
+                        preserveOriginalOffer: true,
+                        price: null,
                         rowId: row.id,
-                      },
-                    ]
-                  : [],
-              ),
-            )
-          }
-        >
-          Save all
-        </Button>
+                      })),
+                    )
+                  }
+                >
+                  Mark unpriced
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={!canSaveAll}
+            onClick={() =>
+              controller.resolvePriceIssues(
+                parsedRows.flatMap(({ canSave, parsed, row, suggestion }) =>
+                  canSave
+                    ? [
+                        {
+                          preserveOriginalOffer: suggestion !== null,
+                          price: parsed.value,
+                          rowId: row.id,
+                        },
+                      ]
+                    : [],
+                ),
+              )
+            }
+          >
+            Save all
+          </Button>
+        </div>
       </div>
 
-      <Table aria-label="Price format rows" className="mt-3 min-w-[34rem]">
-        <TableHeader>
+      <Table
+        aria-label="Price format rows"
+        className="mt-3 min-w-0 md:min-w-[34rem]"
+      >
+        <TableHeader className="hidden md:table-header-group">
           <TableRow>
             <TableHead
               scope="col"
@@ -321,8 +388,11 @@ function PriceIssuesTable({
         </TableHeader>
         <TableBody>
           {parsedRows.map(({ canSave, parsed, row, suggestion }) => (
-            <TableRow key={row.id}>
-              <TableCell className="bg-background sticky left-0 z-10">
+            <TableRow
+              key={row.id}
+              className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-2 py-4 md:table-row md:py-0"
+            >
+              <TableCell className="col-start-2 row-start-4 flex items-end p-0 md:table-cell md:p-2">
                 <Button
                   type="button"
                   variant="ghost"
@@ -348,15 +418,27 @@ function PriceIssuesTable({
               </TableCell>
               <TableHead
                 scope="row"
-                className="text-muted-foreground h-auto font-mono text-xs font-normal"
+                className="text-muted-foreground col-span-2 h-auto p-0 font-mono text-xs font-normal md:table-cell md:p-2"
               >
+                <span className="font-sans font-medium md:hidden">Row </span>
                 {row.sourceRow}
               </TableHead>
-              <TableCell className="font-medium">{row.sourceTitle}</TableCell>
-              <TableCell className="text-muted-foreground">
+              <TableCell className="col-span-2 p-0 font-medium md:table-cell md:p-2">
+                <span className="text-muted-foreground mb-1 block text-xs font-medium md:hidden">
+                  Name
+                </span>
+                {row.sourceTitle}
+              </TableCell>
+              <TableCell className="text-muted-foreground col-span-2 p-0 md:table-cell md:p-2">
+                <span className="mb-1 block text-xs font-medium md:hidden">
+                  Original price
+                </span>
                 {row.sourcePrice}
               </TableCell>
-              <TableCell>
+              <TableCell className="col-start-1 row-start-4 p-0 md:table-cell md:p-2">
+                <span className="text-muted-foreground mb-1 block text-xs font-medium md:hidden">
+                  Price
+                </span>
                 <Input
                   aria-label={`Correct price for row ${row.sourceRow}`}
                   aria-invalid={!parsed.valid}
@@ -368,7 +450,7 @@ function PriceIssuesTable({
                       : undefined
                   }
                   inputMode="decimal"
-                  className="h-8 w-32"
+                  className="h-8 w-full md:w-32"
                   value={values[row.id] ?? row.sourcePrice}
                   onChange={(event) => {
                     const value = event.currentTarget.value;
@@ -752,8 +834,10 @@ function SavedIdIssuesTable({
 
 export function CatalogImporterIssues({
   controller,
+  destination = "workbook",
 }: {
   controller: CatalogImporterWorkbenchController;
+  destination?: "import" | "workbook";
 }) {
   const duplicateGroups = useMemo(
     () => getDuplicateGroups(controller.includedRows),
@@ -762,14 +846,18 @@ export function CatalogImporterIssues({
   const priceRows = controller.includedRows.filter(
     (row) => row.priceWarning !== null,
   );
-  const imagePreviewWarningRows = controller.includedRows.filter((row) =>
-    isCatalogImportImagePreviewWarning(row.imageUrlWarning),
-  );
-  const imageUrlRows = controller.includedRows.filter(
-    (row) =>
-      row.imageUrlWarning !== null &&
-      !isCatalogImportImagePreviewWarning(row.imageUrlWarning),
-  );
+  const imagePreviewWarningRows = SHOW_IMAGE_ISSUES
+    ? controller.includedRows.filter((row) =>
+        isCatalogImportImagePreviewWarning(row.imageUrlWarning),
+      )
+    : [];
+  const imageUrlRows = SHOW_IMAGE_ISSUES
+    ? controller.includedRows.filter(
+        (row) =>
+          row.imageUrlWarning !== null &&
+          !isCatalogImportImagePreviewWarning(row.imageUrlWarning),
+      )
+    : [];
   const savedIdRows = controller.includedRows.filter(
     (row) => row.cultivarReferenceIdWarning !== null,
   );
@@ -799,12 +887,6 @@ export function CatalogImporterIssues({
         <p className="text-muted-foreground text-sm tabular-nums">
           {controller.completedIssueCount.toLocaleString()} of{" "}
           {controller.issueProgressTotal.toLocaleString()} completed
-          {requiredIssueCount > 0
-            ? ` · ${requiredIssueCount.toLocaleString()} ${requiredIssueCount === 1 ? "needs" : "need"} action`
-            : ""}
-          {warningCount > 0
-            ? ` · ${warningCount.toLocaleString()} ${warningCount === 1 ? "warning" : "warnings"}`
-            : ""}
         </p>
       </div>
 
@@ -819,6 +901,7 @@ export function CatalogImporterIssues({
                 <DuplicateGroupTable
                   key={group.id}
                   controller={controller}
+                  destination={destination}
                   rows={group.rows}
                 />
               ))}

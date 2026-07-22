@@ -42,7 +42,7 @@ export function PublicShell({ children, mainClassName }: PublicShellProps) {
         className={cn(
           "w-full flex-1 scroll-mt-4 [&_[id]]:scroll-mt-4",
           pathname === "/catalog-importer"
-            ? "overflow-visible"
+            ? "flex flex-col overflow-visible"
             : "overflow-hidden",
           overlapsHero && "-mt-16 lg:-mt-20",
           mainClassName,

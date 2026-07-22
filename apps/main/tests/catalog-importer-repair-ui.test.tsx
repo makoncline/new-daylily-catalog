@@ -3,10 +3,9 @@ import { describe, expect, it, vi } from "vitest";
 import { CatalogImporterIssues } from "@/app/(public)/catalog-importer/_components/catalog-importer-issues";
 import { CatalogImporterReviewQuiz } from "@/app/(public)/catalog-importer/_components/catalog-importer-review-quiz";
 import type { CatalogImporterWorkbenchController } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
-import {
-  CATALOG_IMPORT_IMAGE_PREVIEW_WARNING_PREFIX,
-  type CatalogImportRow,
-  type CultivarMatchCandidate,
+import type {
+  CatalogImportRow,
+  CultivarMatchCandidate,
 } from "@/lib/catalog-importer";
 
 function importRow(
@@ -73,6 +72,7 @@ function controller(
     moveReviewRow: vi.fn(),
     excludeDuplicateRows: vi.fn(),
     keepDuplicateRows: vi.fn(),
+    leaveAllReviewRowsUnmatched: vi.fn(),
     removeDuplicateRow: vi.fn(),
     remainingIssueCount: 1,
     resetCandidateSearch: vi.fn(),
@@ -149,7 +149,7 @@ describe("catalog importer repair UI", () => {
     expect(excludeDuplicateRows).toHaveBeenCalledWith(["row-2", "row-3"]);
     expect(
       screen.getByRole("button", {
-        name: "Exclude row 3 from prepared workbook",
+        name: "Exclude row 3 from workbook",
       }),
     ).toBeVisible();
   });
@@ -189,6 +189,13 @@ describe("catalog importer repair UI", () => {
 
     const table = screen.getByRole("table", { name: "Price format rows" });
     expect(within(table).getAllByRole("row")).toHaveLength(3);
+    fireEvent.click(screen.getByRole("button", { name: "Mark all unpriced" }));
+    fireEvent.click(screen.getByRole("button", { name: "Mark unpriced" }));
+    expect(resolvePriceIssues).toHaveBeenCalledWith([
+      { preserveOriginalOffer: true, price: null, rowId: "row-2" },
+      { preserveOriginalOffer: true, price: null, rowId: "row-3" },
+    ]);
+    resolvePriceIssues.mockClear();
     fireEvent.change(
       within(table).getByRole("textbox", {
         name: "Correct price for row 3",
@@ -202,31 +209,27 @@ describe("catalog importer repair UI", () => {
     ]);
   });
 
-  it("keeps an unloadable valid image URL without an edit-and-save task", () => {
-    const imageUrl = "https://seller.example/daylily.jpg";
+  it("does not add seller-image repair work to the importer MVP", () => {
     const row = importRow({
-      imageUrlWarning: `${CATALOG_IMPORT_IMAGE_PREVIEW_WARNING_PREFIX}${imageUrl}`,
-      sourceImageUrl: imageUrl,
+      imageUrlWarning: "Seller image could not be previewed",
+      sourceImageUrl: "https://seller.example/daylily.jpg",
     });
-    const acknowledgeImagePreviewWarnings = vi.fn();
 
-    render(
-      <CatalogImporterIssues
-        controller={controller([row], { acknowledgeImagePreviewWarnings })}
-      />,
+    const { container } = render(
+      <CatalogImporterIssues controller={controller([row])} />,
     );
 
-    const warning = screen.getByRole("region", {
-      name: "Seller images could not be previewed",
-    });
-    expect(warning).toHaveTextContent(imageUrl);
-    expect(within(warning).queryByRole("textbox")).not.toBeInTheDocument();
-    fireEvent.click(within(warning).getByRole("button", { name: "Keep URL" }));
-    expect(acknowledgeImagePreviewWarnings).toHaveBeenCalledWith(["row-2"]);
+    expect(container).toBeEmptyDOMElement();
   });
 
-  it("uses numbered actions to leave unmatched or exclude a review item", () => {
+  it("focuses review and uses fixed keys to leave unmatched or exclude", () => {
     const row = importRow();
+    const nextRow = importRow({
+      id: "row-3",
+      sourceRow: 3,
+      sourceTitle: "Another cultivar",
+      title: "Another cultivar",
+    });
     const excludeReviewRow = vi.fn();
     const moveReviewRow = vi.fn();
     const onFindDifferentCultivar = vi.fn();
@@ -234,7 +237,7 @@ describe("catalog importer repair UI", () => {
     render(
       <CatalogImporterReviewQuiz
         onFindDifferentCultivar={onFindDifferentCultivar}
-        controller={controller([row], {
+        controller={controller([row, nextRow], {
           candidateResult: {
             candidates: [vanguardCandidate],
             error: null,
@@ -257,14 +260,23 @@ describe("catalog importer repair UI", () => {
     const review = screen.getByRole("region", {
       name: "Review potential matches",
     });
-    expect(
-      within(review).queryByRole("button", {
-        name: "Previous unmatched name",
-      }),
-    ).not.toBeInTheDocument();
-    expect(
-      within(review).queryByRole("button", { name: "Next unmatched name" }),
-    ).not.toBeInTheDocument();
+    expect(review).toHaveFocus();
+    const previous = within(review).getByRole("button", {
+      name: "Previous unmatched name",
+    });
+    const next = within(review).getByRole("button", {
+      name: "Next unmatched name",
+    });
+    expect(previous).toHaveAttribute("data-slot", "kbd");
+    expect(previous).toHaveAttribute("aria-keyshortcuts", "ArrowLeft");
+    expect(next).toHaveAttribute("data-slot", "kbd");
+    expect(next).toHaveAttribute("aria-keyshortcuts", "ArrowRight");
+    fireEvent.click(previous);
+    fireEvent.click(next);
+    expect(moveReviewRow).toHaveBeenNthCalledWith(1, -1);
+    expect(moveReviewRow).toHaveBeenNthCalledWith(2, 1);
+    moveReviewRow.mockClear();
+    expect(within(review).queryByText("1–5")).not.toBeInTheDocument();
     expect(
       within(review).queryByRole("button", { name: "Decide later" }),
     ).not.toBeInTheDocument();
@@ -272,19 +284,29 @@ describe("catalog importer repair UI", () => {
       within(review).queryByText("Search another cultivar", { exact: true }),
     ).not.toBeInTheDocument();
 
-    fireEvent.keyDown(review, { key: "x" });
-    expect(moveReviewRow).not.toHaveBeenCalled();
-
-    expect(
-      within(review).getByRole("button", { name: "Leave unmatched" }),
-    ).toHaveAttribute("aria-keyshortcuts", "2");
-    fireEvent.keyDown(review, { key: "2" });
+    const leaveUnmatched = within(review).getByRole("button", {
+      name: "Leave unmatched",
+    });
+    expect(leaveUnmatched).toHaveAttribute("aria-keyshortcuts", "U");
+    expect(leaveUnmatched).toHaveAttribute("data-slot", "kbd");
+    fireEvent.keyDown(review, { key: "u" });
     expect(skipReviewRow).toHaveBeenCalledOnce();
-    expect(
-      within(review).getByRole("button", { name: "Exclude from catalog" }),
-    ).toHaveAttribute("aria-keyshortcuts", "3");
-    fireEvent.keyDown(review, { key: "3" });
+
+    const exclude = within(review).getByRole("button", {
+      name: "Exclude from catalog",
+    });
+    expect(exclude).toHaveAttribute("aria-keyshortcuts", "X");
+    expect(exclude).toHaveAttribute("data-slot", "kbd");
+    fireEvent.keyDown(review, { key: "x" });
+    expect(excludeReviewRow).toHaveBeenCalledOnce();
+    expect(moveReviewRow).not.toHaveBeenCalled();
+    fireEvent.keyDown(review, { key: "e" });
     expect(excludeReviewRow).toHaveBeenCalledOnce();
     expect(within(review).queryByRole("textbox")).not.toBeInTheDocument();
+    expect(
+      within(review).queryByRole("button", {
+        name: "Leave all remaining unmatched",
+      }),
+    ).not.toBeInTheDocument();
   });
 });

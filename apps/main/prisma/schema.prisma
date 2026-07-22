@@ -126,6 +126,7 @@ model Listing {
   ahsId               String?
   cultivarReferenceId String?
   status              String?
+  importKey           String?
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
@@ -138,6 +139,7 @@ model Listing {
   user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, slug])
+  @@unique([userId, importKey])
   @@index([ahsId])
   @@index([cultivarReferenceId])
   @@index([userId])

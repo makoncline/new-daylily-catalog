@@ -30,7 +30,10 @@ function decodeXlsxText(cell: SpreadsheetCell): SpreadsheetCell {
         return XML_ENTITIES[named.toLowerCase()] ?? entity;
       }
 
-      const codePoint = Number.parseInt(decimal || hexadecimal, decimal ? 10 : 16);
+      const codePoint = Number.parseInt(
+        decimal || hexadecimal,
+        decimal ? 10 : 16,
+      );
       return Number.isSafeInteger(codePoint) && codePoint <= 0x10ffff
         ? String.fromCodePoint(codePoint)
         : entity;
@@ -152,6 +155,7 @@ export async function parseCatalogImportFile(
 
   return {
     fileName: file.name,
+    source: "upload",
     sheets,
   };
 }

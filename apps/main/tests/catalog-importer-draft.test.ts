@@ -40,7 +40,7 @@ describe("catalog importer browser draft", () => {
       mapping: {
         cultivarReferenceId: null,
         description: 2,
-        imageUrl: 4,
+        imageUrl: null,
         price: 1,
         privateNote: 3,
         title: 0,
@@ -58,7 +58,9 @@ describe("catalog importer browser draft", () => {
     await expect(writeCatalogImporterDraft(draft, storage)).resolves.toBe(
       "saved",
     );
-    await expect(readCatalogImporterDraft(storage)).resolves.toEqual(draft);
+    const restored = await readCatalogImporterDraft(storage);
+    expect(restored).toMatchObject(draft);
+    expect(restored?.projectId).toEqual(expect.any(String));
     await expect(clearCatalogImporterDraft(storage)).resolves.toBe(true);
     expect(storage.values.has(CATALOG_IMPORT_DRAFT_STORAGE_KEY)).toBe(false);
   });
@@ -87,7 +89,9 @@ describe("catalog importer browser draft", () => {
     };
 
     await expect(writeCatalogImporterDraft(draft)).resolves.toBe("saved");
-    await expect(readCatalogImporterDraft()).resolves.toEqual(draft);
+    const restored = await readCatalogImporterDraft();
+    expect(restored).toMatchObject(draft);
+    expect(restored?.projectId).toEqual(expect.any(String));
   });
 
   it("moves a valid v1 localStorage draft into IndexedDB", async () => {

@@ -1,16 +1,17 @@
 "use client";
 
 import type { CatalogImporterWorkbenchController } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
+import type { CatalogImporterStep } from "@/app/(public)/catalog-importer/_components/catalog-importer-step-nav";
 
 function RevealMetric({
   count,
-  href,
   label,
+  onClick,
   testId,
 }: {
   count: number;
-  href?: string;
   label: string;
+  onClick?: () => void;
   testId: string;
 }) {
   const content = (
@@ -25,13 +26,14 @@ function RevealMetric({
     </>
   );
 
-  return href ? (
-    <a
-      href={href}
+  return onClick ? (
+    <button
+      type="button"
+      onClick={onClick}
       className="rounded-sm hover:underline focus-visible:outline-2"
     >
       {content}
-    </a>
+    </button>
   ) : (
     <div>{content}</div>
   );
@@ -39,14 +41,44 @@ function RevealMetric({
 
 export function CatalogImporterOverview({
   controller,
+  onStepChange,
 }: {
   controller: CatalogImporterWorkbenchController;
+  onStepChange: (step: CatalogImporterStep) => void;
 }) {
   const { counts } = controller;
   const linkedListingLabel =
     counts.linkedListingCount === 1 ? "listing" : "listings";
   const cultivarLabel =
     counts.uniqueCultivarCount === 1 ? "cultivar" : "cultivars";
+  const outstandingMetrics = [
+    controller.reviewRows.length > 0 ? (
+      <RevealMetric
+        key="review"
+        count={controller.reviewRows.length}
+        onClick={() => onStepChange("review")}
+        label={
+          controller.reviewRows.length === 1
+            ? "potential match"
+            : "potential matches"
+        }
+        testId="pending-decision-count"
+      />
+    ) : null,
+    controller.remainingIssueCount > 0 ? (
+      <RevealMetric
+        key="issues"
+        count={controller.remainingIssueCount}
+        onClick={() => onStepChange("issues")}
+        label={
+          controller.remainingIssueCount === 1
+            ? "spreadsheet issue"
+            : "spreadsheet issues"
+        }
+        testId="issue-count"
+      />
+    ) : null,
+  ].filter(Boolean);
 
   return (
     <section
@@ -64,38 +96,9 @@ export function CatalogImporterOverview({
         {linkedListingLabel} to {counts.uniqueCultivarCount.toLocaleString()}{" "}
         registered {cultivarLabel}
       </h2>
-      <div className="grid max-w-2xl grid-cols-3 gap-4 pt-1">
-        <RevealMetric
-          count={counts.linkedListingCount}
-          href={
-            counts.linkedListingCount > 0
-              ? "#catalog-importer-preview"
-              : undefined
-          }
-          label="listings matched"
-          testId="linked-listing-count"
-        />
-        <RevealMetric
-          count={controller.reviewRows.length}
-          href={
-            controller.reviewRows.length > 0
-              ? "#catalog-importer-review-quiz"
-              : undefined
-          }
-          label="potential matches"
-          testId="pending-decision-count"
-        />
-        <RevealMetric
-          count={controller.remainingIssueCount}
-          href={
-            controller.remainingIssueCount > 0
-              ? "#catalog-importer-issues"
-              : undefined
-          }
-          label="spreadsheet issues"
-          testId="issue-count"
-        />
-      </div>
+      {outstandingMetrics.length > 0 ? (
+        <div className="flex max-w-2xl gap-8 pt-1">{outstandingMetrics}</div>
+      ) : null}
     </section>
   );
 }

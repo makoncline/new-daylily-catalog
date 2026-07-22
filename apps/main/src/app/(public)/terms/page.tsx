@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description: "Simple terms for using Daylily Catalog.",
 };
 
-const updatedAt = "July 19, 2026";
+const updatedAt = "July 20, 2026";
 
 function Section({
   children,
@@ -82,6 +82,12 @@ export default function TermsPage() {
         </Section>
 
         <Section title="File Tools And Automated Results">
+          <p>
+            When you submit a spreadsheet to a browser-based catalog tool, we
+            may log a limited sample of its headers and rows to operate, test,
+            troubleshoot, and improve the tool. We do not retain the complete
+            workbook through this diagnostic logging.
+          </p>
           <p>
             File conversions, automated matches, suggestions, and generated
             output can be incomplete or wrong. Review the results before using

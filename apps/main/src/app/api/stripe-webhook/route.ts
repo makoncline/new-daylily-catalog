@@ -66,6 +66,7 @@ export async function POST(req: Request) {
         const clerkUserId = user?.clerkUserId;
         if (clerkUserId) {
           const funnelEvents = getStripeFunnelEvents(event);
+          const sourceAttribution = getSourceAttributionFromEvent(event);
           await Promise.all(
             funnelEvents.map((funnelEvent) =>
               captureServerPosthogEvent({
@@ -77,6 +78,7 @@ export async function POST(req: Request) {
                   stripe_customer_id: customerId,
                   synced_subscription_status:
                     stripeSubscription.status ?? "unknown",
+                  ...sourceAttribution,
                 },
               }),
             ),
@@ -93,6 +95,19 @@ export async function POST(req: Request) {
   }
 
   return NextResponse.json({ received: true });
+}
+
+function getSourceAttributionFromEvent(event: Stripe.Event) {
+  const object = event.data.object as {
+    metadata?: Record<string, string> | null;
+  };
+  const conversionId = object.metadata?.conversion_id;
+  const entrySource = object.metadata?.entry_source;
+
+  return {
+    ...(conversionId ? { conversion_id: conversionId } : {}),
+    ...(entrySource ? { entry_source: entrySource } : {}),
+  };
 }
 
 function getCustomerIdFromEvent(event: Stripe.Event): string | null {

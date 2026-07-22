@@ -2,8 +2,18 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import {
   Sheet,
   SheetContent,
@@ -127,7 +137,7 @@ export function CatalogImporterMatchSheet({
   const closeCandidates = useMemo(
     () =>
       closeResult?.rowId === row?.id
-        ? (closeResult?.candidates ?? []).slice(0, 5)
+        ? (closeResult?.candidates ?? []).slice(0, 3)
         : [],
     [closeResult, row?.id],
   );
@@ -200,24 +210,30 @@ export function CatalogImporterMatchSheet({
           />
 
           <form
-            className="flex gap-2 py-1"
+            className="py-1"
             onSubmit={(event) => {
               event.preventDefault();
               void loadCloseMatches(row, searchQuery);
             }}
           >
-            <Input
-              aria-label="Cultivar name"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-            />
-            <Button
-              type="submit"
-              variant="outline"
-              disabled={!searchQuery.trim() || closeLoading}
-            >
-              Search
-            </Button>
+            <InputGroup>
+              <InputGroupInput
+                aria-label="Cultivar name"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+              />
+              <InputGroupAddon align="inline-end">
+                <InputGroupButton
+                  type="submit"
+                  variant="outline"
+                  size="sm"
+                  disabled={!searchQuery.trim() || closeLoading}
+                >
+                  {closeLoading ? <Spinner data-icon="inline-start" /> : null}
+                  Search
+                </InputGroupButton>
+              </InputGroupAddon>
+            </InputGroup>
           </form>
 
           {closeResult?.error && closeResult.rowId === row.id ? (
@@ -234,9 +250,12 @@ export function CatalogImporterMatchSheet({
           ) : (
             <>
               {closeResult && closeCandidates.length === 0 ? (
-                <p className="text-muted-foreground py-2 text-sm">
-                  No matches found. Try another name.
-                </p>
+                <Empty className="py-8">
+                  <EmptyHeader>
+                    <EmptyTitle>No matches found</EmptyTitle>
+                    <EmptyDescription>Try another name.</EmptyDescription>
+                  </EmptyHeader>
+                </Empty>
               ) : null}
               <CatalogImporterCandidateList
                 ariaLabel="Match options"

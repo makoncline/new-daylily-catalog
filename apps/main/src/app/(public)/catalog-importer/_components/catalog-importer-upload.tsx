@@ -44,7 +44,9 @@ const ACCEPTED_FILES = {
 
 interface CatalogImporterUploadProps {
   controller: CatalogImporterWorkbenchController;
+  onClear?: () => void;
   onEditMapping?: () => void;
+  onSourceReady?: () => void;
 }
 
 function getRejectionMessage(rejections: FileRejection[]) {
@@ -60,16 +62,20 @@ function getRejectionMessage(rejections: FileRejection[]) {
 
 export function CatalogImporterUpload({
   controller,
+  onClear,
   onEditMapping,
+  onSourceReady,
 }: CatalogImporterUploadProps) {
   const onDropAccepted = useCallback(
     (files: File[]) => {
       const file = files[0];
       if (file) {
-        void controller.loadFile(file);
+        void controller
+          .loadFile(file)
+          .then((loaded) => loaded && onSourceReady?.());
       }
     },
-    [controller],
+    [controller, onSourceReady],
   );
   const onDropRejected = useCallback(
     (rejections: FileRejection[]) => {
@@ -97,11 +103,23 @@ export function CatalogImporterUpload({
           <FileSpreadsheet className="text-muted-foreground size-4 shrink-0" />
           <p className="flex min-w-0 items-baseline gap-1 text-sm">
             <span className="truncate font-medium">
-              {controller.parsedSpreadsheet.fileName}
+              {controller.parsedSpreadsheet.source === "manual"
+                ? "Manual catalog"
+                : controller.parsedSpreadsheet.fileName}
             </span>
             <span className="text-muted-foreground font-normal">
-              · {controller.selectedSheet?.rows.length.toLocaleString() ?? 0}{" "}
-              rows
+              ·{" "}
+              {controller.parsedSpreadsheet.source === "manual"
+                ? Math.max(
+                    (controller.selectedSheet?.rows.length ?? 1) - 1,
+                    0,
+                  ).toLocaleString()
+                : (
+                    controller.selectedSheet?.rows.length ?? 0
+                  ).toLocaleString()}{" "}
+              {controller.parsedSpreadsheet.source === "manual"
+                ? "listings"
+                : "rows"}
             </span>
           </p>
         </div>
@@ -177,7 +195,12 @@ export function CatalogImporterUpload({
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={controller.resetImporter}>
+                <AlertDialogAction
+                  onClick={() => {
+                    controller.resetImporter();
+                    onClear?.();
+                  }}
+                >
                   Clear local progress
                 </AlertDialogAction>
               </AlertDialogFooter>
@@ -189,7 +212,11 @@ export function CatalogImporterUpload({
   }
 
   return (
-    <section aria-labelledby="catalog-importer-upload-heading">
+    <section
+      id="catalog-importer-start-options"
+      aria-labelledby="catalog-importer-upload-heading"
+      className="scroll-mt-20"
+    >
       <h2 id="catalog-importer-upload-heading" className="sr-only">
         Upload spreadsheet
       </h2>
@@ -229,20 +256,36 @@ export function CatalogImporterUpload({
           <Button
             type="button"
             variant="outline"
-            onClick={controller.downloadTemplate}
-          >
-            <Download className="size-4" />
-            Download template
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={controller.loadSampleCatalog}
+            onClick={() => {
+              controller.loadSampleCatalog();
+              onSourceReady?.();
+            }}
           >
             <Sparkles className="size-4" />
             Use sample catalog
           </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              controller.loadManualCatalog();
+              onSourceReady?.();
+            }}
+          >
+            <ListFilter className="size-4" />
+            Add listings manually
+          </Button>
         </div>
+        <Button
+          type="button"
+          variant="link"
+          size="sm"
+          className="h-auto px-0 text-xs"
+          onClick={controller.downloadTemplate}
+        >
+          <Download className="size-3.5" />
+          Download template
+        </Button>
       </div>
     </section>
   );
