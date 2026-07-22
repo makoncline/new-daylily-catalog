@@ -1,0 +1,1 @@
+- [2026-07-22] Next route types after branch reset: `next typegen` refreshes `.next/types` but can leave removed routes in `.next/dev/types`, which then makes `tsc --noEmit` compare incompatible route unions. When typecheck names routes absent from the current branch after a reset, move or remove the generated `.next/dev` directory before rerunning typecheck.

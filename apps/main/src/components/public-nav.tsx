@@ -12,20 +12,27 @@ import { useFeature } from "@/hooks/use-feature";
 
 const activeNavClassName =
   "font-semibold underline decoration-current/35 underline-offset-8";
+const growerMarketingPaths = new Set([
+  "/start-membership",
+  "/daylily-database-software",
+]);
+
+export function isGrowerMarketingPath(pathname: string) {
+  return growerMarketingPaths.has(pathname);
+}
 
 export function PublicHeader() {
   const pathname = usePathname();
   const cultivarSearchEnabled = useFeature("publicCultivarSearch");
   const mobileNavRef = useRef<HTMLDetailsElement>(null);
+  const isGrowerMarketingPage = isGrowerMarketingPath(pathname);
   const usesDarkHeroNav =
-    pathname === "/" ||
-    pathname === "/start-membership" ||
-    pathname === "/cultivars";
+    pathname === "/" || isGrowerMarketingPage || pathname === "/cultivars";
   const isCultivarsActive =
     pathname === "/cultivars" || pathname.startsWith("/cultivar/");
   const isCatalogsActive = pathname === "/catalogs";
   const isGrowersActive =
-    pathname === "/start-membership" || pathname.startsWith("/onboarding");
+    isGrowerMarketingPage || pathname.startsWith("/onboarding");
 
   useEffect(() => {
     mobileNavRef.current?.removeAttribute("open");

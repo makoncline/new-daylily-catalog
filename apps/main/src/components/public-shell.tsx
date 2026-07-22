@@ -1,7 +1,7 @@
 "use client";
 
 import { PublicFooter } from "@/components/public-footer";
-import { PublicHeader } from "@/components/public-nav";
+import { isGrowerMarketingPath, PublicHeader } from "@/components/public-nav";
 import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
 
@@ -12,12 +12,11 @@ interface PublicShellProps {
 
 export function PublicShell({ children, mainClassName }: PublicShellProps) {
   const pathname = usePathname();
+  const isGrowerMarketingPage = isGrowerMarketingPath(pathname);
   const overlapsHero =
-    pathname === "/" ||
-    pathname === "/start-membership" ||
-    pathname === "/cultivars";
+    pathname === "/" || isGrowerMarketingPage || pathname === "/cultivars";
   const shellBackgroundClassName =
-    pathname === "/start-membership" || pathname === "/cultivars"
+    isGrowerMarketingPage || pathname === "/cultivars"
       ? "bg-[#07120e]"
       : pathname === "/"
         ? "bg-[#f1f4ec]"
