@@ -195,14 +195,18 @@ describe("sitemap and robots host selection", () => {
     expect(robotsText).toContain("Sitemap: http://localhost:4123/sitemap.xml");
   });
 
-  it("only includes the cultivar search page when its feature is enabled", async () => {
+  it("includes static pages and gates the cultivar search page", async () => {
     process.env.VERCEL_ENV = "development";
     delete process.env.VERCEL_URL;
     delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
     process.env.PORT = "4123";
     const { GET: mainSitemap } = await import("@/app/sitemaps/main.xml/route");
+    const sitemapText = await (await mainSitemap()).text();
 
-    expect(await (await mainSitemap()).text()).not.toContain(
+    expect(sitemapText).toContain(
+      "<loc>http://localhost:4123/daylily-database-software</loc>",
+    );
+    expect(sitemapText).not.toContain(
       "<loc>http://localhost:4123/cultivars</loc>",
     );
 
