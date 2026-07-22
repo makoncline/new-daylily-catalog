@@ -5,7 +5,7 @@ import HomePageClient, {
   type HomePageCatalog,
 } from "./_components/home-page-client";
 
-export const dynamic = "force-static";
+export const dynamic = "force-dynamic";
 
 function getStaticProfileImage(args: {
   imageId: string;

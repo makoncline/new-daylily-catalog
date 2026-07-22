@@ -29,7 +29,6 @@ export const PRIVATE_AGENT_DISALLOWS = [
   "/api/stripe-webhook",
   "/api/trpc/",
   "/trpc/",
-  "/auth-error",
   "/subscribe/success",
   "/catalog/",
   "/*/catalog",

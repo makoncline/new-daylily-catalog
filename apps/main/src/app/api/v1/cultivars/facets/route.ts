@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getPublicCloudflareCacheHeaders } from "@/lib/public-cache-policy";
 import {
   getPublicSearchApiDisabledResponse,
   isPublicSearchApiEnabled,
@@ -46,7 +47,10 @@ export async function GET(request: Request) {
       facet,
       query: searchParams.get("q") ?? undefined,
     });
-    return NextResponse.json({ options });
+    return NextResponse.json(
+      { options },
+      { headers: getPublicCloudflareCacheHeaders() },
+    );
   } catch (error) {
     if (error instanceof PublicSearchIndexUnavailableError) {
       return NextResponse.json(

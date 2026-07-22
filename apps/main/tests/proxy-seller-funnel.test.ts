@@ -65,8 +65,16 @@ describe("seller funnel proxy protection", () => {
   it("adds Cloudflare-only cache directives to public HTML document routes", async () => {
     const middlewareEvent = {} as Parameters<NextMiddleware>[1];
     const publicDocumentUrls = [
+      "http://localhost:3000/",
       "http://localhost:3000/catalogs",
       "http://localhost:3000/cultivar/blue-crush",
+      "http://localhost:3000/cultivars",
+      "http://localhost:3000/cultivars?q=blue&yearMin=2020",
+      "http://localhost:3000/privacy",
+      "http://localhost:3000/start-membership",
+      "http://localhost:3000/support",
+      "http://localhost:3000/terms",
+      "http://localhost:3000/guides/growing/soil",
       "http://localhost:3000/plantfancygardens",
       "http://localhost:3000/plantfancygardens/page/2",
       "http://localhost:3000/plantfancygardens/alienation",
@@ -106,12 +114,11 @@ describe("seller funnel proxy protection", () => {
     const middlewareEvent = {} as Parameters<NextMiddleware>[1];
 
     for (const url of [
-      "http://localhost:3000/start-membership",
-      "http://localhost:3000/cultivars",
       "http://localhost:3000/catalogs/extra",
       "http://localhost:3000/catalog/legacy-listing",
-      "http://localhost:3000/kitchen-sink",
+      "http://localhost:3000/onboarding",
       "http://localhost:3000/plantfancygardens/search",
+      "http://localhost:3000/sign-in",
       "http://localhost:3000/api/trpc/public.getListings",
       "http://localhost:3000/llms.txt",
     ]) {
@@ -162,6 +169,37 @@ describe("seller funnel proxy protection", () => {
     ).toBeNull();
   });
 
+  it("uses only Authorization and Clerk session as credential signals", async () => {
+    const middlewareEvent = {} as Parameters<NextMiddleware>[1];
+
+    for (const headers of [
+      new Headers({ authorization: "Bearer test-token" }),
+      new Headers({ cookie: "__session=test-session" }),
+      new Headers({ cookie: "__session_abcd1234=test-session" }),
+    ]) {
+      const request = new NextRequest(
+        "http://localhost:3000/plantfancygardens",
+        { headers },
+      );
+      const response = await proxy(request, middlewareEvent);
+
+      expect(
+        response?.headers.get("cloudflare-cdn-cache-control") ?? null,
+      ).toBeNull();
+    }
+
+    const anonymousResponse = await proxy(
+      new NextRequest("http://localhost:3000/plantfancygardens", {
+        headers: { cookie: "analytics_test=1" },
+      }),
+      middlewareEvent,
+    );
+
+    expect(
+      anonymousResponse?.headers.get("cloudflare-cdn-cache-control"),
+    ).toContain("public");
+  });
+
   it("runs protected routes through Clerk before public HTML cache eligibility", async () => {
     const clerkRedirect = NextResponse.redirect(signInUrl);
 
@@ -202,7 +240,9 @@ describe("seller funnel proxy protection", () => {
 
     const response = await proxy(request, middlewareEvent);
 
-    expect(response).toBeUndefined();
+    expect(response?.headers.get("cloudflare-cdn-cache-control")).toBe(
+      "public, max-age=43200, stale-while-revalidate=604800, stale-if-error=86400",
+    );
     expect(authMock).not.toHaveBeenCalled();
     expect(redirectToSignInMock).not.toHaveBeenCalled();
   });

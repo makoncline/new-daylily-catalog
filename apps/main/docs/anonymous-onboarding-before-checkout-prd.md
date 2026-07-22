@@ -34,29 +34,20 @@ The v1 should stay deliberately simple:
 - Do not publicly check Clerk for existing accounts by email unless explicitly revisited; it creates user-enumeration tradeoffs.
 - Do not build a custom email OTP system separate from Clerk.
 
-## Current Codebase Context
+## Implemented Codebase Context
 
 Known from code research:
 
-- `/start-membership` currently starts with Clerk sign-up and redirects to `/onboarding`.
+- `/start-membership` sends new sellers to `/onboarding`.
   - `apps/main/src/app/start-membership/_components/seller-landing-actions.tsx`
-- `/onboarding` is currently protected by `apps/main/src/proxy.ts`; signed-out users redirect to `/auth-error`.
-- The current onboarding route renders `StartOnboardingPageClient` from:
-  - `apps/main/src/app/start-onboarding/start-onboarding-page-client.tsx`
-- Current onboarding assumes an authenticated app user and calls protected dashboard APIs.
-- Current save flow writes profile/listing/image data to the server before Stripe:
-  - `apps/main/src/app/start-onboarding/_hooks/use-onboarding-save-flow.ts`
-- Current listing flow creates a server listing draft just by entering the listing step:
-  - `apps/main/src/app/start-onboarding/_hooks/use-onboarding-listing-flow.ts`
-- Current draft persistence is sessionStorage and is scoped to signed-in user identity:
-  - `apps/main/src/app/start-onboarding/_hooks/use-onboarding-bootstrap-state.ts`
-- Current Stripe checkout generation is authenticated only:
-  - `apps/main/src/server/api/routers/stripe.ts`
-  - `generateCheckout` is a protected procedure tied to the current app user.
-- Current checkout success page is protected:
-  - `apps/main/src/app/subscribe/success/page.tsx`
+- `/onboarding` is the anonymous setup flow; protected dashboard routes send signed-out users to `/sign-in`.
+- The anonymous flow and local draft live under `apps/main/src/app/onboarding`.
+- The draft uses local storage and does not create server listing data before checkout.
+- Anonymous checkout and account completion return through
+  `apps/main/src/app/onboarding/checkout/success/page.tsx`.
 - `hasActiveSubscription()` treats both `active` and `trialing` as active.
-- `dashboardDb.ahs.search/get` are protected. Pre-auth onboarding should not rely on them in v1.
+- The example cultivars used before authentication are loaded by
+  `apps/main/src/app/onboarding/anonymous-onboarding-example-cultivars.ts`.
 
 ## Product Decisions Already Made
 

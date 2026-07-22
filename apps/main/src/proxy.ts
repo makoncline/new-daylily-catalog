@@ -2,6 +2,10 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import type { NextFetchEvent, NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getHomeMarkdown, getRequestBaseUrl } from "@/lib/agent-readiness";
+import {
+  PUBLIC_CLOUDFLARE_CACHE_CONTROL,
+  PUBLIC_CLOUDFLARE_CACHE_CONTROL_HEADER,
+} from "@/lib/public-cache-policy";
 
 const isProtectedRoute = createRouteMatcher([
   "/dashboard(.*)",
@@ -36,38 +40,20 @@ const publicAgentDiscoveryPaths = new Set([
   "/llms-full.txt",
 ]);
 
-const PUBLIC_HTML_CLOUDFLARE_CDN_CACHE_CONTROL_HEADER =
-  "Cloudflare-CDN-Cache-Control";
-const PUBLIC_HTML_CLOUDFLARE_CDN_CACHE_CONTROL =
-  "public, max-age=43200, stale-while-revalidate=604800, stale-if-error=86400";
-
 const publicHtmlFirstSegmentExclusions = new Set([
   "_next",
   ".well-known",
   "api",
-  "auth-error",
   "catalog",
   "catalogs",
   "dashboard",
-  "kitchen-sink",
   "onboarding",
   "openapi.json",
   "sign-in",
   "sign-up",
-  "start-membership",
-  "start-onboarding",
   "subscribe",
   "trpc",
   "users",
-]);
-
-const publicHtmlExactPathExclusions = new Set([
-  "/",
-  "/cultivars",
-  "/llms.txt",
-  "/llms-full.txt",
-  "/openapi.json",
-  "/start-membership",
 ]);
 
 function isDocumentNavigation(req: NextRequest) {
@@ -105,6 +91,17 @@ function isAppRouterRscRequest(req: NextRequest) {
   );
 }
 
+function hasRequestCredentials(req: NextRequest) {
+  return (
+    req.headers.has("authorization") ||
+    req.cookies
+      .getAll()
+      .some(
+        ({ name }) => name === "__session" || name.startsWith("__session_"),
+      )
+  );
+}
+
 function uncachedRscResponse() {
   const response = NextResponse.next();
 
@@ -114,48 +111,29 @@ function uncachedRscResponse() {
 }
 
 function isPublicHtmlCloudflareCachePath(pathname: string) {
-  if (publicHtmlExactPathExclusions.has(pathname)) {
-    return false;
-  }
-
   if (pathname.includes(".")) {
     return false;
   }
 
-  if (pathname === "/catalogs") {
+  if (pathname === "/" || pathname === "/catalogs") {
     return true;
   }
 
   const segments = pathname.split("/").filter(Boolean);
-  const [firstSegment, secondSegment, thirdSegment] = segments;
+  const [firstSegment, secondSegment] = segments;
 
   if (!firstSegment || publicHtmlFirstSegmentExclusions.has(firstSegment)) {
     return false;
   }
 
-  if (firstSegment === "cultivar") {
-    return segments.length === 2;
-  }
-
-  if (segments.length === 1) {
-    return true;
-  }
-
-  if (segments.length === 2) {
-    return secondSegment !== "search";
-  }
-
-  if (segments.length === 3) {
-    return secondSegment === "page" && /^\d+$/.test(thirdSegment ?? "");
-  }
-
-  return false;
+  return secondSegment !== "search";
 }
 
 function isPublicHtmlCloudflareCacheRequest(req: NextRequest) {
   return (
     (req.method === "GET" || req.method === "HEAD") &&
     !isProtectedRoute(req) &&
+    !hasRequestCredentials(req) &&
     !isPrefetchRequest(req) &&
     !isAppRouterRscRequest(req) &&
     isPublicHtmlCloudflareCachePath(req.nextUrl.pathname)
@@ -166,8 +144,8 @@ function cloudflareCachedPublicHtmlResponse() {
   const response = NextResponse.next();
 
   response.headers.set(
-    PUBLIC_HTML_CLOUDFLARE_CDN_CACHE_CONTROL_HEADER,
-    PUBLIC_HTML_CLOUDFLARE_CDN_CACHE_CONTROL,
+    PUBLIC_CLOUDFLARE_CACHE_CONTROL_HEADER,
+    PUBLIC_CLOUDFLARE_CACHE_CONTROL,
   );
 
   return response;
@@ -231,10 +209,6 @@ export function proxy(req: NextRequest, event: NextFetchEvent) {
     });
   }
 
-  if (req.nextUrl.pathname === "/") {
-    return undefined;
-  }
-
   if (isAppRouterRscRequest(req) && !isProtectedRoute(req)) {
     return uncachedRscResponse();
   }
@@ -243,6 +217,10 @@ export function proxy(req: NextRequest, event: NextFetchEvent) {
     return cloudflareCachedPublicHtmlResponse();
   }
 
+  // Do not guard this call with isProtectedRoute(). Public routes such as
+  // /onboarding and /api/trpc still need Clerk's request context for auth().
+  // Keep the protected-route check inside the clerkMiddleware callback above.
+  // https://clerk.com/docs/reference/nextjs/app-router/auth
   return protectedRouteProxy(req, event);
 }
 
@@ -254,21 +232,16 @@ export const config = {
     "/onboarding/:path*",
     "/subscribe/success/:path*",
     "/api/trpc/:path*",
-    "/",
     "/.well-known/:path*",
     "/openapi.json",
     "/llms.txt",
     "/llms-full.txt",
-    "/catalogs",
-    "/cultivar/:cultivarNormalizedName",
-    "/:userSlugOrId",
-    "/:userSlugOrId/page/:page",
-    "/:userSlugOrId/:listingSlugOrId",
     "/sitemap-index.xml",
     "/sitemap_index.xml",
     "/sitemap.xml.gz",
     "/api",
     "/api/v1",
+    "/((?!api(?:/|$)|_next(?:/|$)|.*\\..*).*)",
     {
       source: "/:path*",
       has: [

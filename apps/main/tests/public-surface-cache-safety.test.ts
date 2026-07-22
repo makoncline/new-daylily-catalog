@@ -18,11 +18,14 @@ const ROOT_CACHE_VARIANT_MARKERS = [
   "TRPCReactProvider",
 ] as const;
 const CLOUDFLARE_OWNED_PUBLIC_HTML_ROUTES = [
+  "src/app/(public)/page.tsx",
   "src/app/(public)/catalogs/page.tsx",
   "src/app/(public)/cultivar/[cultivarNormalizedName]/page.tsx",
+  "src/app/(public)/cultivars/page.tsx",
   "src/app/(public)/[userSlugOrId]/page.tsx",
   "src/app/(public)/[userSlugOrId]/page/[page]/page.tsx",
   "src/app/(public)/[userSlugOrId]/[listingSlugOrId]/page.tsx",
+  "src/app/start-membership/page.tsx",
 ] as const;
 
 function readSource(sourcePath: string) {
@@ -236,13 +239,6 @@ describe("public surface cache safety", () => {
     }
   });
 
-  it("keeps the membership landing page statically rendered with ISR", () => {
-    const source = readSource("src/app/start-membership/page.tsx");
-
-    expect(source).toContain('export const dynamic = "force-static"');
-    expect(source).toContain("export const revalidate = 3600");
-  });
-
   it("renders public navigation without Clerk auth state", () => {
     const source = readSource("src/components/public-nav.tsx");
 
@@ -294,14 +290,8 @@ describe("public surface cache safety", () => {
   });
 
   it("keeps non-dashboard auth layouts on the minimal auth provider", () => {
-    expect(readSource("src/app/auth-error/layout.tsx")).toContain(
-      "<AuthProviders>",
-    );
     expect(readSource("src/app/onboarding/layout.tsx")).toContain(
       "<AuthProviders>",
-    );
-    expect(readSource("src/app/start-onboarding/page.tsx")).toContain(
-      "redirect(SUBSCRIPTION_CONFIG.NEW_USER_ONBOARDING_PATH)",
     );
     expect(readSource("src/app/start-membership/layout.tsx")).not.toContain(
       "AuthProviders",

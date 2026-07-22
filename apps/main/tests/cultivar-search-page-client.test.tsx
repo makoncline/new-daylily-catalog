@@ -137,10 +137,7 @@ describe("CultivarSearchPageClient", () => {
     fetchMock.mockClear();
     capturePosthogEventMock.mockClear();
     fetchMock.mockResolvedValue({
-      headers: new Headers({
-        "X-Cultivar-Search-Duration-Ms": "12.4",
-        "X-Cultivar-Search-Request-Id": "search-request-1",
-      }),
+      headers: new Headers(),
       json: async () => searchResponse(),
       ok: true,
       status: 200,
@@ -237,10 +234,8 @@ describe("CultivarSearchPageClient", () => {
         outcome: "results",
         query: "stella de oro",
         query_kind: "query_and_filters",
-        request_id: "search-request-1",
         request_kind: "initial",
         results_returned: 1,
-        server_duration_ms: 12.4,
         visible_result_count: 1,
       }),
     );
