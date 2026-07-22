@@ -2,6 +2,10 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import type { NextFetchEvent, NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getHomeMarkdown, getRequestBaseUrl } from "@/lib/agent-readiness";
+import {
+  PUBLIC_CLOUDFLARE_CACHE_CONTROL,
+  PUBLIC_CLOUDFLARE_CACHE_CONTROL_HEADER,
+} from "@/lib/public-cache-policy";
 
 const isProtectedRoute = createRouteMatcher([
   "/dashboard(.*)",
@@ -36,24 +40,10 @@ const publicAgentDiscoveryPaths = new Set([
   "/llms-full.txt",
 ]);
 
-const PUBLIC_HTML_CLOUDFLARE_CDN_CACHE_CONTROL_HEADER =
-  "Cloudflare-CDN-Cache-Control";
-const PUBLIC_HTML_CLOUDFLARE_CDN_CACHE_CONTROL =
-  "public, max-age=43200, stale-while-revalidate=604800, stale-if-error=86400";
-const PUBLIC_HTML_CLOUDFLARE_CDN_NO_STORE = "no-store";
-
-const cloudflareUncachedStaticHtmlPaths = new Set([
-  "/",
-  "/auth-error",
-  "/start-membership",
-  "/start-onboarding",
-]);
-
 const publicHtmlFirstSegmentExclusions = new Set([
   "_next",
   ".well-known",
   "api",
-  "auth-error",
   "catalog",
   "catalogs",
   "dashboard",
@@ -61,20 +51,9 @@ const publicHtmlFirstSegmentExclusions = new Set([
   "openapi.json",
   "sign-in",
   "sign-up",
-  "start-membership",
-  "start-onboarding",
   "subscribe",
   "trpc",
   "users",
-]);
-
-const publicHtmlExactPathExclusions = new Set([
-  "/",
-  "/cultivars",
-  "/llms.txt",
-  "/llms-full.txt",
-  "/openapi.json",
-  "/start-membership",
 ]);
 
 function isDocumentNavigation(req: NextRequest) {
@@ -132,42 +111,22 @@ function uncachedRscResponse() {
 }
 
 function isPublicHtmlCloudflareCachePath(pathname: string) {
-  if (publicHtmlExactPathExclusions.has(pathname)) {
-    return false;
-  }
-
   if (pathname.includes(".")) {
     return false;
   }
 
-  if (pathname === "/catalogs") {
+  if (pathname === "/" || pathname === "/catalogs") {
     return true;
   }
 
   const segments = pathname.split("/").filter(Boolean);
-  const [firstSegment, secondSegment, thirdSegment] = segments;
+  const [firstSegment, secondSegment] = segments;
 
   if (!firstSegment || publicHtmlFirstSegmentExclusions.has(firstSegment)) {
     return false;
   }
 
-  if (firstSegment === "cultivar") {
-    return segments.length === 2;
-  }
-
-  if (segments.length === 1) {
-    return true;
-  }
-
-  if (segments.length === 2) {
-    return secondSegment !== "search";
-  }
-
-  if (segments.length === 3) {
-    return secondSegment === "page" && /^\d+$/.test(thirdSegment ?? "");
-  }
-
-  return false;
+  return secondSegment !== "search";
 }
 
 function isPublicHtmlCloudflareCacheRequest(req: NextRequest) {
@@ -185,19 +144,8 @@ function cloudflareCachedPublicHtmlResponse() {
   const response = NextResponse.next();
 
   response.headers.set(
-    PUBLIC_HTML_CLOUDFLARE_CDN_CACHE_CONTROL_HEADER,
-    PUBLIC_HTML_CLOUDFLARE_CDN_CACHE_CONTROL,
-  );
-
-  return response;
-}
-
-function cloudflareUncachedStaticHtmlResponse() {
-  const response = NextResponse.next();
-
-  response.headers.set(
-    PUBLIC_HTML_CLOUDFLARE_CDN_CACHE_CONTROL_HEADER,
-    PUBLIC_HTML_CLOUDFLARE_CDN_NO_STORE,
+    PUBLIC_CLOUDFLARE_CACHE_CONTROL_HEADER,
+    PUBLIC_CLOUDFLARE_CACHE_CONTROL,
   );
 
   return response;
@@ -263,14 +211,6 @@ export function proxy(req: NextRequest, event: NextFetchEvent) {
 
   if (isAppRouterRscRequest(req) && !isProtectedRoute(req)) {
     return uncachedRscResponse();
-  }
-
-  if (
-    (req.method === "GET" || req.method === "HEAD") &&
-    !isPrefetchRequest(req) &&
-    cloudflareUncachedStaticHtmlPaths.has(req.nextUrl.pathname)
-  ) {
-    return cloudflareUncachedStaticHtmlResponse();
   }
 
   if (isPublicHtmlCloudflareCacheRequest(req)) {

@@ -11,7 +11,7 @@ vi.mock("@/server/search/cultivar-search", () => ({
 }));
 
 vi.mock("@/lib/agent-readiness", () => ({
-  getRequestBaseUrl: () => "https://daylilycatalog.com",
+  getTrustedBaseUrl: () => "https://daylilycatalog.com",
 }));
 
 vi.mock("@/lib/utils/getBaseUrl", () => ({
@@ -79,6 +79,7 @@ describe("public cultivar search route", () => {
     expect(searchCultivarsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         award: "HM",
+        baseUrl: "https://daylilycatalog.com",
         flowerShow: "Large",
         hasCultivarPhoto: true,
         hybridizer: "Reed|Stone",
@@ -105,6 +106,9 @@ describe("public cultivar search route", () => {
     });
     expect(response.headers.get("X-Cultivar-Search-Request-Id")).toBe(
       "cultivar-search-request",
+    );
+    expect(response.headers.get("Cloudflare-CDN-Cache-Control")).toBe(
+      "public, max-age=43200, stale-while-revalidate=604800, stale-if-error=86400",
     );
     expect(
       Number(response.headers.get("X-Cultivar-Search-Duration-Ms")),
@@ -202,6 +206,7 @@ describe("public cultivar search route", () => {
     );
 
     expect(response.status).toBe(500);
+    expect(response.headers.get("Cloudflare-CDN-Cache-Control")).toBeNull();
     expect(response.headers.get("X-Cultivar-Search-Request-Id")).toBe(
       "failed-search-request",
     );

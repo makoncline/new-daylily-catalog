@@ -65,9 +65,13 @@ describe("seller funnel proxy protection", () => {
   it("adds Cloudflare-only cache directives to public HTML document routes", async () => {
     const middlewareEvent = {} as Parameters<NextMiddleware>[1];
     const publicDocumentUrls = [
+      "http://localhost:3000/",
       "http://localhost:3000/catalogs",
       "http://localhost:3000/cultivar/blue-crush",
+      "http://localhost:3000/cultivars",
+      "http://localhost:3000/cultivars?q=blue&yearMin=2020",
       "http://localhost:3000/privacy",
+      "http://localhost:3000/start-membership",
       "http://localhost:3000/support",
       "http://localhost:3000/terms",
       "http://localhost:3000/plantfancygardens",
@@ -109,10 +113,11 @@ describe("seller funnel proxy protection", () => {
     const middlewareEvent = {} as Parameters<NextMiddleware>[1];
 
     for (const url of [
-      "http://localhost:3000/cultivars",
       "http://localhost:3000/catalogs/extra",
       "http://localhost:3000/catalog/legacy-listing",
+      "http://localhost:3000/onboarding",
       "http://localhost:3000/plantfancygardens/search",
+      "http://localhost:3000/sign-in",
       "http://localhost:3000/api/trpc/public.getListings",
       "http://localhost:3000/llms.txt",
     ]) {
@@ -161,23 +166,6 @@ describe("seller funnel proxy protection", () => {
     expect(
       prefetchResponse?.headers.get("cloudflare-cdn-cache-control") ?? null,
     ).toBeNull();
-  });
-
-  it("overrides cacheable Next headers for excluded static documents", async () => {
-    const middlewareEvent = {} as Parameters<NextMiddleware>[1];
-
-    for (const url of [
-      "http://localhost:3000/",
-      "http://localhost:3000/auth-error",
-      "http://localhost:3000/start-membership",
-      "http://localhost:3000/start-onboarding",
-    ]) {
-      const response = await proxy(new NextRequest(url), middlewareEvent);
-
-      expect(response?.headers.get("cloudflare-cdn-cache-control")).toBe(
-        "no-store",
-      );
-    }
   });
 
   it("uses only Authorization and Clerk session as credential signals", async () => {
@@ -252,7 +240,7 @@ describe("seller funnel proxy protection", () => {
     const response = await proxy(request, middlewareEvent);
 
     expect(response?.headers.get("cloudflare-cdn-cache-control")).toBe(
-      "no-store",
+      "public, max-age=43200, stale-while-revalidate=604800, stale-if-error=86400",
     );
     expect(authMock).not.toHaveBeenCalled();
     expect(redirectToSignInMock).not.toHaveBeenCalled();

@@ -121,8 +121,7 @@ const FAQ_ITEMS = [
   },
 ] as const;
 
-export const dynamic = "force-static";
-export const revalidate = 3600;
+export const dynamic = "force-dynamic";
 
 function createFaqSchema(baseUrl: string) {
   return {

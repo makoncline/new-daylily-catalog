@@ -1,6 +1,6 @@
-# Public Cloudflare HTML Cache
+# Public Cloudflare Cache
 
-Date: 2026-07-21
+Date: 2026-07-22
 
 This is the current cache-owner plan for public Daylily Catalog HTML after the
 July 2026 memory/OOM investigation. It intentionally replaces the earlier
@@ -9,12 +9,13 @@ listed here.
 
 ## Decision
 
-Use Cloudflare as the single whole-document cache owner for high-cardinality
-public HTML routes. The app renders anonymous, deterministic HTML from the
-public read models on an origin miss, and Cloudflare serves the cached document
-for normal traffic and crawler traffic.
+Use Cloudflare as the cache owner for anonymous public documents and cultivar
+search responses. The app renders deterministic responses on an origin miss,
+and Cloudflare serves the cached response for normal traffic and crawler
+traffic.
 
-The success-page TTL lives in the app as a Cloudflare-only response header:
+The successful-response TTL lives in one app constant and is sent as a
+Cloudflare-only response header:
 
 ```http
 Cloudflare-CDN-Cache-Control: public, max-age=43200, stale-while-revalidate=604800, stale-if-error=86400
@@ -88,19 +89,18 @@ In the app:
   cookies, or per-user providers in their public render tree.
 - Public HTML document responses for the in-scope routes get a cacheable
   `Cloudflare-CDN-Cache-Control`.
-- Requests with an `Authorization` header or Clerk `__session` or
-  `__session_<suffix>` cookie do not get the public CDN cache header.
-- Excluded static documents explicitly send
-  `Cloudflare-CDN-Cache-Control: no-store` so their ordinary Next.js
-  `Cache-Control` header cannot make them eligible under the hostname-wide
-  Cloudflare rule.
+- Public document requests with an `Authorization` header or Clerk `__session`
+  or `__session_<suffix>` cookie do not get the public CDN cache header. The
+  edge rule applies the same credential exclusion to public API responses.
 - App Router RSC and prefetch variants get no long-lived CDN cache directive.
   Public RSC requests keep `Cache-Control: no-store`.
 - Cloudflare must still exclude `_rsc` query variants at the edge. In
   standalone `next start`, a bare `_rsc` query without component request
   headers can be normalized before proxy code can inspect it; the app reliably
   no-stores real component requests via `Accept: text/x-component`/RSC headers.
-- Public search remains dynamic and is not part of this HTML cache rule.
+- `/cultivars` document variants and the public cultivar search/facet JSON
+  responses use the same app-owned CDN policy. Cloudflare's default full-URL
+  key keeps each query-string combination separate.
 
 The public read path still uses `replicaDb` where the read model supports it, so
 origin misses stay cheap and do not hit live Turso for normal public reads.
@@ -109,8 +109,11 @@ origin misses stay cheap and do not hit live Turso for normal public reads.
 
 Cache these dynamic public document routes:
 
+- `/`
 - `/catalogs`
 - `/cultivar/*`
+- `/cultivars` and each full query-string variant
+- `/start-membership`
 - `/:seller`
 - `/:seller/page/:page`
 - `/:seller/:listing`
@@ -121,13 +124,16 @@ Cache these static public document routes:
 - `/support`
 - `/terms`
 
+Cache successful responses from these public read APIs, keyed by the full URL:
+
+- `/api/v1/cultivars/search`
+- `/api/v1/cultivars/facets`
+
 Leave these out of this rollout:
 
-- `/`
-- `/start-membership`
 - `/:seller/search`
 - `/dashboard/*`
-- `/api/*` and `/api/trpc/*`
+- other `/api/*` and `/api/trpc/*` routes
 - auth, onboarding, subscription, webhook, MCP, well-known, and static asset
   routes
 - App Router RSC requests: `_rsc` query, `RSC: 1`, or `Accept:
@@ -135,10 +141,6 @@ Leave these out of this rollout:
 - browser prefetch requests
 - requests with authenticated Clerk/session cookies or an `Authorization`
   header
-
-The static home and membership pages are intentionally excluded for now. They
-are low-cardinality and not the source of the memory pressure we are trying to
-shield.
 
 ## Cloudflare Rule
 
@@ -173,10 +175,9 @@ Use one Cache Rule for application response eligibility:
 - Status-code guard in the same rule: `400-599` uses no-store.
 
 Do not maintain a second route allowlist or dashboard/API path exclusion list in
-this rule. Dynamic excluded responses already send non-cacheable ordinary
-headers, and excluded static documents send Cloudflare-specific `no-store`.
-The credential, component-request, and status guards are narrow
-defense-in-depth boundaries, not a second cache policy.
+this rule. Excluded responses send no cacheable origin directive. The
+credential, component-request, and status guards are narrow defense-in-depth
+boundaries, not a second cache policy.
 
 The status-code guard is intentionally the one successful-TTL exception. The app
 adds the CDN cache header before the page knows whether the route will become a
@@ -196,12 +197,10 @@ eligibility and would create another cache policy location.
 
 For a new public page:
 
-1. Put the page in the `(public)` route group.
-2. If it is a dynamic whole-document route, add its URL shape to the centralized
-   classifier and matcher in `src/proxy.ts` so the app sends
-   `Cloudflare-CDN-Cache-Control`.
-   If the page must remain uncached even though Next statically prerenders it,
-   add it to the centralized static no-store set instead.
+1. Put the page in the `(public)` route group. Public paths outside the private
+   and system first-segment exclusions inherit the cache policy by default.
+2. Only change the centralized classifier in `src/proxy.ts` when the new route
+   has an exceptional URL shape or must remain uncached.
 3. Verify the document response has the intended cache header and its RSC or
    prefetch variant remains `no-store`.
 
@@ -224,10 +223,11 @@ Use the prod-like local Docker smoke workflow:
    - in-scope public documents include `Cloudflare-CDN-Cache-Control`
    - credential-bearing public requests, including suffixed Clerk session
      cookies, omit that public CDN cache header
-   - excluded static documents include
-     `Cloudflare-CDN-Cache-Control: no-store`
    - RSC requests include `Cache-Control: no-store`
-   - search/dashboard/API/auth routes do not include a cacheable CDN directive
+   - seller search, dashboard, other API, and auth routes do not include a
+     cacheable CDN directive
+   - successful cultivar search/facet API responses include the public CDN
+     directive, while their errors do not
 6. Verify anonymous Cloudflare document requests for each in-scope route:
    - first request: `cf-cache-status: MISS`
    - second request: `cf-cache-status: HIT`
@@ -236,8 +236,11 @@ Use the prod-like local Docker smoke workflow:
    - `_rsc` requests are not cached.
    - signed-in requests, including suffixed Clerk session cookies, are not
      cached.
-   - dashboard/API/auth routes are not cached.
-8. Click through the site in Chrome as a user would, then use anonymous document
+   - dashboard, other API, and auth routes are not cached.
+8. Verify common `/cultivars` query variants and their matching public search
+   API URLs independently. The document and JSON result are separate cache
+   entries.
+9. Click through the site in Chrome as a user would, then use anonymous document
    requests for the clean cache proof. App Router clicks often fetch RSC, so
    click testing and document cache testing answer different questions.
 
@@ -245,7 +248,8 @@ Use the prod-like local Docker smoke workflow:
 
 After the app change is deployed:
 
-1. Confirm origin public HTML includes the CDN cache header on converted routes.
+1. Confirm origin public HTML and successful cultivar search API responses
+   include the CDN cache header on converted routes.
 2. Copy the proven dev Cache Rule to `daylilycatalog.com`.
 3. Verify representative cached and uncached routes without adding path filters
    to the rule.
@@ -257,7 +261,7 @@ After the app change is deployed:
    - no OOM/137 restarts.
    - public origin request volume should drop for cached document routes.
 
-## 2026-07-21 Dev Proof
+## 2026-07-22 Dev Proof
 
 Test setup:
 
@@ -271,29 +275,30 @@ Test setup:
 
 Local origin proof:
 
-- Public document routes returned
+- `/`, `/start-membership`, `/cultivars`, filtered `/cultivars?...`, and the
+  established public catalog/cultivar/seller routes returned
   `Cloudflare-CDN-Cache-Control: public, max-age=43200,
   stale-while-revalidate=604800, stale-if-error=86400`.
 - Authorization and Clerk `__session` and `__session_<suffix>` requests omitted
   that header, while an anonymous analytics cookie retained it.
-- `/` and `/start-membership` returned
-  `Cloudflare-CDN-Cache-Control: no-store`, overriding their ordinary static or
-  ISR Next.js cache headers.
-- Search, dashboard, and API routes omitted the cacheable CDN directive. Real
-  component requests returned `Cache-Control: no-store`.
+- Successful cultivar search and facet JSON responses returned the same CDN
+  directive. Invalid and unavailable responses did not.
+- Seller search, dashboard, auth, onboarding, and other API routes omitted the
+  cacheable CDN directive. Real component requests returned
+  `Cache-Control: no-store`.
 
 Cloudflare dev proof:
 
-- Fresh variants for eight representative public routes returned `MISS` then
-  `HIT`; the same was true with an anonymous analytics cookie.
+- Fresh variants for home, membership, default cultivar search, and filtered
+  cultivar search returned `MISS` then `HIT`.
+- Fresh full-URL variants for the cultivar search and facet APIs returned
+  `MISS` then `HIT`.
 - Authorization, both Clerk session-cookie forms, and RSC requests remained
   `DYNAMIC`.
-- `/` and `/start-membership` remained uncached despite their ordinary Next.js
-  static or ISR cache headers.
-- Search, API, dashboard, and `404` responses remained uncached; the `404`
-  result verified the status-code guard.
-- Chrome navigation rendered seller page -> page 2 -> cultivar page without a
-  visible broken state.
+- Seller search, sign-in, onboarding, other API, `400`, and `404` responses
+  remained `BYPASS`; the error results verified the status-code guard.
+- Chrome loaded a cached filtered `/cultivars` document, normalized its URL,
+  hydrated 24 filtered results, and reported no console warnings or errors.
 
 ## Long-Term Split
 
