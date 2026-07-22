@@ -217,6 +217,9 @@ export function proxy(req: NextRequest, event: NextFetchEvent) {
     return cloudflareCachedPublicHtmlResponse();
   }
 
+  // Do not guard this call with isProtectedRoute(). Public routes such as
+  // /onboarding and /api/trpc still need Clerk's request context for auth().
+  // Keep the protected-route check inside the clerkMiddleware callback above.
   return protectedRouteProxy(req, event);
 }
 
