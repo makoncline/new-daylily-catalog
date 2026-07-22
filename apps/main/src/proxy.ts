@@ -152,6 +152,10 @@ function cloudflareCachedPublicHtmlResponse() {
 }
 
 const protectedRouteProxy = clerkMiddleware(async (auth, req) => {
+  if (!isProtectedRoute(req)) {
+    return undefined;
+  }
+
   const { isAuthenticated, redirectToSignIn } = await auth();
 
   if (isAuthenticated) {
@@ -213,11 +217,7 @@ export function proxy(req: NextRequest, event: NextFetchEvent) {
     return cloudflareCachedPublicHtmlResponse();
   }
 
-  if (isProtectedRoute(req)) {
-    return protectedRouteProxy(req, event);
-  }
-
-  return undefined;
+  return protectedRouteProxy(req, event);
 }
 
 export default proxy;
