@@ -634,9 +634,11 @@ function parsePriceValue(value: SpreadsheetCell | undefined) {
   }
 
   if (typeof value === "number") {
-    return Number.isFinite(value) && value >= 0
-      ? { price: value, source, warning: null }
-      : { price: null, source, warning: source };
+    if (!Number.isFinite(value) || value < 0 || !Number.isInteger(value)) {
+      return { price: null, source, warning: source };
+    }
+
+    return { price: value === 0 ? null : value, source, warning: null };
   }
 
   if (
@@ -653,9 +655,11 @@ function parsePriceValue(value: SpreadsheetCell | undefined) {
   }
 
   const price = Number(normalized);
-  return Number.isFinite(price) && price >= 0
-    ? { price, source, warning: null }
-    : { price: null, source, warning: source };
+  if (!Number.isFinite(price) || price < 0 || !Number.isInteger(price)) {
+    return { price: null, source, warning: source };
+  }
+
+  return { price: price === 0 ? null : price, source, warning: null };
 }
 
 function getHeaderMatchScore(

@@ -93,7 +93,7 @@ function captureIssueResolution({
   resolvedCount,
   rows,
 }: {
-  issueType: "duplicate" | "image" | "price" | "saved_id";
+  issueType: "duplicate" | "excluded" | "image" | "price" | "saved_id";
   resolvedCount: number;
   rows: CatalogImportRow[];
 }) {
@@ -926,15 +926,26 @@ export function useCatalogImporterWorkbench(
     [matchedRows, saveMatchedRows],
   );
 
+  const getOriginalImportRow = useCallback(
+    (rowId: string) => {
+      if (!selectedSheet) return null;
+
+      return (
+        createCatalogImportRows({
+          headerRowIndex,
+          mapping,
+          rows: selectedSheet.rows,
+        }).find((row) => row.id === rowId) ?? null
+      );
+    },
+    [headerRowIndex, mapping, selectedSheet],
+  );
+
   const resetImportRow = useCallback(
     (rowId: string) => {
-      if (!matchedRows || !selectedSheet) return;
+      if (!matchedRows) return;
 
-      const originalRow = createCatalogImportRows({
-        headerRowIndex,
-        mapping,
-        rows: selectedSheet.rows,
-      }).find((row) => row.id === rowId);
+      const originalRow = getOriginalImportRow(rowId);
       if (!originalRow) return;
 
       saveMatchedRows(
@@ -952,7 +963,7 @@ export function useCatalogImporterWorkbench(
         ),
       );
     },
-    [headerRowIndex, mapping, matchedRows, saveMatchedRows, selectedSheet],
+    [getOriginalImportRow, matchedRows, saveMatchedRows],
   );
 
   const configureSheet = useCallback(
@@ -1087,7 +1098,7 @@ export function useCatalogImporterWorkbench(
       if (!name.trim() || rows.length - 1 >= 10) return;
       replaceManualCatalogRows([
         ...rows,
-        [name.trim(), "", "", "", "", cultivarReferenceId],
+        [name.trim(), "", "", "", cultivarReferenceId],
       ]);
       setLiveAnnouncement(`${name.trim()} added to the spreadsheet.`);
     },
@@ -1448,6 +1459,37 @@ export function useCatalogImporterWorkbench(
     saveMatchedRows(nextRows, null);
   }, [matchedRows, reviewRows, saveMatchedRows]);
 
+  const excludeAllReviewRows = useCallback(() => {
+    if (!matchedRows || reviewRows.length === 0) {
+      return;
+    }
+
+    const reviewRowIds = new Set(reviewRows.map((row) => row.id));
+    const nextRows = assignCatalogImportDuplicateGroups(
+      matchedRows.map((row) =>
+        reviewRowIds.has(row.id)
+          ? {
+              ...row,
+              duplicateOfSourceRow: null,
+              existingListingDecision: null,
+              outputState: "removed" as const,
+            }
+          : row,
+      ),
+    );
+
+    closeCandidateRequestId.current += 1;
+    searchCandidateRequestId.current += 1;
+    setCandidateResult(null);
+    setSearchCandidateResult(null);
+    setActiveReviewRowId(null);
+    setReviewQuery("");
+    setLiveAnnouncement(
+      `${reviewRows.length.toLocaleString()} listings excluded. Manual review is complete.`,
+    );
+    saveMatchedRows(nextRows, null);
+  }, [matchedRows, reviewRows, saveMatchedRows]);
+
   const excludeReviewRow = useCallback(() => {
     if (!activeReviewRow) {
       return;
@@ -1693,6 +1735,41 @@ export function useCatalogImporterWorkbench(
       });
       setLiveAnnouncement(
         `${excludedIds.size.toLocaleString()} duplicate listings excluded.`,
+      );
+    },
+    [matchedRows, saveMatchedRows],
+  );
+
+  const excludeIssueRows = useCallback(
+    (rowIds: string[]) => {
+      const excludedIds = new Set(rowIds);
+      if (excludedIds.size === 0 || !matchedRows) {
+        return;
+      }
+
+      const nextRows = assignCatalogImportDuplicateGroups(
+        matchedRows.map((row) =>
+          excludedIds.has(row.id)
+            ? {
+                ...row,
+                duplicateOfSourceRow: null,
+                outputState: "removed",
+              }
+            : row,
+        ),
+      );
+      saveMatchedRows(nextRows);
+      captureIssueResolution({
+        issueType: "excluded",
+        resolvedCount: excludedIds.size,
+        rows: nextRows,
+      });
+      setLastIssueAction({
+        message: `${excludedIds.size.toLocaleString()} listings were excluded.`,
+        previousRows: matchedRows,
+      });
+      setLiveAnnouncement(
+        `${excludedIds.size.toLocaleString()} listings excluded.`,
       );
     },
     [matchedRows, saveMatchedRows],
@@ -2034,13 +2111,16 @@ export function useCatalogImporterWorkbench(
     downloadingResults,
     downloadTemplate,
     enrichment: importState.enrichment,
+    excludeAllReviewRows,
     excludeDuplicateRows,
+    excludeIssueRows,
     excludeReviewRow,
     fileError,
     flagImageUrlIssue,
     finishReviewRow,
     flushDraft,
     getSourceCellsForRow,
+    getOriginalImportRow,
     handleHeaderChange,
     handleMappingChange,
     headerRowIndex,

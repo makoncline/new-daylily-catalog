@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { type ColumnDef, useReactTable } from "@tanstack/react-table";
 import { CircleHelp, RotateCcw } from "lucide-react";
+import { DataTable } from "@/components/data-table";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,6 +48,7 @@ import {
   CATALOG_IMPORTER_MAPPING_FIELDS,
   getSourcePreviewCellText,
 } from "@/app/(public)/catalog-importer/_lib/catalog-importer-presentation";
+import { defaultTableConfig } from "@/lib/table-config";
 import type { CatalogImporterMappingFieldDefinition } from "@/app/(public)/catalog-importer/_lib/catalog-importer-presentation";
 import type { CatalogImporterWorkbenchController } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
 
@@ -151,64 +154,82 @@ function MappingField({
 function SpreadsheetPreview({
   controller,
 }: Pick<CatalogImporterMappingProps, "controller">) {
+  const data = useMemo(
+    () =>
+      controller.sourcePreviewRows.map((cells, rowIndex) => ({
+        cells,
+        isHeader: rowIndex === controller.headerRowIndex,
+        rowNumber: rowIndex + 1,
+      })),
+    [controller.headerRowIndex, controller.sourcePreviewRows],
+  );
+  const columns = useMemo<ColumnDef<(typeof data)[number], unknown>[]>(
+    () => [
+      {
+        id: "row",
+        header: "Row",
+        accessorKey: "rowNumber",
+        cell: ({ row }) => (
+          <span className="text-muted-foreground font-mono font-normal">
+            {row.original.rowNumber}
+          </span>
+        ),
+      },
+      ...controller.sourcePreviewColumnIndexes.map(
+        (columnIndex): ColumnDef<(typeof data)[number], unknown> => ({
+          id: `column-${columnIndex}`,
+          header: columnIndexToLabel(columnIndex),
+          accessorFn: (row) =>
+            getSourcePreviewCellText(row.cells[columnIndex] ?? null),
+          cell: ({ getValue, row }) => (
+            <span
+              className={`line-clamp-3 whitespace-normal ${
+                row.original.isHeader ? "font-semibold" : ""
+              }`}
+            >
+              {String(getValue())}
+            </span>
+          ),
+        }),
+      ),
+    ],
+    [controller.sourcePreviewColumnIndexes],
+  );
+  const pinnedColumns = useMemo(
+    () => ({
+      left: [
+        "row",
+        ...controller.sourcePreviewColumnIndexes
+          .filter(
+            (columnIndex) =>
+              controller.mapping.title !== null &&
+              columnIndex <= controller.mapping.title,
+          )
+          .map((columnIndex) => `column-${columnIndex}`),
+      ],
+    }),
+    [controller.mapping.title, controller.sourcePreviewColumnIndexes],
+  );
+
+  // TanStack Table exposes mutable APIs by design; React Compiler cannot memoize this hook.
+  // eslint-disable-next-line react-hooks/incompatible-library
+  const table = useReactTable({
+    ...defaultTableConfig<(typeof data)[number]>(),
+    columns,
+    data,
+    enableSorting: false,
+    meta: { pinnedColumns },
+  });
+
   return (
     <section className="min-w-0">
       <h2 className="pb-2 font-semibold">Spreadsheet preview</h2>
-      <div className="max-w-full overflow-x-auto rounded-md border">
-        <table className="w-max min-w-full border-collapse text-left text-xs">
-          <caption className="sr-only">
-            First {controller.sourcePreviewRows.length.toLocaleString()} rows of{" "}
-            {controller.selectedSheet?.name ?? "the selected sheet"}
-          </caption>
-          <thead className="bg-muted/60">
-            <tr>
-              <th
-                scope="col"
-                className="text-muted-foreground sticky left-0 z-10 border-r border-b bg-inherit px-2 py-2 font-mono font-normal"
-              >
-                Row
-              </th>
-              {controller.sourcePreviewColumnIndexes.map((columnIndex) => (
-                <th
-                  key={columnIndex}
-                  scope="col"
-                  className="text-muted-foreground border-r border-b px-3 py-2 font-mono font-normal whitespace-nowrap last:border-r-0"
-                >
-                  {columnIndexToLabel(columnIndex)}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {controller.sourcePreviewRows.map((row, rowIndex) => (
-              <tr
-                key={rowIndex}
-                className={
-                  rowIndex === controller.headerRowIndex
-                    ? "bg-primary/5 font-medium"
-                    : "bg-background"
-                }
-              >
-                <th
-                  scope="row"
-                  className="text-muted-foreground sticky left-0 z-10 border-r border-b bg-inherit px-2 py-2 font-mono font-normal"
-                >
-                  {rowIndex + 1}
-                </th>
-                {controller.sourcePreviewColumnIndexes.map((columnIndex) => (
-                  <td
-                    key={columnIndex}
-                    className="max-w-72 border-r border-b px-3 py-2 align-top last:border-r-0"
-                  >
-                    <span className="line-clamp-3 whitespace-normal">
-                      {getSourcePreviewCellText(row[columnIndex] ?? null)}
-                    </span>
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div
+        aria-label={`First ${controller.sourcePreviewRows.length.toLocaleString()} rows of ${controller.selectedSheet?.name ?? "the selected sheet"}`}
+        className="max-w-full min-w-0"
+        role="region"
+      >
+        <DataTable table={table} />
       </div>
     </section>
   );

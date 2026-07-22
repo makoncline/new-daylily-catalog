@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Save, Trash2 } from "lucide-react";
+import { CircleMinus, Save, Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -79,9 +79,11 @@ function parsePrice(value: string): ParsedInput<number | null> {
   }
 
   const price = Number(normalized);
-  return Number.isFinite(price) && price >= 0
-    ? { valid: true, value: price }
-    : { valid: false, value: null };
+  if (!Number.isFinite(price) || price < 0 || !Number.isInteger(price)) {
+    return { valid: false, value: null };
+  }
+
+  return { valid: true, value: price === 0 ? null : price };
 }
 
 function getBundlePriceSuggestion(value: string) {
@@ -265,9 +267,11 @@ function DuplicateGroupTable({
 
 function PriceIssuesTable({
   controller,
+  destination,
   rows,
 }: {
   controller: CatalogImporterWorkbenchController;
+  destination: "import" | "workbook";
   rows: CatalogImportRow[];
 }) {
   const [values, setValues] = useState<Record<string, string>>(() =>
@@ -308,13 +312,13 @@ function PriceIssuesTable({
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button type="button" variant="outline" size="sm">
-                Mark all unpriced
+                Remove all prices
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>
-                  Mark {rows.length.toLocaleString()} listings unpriced?
+                  Remove prices from {rows.length.toLocaleString()} listings?
                 </AlertDialogTitle>
                 <AlertDialogDescription>
                   Their original price text will be kept in the private note.
@@ -333,7 +337,7 @@ function PriceIssuesTable({
                     )
                   }
                 >
-                  Mark unpriced
+                  Remove prices
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -374,7 +378,7 @@ function PriceIssuesTable({
               scope="col"
               className="bg-background sticky left-0 z-10 w-px"
             >
-              <span className="sr-only">Save</span>
+              <span className="sr-only">Actions</span>
             </TableHead>
             <TableHead scope="col" className="w-px">
               Row
@@ -392,7 +396,7 @@ function PriceIssuesTable({
               key={row.id}
               className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-2 py-4 md:table-row md:py-0"
             >
-              <TableCell className="col-start-2 row-start-4 flex items-end p-0 md:table-cell md:p-2">
+              <TableCell className="col-start-2 row-start-4 flex items-end gap-1 p-0 md:table-cell md:p-2">
                 <Button
                   type="button"
                   variant="ghost"
@@ -414,6 +418,36 @@ function PriceIssuesTable({
                   }}
                 >
                   <Save className="size-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-8"
+                  aria-label={`Remove price from row ${row.sourceRow}`}
+                  title={`Remove price from row ${row.sourceRow}`}
+                  onClick={() =>
+                    controller.resolvePriceIssues([
+                      {
+                        preserveOriginalOffer: true,
+                        price: null,
+                        rowId: row.id,
+                      },
+                    ])
+                  }
+                >
+                  <CircleMinus className="size-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="text-destructive hover:text-destructive size-8"
+                  aria-label={`Exclude row ${row.sourceRow} from ${destination}`}
+                  title={`Exclude row ${row.sourceRow} from ${destination}`}
+                  onClick={() => controller.excludeIssueRows([row.id])}
+                >
+                  <Trash2 className="size-4" />
                 </Button>
               </TableCell>
               <TableHead
@@ -449,7 +483,7 @@ function PriceIssuesTable({
                       ? `catalog-importer-price-message-${row.sourceRow}`
                       : undefined
                   }
-                  inputMode="decimal"
+                  inputMode="numeric"
                   className="h-8 w-full md:w-32"
                   value={values[row.id] ?? row.sourcePrice}
                   onChange={(event) => {
@@ -465,7 +499,7 @@ function PriceIssuesTable({
                     id={`catalog-importer-price-message-${row.sourceRow}`}
                     className="text-destructive mt-1 text-xs"
                   >
-                    Use one price, such as 12 or 12.50.
+                    Price must be a whole number.
                   </p>
                 ) : suggestion !== null &&
                   controller.mapping.privateNote === null ? (
@@ -861,6 +895,17 @@ export function CatalogImporterIssues({
   const savedIdRows = controller.includedRows.filter(
     (row) => row.cultivarReferenceIdWarning !== null,
   );
+  const issueRows = [
+    ...new Map(
+      [
+        ...duplicateGroups.flatMap((group) => group.rows),
+        ...priceRows,
+        ...imagePreviewWarningRows,
+        ...imageUrlRows,
+        ...savedIdRows,
+      ].map((row) => [row.id, row]),
+    ).values(),
+  ];
 
   const requiredIssueCount =
     priceRows.length + imageUrlRows.length + savedIdRows.length;
@@ -877,17 +922,47 @@ export function CatalogImporterIssues({
       aria-labelledby="catalog-importer-issues-heading"
       className="!scroll-mt-16"
     >
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <h2
-          id="catalog-importer-issues-heading"
-          className="text-xl font-semibold tracking-tight"
-        >
-          Review spreadsheet data
-        </h2>
-        <p className="text-muted-foreground text-sm tabular-nums">
-          {controller.completedIssueCount.toLocaleString()} of{" "}
-          {controller.issueProgressTotal.toLocaleString()} completed
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <h2
+            id="catalog-importer-issues-heading"
+            className="text-xl font-semibold tracking-tight"
+          >
+            Review spreadsheet data
+          </h2>
+          <p className="text-muted-foreground text-sm tabular-nums">
+            {controller.completedIssueCount.toLocaleString()} of{" "}
+            {controller.issueProgressTotal.toLocaleString()} completed
+          </p>
+        </div>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button type="button" variant="outline" size="sm">
+              Exclude all from {destination}
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                Exclude {issueRows.length.toLocaleString()} listings from{" "}
+                {destination}?
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                These listings will be skipped. You can undo this action.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() =>
+                  controller.excludeIssueRows(issueRows.map((row) => row.id))
+                }
+              >
+                Exclude all
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
       <div className="mt-5 space-y-8">
@@ -911,7 +986,11 @@ export function CatalogImporterIssues({
 
         {priceRows.length > 0 ? (
           <div>
-            <PriceIssuesTable controller={controller} rows={priceRows} />
+            <PriceIssuesTable
+              controller={controller}
+              destination={destination}
+              rows={priceRows}
+            />
           </div>
         ) : null}
 

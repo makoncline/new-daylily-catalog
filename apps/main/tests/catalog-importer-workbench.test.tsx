@@ -156,6 +156,16 @@ describe("CatalogImporterWorkbench", () => {
       screen.getByRole("button", { name: "Build catalog preview" }),
     );
     await openPreview();
+    await waitFor(async () => {
+      const draft = await readCatalogImporterDraft();
+      expect(draft?.parsedSpreadsheet?.sheets[0]?.rows[1]).toEqual([
+        "Vanguard",
+        "",
+        "",
+        "",
+        "cultivar-vanguard",
+      ]);
+    });
 
     expect(
       within(
@@ -187,6 +197,31 @@ describe("CatalogImporterWorkbench", () => {
     const spreadsheetPreview = screen.getByRole("heading", {
       name: "Spreadsheet preview",
     });
+    const spreadsheetPreviewSection = spreadsheetPreview.closest("section");
+    const pinnedPreviewColumns = spreadsheetPreviewSection?.querySelector(
+      '[data-slot="data-table-pinned-left"]',
+    );
+    const scrollablePreviewColumns = spreadsheetPreviewSection?.querySelector(
+      '[data-slot="data-table-scrollable"]',
+    );
+    expect(pinnedPreviewColumns).not.toBeNull();
+    expect(scrollablePreviewColumns).not.toBeNull();
+    expect(
+      within(pinnedPreviewColumns as HTMLElement).getByRole("columnheader", {
+        name: "Row",
+      }),
+    ).toBeVisible();
+    expect(
+      within(pinnedPreviewColumns as HTMLElement).getByRole("columnheader", {
+        name: "A",
+      }),
+    ).toBeVisible();
+    expect(
+      within(scrollablePreviewColumns as HTMLElement).getByRole(
+        "columnheader",
+        { name: "B" },
+      ),
+    ).toBeVisible();
     const columnMapping = screen.getByRole("heading", {
       name: "Map your columns",
     });

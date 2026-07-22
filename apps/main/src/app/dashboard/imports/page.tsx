@@ -3,7 +3,7 @@ import { DashboardCatalogImporterClient } from "./_components/dashboard-catalog-
 
 export default function DashboardImportsPage() {
   return (
-    <div className="space-y-6">
+    <div className="relative">
       <PageHeader
         heading="Import catalog"
         text="Create new listings from a spreadsheet."

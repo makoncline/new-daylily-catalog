@@ -149,6 +149,22 @@ function toCandidate(
   };
 }
 
+function rankPotentialMatches(
+  inputName: string,
+  rows: Iterable<CultivarMatchRow>,
+) {
+  return [...rows]
+    .map((row) =>
+      toCandidate(row, getCultivarMatchConfidence(inputName, row.displayName)),
+    )
+    .filter((candidate) => candidate.confidence >= 50)
+    .sort(
+      (left, right) =>
+        right.confidence - left.confidence ||
+        left.displayName.localeCompare(right.displayName),
+    );
+}
+
 function getFtsCandidateQuery(inputName: string) {
   const allTokens = toLooseCultivarMatchText(inputName)
     .split(" ")
@@ -224,7 +240,7 @@ async function getPotentialMatches(
     }
   }
 
-  if (rowsByCultivar.size < 12) {
+  if (rankPotentialMatches(inputName, rowsByCultivar.values()).length < 5) {
     const looseInput = toLooseCultivarMatchText(inputName);
     const fallbackResult = await client.execute({
       args: [looseInput.length, looseInput.charAt(0)],
@@ -273,17 +289,7 @@ async function getPotentialMatches(
     }
   }
 
-  return [...rowsByCultivar.values()]
-    .map((row) =>
-      toCandidate(row, getCultivarMatchConfidence(inputName, row.displayName)),
-    )
-    .filter((candidate) => candidate.confidence >= 50)
-    .sort(
-      (left, right) =>
-        right.confidence - left.confidence ||
-        left.displayName.localeCompare(right.displayName),
-    )
-    .slice(0, 5);
+  return rankPotentialMatches(inputName, rowsByCultivar.values()).slice(0, 5);
 }
 
 export async function matchCultivarNames({

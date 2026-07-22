@@ -35,8 +35,7 @@ export const CATALOG_IMPORTER_MAPPING_FIELDS: CatalogImporterMappingFieldDefinit
     {
       field: "price",
       label: "Price",
-      description:
-        "A number such as 12 or 12.50. Currency symbols are cleaned.",
+      description: "A whole number. Currency symbols are cleaned.",
     },
     {
       field: "description",

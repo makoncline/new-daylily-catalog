@@ -94,6 +94,60 @@ describe("catalog importer browser draft", () => {
     expect(restored?.projectId).toEqual(expect.any(String));
   });
 
+  it("realigns cultivar IDs from existing manual catalog drafts", async () => {
+    const storage = createStorage();
+    const draft: CatalogImporterDraft = {
+      activeReviewRowId: null,
+      headerRowIndex: 0,
+      mapping: {
+        cultivarReferenceId: 4,
+        description: 2,
+        imageUrl: null,
+        price: 1,
+        privateNote: 3,
+        title: 0,
+      },
+      matchedRows: null,
+      matchedRowsKey: null,
+      parsedSpreadsheet: {
+        fileName: "My daylily catalog.csv",
+        source: "manual",
+        sheets: [
+          {
+            name: "Listings",
+            rows: [
+              [
+                "Name",
+                "Price",
+                "Description",
+                "Private Note",
+                "Daylily Catalog ID",
+              ],
+              ["Coffee Frenzy", "", "", "", "", "cr-ahs-176320"],
+            ],
+          },
+        ],
+      },
+      selectedSheetIndex: 0,
+      version: 3,
+    };
+
+    await writeCatalogImporterDraft(draft, storage);
+
+    await expect(readCatalogImporterDraft(storage)).resolves.toMatchObject({
+      parsedSpreadsheet: {
+        sheets: [
+          {
+            rows: [
+              expect.any(Array),
+              ["Coffee Frenzy", "", "", "", "cr-ahs-176320"],
+            ],
+          },
+        ],
+      },
+    });
+  });
+
   it("moves a valid v1 localStorage draft into IndexedDB", async () => {
     window.localStorage.setItem(
       CATALOG_IMPORT_LEGACY_DRAFT_STORAGE_KEY,

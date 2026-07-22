@@ -35,7 +35,7 @@ const importListingSchema = z.object({
   cultivarReferenceId: z.string().trim().min(1).nullable(),
   description: z.string().trim().max(10_000).nullable(),
   importKey: z.string().trim().min(1).max(300),
-  price: z.number().nonnegative().nullable(),
+  price: z.number().int().nonnegative().nullable(),
   privateNote: z.string().trim().max(10_000).nullable(),
   title: z.string().trim().min(1).max(200),
 });

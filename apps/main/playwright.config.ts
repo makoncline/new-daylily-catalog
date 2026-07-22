@@ -14,6 +14,8 @@ dotenv.config({
 
 const e2ePort = process.env.E2E_PORT ?? "3100";
 const baseURL = process.env.BASE_URL ?? `http://localhost:${e2ePort}`;
+const vercelAutomationBypassSecret =
+  process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
 const isProdScenario = process.env.E2E_PROD_SCENARIO === "1";
 const isProfileScenario = process.env.E2E_PROFILE_SCENARIO === "1";
 const grepInvert = (() => {
@@ -88,6 +90,12 @@ export default defineConfig({
     baseURL,
     screenshot: "only-on-failure",
     bypassCSP: true,
+    extraHTTPHeaders: vercelAutomationBypassSecret
+      ? {
+          "x-vercel-protection-bypass": vercelAutomationBypassSecret,
+          "x-vercel-set-bypass-cookie": "true",
+        }
+      : undefined,
     ...devices["Desktop Chrome"],
   },
 

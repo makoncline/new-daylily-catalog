@@ -10,37 +10,6 @@ import { createSpreadsheetCsv } from "@/lib/catalog-importer";
 export const MAX_CATALOG_IMPORT_FILE_BYTES = 10 * 1024 * 1024;
 export const MAX_CATALOG_IMPORT_ROWS_PER_SHEET = 5_000;
 
-const XML_ENTITIES: Record<string, string> = {
-  amp: "&",
-  apos: "'",
-  gt: ">",
-  lt: "<",
-  quot: '"',
-};
-
-function decodeXlsxText(cell: SpreadsheetCell): SpreadsheetCell {
-  if (typeof cell !== "string" || !cell.includes("&")) {
-    return cell;
-  }
-
-  return cell.replaceAll(
-    /&(?:#(\d+)|#x([\da-f]+)|(amp|apos|gt|lt|quot));/gi,
-    (entity, decimal: string, hexadecimal: string, named: string) => {
-      if (named) {
-        return XML_ENTITIES[named.toLowerCase()] ?? entity;
-      }
-
-      const codePoint = Number.parseInt(
-        decimal || hexadecimal,
-        decimal ? 10 : 16,
-      );
-      return Number.isSafeInteger(codePoint) && codePoint <= 0x10ffff
-        ? String.fromCodePoint(codePoint)
-        : entity;
-    },
-  );
-}
-
 function parseCsv(text: string): SpreadsheetCell[][] {
   const rows: SpreadsheetCell[][] = [];
   let row: SpreadsheetCell[] = [];
@@ -133,11 +102,7 @@ export async function parseCatalogImportFile(
     const workbookSheets = await readExcelFile(file, { trim: false });
     sheets = workbookSheets.map((sheet) => ({
       name: sheet.sheet,
-      rows: trimEmptyTrailingRows(
-        (sheet.data as SpreadsheetCell[][]).map((row) =>
-          row.map(decodeXlsxText),
-        ),
-      ),
+      rows: trimEmptyTrailingRows(sheet.data as SpreadsheetCell[][]),
     }));
   } else {
     throw new Error(

@@ -47,11 +47,14 @@ export function DataTable<TData>({ table }: DataTableProps<TData>) {
   const rightPinnedColumnIds = new Set(rightPinnedColumns);
 
   return (
-    <div className="grid auto-rows-min rounded-md border">
+    <div className="grid max-w-full min-w-0 auto-rows-min overflow-hidden rounded-md border">
       <div className="flex min-w-full">
         {/* Left pinned table */}
         {leftPinnedColumns.length > 0 && table.getHeaderGroups() && (
-          <div className="bg-background shrink-0 border-r">
+          <div
+            className="bg-background shrink-0 border-r"
+            data-slot="data-table-pinned-left"
+          >
             <UITable>
               <TableHeader>
                 {table.getHeaderGroups().map((headerGroup) => (
@@ -116,7 +119,10 @@ export function DataTable<TData>({ table }: DataTableProps<TData>) {
         )}
 
         {/* Center scrollable table */}
-        <div className="min-w-0 flex-1 overflow-hidden">
+        <div
+          className="min-w-0 flex-1 overflow-hidden"
+          data-slot="data-table-scrollable"
+        >
           <UITable>
             {table.getHeaderGroups() && (
               <TableHeader>
@@ -185,7 +191,10 @@ export function DataTable<TData>({ table }: DataTableProps<TData>) {
 
         {/* Right pinned table */}
         {rightPinnedColumns.length > 0 && table.getHeaderGroups() && (
-          <div className="bg-background shrink-0 border-l">
+          <div
+            className="bg-background shrink-0 border-l"
+            data-slot="data-table-pinned-right"
+          >
             <UITable>
               <TableHeader>
                 {table.getHeaderGroups().map((headerGroup) => (

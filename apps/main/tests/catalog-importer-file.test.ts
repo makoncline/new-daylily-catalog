@@ -40,7 +40,7 @@ describe("catalog importer XLSX download", () => {
     expect(xlsx.read).toHaveBeenCalledWith(file, { trim: false });
     expect(spreadsheet.sheets[0]?.rows).toEqual([
       ["name", "description"],
-      ["  A & B  ", " "],
+      ["  A &amp; B  ", " "],
     ]);
   });
 

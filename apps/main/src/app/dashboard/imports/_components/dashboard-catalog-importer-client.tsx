@@ -23,7 +23,11 @@ export function DashboardCatalogImporterClient() {
   }, []);
 
   return (
-    <div ref={loadDraft}>
+    <div
+      id="dashboard-catalog-import-workflow"
+      ref={loadDraft}
+      className="scroll-mt-4"
+    >
       {initialDraft === undefined ? (
         <p
           className="text-muted-foreground flex items-center gap-2 py-8 text-sm"

@@ -39,9 +39,13 @@ export function CatalogImporterWorkbench({
   const changeStep = (step: CatalogImporterStep) => {
     setActiveStep(step);
     requestAnimationFrame(() =>
-      document
-        .getElementById("catalog-importer-workbench")
-        ?.scrollIntoView?.({ block: "start" }),
+      requestAnimationFrame(() => {
+        const stepTarget = document.getElementById(
+          `catalog-importer-step-${step}`,
+        );
+        const workbench = document.getElementById("catalog-importer-workbench");
+        (stepTarget ?? workbench)?.scrollIntoView?.({ block: "start" });
+      }),
     );
   };
   const buildCatalog = async () => {
@@ -71,7 +75,10 @@ export function CatalogImporterWorkbench({
         />
 
         {activeStep === "start" ? (
-          <div className="space-y-8 pt-2">
+          <div
+            id="catalog-importer-step-start"
+            className="!scroll-mt-16 space-y-8 pt-2"
+          >
             <CatalogImporterUpload
               controller={controller}
               onClear={reset}
@@ -102,7 +109,10 @@ export function CatalogImporterWorkbench({
         ) : null}
 
         {activeStep === "prepare" && controller.selectedSheet ? (
-          <div className="space-y-6 pt-2">
+          <div
+            id="catalog-importer-step-prepare"
+            className="!scroll-mt-16 space-y-6 pt-2"
+          >
             <CatalogImporterUpload
               controller={controller}
               onClear={reset}

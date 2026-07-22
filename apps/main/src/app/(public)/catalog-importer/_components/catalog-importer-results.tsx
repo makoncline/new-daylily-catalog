@@ -586,7 +586,10 @@ export function CatalogImporterResults({
   };
 
   return (
-    <div className="min-w-0 space-y-8">
+    <div
+      id={`catalog-importer-step-${activeStep}`}
+      className="min-w-0 !scroll-mt-16 space-y-8"
+    >
       {membershipStarted && activeStep === "preview" ? (
         <Alert>
           <CheckCircle2 className="size-4" />
@@ -863,7 +866,7 @@ export function CatalogImporterResults({
                       : "corrections"}
                   </li>
                 ) : null}
-                {controller.downloadSummary.intentionallyUnmatchedCount > 0 ? (
+                {controller.downloadSummary.linkedIdentityCount > 0 ? (
                   <li>
                     Add Daylily Catalog identity to{" "}
                     {controller.downloadSummary.linkedIdentityCount.toLocaleString()}{" "}
@@ -873,7 +876,7 @@ export function CatalogImporterResults({
                       : "listings"}
                   </li>
                 ) : null}
-                {controller.downloadSummary.removedRowCount > 0 ? (
+                {controller.downloadSummary.intentionallyUnmatchedCount > 0 ? (
                   <li>
                     Keep{" "}
                     {controller.downloadSummary.intentionallyUnmatchedCount.toLocaleString()}{" "}

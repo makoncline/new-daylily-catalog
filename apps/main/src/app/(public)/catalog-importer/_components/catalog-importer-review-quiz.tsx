@@ -2,6 +2,17 @@
 
 import { type KeyboardEvent, useCallback, useMemo } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
 import { Spinner } from "@/components/ui/spinner";
@@ -58,7 +69,7 @@ export function CatalogImporterReviewQuiz({
   );
   const canMove = controller.reviewRows.length > 1;
   const focusReview = useCallback((review: HTMLElement | null) => {
-    review?.focus();
+    review?.focus({ preventScroll: true });
   }, []);
 
   const chooseCandidate = useCallback(
@@ -125,7 +136,7 @@ export function CatalogImporterReviewQuiz({
       onKeyDown={handleKeyDown}
       className="focus-visible:ring-ring !scroll-mt-16 outline-none focus-visible:ring-2"
     >
-      <div className="flex items-center justify-between gap-3 pb-4">
+      <div className="flex flex-col gap-3 pb-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <h2
             id="catalog-importer-review-heading"
@@ -139,30 +150,88 @@ export function CatalogImporterReviewQuiz({
           </p>
         </div>
 
-        {canMove ? (
-          <div className="flex shrink-0 items-center gap-2">
-            <Kbd asChild className="size-10 text-base font-semibold">
-              <button
-                type="button"
-                aria-label="Previous unmatched name"
-                aria-keyshortcuts="ArrowLeft"
-                onClick={() => controller.moveReviewRow(-1)}
-              >
-                ←
-              </button>
-            </Kbd>
-            <Kbd asChild className="size-10 text-base font-semibold">
-              <button
-                type="button"
-                aria-label="Next unmatched name"
-                aria-keyshortcuts="ArrowRight"
-                onClick={() => controller.moveReviewRow(1)}
-              >
-                →
-              </button>
-            </Kbd>
-          </div>
-        ) : null}
+        <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:justify-end">
+          {controller.reviewRows.length > 1 ? (
+            <>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button type="button" variant="outline" size="sm">
+                    Leave all unmatched
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      Leave {controller.reviewRows.length.toLocaleString()}{" "}
+                      listings unmatched?
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      They will remain without Daylily Catalog cultivar links.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={controller.leaveAllReviewRowsUnmatched}
+                    >
+                      Leave all unmatched
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button type="button" variant="outline" size="sm">
+                    Exclude all from {destination}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      Exclude {controller.reviewRows.length.toLocaleString()}{" "}
+                      listings from {destination}?
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      These listings will be skipped.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={controller.excludeAllReviewRows}
+                    >
+                      Exclude all
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </>
+          ) : null}
+          {canMove ? (
+            <>
+              <Kbd asChild className="size-10 text-base font-semibold">
+                <button
+                  type="button"
+                  aria-label="Previous unmatched name"
+                  aria-keyshortcuts="ArrowLeft"
+                  onClick={() => controller.moveReviewRow(-1)}
+                >
+                  ←
+                </button>
+              </Kbd>
+              <Kbd asChild className="size-10 text-base font-semibold">
+                <button
+                  type="button"
+                  aria-label="Next unmatched name"
+                  aria-keyshortcuts="ArrowRight"
+                  onClick={() => controller.moveReviewRow(1)}
+                >
+                  →
+                </button>
+              </Kbd>
+            </>
+          ) : null}
+        </div>
       </div>
 
       <div className="flex flex-col gap-2">

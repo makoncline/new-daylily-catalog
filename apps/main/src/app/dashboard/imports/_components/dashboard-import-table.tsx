@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { Check, Pencil, RotateCcw } from "lucide-react";
 import { CatalogImporterSourceRow } from "@/app/(public)/catalog-importer/_components/catalog-importer-match-options";
 import { OptimizedImage } from "@/components/optimized-image";
@@ -91,14 +91,25 @@ function ImportRowEditor({
 
   if (!row) return null;
 
-  const parsedPrice = values.price.trim() === "" ? null : Number(values.price);
+  const originalRow = controller.getOriginalImportRow(row.id);
+  const numericPrice =
+    values.price.trim() === "" ? null : Number(values.price);
+  const parsedPrice = numericPrice === 0 ? null : numericPrice;
   const priceIsValid =
-    parsedPrice === null || (Number.isFinite(parsedPrice) && parsedPrice >= 0);
+    numericPrice === null ||
+    (Number.isFinite(numericPrice) &&
+      numericPrice >= 0 &&
+      Number.isInteger(numericPrice));
+  const canRestore =
+    originalRow !== null &&
+    (parsedPrice !== originalRow.price ||
+      values.description !== originalRow.description ||
+      values.privateNote !== originalRow.privateNote);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full overflow-y-auto sm:max-w-3xl">
-        <SheetHeader>
+      <SheetContent className="flex w-full flex-col overflow-y-auto p-0 sm:max-w-3xl">
+        <SheetHeader className="px-6 pt-6">
           <SheetTitle>Edit import row</SheetTitle>
           <SheetDescription>
             These changes apply to the new listing. The spreadsheet remains
@@ -106,7 +117,7 @@ function ImportRowEditor({
           </SheetDescription>
         </SheetHeader>
 
-        <div className="flex flex-col gap-5 px-4 sm:px-6">
+        <div className="flex flex-col gap-5 px-6 py-5">
           <CatalogImporterSourceRow
             label="Original spreadsheet row"
             row={row}
@@ -118,7 +129,7 @@ function ImportRowEditor({
               <FieldLabel htmlFor="dashboard-import-price">Price</FieldLabel>
               <Input
                 id="dashboard-import-price"
-                inputMode="decimal"
+                inputMode="numeric"
                 value={values.price}
                 aria-invalid={!priceIsValid}
                 onChange={(event) =>
@@ -130,7 +141,7 @@ function ImportRowEditor({
               />
               {!priceIsValid ? (
                 <FieldError>
-                  Enter a positive number or leave the price blank.
+                  Price must be a whole number.
                 </FieldError>
               ) : null}
             </Field>
@@ -169,18 +180,29 @@ function ImportRowEditor({
           </FieldGroup>
         </div>
 
-        <SheetFooter className="flex-row justify-between sm:justify-between">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => {
-              controller.resetImportRow(row.id);
-              onOpenChange(false);
-            }}
-          >
-            <RotateCcw />
-            Restore spreadsheet values
-          </Button>
+        <SheetFooter className="mt-auto flex-row justify-between border-t px-6 py-4 sm:justify-between">
+          {canRestore ? (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setValues({
+                  description: originalRow.description,
+                  price:
+                    originalRow.price === null
+                      ? ""
+                      : String(originalRow.price),
+                  privateNote: originalRow.privateNote,
+                });
+                controller.resetImportRow(row.id);
+              }}
+            >
+              <RotateCcw />
+              Restore spreadsheet values
+            </Button>
+          ) : (
+            <span />
+          )}
           <Button
             type="button"
             disabled={!priceIsValid}
@@ -209,6 +231,7 @@ export function DashboardImportTable({
   rowIds,
   view,
 }: DashboardImportTableProps) {
+  const tableId = useId();
   const [page, setPage] = useState(0);
   const [editingRow, setEditingRow] = useState<CatalogImportRow | null>(null);
   const rows = useMemo(
@@ -243,9 +266,15 @@ export function DashboardImportTable({
   );
   const showDescription = rows.some((row) => row.description.trim().length > 0);
   const showPrivateNote = rows.some((row) => row.privateNote.trim().length > 0);
+  const changePage = (nextPage: number) => {
+    setPage(nextPage);
+    requestAnimationFrame(() =>
+      document.getElementById(tableId)?.scrollIntoView?.({ block: "start" }),
+    );
+  };
 
   return (
-    <div className="space-y-3">
+    <div id={tableId} className="scroll-mt-4 space-y-3">
       <div className="max-h-[42rem] overflow-auto rounded-md border">
         <Table className="block sm:table">
           <TableHeader className="bg-background sticky top-0 z-10 hidden sm:table-header-group">
@@ -444,7 +473,7 @@ export function DashboardImportTable({
                 size="sm"
                 variant="outline"
                 disabled={currentPage === 0}
-                onClick={() => setPage(Math.max(0, currentPage - 1))}
+                onClick={() => changePage(Math.max(0, currentPage - 1))}
               >
                 Previous
               </Button>
@@ -457,7 +486,7 @@ export function DashboardImportTable({
                 variant="outline"
                 disabled={currentPage >= pageCount - 1}
                 onClick={() =>
-                  setPage(Math.min(pageCount - 1, currentPage + 1))
+                  changePage(Math.min(pageCount - 1, currentPage + 1))
                 }
               >
                 Next

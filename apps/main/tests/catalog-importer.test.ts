@@ -141,7 +141,7 @@ describe("catalog importer normalization", () => {
     });
   });
 
-  it("treats common not-for-sale markers as a blank price", () => {
+  it("treats common not-for-sale markers and zero as a blank price", () => {
     const importedRows = createCatalogImportRows({
       headerRowIndex: 0,
       mapping: {
@@ -156,6 +156,10 @@ describe("catalog importer normalization", () => {
         ["name", "price"],
         ["A.W. Shucks", "NFS"],
         ["Abilene Sunrise", "not for sale"],
+        ["Aerial Art", 0],
+        ["All American Chief", "0.00"],
+        ["Always Afternoon", "12.00"],
+        ["American Revolution", "12.50"],
       ],
     });
 
@@ -167,6 +171,10 @@ describe("catalog importer normalization", () => {
     ).toEqual([
       { price: null, priceWarning: null },
       { price: null, priceWarning: null },
+      { price: null, priceWarning: null },
+      { price: null, priceWarning: null },
+      { price: 12, priceWarning: null },
+      { price: null, priceWarning: "12.50" },
     ]);
   });
 

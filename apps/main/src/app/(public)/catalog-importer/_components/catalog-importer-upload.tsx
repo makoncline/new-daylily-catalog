@@ -47,6 +47,7 @@ interface CatalogImporterUploadProps {
   onClear?: () => void;
   onEditMapping?: () => void;
   onSourceReady?: () => void;
+  showClear?: boolean;
 }
 
 function getRejectionMessage(rejections: FileRejection[]) {
@@ -65,6 +66,7 @@ export function CatalogImporterUpload({
   onClear,
   onEditMapping,
   onSourceReady,
+  showClear = true,
 }: CatalogImporterUploadProps) {
   const onDropAccepted = useCallback(
     (files: File[]) => {
@@ -172,40 +174,42 @@ export function CatalogImporterUpload({
             </Button>
           ) : null}
 
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-8"
-                aria-label="Clear local progress"
-              >
-                <Trash2 className="size-4" />
-                Clear
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Clear local progress?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This clears the workbook and all progress saved in this
-                  browser. Your original file is not changed.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={() => {
-                    controller.resetImporter();
-                    onClear?.();
-                  }}
+          {showClear ? (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8"
+                  aria-label="Clear local progress"
                 >
-                  Clear local progress
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+                  <Trash2 className="size-4" />
+                  Clear
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Clear local progress?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This clears the workbook and all progress saved in this
+                    browser. Your original file is not changed.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => {
+                      controller.resetImporter();
+                      onClear?.();
+                    }}
+                  >
+                    Clear local progress
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          ) : null}
         </div>
       </section>
     );

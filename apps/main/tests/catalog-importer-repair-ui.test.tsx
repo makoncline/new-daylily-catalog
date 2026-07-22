@@ -53,6 +53,7 @@ function controller(
     clearCultivarReferenceIdIssues: vi.fn(),
     completedIssueCount: 0,
     completedReviewCount: 0,
+    excludeAllReviewRows: vi.fn(),
     excludeReviewRow: vi.fn(),
     finishReviewRow: vi.fn(),
     getSourceCellsForRow: (row: CatalogImportRow) => [
@@ -71,6 +72,7 @@ function controller(
     },
     moveReviewRow: vi.fn(),
     excludeDuplicateRows: vi.fn(),
+    excludeIssueRows: vi.fn(),
     keepDuplicateRows: vi.fn(),
     leaveAllReviewRowsUnmatched: vi.fn(),
     removeDuplicateRow: vi.fn(),
@@ -155,6 +157,7 @@ describe("catalog importer repair UI", () => {
   });
 
   it("edits every price issue in one spreadsheet table", () => {
+    const excludeIssueRows = vi.fn();
     const resolvePriceIssues = vi.fn();
     const first = importRow({
       id: "row-2",
@@ -173,7 +176,9 @@ describe("catalog importer repair UI", () => {
 
     render(
       <CatalogImporterIssues
+        destination="import"
         controller={controller([first, second], {
+          excludeIssueRows,
           mapping: {
             cultivarReferenceId: null,
             description: null,
@@ -189,23 +194,56 @@ describe("catalog importer repair UI", () => {
 
     const table = screen.getByRole("table", { name: "Price format rows" });
     expect(within(table).getAllByRole("row")).toHaveLength(3);
-    fireEvent.click(screen.getByRole("button", { name: "Mark all unpriced" }));
-    fireEvent.click(screen.getByRole("button", { name: "Mark unpriced" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Exclude all from import" }),
+    );
+    const excludeDialog = screen.getByRole("alertdialog");
+    expect(
+      within(excludeDialog).getByRole("heading", {
+        name: "Exclude 2 listings from import?",
+      }),
+    ).toBeVisible();
+    fireEvent.click(
+      within(excludeDialog).getByRole("button", { name: "Exclude all" }),
+    );
+    expect(excludeIssueRows).toHaveBeenCalledWith(["row-2", "row-3"]);
+    excludeIssueRows.mockClear();
+
+    fireEvent.click(
+      within(table).getByRole("button", { name: "Remove price from row 2" }),
+    );
+    expect(resolvePriceIssues).toHaveBeenCalledWith([
+      { preserveOriginalOffer: true, price: null, rowId: "row-2" },
+    ]);
+    resolvePriceIssues.mockClear();
+
+    fireEvent.click(
+      within(table).getByRole("button", {
+        name: "Exclude row 2 from import",
+      }),
+    );
+    expect(excludeIssueRows).toHaveBeenCalledWith(["row-2"]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove all prices" }));
+    fireEvent.click(screen.getByRole("button", { name: "Remove prices" }));
     expect(resolvePriceIssues).toHaveBeenCalledWith([
       { preserveOriginalOffer: true, price: null, rowId: "row-2" },
       { preserveOriginalOffer: true, price: null, rowId: "row-3" },
     ]);
     resolvePriceIssues.mockClear();
-    fireEvent.change(
-      within(table).getByRole("textbox", {
-        name: "Correct price for row 3",
-      }),
-      { target: { value: "18" } },
-    );
+    const secondPriceInput = within(table).getByRole("textbox", {
+      name: "Correct price for row 3",
+    });
+    fireEvent.change(secondPriceInput, {
+      target: { value: "12.50" },
+    });
+    expect(screen.getByText("Price must be a whole number.")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Save all" })).toBeDisabled();
+    fireEvent.change(secondPriceInput, { target: { value: "0" } });
     fireEvent.click(screen.getByRole("button", { name: "Save all" }));
     expect(resolvePriceIssues).toHaveBeenCalledWith([
       { preserveOriginalOffer: true, price: 15, rowId: "row-2" },
-      { preserveOriginalOffer: false, price: 18, rowId: "row-3" },
+      { preserveOriginalOffer: false, price: null, rowId: "row-3" },
     ]);
   });
 
@@ -230,7 +268,9 @@ describe("catalog importer repair UI", () => {
       sourceTitle: "Another cultivar",
       title: "Another cultivar",
     });
+    const excludeAllReviewRows = vi.fn();
     const excludeReviewRow = vi.fn();
+    const leaveAllReviewRowsUnmatched = vi.fn();
     const moveReviewRow = vi.fn();
     const onFindDifferentCultivar = vi.fn();
     const skipReviewRow = vi.fn();
@@ -245,7 +285,9 @@ describe("catalog importer repair UI", () => {
             query: row.title,
             rowId: row.id,
           },
+          excludeAllReviewRows,
           excludeReviewRow,
+          leaveAllReviewRowsUnmatched,
           moveReviewRow,
           skipReviewRow,
         })}
@@ -303,10 +345,26 @@ describe("catalog importer repair UI", () => {
     fireEvent.keyDown(review, { key: "e" });
     expect(excludeReviewRow).toHaveBeenCalledOnce();
     expect(within(review).queryByRole("textbox")).not.toBeInTheDocument();
-    expect(
-      within(review).queryByRole("button", {
-        name: "Leave all remaining unmatched",
+    fireEvent.click(
+      within(review).getByRole("button", { name: "Leave all unmatched" }),
+    );
+    const leaveAllDialog = screen.getByRole("alertdialog");
+    fireEvent.click(
+      within(leaveAllDialog).getByRole("button", {
+        name: "Leave all unmatched",
       }),
-    ).not.toBeInTheDocument();
+    );
+    expect(leaveAllReviewRowsUnmatched).toHaveBeenCalledOnce();
+
+    fireEvent.click(
+      within(review).getByRole("button", {
+        name: "Exclude all from workbook",
+      }),
+    );
+    const excludeAllDialog = screen.getByRole("alertdialog");
+    fireEvent.click(
+      within(excludeAllDialog).getByRole("button", { name: "Exclude all" }),
+    );
+    expect(excludeAllReviewRows).toHaveBeenCalledOnce();
   });
 });

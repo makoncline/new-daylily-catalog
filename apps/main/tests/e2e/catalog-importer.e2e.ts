@@ -171,16 +171,6 @@ test.describe("catalog importer", () => {
   test("prepares, restores, and downloads a spreadsheet", async ({ page }) => {
     test.slow();
     await mockCultivarMatches(page);
-    await page.route("https://example.com/daylily.jpg", async (route) => {
-      await route.fulfill({
-        body: Buffer.from(
-          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
-          "base64",
-        ),
-        contentType: "image/png",
-        status: 200,
-      });
-    });
     await page.goto("/catalog-importer");
 
     await expect(page.getByRole("main")).toHaveCount(1);
@@ -212,12 +202,12 @@ test.describe("catalog importer", () => {
     ).toHaveCount(0);
     await expect(
       page.getByText(
-        "A number such as 12 or 12.50. Currency symbols are cleaned.",
+        "A whole number. Currency symbols are cleaned.",
       ),
     ).toHaveCount(0);
     await page.getByRole("button", { name: "About Price" }).click();
     await expect(page.getByRole("tooltip")).toContainText(
-      "A number such as 12 or 12.50. Currency symbols are cleaned.",
+      "A whole number. Currency symbols are cleaned.",
     );
     await page.keyboard.press("Escape");
 
@@ -225,8 +215,6 @@ test.describe("catalog importer", () => {
     await page.getByRole("option", { name: /^price —/i }).click();
     await page.getByLabel("Private note", { exact: true }).click();
     await page.getByRole("option", { name: /^privateNote —/i }).click();
-    await page.getByLabel("Image URL", { exact: true }).click();
-    await page.getByRole("option", { name: /^imageUrl —/i }).click();
     await expect(
       page.getByRole("region", {
         name: "Catalog preview ready",
@@ -248,7 +236,7 @@ test.describe("catalog importer", () => {
     await expect(
       catalogSummary.getByTestId("pending-decision-count"),
     ).toHaveText("2");
-    await expect(catalogSummary.getByTestId("issue-count")).toHaveText("4");
+    await expect(catalogSummary.getByTestId("issue-count")).toHaveText("3");
     await expect(page.getByText("100%", { exact: true })).toHaveCount(0);
     await expect(
       page.getByRole("button", {
@@ -270,14 +258,12 @@ test.describe("catalog importer", () => {
       }),
     ).toBeVisible();
 
-    await page.getByRole("button", { name: "Issues 0/4" }).click();
+    await page.getByRole("button", { name: "Issues 0/3" }).click();
 
     const issuesRegion = page.getByRole("region", {
       name: "Review spreadsheet data",
     });
-    await expect(issuesRegion).toContainText(
-      "0 of 4 completed · 3 need action · 1 warning",
-    );
+    await expect(issuesRegion).toContainText("0 of 3 completed");
     await expect(
       issuesRegion.getByRole("heading", {
         name: "Price formats need review",
@@ -287,7 +273,7 @@ test.describe("catalog importer", () => {
       issuesRegion.getByRole("heading", {
         name: "Seller images need review",
       }),
-    ).toBeVisible();
+    ).toHaveCount(0);
     await expect(
       issuesRegion.getByRole("heading", {
         name: "Multiple listings for Daylily 10",
@@ -299,12 +285,12 @@ test.describe("catalog importer", () => {
     await expect(duplicateRows.getByRole("row")).toHaveCount(3);
     await expect(
       duplicateRows.getByRole("button", {
-        name: "Exclude row 11 from prepared workbook",
+        name: "Exclude row 11 from workbook",
       }),
     ).toBeVisible();
     await expect(
       duplicateRows.getByRole("button", {
-        name: "Exclude row 12 from prepared workbook",
+        name: "Exclude row 12 from workbook",
       }),
     ).toBeVisible();
     await expect(
@@ -314,33 +300,13 @@ test.describe("catalog importer", () => {
     const priceIssues = issuesRegion.getByRole("region", {
       name: "Price formats need review",
     });
-    await priceIssues.getByLabel("Correct price for row 3").fill("12.50");
-    await priceIssues.getByLabel("Correct price for row 5").fill("13.50");
+    await priceIssues.getByLabel("Correct price for row 3").fill("12");
+    await priceIssues.getByLabel("Correct price for row 5").fill("14");
     await priceIssues.getByRole("button", { name: "Save all" }).click();
-    await expect(issuesRegion).toContainText(
-      "2 of 4 completed · 1 needs action · 1 warning",
-    );
-
-    const imageIssues = issuesRegion.getByRole("region", {
-      name: "Seller images need review",
-    });
-    const correctedImageUrl = imageIssues.getByLabel(
-      "Correct image URL for row 4",
-    );
-    await correctedImageUrl.fill("https://example.com/daylily.jpg");
-    await imageIssues
-      .getByRole("button", { name: "Save image URL for row 4" })
-      .click();
+    await expect(issuesRegion).toContainText("2 of 3 completed");
     await expect(
-      page.getByRole("button", { name: "Issues 3/4" }),
+      page.getByRole("button", { name: "Issues 2/3" }),
     ).toBeVisible();
-    await expect
-      .poll(async () =>
-        JSON.stringify(await readSavedDraft(page)).includes(
-          "https://example.com/daylily.jpg",
-        ),
-      )
-      .toBe(true);
 
     await page.getByRole("button", { name: "Review 0/2" }).click();
     await expect(
@@ -400,7 +366,7 @@ test.describe("catalog importer", () => {
       page.getByText("1 of 2 completed", { exact: true }),
     ).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Issues 3/4" }),
+      page.getByRole("button", { name: "Issues 2/3" }),
     ).toBeVisible();
     await expect(
       page.getByRole("heading", { name: "Mystery Bloom" }),
@@ -435,20 +401,18 @@ test.describe("catalog importer", () => {
     await page.getByRole("button", { name: "Download" }).click();
     await page.getByText("File details").click();
     const downloadSummary = page.locator("details", {
-      hasText: "Retain 26 source rows in one CSV table",
+      hasText: "Retain 25 source rows in one CSV table",
     });
     await expect(downloadSummary).toContainText(
-      "Retain 26 source rows in one CSV table",
+      "Retain 25 source rows in one CSV table",
     );
     await expect(downloadSummary).toContainText(
-      "Include 3 seller-approved corrections",
+      "Include 2 seller-approved corrections",
     );
     await expect(downloadSummary).toContainText(
       "Add Daylily Catalog identity to 24 linked listings",
     );
-    await expect(downloadSummary).toContainText(
-      "Keep 0 intentionally unmatched listings",
-    );
+    await expect(downloadSummary).not.toContainText("intentionally unmatched");
     await expect(downloadSummary).toContainText(
       "Exclude from the clean catalog 1 source row",
     );
@@ -461,20 +425,20 @@ test.describe("catalog importer", () => {
       }),
     ).toBeVisible();
     await expect(
-      page.getByText("no listings are created until", {
+      page.getByText("Nothing is published or imported", {
         exact: false,
       }),
     ).toBeVisible();
 
     const downloadPromise = page.waitForEvent("download");
     await page
-      .getByRole("button", { name: "Download enriched original" })
+      .getByRole("button", { name: "Download original workbook" })
       .click();
     await page
       .getByRole("alertdialog", {
         name: "Download before review is complete?",
       })
-      .getByRole("button", { name: "Continue" })
+      .getByRole("button", { name: "Download anyway" })
       .click();
     const download = await downloadPromise;
     const downloadPath = await download.path();
@@ -484,14 +448,14 @@ test.describe("catalog importer", () => {
     expect(downloadPath).not.toBeNull();
     const csv = await readFile(downloadPath, "utf8");
     expect(csv.split("\r\n")[0]).toBe(
-      "Name,Price,description,Private Note,Image URL,Daylily Catalog ID,Daylily Catalog Cultivar Name,Daylily Catalog Cultivar URL",
+      "Name,Price,Description,Private Note,imageUrl,Daylily Catalog ID,Daylily Catalog Cultivar Name,Daylily Catalog Cultivar URL",
     );
     expect(csv).toContain("Mystery Bloom");
     expect(csv).toContain(
       "cultivar-vanguard,Vanguard,https://daylilycatalog.com/cultivar/vanguard",
     );
     expect(csv).not.toContain("Vanguard 2");
-    expect(csv).toContain("Daylily 2,12.5");
+    expect(csv).toContain("Daylily 2,12");
     expect(csv).toContain("Original price: two for $20");
     expect(csv).toContain("Original price: three for $30");
     expect(csv.split("\r\n")).toHaveLength(26);
@@ -526,7 +490,6 @@ test.describe("catalog importer", () => {
     for (const [label, option] of [
       ["Price", /^price —/i],
       ["Private note", /^privateNote —/i],
-      ["Image URL", /^imageUrl —/i],
     ] as const) {
       await page.getByLabel(label, { exact: true }).click();
       await page.getByRole("option", { name: option }).click();
@@ -564,7 +527,7 @@ test.describe("catalog importer", () => {
       candidateDetailsBox!.x,
     );
 
-    await page.getByRole("button", { name: "Issues 0/4" }).click();
+    await page.getByRole("button", { name: "Issues 0/3" }).click();
     await expect(
       page.getByRole("table", {
         name: "Duplicate rows for Daylily 10",
@@ -578,12 +541,8 @@ test.describe("catalog importer", () => {
     for (const control of [
       page.getByLabel("Correct price for row 3"),
       page.getByRole("button", { name: "Save price for row 3" }),
-      page.getByLabel("Correct image URL for row 4"),
-      page.getByRole("button", { name: "Save image URL for row 4" }),
     ]) {
-      await control.evaluate((element) =>
-        element.scrollIntoView({ block: "center" }),
-      );
+      await control.scrollIntoViewIfNeeded();
       await expect(control).toBeVisible();
       const box = await control.boundingBox();
       expect(box).not.toBeNull();
@@ -594,7 +553,9 @@ test.describe("catalog importer", () => {
 
     await mobileActions.getByRole("button", { name: "Download" }).click();
     await expect(
-      page.getByRole("button", { name: "Download clean catalog" }),
+      page.getByRole("button", {
+        name: "Download catalog-only spreadsheet",
+      }),
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Return to top" }),

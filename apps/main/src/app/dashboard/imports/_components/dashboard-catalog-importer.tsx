@@ -50,6 +50,22 @@ type DashboardImportStep =
 
 const IMPORT_BATCH_SIZE = 100;
 
+function getDashboardImportStepId(step: DashboardImportStep) {
+  return `dashboard-catalog-import-step-${step}`;
+}
+
+function scrollToImportStep(step: DashboardImportStep) {
+  const scroll = () => {
+    const stepTarget = document.getElementById(getDashboardImportStepId(step));
+    const workflow = document.getElementById(
+      "dashboard-catalog-import-workflow",
+    );
+    (stepTarget ?? workflow)?.scrollIntoView?.({ block: "start" });
+  };
+
+  requestAnimationFrame(() => requestAnimationFrame(scroll));
+}
+
 function appendOriginalPrice(privateNote: string, sourcePrice: string) {
   if (!sourcePrice) return privateNote;
   const line = `Original price: ${sourcePrice}`;
@@ -225,19 +241,24 @@ export function DashboardCatalogImporter({
     controller.remainingIssueCount +
     possibleExistingRows.length;
 
+  const changeStep = (nextStep: DashboardImportStep) => {
+    setStep(nextStep);
+    scrollToImportStep(nextStep);
+  };
+
   const buildCatalog = async () => {
     const built = await controller.buildCatalogPreview();
-    if (built) setStep("ready");
+    if (built) changeStep("ready");
   };
 
   const openReviewRow = (row: CatalogImportRow) => {
     controller.openReviewRow(row);
-    setStep("review");
+    changeStep("review");
   };
 
   const startOver = () => {
     controller.resetImporter();
-    setStep("start");
+    changeStep("start");
     setMatchSheetRow(null);
     setImportProgress(null);
     setImportError(null);
@@ -267,7 +288,7 @@ export function DashboardCatalogImporter({
       }
       await clearCatalogImporterDraft();
       setCompletion({ createdCount: 0, existingCount: 0, skippedCount });
-      setStep("complete");
+      changeStep("complete");
       return;
     }
 
@@ -299,7 +320,7 @@ export function DashboardCatalogImporter({
         existingCount,
         skippedCount: skippedCount + serverSkippedCount,
       });
-      setStep("complete");
+      changeStep("complete");
     } catch (error) {
       setImportError(getImportErrorMessage(error));
     } finally {
@@ -310,37 +331,50 @@ export function DashboardCatalogImporter({
   if (!controller.matchedRows) {
     return (
       <div className="space-y-6">
+        {controller.parsedSpreadsheet ? (
+          <div className="absolute top-0 right-0">
+            <DashboardImportStartOver onStartOver={startOver} />
+          </div>
+        ) : null}
         <nav className="flex gap-5 border-b" aria-label="Catalog import steps">
           <StepButton
             active={step === "start"}
-            onClick={() => setStep("start")}
+            onClick={() => changeStep("start")}
           >
             Start
           </StepButton>
           <StepButton
             active={step === "prepare"}
             disabled={!controller.parsedSpreadsheet}
-            onClick={() => setStep("prepare")}
+            onClick={() => changeStep("prepare")}
           >
             Prepare
           </StepButton>
         </nav>
 
         {step === "start" ? (
-          <div className="space-y-5">
+          <div
+            id={getDashboardImportStepId("start")}
+            className="scroll-mt-4 space-y-5"
+          >
             <CatalogImporterUpload
               controller={controller}
-              onClear={() => setStep("start")}
-              onSourceReady={() => setStep("prepare")}
+              onClear={() => changeStep("start")}
+              onSourceReady={() => changeStep("prepare")}
+              showClear={false}
             />
           </div>
         ) : null}
 
         {step === "prepare" && controller.selectedSheet ? (
-          <div className="space-y-6">
+          <div
+            id={getDashboardImportStepId("prepare")}
+            className="scroll-mt-4 space-y-6"
+          >
             <CatalogImporterUpload
               controller={controller}
-              onClear={() => setStep("start")}
+              onClear={() => changeStep("start")}
+              showClear={false}
             />
             {controller.parsedSpreadsheet?.source === "manual" ? (
               <div className="space-y-4">
@@ -378,6 +412,9 @@ export function DashboardCatalogImporter({
   if (existingListings.isLoading) {
     return (
       <div className="space-y-6">
+        <div className="absolute top-0 right-0">
+          <DashboardImportStartOver onStartOver={startOver} />
+        </div>
         <nav className="flex gap-5 border-b" aria-label="Catalog import steps">
           <StepButton active onClick={() => undefined}>
             Ready
@@ -397,7 +434,7 @@ export function DashboardCatalogImporter({
   if (existingListings.isError) {
     return (
       <div className="flex flex-col gap-4">
-        <div className="flex justify-end">
+        <div className="absolute top-0 right-0">
           <DashboardImportStartOver onStartOver={startOver} />
         </div>
         <Alert variant="destructive">
@@ -446,7 +483,7 @@ export function DashboardCatalogImporter({
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
+      <div className="absolute top-0 right-0">
         <DashboardImportStartOver
           disabled={importProgress !== null}
           onStartOver={startOver}
@@ -457,13 +494,16 @@ export function DashboardCatalogImporter({
         className="flex gap-5 overflow-x-auto border-b"
         aria-label="Catalog import steps"
       >
-        <StepButton active={step === "ready"} onClick={() => setStep("ready")}>
+        <StepButton
+          active={step === "ready"}
+          onClick={() => changeStep("ready")}
+        >
           Ready {readyRows.length}
         </StepButton>
         {controller.reviewProgressTotal > 0 ? (
           <StepButton
             active={step === "review"}
-            onClick={() => setStep("review")}
+            onClick={() => changeStep("review")}
           >
             Review {controller.completedReviewCount}/
             {controller.reviewProgressTotal}
@@ -472,7 +512,7 @@ export function DashboardCatalogImporter({
         {controller.issueProgressTotal > 0 ? (
           <StepButton
             active={step === "issues"}
-            onClick={() => setStep("issues")}
+            onClick={() => changeStep("issues")}
           >
             Issues {controller.completedIssueCount}/
             {controller.issueProgressTotal}
@@ -481,21 +521,25 @@ export function DashboardCatalogImporter({
         {possibleExistingAllRows.length > 0 ? (
           <StepButton
             active={step === "existing"}
-            onClick={() => setStep("existing")}
+            onClick={() => changeStep("existing")}
           >
             Existing {completedExistingCount}/{possibleExistingAllRows.length}
           </StepButton>
         ) : null}
         <StepButton
           active={step === "confirm"}
-          onClick={() => setStep("confirm")}
+          onClick={() => changeStep("confirm")}
         >
           Import
         </StepButton>
       </nav>
 
       {step === "ready" ? (
-        <section className="space-y-6" aria-labelledby="import-summary-heading">
+        <section
+          id={getDashboardImportStepId("ready")}
+          className="scroll-mt-4 space-y-6"
+          aria-labelledby="import-summary-heading"
+        >
           <div>
             <h2
               id="import-summary-heading"
@@ -555,7 +599,7 @@ export function DashboardCatalogImporter({
           ) : null}
 
           <div className="flex justify-end">
-            <Button type="button" onClick={() => setStep(nextAfterReady)}>
+            <Button type="button" onClick={() => changeStep(nextAfterReady)}>
               {nextAfterReady === "review"
                 ? "Continue to cultivar review"
                 : nextAfterReady === "issues"
@@ -572,7 +616,10 @@ export function DashboardCatalogImporter({
       ) : null}
 
       {step === "review" ? (
-        <div className="space-y-6">
+        <div
+          id={getDashboardImportStepId("review")}
+          className="scroll-mt-4 space-y-6"
+        >
           {controller.activeReviewRow ? (
             <CatalogImporterReviewQuiz
               controller={controller}
@@ -592,7 +639,7 @@ export function DashboardCatalogImporter({
               type="button"
               disabled={controller.reviewRows.length > 0}
               onClick={() =>
-                setStep(
+                changeStep(
                   controller.remainingIssueCount > 0
                     ? "issues"
                     : possibleExistingRows.length > 0
@@ -613,7 +660,10 @@ export function DashboardCatalogImporter({
       ) : null}
 
       {step === "issues" ? (
-        <div className="space-y-6">
+        <div
+          id={getDashboardImportStepId("issues")}
+          className="scroll-mt-4 space-y-6"
+        >
           {controller.remainingIssueCount > 0 ? (
             <CatalogImporterIssues
               controller={controller}
@@ -632,7 +682,7 @@ export function DashboardCatalogImporter({
               type="button"
               disabled={controller.remainingIssueCount > 0}
               onClick={() =>
-                setStep(
+                changeStep(
                   possibleExistingRows.length > 0 ? "existing" : "confirm",
                 )
               }
@@ -647,7 +697,10 @@ export function DashboardCatalogImporter({
       ) : null}
 
       {step === "existing" ? (
-        <div className="space-y-6">
+        <div
+          id={getDashboardImportStepId("existing")}
+          className="scroll-mt-4 space-y-6"
+        >
           <DashboardImportExistingListingReview
             completedCount={completedExistingCount}
             controller={controller}
@@ -658,7 +711,7 @@ export function DashboardCatalogImporter({
             <Button
               type="button"
               disabled={possibleExistingRows.length > 0}
-              onClick={() => setStep("confirm")}
+              onClick={() => changeStep("confirm")}
             >
               Continue to import
               <ArrowRight />
@@ -670,7 +723,10 @@ export function DashboardCatalogImporter({
       {step === "confirm" ? (
         readyRows.length === 0 &&
         exactExistingRows.length + useExistingRows.length > 0 ? (
-          <section className="mx-auto max-w-3xl py-12 text-center">
+          <section
+            id={getDashboardImportStepId("confirm")}
+            className="mx-auto max-w-3xl scroll-mt-4 py-12 text-center"
+          >
             <CheckCircle2 className="text-primary mx-auto size-10" />
             <h2 className="mt-4 text-3xl font-semibold tracking-tight">
               Everything in this spreadsheet is already in your catalog
@@ -685,7 +741,10 @@ export function DashboardCatalogImporter({
             </div>
           </section>
         ) : (
-          <section className="mx-auto max-w-3xl space-y-6 py-4">
+          <section
+            id={getDashboardImportStepId("confirm")}
+            className="mx-auto max-w-3xl scroll-mt-4 space-y-6 py-4"
+          >
             <div>
               <h2 className="text-2xl font-semibold tracking-tight">
                 Create {readyRows.length.toLocaleString()} listings?
@@ -783,7 +842,7 @@ export function DashboardCatalogImporter({
                 type="button"
                 variant="outline"
                 disabled={importProgress !== null}
-                onClick={() => setStep("ready")}
+                onClick={() => changeStep("ready")}
               >
                 Back to ready listings
               </Button>
@@ -807,7 +866,10 @@ export function DashboardCatalogImporter({
       ) : null}
 
       {step === "complete" && completion ? (
-        <section className="mx-auto max-w-3xl py-12 text-center">
+        <section
+          id={getDashboardImportStepId("complete")}
+          className="mx-auto max-w-3xl scroll-mt-4 py-12 text-center"
+        >
           <CheckCircle2 className="text-primary mx-auto size-10" />
           <h2 className="mt-4 text-3xl font-semibold tracking-tight">
             Your catalog has been imported

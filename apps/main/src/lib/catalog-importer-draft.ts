@@ -30,6 +30,41 @@ export function createCatalogImporterProjectId() {
   );
 }
 
+function normalizeManualCatalogSpreadsheet(
+  spreadsheet: ParsedSpreadsheet | null,
+) {
+  if (spreadsheet?.source !== "manual") {
+    return spreadsheet;
+  }
+
+  let changed = false;
+  const sheets = spreadsheet.sheets.map((sheet) => {
+    if (sheet.rows[0]?.[4] !== "Daylily Catalog ID") {
+      return sheet;
+    }
+
+    const rows = sheet.rows.map((row, rowIndex) => {
+      if (
+        rowIndex === 0 ||
+        String(row[4] ?? "").trim() ||
+        !String(row[5] ?? "").trim()
+      ) {
+        return row;
+      }
+
+      const nextRow = [...row];
+      nextRow[4] = nextRow[5]!;
+      nextRow.splice(5, 1);
+      changed = true;
+      return nextRow;
+    });
+
+    return rows === sheet.rows ? sheet : { ...sheet, rows };
+  });
+
+  return changed ? { ...spreadsheet, sheets } : spreadsheet;
+}
+
 function normalizeCatalogImporterDraft(draft: CatalogImporterDraft) {
   const projectId =
     typeof draft.projectId === "string" && draft.projectId.length > 0
@@ -53,6 +88,9 @@ function normalizeCatalogImporterDraft(draft: CatalogImporterDraft) {
     ...draft,
     mapping: { ...draft.mapping, imageUrl: null },
     matchedRows,
+    parsedSpreadsheet: normalizeManualCatalogSpreadsheet(
+      draft.parsedSpreadsheet,
+    ),
     projectId,
   };
 }
