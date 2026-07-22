@@ -74,6 +74,7 @@ describe("seller funnel proxy protection", () => {
       "http://localhost:3000/start-membership",
       "http://localhost:3000/support",
       "http://localhost:3000/terms",
+      "http://localhost:3000/guides/growing/soil",
       "http://localhost:3000/plantfancygardens",
       "http://localhost:3000/plantfancygardens/page/2",
       "http://localhost:3000/plantfancygardens/alienation",

@@ -104,15 +104,11 @@ describe("public cultivar search route", () => {
         expect.objectContaining({ cultivarReferenceId: "cultivar-0" }),
       ]),
     });
-    expect(response.headers.get("X-Cultivar-Search-Request-Id")).toBe(
-      "cultivar-search-request",
-    );
+    expect(response.headers.get("X-Cultivar-Search-Request-Id")).toBeNull();
     expect(response.headers.get("Cloudflare-CDN-Cache-Control")).toBe(
       "public, max-age=43200, stale-while-revalidate=604800, stale-if-error=86400",
     );
-    expect(
-      Number(response.headers.get("X-Cultivar-Search-Duration-Ms")),
-    ).toEqual(expect.any(Number));
+    expect(response.headers.get("X-Cultivar-Search-Duration-Ms")).toBeNull();
 
     const rawLog = infoMock.mock.calls.at(-1)?.[0];
     expect(JSON.parse(String(rawLog))).toMatchObject({

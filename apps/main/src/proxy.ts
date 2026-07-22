@@ -152,10 +152,6 @@ function cloudflareCachedPublicHtmlResponse() {
 }
 
 const protectedRouteProxy = clerkMiddleware(async (auth, req) => {
-  if (!isProtectedRoute(req)) {
-    return undefined;
-  }
-
   const { isAuthenticated, redirectToSignIn } = await auth();
 
   if (isAuthenticated) {
@@ -217,7 +213,11 @@ export function proxy(req: NextRequest, event: NextFetchEvent) {
     return cloudflareCachedPublicHtmlResponse();
   }
 
-  return protectedRouteProxy(req, event);
+  if (isProtectedRoute(req)) {
+    return protectedRouteProxy(req, event);
+  }
+
+  return undefined;
 }
 
 export default proxy;
@@ -228,21 +228,16 @@ export const config = {
     "/onboarding/:path*",
     "/subscribe/success/:path*",
     "/api/trpc/:path*",
-    "/",
     "/.well-known/:path*",
     "/openapi.json",
     "/llms.txt",
     "/llms-full.txt",
-    "/catalogs",
-    "/cultivar/:cultivarNormalizedName",
-    "/:userSlugOrId",
-    "/:userSlugOrId/page/:page",
-    "/:userSlugOrId/:listingSlugOrId",
     "/sitemap-index.xml",
     "/sitemap_index.xml",
     "/sitemap.xml.gz",
     "/api",
     "/api/v1",
+    "/((?!api(?:/|$)|_next(?:/|$)|.*\\..*).*)",
     {
       source: "/:path*",
       has: [

@@ -214,9 +214,7 @@ export async function GET(request: Request) {
           : {}),
       },
       {
-        headers: getPublicCloudflareCacheHeaders(
-          getTelemetryHeaders(requestId, durationMs),
-        ),
+        headers: getPublicCloudflareCacheHeaders(),
       },
     );
   } catch (error) {
