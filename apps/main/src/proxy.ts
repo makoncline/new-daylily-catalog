@@ -220,6 +220,7 @@ export function proxy(req: NextRequest, event: NextFetchEvent) {
   // Do not guard this call with isProtectedRoute(). Public routes such as
   // /onboarding and /api/trpc still need Clerk's request context for auth().
   // Keep the protected-route check inside the clerkMiddleware callback above.
+  // https://clerk.com/docs/reference/nextjs/app-router/auth
   return protectedRouteProxy(req, event);
 }
 
