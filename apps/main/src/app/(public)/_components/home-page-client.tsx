@@ -1,7 +1,5 @@
 "use client";
 
-// eslint-disable react/no-unknown-property -- Next styled-jsx uses the jsx/global attributes on <style>.
-
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import Link from "next/link";
@@ -15,6 +13,10 @@ import {
 } from "@/components/optimized-image";
 import { UsedByWave } from "@/components/used-by-wave";
 import { LaurelRatingBadge } from "@/components/laurel-rating-badge";
+import {
+  MarketingHero,
+  MarketingHeroContent,
+} from "@/components/marketing-hero";
 
 export interface HomePageCatalog {
   description: string | null;
@@ -242,21 +244,8 @@ export default function HomePageClient({
 
 function HomeHeroSection() {
   return (
-    <section className="relative isolate overflow-hidden px-4 pt-24 pb-36 lg:px-8 lg:pt-24 lg:pb-32">
-      <div className="absolute inset-0 -z-10 bg-[#07120e]" aria-hidden="true">
-        <Image
-          src="/assets/home-redesign/daylily-hero-grid.webp"
-          alt=""
-          fill
-          priority
-          sizes="140vw"
-          className="hero-grid-pan size-full object-cover opacity-90"
-        />
-        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(7,18,14,0.92)_0%,rgba(7,18,14,0.72)_38%,rgba(7,18,14,0.2)_72%,transparent_100%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_0%_0%,rgba(255,255,255,0.1)_0%,rgba(255,255,255,0)_36%),radial-gradient(circle_at_100%_100%,rgba(7,18,14,0.92)_0%,rgba(7,18,14,0.62)_42%,rgba(7,18,14,0.12)_72%,rgba(7,18,14,0)_100%)]" />
-      </div>
-
-      <div className="mx-auto grid max-w-[1024px] items-start gap-8 lg:min-h-[25rem] lg:grid-cols-[minmax(0,1fr)_29rem] lg:items-center lg:gap-8">
+    <MarketingHero>
+      <MarketingHeroContent className="grid items-start gap-8 lg:min-h-[25rem] lg:grid-cols-[minmax(0,1fr)_29rem] lg:items-center lg:gap-8">
         <div>
           <div className="mb-4 -ml-3 lg:mb-2 lg:-ml-4">
             <LaurelRatingBadge />
@@ -333,54 +322,10 @@ function HomeHeroSection() {
             <ArrowRight className="ml-2 size-4" />
           </Link>
         </aside>
-      </div>
+      </MarketingHeroContent>
 
       <UsedByWave />
-
-      <style jsx global>{`
-        @keyframes hero-grid-pan {
-          0%,
-          100% {
-            transform: scale(1.38) translate3d(8%, 0, 0);
-          }
-          50% {
-            transform: scale(1.38) translate3d(-8%, 0, 0);
-          }
-        }
-
-        .hero-grid-pan {
-          animation: hero-grid-pan 82s ease-in-out infinite;
-          animation-delay: -18s;
-          transform-origin: center;
-          will-change: transform;
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-          .hero-grid-pan {
-            animation: none;
-            transform: scale(1.38);
-          }
-        }
-
-        @media (max-width: 1023px) {
-          @keyframes hero-grid-pan {
-            0%,
-            100% {
-              transform: scale(1.95) translate3d(8%, 0, 0);
-            }
-            50% {
-              transform: scale(1.95) translate3d(-8%, 0, 0);
-            }
-          }
-
-          @media (prefers-reduced-motion: reduce) {
-            .hero-grid-pan {
-              transform: scale(1.95);
-            }
-          }
-        }
-      `}</style>
-    </section>
+    </MarketingHero>
   );
 }
 
