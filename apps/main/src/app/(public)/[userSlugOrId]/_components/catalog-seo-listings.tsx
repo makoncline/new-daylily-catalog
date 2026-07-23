@@ -133,7 +133,10 @@ export function CatalogSeoListings({
         </div>
 
         {listings.length > 0 ? (
-          <CatalogSeoListingsGrid listings={listings} />
+          <CatalogSeoListingsGrid
+            canonicalUserSlug={canonicalUserSlug}
+            listings={listings}
+          />
         ) : (
           <div className="rounded-lg border border-dashed p-8 text-center">
             <Muted>No listings available.</Muted>

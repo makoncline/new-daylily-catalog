@@ -15,6 +15,7 @@ import { AddToCartButton } from "@/components/add-to-cart-button";
 import { useDisplayAhsListing } from "@/hooks/use-display-ahs-listing";
 import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
 import { CopyListingLinkButton } from "@/components/copy-listing-link-button";
+import { getPublicListingPath } from "@/lib/public-catalog-url-state";
 
 type Listing = RouterOutputs["public"]["getListings"][number];
 
@@ -34,7 +35,11 @@ export function ListingDisplay({
   const cultivarHref = cultivarRouteSegment
     ? `/cultivar/${cultivarRouteSegment}`
     : null;
-  const listingHref = `/${listing.userSlug}/${listing.slug || listing.id}`;
+  const listingHref = getPublicListingPath({
+    listingId: listing.id,
+    listingSlug: listing.slug,
+    sellerSlug: listing.userSlug,
+  });
 
   // Determine which heading component to use based on variant
   const HeadingComponent = variant === "page" ? H1 : H2;
