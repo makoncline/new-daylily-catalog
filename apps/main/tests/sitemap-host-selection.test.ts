@@ -10,6 +10,7 @@ const publicReadMocks = vi.hoisted(() => ({
   getPublicListingRouteEntries: vi.fn(),
   getCultivarSitemapEntries: vi.fn(),
   getCultivarSitemapEntryCount: vi.fn(),
+  getPublicOfferCultivarSitemapEntries: vi.fn(),
 }));
 
 vi.mock("@/server/db/public-listing-read-model", () => ({
@@ -20,6 +21,8 @@ vi.mock("@/server/db/public-listing-read-model", () => ({
 vi.mock("@/server/db/public-cultivar-read-model", () => ({
   getCultivarSitemapEntries: publicReadMocks.getCultivarSitemapEntries,
   getCultivarSitemapEntryCount: publicReadMocks.getCultivarSitemapEntryCount,
+  getPublicOfferCultivarSitemapEntries:
+    publicReadMocks.getPublicOfferCultivarSitemapEntries,
 }));
 
 const originalVercelEnv = process.env.VERCEL_ENV;
@@ -71,6 +74,11 @@ describe("sitemap and robots host selection", () => {
       },
     ]);
     publicReadMocks.getCultivarSitemapEntryCount.mockResolvedValue(104_000);
+    publicReadMocks.getPublicOfferCultivarSitemapEntries.mockResolvedValue([
+      {
+        segment: "coffee-frenzy",
+      },
+    ]);
   });
 
   afterAll(() => {
@@ -95,17 +103,22 @@ describe("sitemap and robots host selection", () => {
       { GET: sitemapIndex },
       { GET: mainSitemap },
       { GET: cultivarSitemap },
+      { GET: offerCultivarSitemap },
       { GET: robots },
     ] = await Promise.all([
       import("@/app/sitemap.xml/route"),
       import("@/app/sitemaps/main.xml/route"),
       import("@/app/sitemaps/cultivars/[page]/route"),
+      import("@/app/sitemaps/cultivars-with-offers.xml/route"),
       import("@/app/robots.txt/route"),
     ]);
 
     const sitemapIndexText = await (await sitemapIndex()).text();
     expect(sitemapIndexText).toContain(
       "https://daylilycatalog.com/sitemaps/main.xml",
+    );
+    expect(sitemapIndexText).toContain(
+      "https://daylilycatalog.com/sitemaps/cultivars-with-offers.xml",
     );
     expect(sitemapIndexText).toContain(
       "https://daylilycatalog.com/sitemaps/cultivars/2.xml",
@@ -136,6 +149,10 @@ describe("sitemap and robots host selection", () => {
       page: 0,
       pageSize: 45_000,
     });
+
+    expect(await (await offerCultivarSitemap()).text()).toContain(
+      "https://daylilycatalog.com/cultivar/coffee-frenzy",
+    );
 
     const robotsText = await robots().text();
     expect(robotsText).toContain("Host: https://daylilycatalog.com");

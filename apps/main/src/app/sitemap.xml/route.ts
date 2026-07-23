@@ -16,6 +16,8 @@ export async function GET() {
   );
   const sitemapUrls = [
     `${baseUrl}/sitemaps/main.xml`,
+    // Keep this subset separate so Search Console can report offer coverage.
+    `${baseUrl}/sitemaps/cultivars-with-offers.xml`,
     ...Array.from(
       { length: cultivarPageCount },
       (_, page) => `${baseUrl}/sitemaps/cultivars/${page}.xml`,

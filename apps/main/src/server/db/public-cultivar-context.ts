@@ -9,12 +9,13 @@ import {
   toCultivarRouteSegment,
 } from "@/lib/utils/cultivar-utils";
 import { replicaDb } from "@/server/db";
-import { getActiveProUserIdsForUserIds } from "@/server/db/getProUserIds";
+import {
+  getActiveProUserIdsForUserIds,
+  getProUserIds,
+} from "@/server/db/getProUserIds";
 import { getPublicListingCardsByIds } from "@/server/db/public-listing-read-model";
 import { getPublicSellerSummariesByUserIds } from "@/server/db/public-seller-read-model";
-import {
-  generatedCultivarImageAssetInclude,
-} from "@/server/services/cultivar-reference-image-read-model";
+import { generatedCultivarImageAssetInclude } from "@/server/services/cultivar-reference-image-read-model";
 import type { ImageAssetUrlRow } from "@/server/services/image-asset-read-model";
 import { isPublished } from "@/server/db/public-visibility/filters";
 
@@ -119,6 +120,42 @@ export async function getCultivarSitemapEntries(args: {
     },
     skip: args.page * args.pageSize,
     take: args.pageSize,
+  });
+
+  return cultivarReferences.flatMap((cultivar) => {
+    const segment = toCultivarRouteSegment(cultivar.normalizedName);
+
+    return segment ? [{ segment }] : [];
+  });
+}
+
+export async function getPublicOfferCultivarSitemapEntries(): Promise<
+  Array<{ segment: string }>
+> {
+  const proUserIds = await getProUserIds();
+
+  if (proUserIds.length === 0) {
+    return [];
+  }
+
+  const cultivarReferences = await replicaDb.cultivarReference.findMany({
+    where: {
+      ...routableCultivarWhere,
+      listings: {
+        some: {
+          ...isPublished(),
+          userId: {
+            in: proUserIds,
+          },
+        },
+      },
+    },
+    select: {
+      normalizedName: true,
+    },
+    orderBy: {
+      normalizedName: "asc",
+    },
   });
 
   return cultivarReferences.flatMap((cultivar) => {
