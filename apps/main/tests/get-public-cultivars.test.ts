@@ -43,6 +43,8 @@ import {
   getCultivarSitemapEntries,
   getCultivarSitemapEntryCount,
   getPublicCultivarPage,
+  getPublicOfferCultivarSitemapEntries,
+  getPublicOfferCultivarSitemapEntryCount,
 } from "@/server/db/getPublicCultivars";
 import { applyWhereIn } from "./test-utils/apply-where-in";
 
@@ -1144,5 +1146,52 @@ describe("getCultivarSitemapEntries", () => {
     });
     expect(mockDb.listing.findMany).not.toHaveBeenCalled();
     expect(mockGetProUserIds).not.toHaveBeenCalled();
+  });
+});
+
+describe("getPublicOfferCultivarSitemapEntries", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns routable cultivars offered by active pro sellers", async () => {
+    mockGetProUserIds.mockResolvedValue(["user-pro"]);
+    mockDb.cultivarReference.count.mockResolvedValue(2);
+    mockDb.cultivarReference.findMany.mockResolvedValue([
+      { normalizedName: "jumpin' jan" },
+      { normalizedName: "coffee frenzy" },
+    ]);
+
+    const [count, cultivars] = await Promise.all([
+      getPublicOfferCultivarSitemapEntryCount(),
+      getPublicOfferCultivarSitemapEntries({
+        page: 1,
+        pageSize: 45_000,
+      }),
+    ]);
+
+    const where = {
+      normalizedName: { not: null },
+      listings: {
+        some: {
+          OR: [{ status: null }, { NOT: { status: "HIDDEN" } }],
+          userId: { in: ["user-pro"] },
+        },
+      },
+    };
+
+    expect(count).toBe(2);
+    expect(cultivars).toEqual([
+      { segment: "jumpin~27-jan" },
+      { segment: "coffee-frenzy" },
+    ]);
+    expect(mockDb.cultivarReference.count).toHaveBeenCalledWith({ where });
+    expect(mockDb.cultivarReference.findMany).toHaveBeenCalledWith({
+      where,
+      select: { normalizedName: true },
+      orderBy: { normalizedName: "asc" },
+      skip: 45_000,
+      take: 45_000,
+    });
   });
 });

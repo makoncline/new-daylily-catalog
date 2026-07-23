@@ -10,6 +10,8 @@ const publicReadMocks = vi.hoisted(() => ({
   getPublicListingRouteEntries: vi.fn(),
   getCultivarSitemapEntries: vi.fn(),
   getCultivarSitemapEntryCount: vi.fn(),
+  getPublicOfferCultivarSitemapEntries: vi.fn(),
+  getPublicOfferCultivarSitemapEntryCount: vi.fn(),
 }));
 
 vi.mock("@/server/db/public-listing-read-model", () => ({
@@ -20,6 +22,10 @@ vi.mock("@/server/db/public-listing-read-model", () => ({
 vi.mock("@/server/db/public-cultivar-read-model", () => ({
   getCultivarSitemapEntries: publicReadMocks.getCultivarSitemapEntries,
   getCultivarSitemapEntryCount: publicReadMocks.getCultivarSitemapEntryCount,
+  getPublicOfferCultivarSitemapEntries:
+    publicReadMocks.getPublicOfferCultivarSitemapEntries,
+  getPublicOfferCultivarSitemapEntryCount:
+    publicReadMocks.getPublicOfferCultivarSitemapEntryCount,
 }));
 
 const originalVercelEnv = process.env.VERCEL_ENV;
@@ -71,6 +77,14 @@ describe("sitemap and robots host selection", () => {
       },
     ]);
     publicReadMocks.getCultivarSitemapEntryCount.mockResolvedValue(104_000);
+    publicReadMocks.getPublicOfferCultivarSitemapEntryCount.mockResolvedValue(
+      3_988,
+    );
+    publicReadMocks.getPublicOfferCultivarSitemapEntries.mockResolvedValue([
+      {
+        segment: "coffee-frenzy",
+      },
+    ]);
   });
 
   afterAll(() => {
@@ -95,11 +109,13 @@ describe("sitemap and robots host selection", () => {
       { GET: sitemapIndex },
       { GET: mainSitemap },
       { GET: cultivarSitemap },
+      { GET: offerCultivarSitemap },
       { GET: robots },
     ] = await Promise.all([
       import("@/app/sitemap.xml/route"),
       import("@/app/sitemaps/main.xml/route"),
       import("@/app/sitemaps/cultivars/[page]/route"),
+      import("@/app/sitemaps/cultivars-with-offers/[page]/route"),
       import("@/app/robots.txt/route"),
     ]);
 
@@ -107,6 +123,10 @@ describe("sitemap and robots host selection", () => {
     expect(sitemapIndexText).toContain(
       "https://daylilycatalog.com/sitemaps/main.xml",
     );
+    expect(sitemapIndexText).toContain(
+      "https://daylilycatalog.com/sitemaps/cultivars-with-offers/0.xml",
+    );
+    expect(sitemapIndexText).not.toContain("cultivars-with-offers/1.xml");
     expect(sitemapIndexText).toContain(
       "https://daylilycatalog.com/sitemaps/cultivars/2.xml",
     );
@@ -133,6 +153,22 @@ describe("sitemap and robots host selection", () => {
       "https://daylilycatalog.com/cultivar/zyzzified",
     );
     expect(publicReadMocks.getCultivarSitemapEntries).toHaveBeenCalledWith({
+      page: 0,
+      pageSize: 45_000,
+    });
+
+    const offerCultivarSitemapResponse = await offerCultivarSitemap(
+      new Request("http://test"),
+      {
+        params: Promise.resolve({ page: "0.xml" }),
+      },
+    );
+    expect(await offerCultivarSitemapResponse.text()).toContain(
+      "https://daylilycatalog.com/cultivar/coffee-frenzy",
+    );
+    expect(
+      publicReadMocks.getPublicOfferCultivarSitemapEntries,
+    ).toHaveBeenCalledWith({
       page: 0,
       pageSize: 45_000,
     });
@@ -232,5 +268,23 @@ describe("sitemap and robots host selection", () => {
 
     expect(response.status).toBe(404);
     expect(publicReadMocks.getCultivarSitemapEntries).not.toHaveBeenCalled();
+  });
+
+  it("rejects public-offer cultivar sitemap pages beyond the cohort count", async () => {
+    const { GET: offerCultivarSitemap } = await import(
+      "@/app/sitemaps/cultivars-with-offers/[page]/route"
+    );
+    publicReadMocks.getPublicOfferCultivarSitemapEntries.mockClear();
+
+    const response = await offerCultivarSitemap(new Request("http://test"), {
+      params: Promise.resolve({
+        page: "999999999999999999999999999999999999999999999999999999.xml",
+      }),
+    });
+
+    expect(response.status).toBe(404);
+    expect(
+      publicReadMocks.getPublicOfferCultivarSitemapEntries,
+    ).not.toHaveBeenCalled();
   });
 });

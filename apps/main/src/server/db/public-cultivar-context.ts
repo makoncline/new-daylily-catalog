@@ -9,12 +9,13 @@ import {
   toCultivarRouteSegment,
 } from "@/lib/utils/cultivar-utils";
 import { replicaDb } from "@/server/db";
-import { getActiveProUserIdsForUserIds } from "@/server/db/getProUserIds";
+import {
+  getActiveProUserIdsForUserIds,
+  getProUserIds,
+} from "@/server/db/getProUserIds";
 import { getPublicListingCardsByIds } from "@/server/db/public-listing-read-model";
 import { getPublicSellerSummariesByUserIds } from "@/server/db/public-seller-read-model";
-import {
-  generatedCultivarImageAssetInclude,
-} from "@/server/services/cultivar-reference-image-read-model";
+import { generatedCultivarImageAssetInclude } from "@/server/services/cultivar-reference-image-read-model";
 import type { ImageAssetUrlRow } from "@/server/services/image-asset-read-model";
 import { isPublished } from "@/server/db/public-visibility/filters";
 
@@ -111,6 +112,61 @@ export async function getCultivarSitemapEntries(args: {
 > {
   const cultivarReferences = await replicaDb.cultivarReference.findMany({
     where: routableCultivarWhere,
+    select: {
+      normalizedName: true,
+    },
+    orderBy: {
+      normalizedName: "asc",
+    },
+    skip: args.page * args.pageSize,
+    take: args.pageSize,
+  });
+
+  return cultivarReferences.flatMap((cultivar) => {
+    const segment = toCultivarRouteSegment(cultivar.normalizedName);
+
+    return segment ? [{ segment }] : [];
+  });
+}
+
+function getPublicOfferCultivarWhere(proUserIds: string[]) {
+  return {
+    ...routableCultivarWhere,
+    listings: {
+      some: {
+        ...isPublished(),
+        userId: {
+          in: proUserIds,
+        },
+      },
+    },
+  };
+}
+
+export async function getPublicOfferCultivarSitemapEntryCount() {
+  const proUserIds = await getProUserIds();
+
+  if (proUserIds.length === 0) {
+    return 0;
+  }
+
+  return replicaDb.cultivarReference.count({
+    where: getPublicOfferCultivarWhere(proUserIds),
+  });
+}
+
+export async function getPublicOfferCultivarSitemapEntries(args: {
+  page: number;
+  pageSize: number;
+}): Promise<Array<{ segment: string }>> {
+  const proUserIds = await getProUserIds();
+
+  if (proUserIds.length === 0) {
+    return [];
+  }
+
+  const cultivarReferences = await replicaDb.cultivarReference.findMany({
+    where: getPublicOfferCultivarWhere(proUserIds),
     select: {
       normalizedName: true,
     },
