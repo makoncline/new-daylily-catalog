@@ -86,6 +86,11 @@ describe("dashboardDb.userProfile slug namespace", () => {
     ).resolves.toEqual({
       available: false,
     });
+    await expect(
+      caller.checkSlug({ slug: "sell-daylilies-online" }),
+    ).resolves.toEqual({
+      available: false,
+    });
     expect(db.userProfile.findFirst).not.toHaveBeenCalled();
     expect(db.user.findFirst).not.toHaveBeenCalled();
   });

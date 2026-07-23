@@ -21,6 +21,11 @@ export async function getMainSitemapEntries(baseUrl: string) {
       priority: 0.8,
     },
     {
+      url: `${baseUrl}/sell-daylilies-online`,
+      changeFrequency: "monthly",
+      priority: 0.8,
+    },
+    {
       url: `${baseUrl}/start-membership`,
       changeFrequency: "weekly",
       priority: 0.7,
