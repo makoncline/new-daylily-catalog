@@ -1,5 +1,4 @@
 import { getPublicCatalogRouteEntries } from "@/server/db/public-listing-read-model";
-import { getPublicListingRouteEntries } from "@/server/db/public-listing-read-model";
 import type { SitemapUrl } from "@/lib/sitemap-xml";
 import { isPublicCultivarSearchEnabled } from "@/config/feature-flags";
 
@@ -40,10 +39,7 @@ export async function getMainSitemapEntries(baseUrl: string) {
     });
   }
 
-  const [catalogs, listings] = await Promise.all([
-    getPublicCatalogRouteEntries(),
-    getPublicListingRouteEntries(),
-  ]);
+  const catalogs = await getPublicCatalogRouteEntries();
 
   catalogs.forEach((entry) => {
     entries.push({
@@ -61,15 +57,6 @@ export async function getMainSitemapEntries(baseUrl: string) {
         priority: 0.6,
       });
     }
-  });
-
-  listings.forEach((entry) => {
-    entries.push({
-      url: `${baseUrl}/${entry.sellerSlug}/${entry.listingSlug}`,
-      lastModified: entry.lastModified,
-      changeFrequency: "weekly",
-      priority: 0.6,
-    });
   });
 
   return entries;
