@@ -1,6 +1,6 @@
 "use client";
 
-import * as React from "react";
+import { type ComponentProps, type ReactNode } from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -30,7 +30,7 @@ type ListingCardProps = {
   listing: RouterOutputs["public"]["getListings"][number];
   className?: string;
   priority?: boolean;
-  children: React.ReactNode;
+  children: ReactNode;
 };
 
 export function ListingCard({
@@ -234,20 +234,20 @@ export function ListingCard({
   );
 }
 
-interface ListingCardActionProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+interface ListingCardActionProps extends ComponentProps<"button"> {
   asChild?: boolean;
 }
 
-export const ListingCardAction = React.forwardRef<
-  HTMLButtonElement,
-  ListingCardActionProps
->(({ asChild = false, className, type = "button", ...props }, ref) => {
+export function ListingCardAction({
+  asChild = false,
+  className,
+  type = "button",
+  ...props
+}: ListingCardActionProps) {
   const Comp = asChild ? Slot : "button";
 
   return (
     <Comp
-      ref={ref}
       type={asChild ? undefined : type}
       className={cn(
         "focus-visible:ring-ring absolute inset-0 z-10 rounded-xl focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset",
@@ -256,5 +256,4 @@ export const ListingCardAction = React.forwardRef<
       {...props}
     />
   );
-});
-ListingCardAction.displayName = "ListingCardAction";
+}

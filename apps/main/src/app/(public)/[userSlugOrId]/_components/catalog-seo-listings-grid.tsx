@@ -2,6 +2,7 @@
 
 import { ListingCard, ListingCardAction } from "@/components/listing-card";
 import { ViewListingDialog } from "@/components/view-listing-dialog";
+import { getPublicListingPath } from "@/lib/public-catalog-url-state";
 import { type RouterOutputs } from "@/trpc/react";
 
 type Listing = RouterOutputs["public"]["getListings"][number];
@@ -27,7 +28,11 @@ export function CatalogSeoListingsGrid({
             <ListingCard listing={listing}>
               <ListingCardAction asChild>
                 <a
-                  href={`/${canonicalUserSlug}/${listing.slug || listing.id}`}
+                  href={getPublicListingPath({
+                    listingId: listing.id,
+                    listingSlug: listing.slug,
+                    sellerSlug: canonicalUserSlug,
+                  })}
                   aria-label={`View ${listing.title}`}
                 />
               </ListingCardAction>
