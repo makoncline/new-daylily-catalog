@@ -35,6 +35,7 @@ import {
   getPublicCatalogRouteEntries,
   getPublicListingDetail,
   getPublicListingRouteEntries,
+  getPublicListingRouteEntryCount,
   getPublicListingsPage,
   transformListings,
 } from "@/server/db/getPublicListings";
@@ -520,39 +521,84 @@ describe("getPublicListings helpers", () => {
         value: JSON.stringify({ status: "none" }),
       },
     ]);
-    mockDb.user.findMany.mockResolvedValue([
-      {
-        id: "user-pro",
-        stripeCustomerId: "cus-pro",
-      },
-      {
-        id: "user-free",
-        stripeCustomerId: "cus-free",
-      },
-    ]);
-    mockDb.listing.findMany.mockResolvedValue([
-      {
-        id: "id-a",
-        slug: "every-friday-night",
-        updatedAt: new Date("2026-05-01T00:00:00.000Z"),
-        user: {
+    mockDb.user.findMany.mockImplementation((args: unknown) => {
+      const requiresStripeCustomerId =
+        (args as UserFindManyArgs | undefined)?.where?.stripeCustomerId?.not ===
+        null;
+
+      if (requiresStripeCustomerId) {
+        return Promise.resolve([
+          {
+            id: "user-pro",
+            stripeCustomerId: "cus-pro",
+          },
+          {
+            id: "user-free",
+            stripeCustomerId: "cus-free",
+          },
+        ]);
+      }
+
+      return Promise.resolve([
+        {
           id: "user-pro",
           profile: {
             slug: "rolling-oaks",
           },
         },
+      ]);
+    });
+    mockDb.listing.findMany.mockResolvedValue([
+      {
+        id: "id-a",
+        slug: "every-friday-night",
+        updatedAt: new Date("2026-05-01T00:00:00.000Z"),
+        userId: "user-pro",
       },
     ]);
+    mockDb.listing.count.mockResolvedValue(1);
 
-    const entries = await getPublicListingRouteEntries();
-
-    expect(mockDb.listing.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          userId: { in: ["user-pro"] },
-        }),
+    const [count, entries] = await Promise.all([
+      getPublicListingRouteEntryCount(),
+      getPublicListingRouteEntries({
+        page: 1,
+        pageSize: 45_000,
       }),
-    );
+    ]);
+
+    const where = {
+      OR: [{ status: null }, { NOT: { status: "HIDDEN" } }],
+      userId: { in: ["user-pro"] },
+    };
+    expect(count).toBe(1);
+    expect(mockDb.listing.count).toHaveBeenCalledWith({ where });
+    expect(mockDb.listing.findMany).toHaveBeenCalledWith({
+      where,
+      select: {
+        id: true,
+        slug: true,
+        updatedAt: true,
+        userId: true,
+      },
+      orderBy: { id: "asc" },
+      skip: 45_000,
+      take: 45_000,
+    });
+    expect(mockDb.user.findMany).toHaveBeenCalledWith({
+      where: {
+        id: {
+          in: ["user-pro"],
+        },
+      },
+      select: {
+        id: true,
+        profile: {
+          select: {
+            slug: true,
+          },
+        },
+      },
+    });
     expect(entries).toEqual([
       {
         sellerSlug: "rolling-oaks",

@@ -8,6 +8,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 const publicReadMocks = vi.hoisted(() => ({
   getPublicCatalogRouteEntries: vi.fn(),
   getPublicListingRouteEntries: vi.fn(),
+  getPublicListingRouteEntryCount: vi.fn(),
   getCultivarSitemapEntries: vi.fn(),
   getCultivarSitemapEntryCount: vi.fn(),
   getPublicOfferCultivarSitemapEntries: vi.fn(),
@@ -17,6 +18,8 @@ const publicReadMocks = vi.hoisted(() => ({
 vi.mock("@/server/db/public-listing-read-model", () => ({
   getPublicCatalogRouteEntries: publicReadMocks.getPublicCatalogRouteEntries,
   getPublicListingRouteEntries: publicReadMocks.getPublicListingRouteEntries,
+  getPublicListingRouteEntryCount:
+    publicReadMocks.getPublicListingRouteEntryCount,
 }));
 
 vi.mock("@/server/db/public-cultivar-read-model", () => ({
@@ -69,6 +72,7 @@ describe("sitemap and robots host selection", () => {
         lastModified: new Date("2026-03-01T00:00:00.000Z"),
       },
     ]);
+    publicReadMocks.getPublicListingRouteEntryCount.mockResolvedValue(3_988);
 
     publicReadMocks.getCultivarSitemapEntries.mockResolvedValue([
       {
@@ -108,12 +112,14 @@ describe("sitemap and robots host selection", () => {
     const [
       { GET: sitemapIndex },
       { GET: mainSitemap },
+      { GET: listingSitemap },
       { GET: cultivarSitemap },
       { GET: offerCultivarSitemap },
       { GET: robots },
     ] = await Promise.all([
       import("@/app/sitemap.xml/route"),
       import("@/app/sitemaps/main.xml/route"),
+      import("@/app/sitemaps/listings/[page]/route"),
       import("@/app/sitemaps/cultivars/[page]/route"),
       import("@/app/sitemaps/cultivars-with-offers/[page]/route"),
       import("@/app/robots.txt/route"),
@@ -123,6 +129,10 @@ describe("sitemap and robots host selection", () => {
     expect(sitemapIndexText).toContain(
       "https://daylilycatalog.com/sitemaps/main.xml",
     );
+    expect(sitemapIndexText).toContain(
+      "https://daylilycatalog.com/sitemaps/listings/0.xml",
+    );
+    expect(sitemapIndexText).not.toContain("sitemaps/listings/1.xml");
     expect(sitemapIndexText).toContain(
       "https://daylilycatalog.com/sitemaps/cultivars-with-offers/0.xml",
     );
@@ -139,9 +149,23 @@ describe("sitemap and robots host selection", () => {
     expect(mainSitemapText).toContain(
       "https://daylilycatalog.com/rolling-oaks/page/3",
     );
-    expect(mainSitemapText).toContain(
+    expect(mainSitemapText).not.toContain(
       "https://daylilycatalog.com/rolling-oaks/every-friday-night",
     );
+
+    const listingSitemapResponse = await listingSitemap(
+      new Request("http://test"),
+      {
+        params: Promise.resolve({ page: "0.xml" }),
+      },
+    );
+    expect(await listingSitemapResponse.text()).toContain(
+      "https://daylilycatalog.com/rolling-oaks/every-friday-night",
+    );
+    expect(publicReadMocks.getPublicListingRouteEntries).toHaveBeenCalledWith({
+      page: 0,
+      pageSize: 45_000,
+    });
 
     const cultivarSitemapResponse = await cultivarSitemap(
       new Request("http://test"),
@@ -286,5 +310,19 @@ describe("sitemap and robots host selection", () => {
     expect(
       publicReadMocks.getPublicOfferCultivarSitemapEntries,
     ).not.toHaveBeenCalled();
+  });
+
+  it("rejects public listing sitemap pages beyond the cohort count", async () => {
+    const { GET: listingSitemap } = await import(
+      "@/app/sitemaps/listings/[page]/route"
+    );
+    publicReadMocks.getPublicListingRouteEntries.mockClear();
+
+    const response = await listingSitemap(new Request("http://test"), {
+      params: Promise.resolve({ page: "1.xml" }),
+    });
+
+    expect(response.status).toBe(404);
+    expect(publicReadMocks.getPublicListingRouteEntries).not.toHaveBeenCalled();
   });
 });
