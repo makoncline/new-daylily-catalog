@@ -437,6 +437,22 @@ function FeaturedCatalogsSection({
               Add photos, prices, availability, notes, and contact info in one
               public place. Buyers can contact you directly.
             </p>
+            <div className="mt-6 flex flex-col items-start gap-3 text-sm font-bold text-[#f4c477] sm:flex-row sm:gap-6">
+              <Link
+                href="/daylily-database-software"
+                className="inline-flex items-center hover:underline"
+              >
+                Daylily database software
+                <ArrowRight className="ml-2 size-4" />
+              </Link>
+              <Link
+                href="/sell-daylilies-online"
+                className="inline-flex items-center hover:underline"
+              >
+                Sell daylilies online
+                <ArrowRight className="ml-2 size-4" />
+              </Link>
+            </div>
           </div>
 
           <div className="flex flex-col justify-end gap-4 lg:items-end">
