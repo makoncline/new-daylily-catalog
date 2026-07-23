@@ -129,9 +129,36 @@ export async function getCultivarSitemapEntries(args: {
   });
 }
 
-export async function getPublicOfferCultivarSitemapEntries(): Promise<
-  Array<{ segment: string }>
-> {
+function getPublicOfferCultivarWhere(proUserIds: string[]) {
+  return {
+    ...routableCultivarWhere,
+    listings: {
+      some: {
+        ...isPublished(),
+        userId: {
+          in: proUserIds,
+        },
+      },
+    },
+  };
+}
+
+export async function getPublicOfferCultivarSitemapEntryCount() {
+  const proUserIds = await getProUserIds();
+
+  if (proUserIds.length === 0) {
+    return 0;
+  }
+
+  return replicaDb.cultivarReference.count({
+    where: getPublicOfferCultivarWhere(proUserIds),
+  });
+}
+
+export async function getPublicOfferCultivarSitemapEntries(args: {
+  page: number;
+  pageSize: number;
+}): Promise<Array<{ segment: string }>> {
   const proUserIds = await getProUserIds();
 
   if (proUserIds.length === 0) {
@@ -139,23 +166,15 @@ export async function getPublicOfferCultivarSitemapEntries(): Promise<
   }
 
   const cultivarReferences = await replicaDb.cultivarReference.findMany({
-    where: {
-      ...routableCultivarWhere,
-      listings: {
-        some: {
-          ...isPublished(),
-          userId: {
-            in: proUserIds,
-          },
-        },
-      },
-    },
+    where: getPublicOfferCultivarWhere(proUserIds),
     select: {
       normalizedName: true,
     },
     orderBy: {
       normalizedName: "asc",
     },
+    skip: args.page * args.pageSize,
+    take: args.pageSize,
   });
 
   return cultivarReferences.flatMap((cultivar) => {
