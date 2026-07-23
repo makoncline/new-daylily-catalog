@@ -186,6 +186,7 @@ describe("getPublicCultivarPage", () => {
     );
     expect(photos.gardenPhotos[0]).toMatchObject({
       id: "img-top-c",
+      listingSlug: "coffee-frenzy-display",
       url: "https://media.example/top-c/display-800.webp",
       imageAsset: {
         blurUrl: "https://media.example/top-c/blur-20.webp",

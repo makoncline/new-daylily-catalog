@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { OptimizedImage } from "@/components/optimized-image";
 import { H2, Muted } from "@/components/typography";
+import { getPublicListingPath } from "@/lib/public-catalog-url-state";
 import { type RouterOutputs } from "@/trpc/react";
 
 type CultivarPageOutput = NonNullable<
@@ -25,7 +26,11 @@ export function CultivarGardenPhotosSection({
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {photos.map((photo) => {
-          const href = `/${photo.sellerSlug}?viewing=${photo.listingId}`;
+          const href = getPublicListingPath({
+            listingId: photo.listingId,
+            listingSlug: photo.listingSlug,
+            sellerSlug: photo.sellerSlug,
+          });
 
           return (
             <Link

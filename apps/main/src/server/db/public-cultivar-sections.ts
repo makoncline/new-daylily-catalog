@@ -405,6 +405,7 @@ function toGardenPhotos(args: {
         return {
           ...publicImage,
           listingId: listing.id,
+          listingSlug: listing.slug,
           listingTitle: listing.title,
           sellerSlug: summary.slug ?? summary.id,
           sellerTitle: summary.title ?? summary.slug ?? "Unnamed Garden",

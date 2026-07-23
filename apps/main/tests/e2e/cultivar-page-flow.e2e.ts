@@ -390,7 +390,7 @@ test.describe("cultivar guest flow @local", () => {
 
     await expect(
       topRows.nth(0).getByRole("link", { name: "View Details" }),
-    ).toHaveAttribute("href", "/top-pro?viewing=listing-top-prime");
+    ).toHaveAttribute("href", "/top-pro/coffee-frenzy-prime-fan");
     await expect(
       topRows.nth(0).getByRole("link", { name: "Show Winners" }),
     ).toHaveAttribute("href", "/top-pro?lists=list-top-show#listings");
