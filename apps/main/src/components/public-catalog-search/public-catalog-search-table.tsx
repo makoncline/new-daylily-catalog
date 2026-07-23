@@ -1,7 +1,8 @@
 "use client";
 
 import { type Table } from "@tanstack/react-table";
-import { ListingCard } from "@/components/listing-card";
+import { ListingCard, ListingCardAction } from "@/components/listing-card";
+import { useListingDialogQueryState } from "@/hooks/use-listing-dialog-query-state";
 import { cn } from "@/lib/utils";
 import { type PublicCatalogListing } from "./public-catalog-search-types";
 
@@ -14,6 +15,7 @@ export function PublicCatalogSearchTable({
   table,
   desktopColumns,
 }: PublicCatalogSearchTableProps) {
+  const { openListing } = useListingDialogQueryState();
   const rows = table.getRowModel().rows;
 
   return (
@@ -27,10 +29,12 @@ export function PublicCatalogSearchTable({
     >
       {rows.map((row, index) => (
         <div key={row.original.id}>
-          <ListingCard
-            listing={row.original}
-            priority={index < desktopColumns}
-          />
+          <ListingCard listing={row.original} priority={index < desktopColumns}>
+            <ListingCardAction
+              onClick={() => openListing(row.original.id)}
+              aria-label={`View ${row.original.title}`}
+            />
+          </ListingCard>
         </div>
       ))}
     </div>

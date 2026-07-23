@@ -2,6 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import { type ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { CatalogSeoListings } from "@/app/(public)/[userSlugOrId]/_components/catalog-seo-listings";
+import { type RouterOutputs } from "@/trpc/react";
 
 vi.mock("next/link", () => ({
   default: ({
@@ -13,12 +14,73 @@ vi.mock("next/link", () => ({
 }));
 
 vi.mock("next/navigation", () => ({
+  useParams: () => ({
+    userSlugOrId: "rollingoaksdaylilies",
+  }),
   useRouter: () => ({
     push: vi.fn(),
   }),
 }));
 
+vi.mock("@/hooks/use-listing-dialog-query-state", () => ({
+  useListingDialogQueryState: () => ({
+    viewingId: null,
+    closeListing: vi.fn(),
+  }),
+}));
+
+type Listing = RouterOutputs["public"]["getListings"][number];
+
+function createListing(id: string, title: string, slug: string): Listing {
+  return {
+    id,
+    title,
+    slug,
+    updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    description: null,
+    price: null,
+    userId: "user-1",
+    user: {
+      profile: {
+        slug: "rollingoaksdaylilies",
+        title: "Rolling Oaks Daylilies",
+      },
+    },
+    userSlug: "rollingoaksdaylilies",
+    sellerTitle: "Rolling Oaks Daylilies",
+    lists: [],
+    images: [],
+    ahsListing: null,
+    cultivarReference: null,
+    cultivarReferenceImage: null,
+  } as unknown as Listing;
+}
+
 describe("CatalogSeoListings", () => {
+  it("renders canonical listing links with an ID fallback", () => {
+    render(
+      <CatalogSeoListings
+        canonicalUserSlug="rollingoaksdaylilies"
+        listings={[
+          createListing("listing-1", "A Green Desire", "a-green-desire"),
+          createListing("listing-2", "Seedling 24-7", ""),
+        ]}
+        profileLists={[]}
+        page={1}
+        totalPages={1}
+        totalCount={2}
+        forSaleCount={0}
+      />,
+    );
+
+    expect(
+      screen.getByRole("link", { name: "View A Green Desire" }),
+    ).toHaveAttribute("href", "/rollingoaksdaylilies/a-green-desire");
+    expect(
+      screen.getByRole("link", { name: "View Seedling 24-7" }),
+    ).toHaveAttribute("href", "/rollingoaksdaylilies/listing-2");
+  });
+
   it("renders list cards that link to catalog search with list filter", () => {
     render(
       <CatalogSeoListings
