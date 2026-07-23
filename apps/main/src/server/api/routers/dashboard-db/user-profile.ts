@@ -26,6 +26,7 @@ const reservedProfileSlugs = new Set([
   "catalogs",
   "cultivar",
   "dashboard",
+  "daylily-database-software",
   "kitchen-sink",
   "onboarding",
   "privacy",
