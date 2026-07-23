@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { OptimizedImage } from "@/components/optimized-image";
 import { TruncatedText } from "@/components/truncated-text";
+import { getPublicListingPath } from "@/lib/public-catalog-url-state";
 import { cn, formatPrice } from "@/lib/utils";
 import { type RouterOutputs } from "@/trpc/react";
 
@@ -22,11 +23,6 @@ const updatedDateFormatter = new Intl.DateTimeFormat("en-US", {
   timeZone: "UTC",
 });
 
-export function getOfferViewingHref(sellerSlug: string, listingId: string) {
-  const params = new URLSearchParams({ viewing: listingId });
-  return `/${sellerSlug}?${params.toString()}`;
-}
-
 export function getOfferListHref(sellerSlug: string, listId: string) {
   const params = new URLSearchParams({ lists: listId });
   return `/${sellerSlug}?${params.toString()}#listings`;
@@ -38,7 +34,11 @@ interface CultivarOfferRowProps {
 }
 
 export function CultivarOfferRow({ sellerSlug, offer }: CultivarOfferRowProps) {
-  const listingHref = getOfferViewingHref(sellerSlug, offer.id);
+  const listingHref = getPublicListingPath({
+    listingId: offer.id,
+    listingSlug: offer.slug,
+    sellerSlug,
+  });
   const previewImage =
     offer.previewImage ??
     (offer.previewImageUrl
