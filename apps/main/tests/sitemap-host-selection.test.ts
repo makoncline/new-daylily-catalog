@@ -206,6 +206,9 @@ describe("sitemap and robots host selection", () => {
     expect(sitemapText).toContain(
       "<loc>http://localhost:4123/daylily-database-software</loc>",
     );
+    expect(sitemapText).toContain(
+      "<loc>http://localhost:4123/sell-daylilies-online</loc>",
+    );
     expect(sitemapText).not.toContain(
       "<loc>http://localhost:4123/cultivars</loc>",
     );

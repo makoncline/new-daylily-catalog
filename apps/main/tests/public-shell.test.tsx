@@ -9,7 +9,11 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/components/public-nav", () => ({
   isGrowerMarketingPath: (pathname: string) =>
-    ["/start-membership", "/daylily-database-software"].includes(pathname),
+    [
+      "/start-membership",
+      "/daylily-database-software",
+      "/sell-daylilies-online",
+    ].includes(pathname),
   PublicHeader: () => <header>Public header</header>,
 }));
 
@@ -39,19 +43,18 @@ describe("PublicShell", () => {
     expect(main.parentElement).toHaveClass("bg-[#f1f4ec]");
   });
 
-  it.each(["/start-membership", "/daylily-database-software"])(
-    "uses the dark page background on %s",
-    (pathname) => {
-      navigationState.pathname = pathname;
+  it.each([
+    "/start-membership",
+    "/daylily-database-software",
+    "/sell-daylilies-online",
+  ])("uses the dark page background on %s", (pathname) => {
+    navigationState.pathname = pathname;
 
-      render(<PublicShell>Membership</PublicShell>);
+    render(<PublicShell>Membership</PublicShell>);
 
-      expect(screen.getByRole("main").parentElement).toHaveClass(
-        "bg-[#07120e]",
-      );
-      expect(screen.getByRole("main")).toHaveClass("-mt-16", "lg:-mt-20");
-    },
-  );
+    expect(screen.getByRole("main").parentElement).toHaveClass("bg-[#07120e]");
+    expect(screen.getByRole("main")).toHaveClass("-mt-16", "lg:-mt-20");
+  });
 
   it("uses the light page background away from dark landing pages", () => {
     navigationState.pathname = "/catalogs";

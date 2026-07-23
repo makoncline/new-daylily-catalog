@@ -15,6 +15,7 @@ const activeNavClassName =
 const growerMarketingPaths = new Set([
   "/start-membership",
   "/daylily-database-software",
+  "/sell-daylilies-online",
 ]);
 
 export function isGrowerMarketingPath(pathname: string) {
