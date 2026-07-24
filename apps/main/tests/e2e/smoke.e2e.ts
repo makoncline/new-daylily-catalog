@@ -26,19 +26,27 @@ test.describe("guest user tour @preview", () => {
       realisticCatalogLink.click(),
     ]);
 
-    // Open the first listing by clicking its visible title.
+    // Open the first listing through its canonical full-card link.
     const firstListingCard = page
       .locator("#listings")
       .locator("div.group.relative")
       .first();
     await expect(firstListingCard).toBeVisible();
-    await firstListingCard.getByRole("heading").click();
-    const listingDialog = page.getByRole("dialog");
-    await expect(listingDialog).toBeVisible({ timeout: 30_000 });
+    const listingTitle = await firstListingCard.getByRole("heading").innerText();
+    const listingLink = firstListingCard.getByRole("link", {
+      name: `View ${listingTitle}`,
+      exact: true,
+    });
+    await Promise.all([
+      page.waitForURL(/\/plantfancygardens\/[^/]+$/, { timeout: 60_000 }),
+      listingLink.click(),
+    ]);
+    await expect(page.getByRole("main").getByRole("heading", { level: 1 }))
+      .toBeVisible();
 
-    // Follow the visible cultivar link from the listing dialog.
+    // Follow the visible cultivar link from the listing page.
     const cultivarPagePromise = page.waitForEvent("popup");
-    await listingDialog
+    await page
       .getByRole("link", { name: "Open cultivar page" })
       .click();
     const cultivarPage = await cultivarPagePromise;
