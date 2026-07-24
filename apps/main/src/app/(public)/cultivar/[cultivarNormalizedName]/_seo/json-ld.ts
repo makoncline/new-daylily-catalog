@@ -1,4 +1,5 @@
 import { METADATA_CONFIG } from "@/config/constants";
+import { getPublicListingPath } from "@/lib/public-catalog-url-state";
 import { getCloudflareUrlForDaylilyS3Image } from "@/lib/utils/cloudflareLoader";
 import type { CultivarPageData } from "../_lib/cultivar-page-route";
 
@@ -21,7 +22,11 @@ export function generateCultivarJsonLd(
           name: garden.title,
           url: `${baseUrl}/${garden.slug}`,
         },
-        url: `${baseUrl}/${garden.slug}?viewing=${offer.id}`,
+        url: `${baseUrl}${getPublicListingPath({
+          listingId: offer.id,
+          listingSlug: offer.slug,
+          sellerSlug: garden.slug,
+        })}`,
       })),
   );
 

@@ -90,6 +90,25 @@ export async function seedIntegrationData(databaseUrl) {
           status: "PUBLISHED",
         },
       }),
+      db.listing.create({
+        data: {
+          id: "integration-media-listing",
+          userId: INTEGRATION_SELLER.userId,
+          title: "Integration Media Listing",
+          slug: "integration-media-listing",
+          status: "PUBLISHED",
+        },
+      }),
+      ...["first", "second", "third"].map((token, order) =>
+        db.image.create({
+          data: {
+            id: `integration-media-image-${order + 1}`,
+            listingId: "integration-media-listing",
+            order,
+            url: `/assets/bouquet.png?token=${token}`,
+          },
+        }),
+      ),
       db.list.create({
         data: {
           id: "integration-favorites-list",

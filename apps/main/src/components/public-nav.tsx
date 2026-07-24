@@ -12,6 +12,15 @@ import { useFeature } from "@/hooks/use-feature";
 
 const activeNavClassName =
   "font-semibold underline decoration-current/35 underline-offset-8";
+const growerMarketingPaths = new Set([
+  "/start-membership",
+  "/daylily-database-software",
+  "/sell-daylilies-online",
+]);
+
+export function isGrowerMarketingPath(pathname: string) {
+  return growerMarketingPaths.has(pathname);
+}
 
 export function PublicHeader() {
   const pathname = usePathname();
@@ -20,16 +29,15 @@ export function PublicHeader() {
     "catalogImporterDiscovery",
   );
   const mobileNavRef = useRef<HTMLDetailsElement>(null);
+  const isGrowerMarketingPage = isGrowerMarketingPath(pathname);
   const usesDarkHeroNav =
-    pathname === "/" ||
-    pathname === "/start-membership" ||
-    pathname === "/cultivars";
+    pathname === "/" || isGrowerMarketingPage || pathname === "/cultivars";
   const isCultivarsActive =
     pathname === "/cultivars" || pathname.startsWith("/cultivar/");
   const isCatalogImporterActive = pathname === "/catalog-importer";
   const isCatalogsActive = pathname === "/catalogs";
   const isGrowersActive =
-    pathname === "/start-membership" || pathname.startsWith("/onboarding");
+    isGrowerMarketingPage || pathname.startsWith("/onboarding");
 
   useEffect(() => {
     mobileNavRef.current?.removeAttribute("open");

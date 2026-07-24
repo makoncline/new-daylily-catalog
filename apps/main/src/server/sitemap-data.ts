@@ -1,5 +1,4 @@
 import { getPublicCatalogRouteEntries } from "@/server/db/public-listing-read-model";
-import { getPublicListingRouteEntries } from "@/server/db/public-listing-read-model";
 import type { SitemapUrl } from "@/lib/sitemap-xml";
 import {
   isCatalogImporterDiscoveryEnabled,
@@ -16,6 +15,16 @@ export async function getMainSitemapEntries(baseUrl: string) {
     {
       url: `${baseUrl}/catalogs`,
       changeFrequency: "weekly",
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/daylily-database-software`,
+      changeFrequency: "monthly",
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/sell-daylilies-online`,
+      changeFrequency: "monthly",
       priority: 0.8,
     },
     {
@@ -41,10 +50,7 @@ export async function getMainSitemapEntries(baseUrl: string) {
     });
   }
 
-  const [catalogs, listings] = await Promise.all([
-    getPublicCatalogRouteEntries(),
-    getPublicListingRouteEntries(),
-  ]);
+  const catalogs = await getPublicCatalogRouteEntries();
 
   catalogs.forEach((entry) => {
     entries.push({
@@ -62,15 +68,6 @@ export async function getMainSitemapEntries(baseUrl: string) {
         priority: 0.6,
       });
     }
-  });
-
-  listings.forEach((entry) => {
-    entries.push({
-      url: `${baseUrl}/${entry.sellerSlug}/${entry.listingSlug}`,
-      lastModified: entry.lastModified,
-      changeFrequency: "weekly",
-      priority: 0.6,
-    });
   });
 
   return entries;

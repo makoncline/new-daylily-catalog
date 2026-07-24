@@ -392,6 +392,15 @@ interface PublicListingRouteEntry {
   lastModified: Date;
 }
 
+function getPublicListingRouteWhere(proUserIds: string[]) {
+  return {
+    ...isPublished(),
+    userId: {
+      in: proUserIds,
+    },
+  };
+}
+
 export async function getPublicCatalogRouteEntries(): Promise<
   PublicCatalogRouteEntry[]
 > {
@@ -457,9 +466,22 @@ export async function getPublicCatalogRouteEntries(): Promise<
   });
 }
 
-export async function getPublicListingRouteEntries(): Promise<
-  PublicListingRouteEntry[]
-> {
+export async function getPublicListingRouteEntryCount() {
+  const proUserIds = await getProUserIds();
+
+  if (proUserIds.length === 0) {
+    return 0;
+  }
+
+  return replicaDb.listing.count({
+    where: getPublicListingRouteWhere(proUserIds),
+  });
+}
+
+export async function getPublicListingRouteEntries(args: {
+  page: number;
+  pageSize: number;
+}): Promise<PublicListingRouteEntry[]> {
   const proUserIds = await getProUserIds();
 
   if (proUserIds.length === 0) {
@@ -467,34 +489,48 @@ export async function getPublicListingRouteEntries(): Promise<
   }
 
   const listings = await replicaDb.listing.findMany({
-    where: {
-      ...isPublished(),
-      userId: {
-        in: proUserIds,
-      },
-    },
+    where: getPublicListingRouteWhere(proUserIds),
     select: {
       id: true,
       slug: true,
       updatedAt: true,
-      user: {
-        select: {
-          id: true,
-          profile: {
-            select: {
-              slug: true,
-            },
-          },
-        },
-      },
+      userId: true,
     },
+    // Keep listings in stable shards when their content changes.
     orderBy: {
-      updatedAt: "desc",
+      id: "asc",
     },
+    skip: args.page * args.pageSize,
+    take: args.pageSize,
   });
 
+  const userIds = Array.from(
+    new Set(listings.map((listing) => listing.userId)),
+  );
+  const users =
+    userIds.length === 0
+      ? []
+      : await replicaDb.user.findMany({
+          where: {
+            id: {
+              in: userIds,
+            },
+          },
+          select: {
+            id: true,
+            profile: {
+              select: {
+                slug: true,
+              },
+            },
+          },
+        });
+  const sellerSlugByUserId = new Map(
+    users.map((user) => [user.id, user.profile?.slug ?? user.id]),
+  );
+
   return listings.map((listing) => ({
-    sellerSlug: listing.user.profile?.slug ?? listing.user.id,
+    sellerSlug: sellerSlugByUserId.get(listing.userId) ?? listing.userId,
     listingSlug: listing.slug || listing.id,
     lastModified: listing.updatedAt,
   }));

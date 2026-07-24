@@ -3,6 +3,36 @@
 The flywheel is organized by user flow. For each flow, establish a visual and
 test baseline, change the app, then rerun the same evidence.
 
+## Core engineering sequence
+
+Use the five-step engineering sequence inside each flywheel iteration:
+
+`Baseline → question → delete → simplify → accelerate → automate → verify`
+
+1. **Make the requirements less dumb.** Start from the user outcome and the
+   current browser, Atlas, and test evidence. Trace each requirement to the
+   user, an observed problem, or a documented constraint instead of inheriting
+   implementation assumptions.
+2. **Delete the part or process.** Remove unnecessary product behavior,
+   abstractions, mocks, tests, and workflow steps before adding anything. Keep
+   the change to the smallest independently useful PR. Delete existing coverage
+   only when stronger coverage owns the same behavior.
+3. **Simplify or optimize.** Build the smallest normal user path with existing
+   components and patterns. Avoid test-only product controls, duplicate
+   implementations, and speculative abstractions.
+4. **Accelerate cycle time.** After the first three steps, shorten the measured
+   path from change to trustworthy feedback. Prefer flow-scoped Atlas and test
+   commands, disposable data, warm local servers, and focused builds.
+5. **Automate.** Crystallize the proven behavior at the appropriate confidence
+   layer below. For a new UI journey, automate after the visible browser path
+   works reliably. A known defect may still begin with a failing regression
+   test at the boundary that broke.
+
+Close the iteration by repeating the original evidence. Work is not done while
+the tested flow has Next development issues, relevant tests are failing,
+affected captures remain uninspected, or obsolete code and coverage from the
+change remain.
+
 ## Browser-first UI loop
 
 For a UI change, use the app in visible Chrome before editing and again after

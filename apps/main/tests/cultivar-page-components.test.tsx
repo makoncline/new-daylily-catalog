@@ -7,7 +7,6 @@ import { CultivarQuickSpecs } from "@/app/(public)/cultivar/[cultivarNormalizedN
 import {
   CultivarOfferRow,
   getOfferListHref,
-  getOfferViewingHref,
 } from "@/app/(public)/cultivar/[cultivarNormalizedName]/_components/cultivar-offer-row";
 import { CultivarGardenPhotosSection } from "@/app/(public)/cultivar/[cultivarNormalizedName]/_components/cultivar-garden-photos-section";
 import { CultivarRelatedSection } from "@/app/(public)/cultivar/[cultivarNormalizedName]/_components/cultivar-related-section";
@@ -118,10 +117,7 @@ describe("cultivar page components", () => {
     );
   });
 
-  it("builds offer links and does not render add-to-cart controls", () => {
-    expect(getOfferViewingHref("seeded-daylily", "listing-1")).toBe(
-      "/seeded-daylily?viewing=listing-1",
-    );
+  it("builds canonical offer links and does not render add-to-cart controls", () => {
     expect(getOfferListHref("seeded-daylily", "list-1")).toBe(
       "/seeded-daylily?lists=list-1#listings",
     );
@@ -142,7 +138,7 @@ describe("cultivar page components", () => {
 
     expect(screen.getByRole("link", { name: "View Details" })).toHaveAttribute(
       "href",
-      "/seeded-daylily?viewing=listing-1",
+      "/seeded-daylily/coffee-frenzy-prime-fan",
     );
     expect(screen.getByRole("link", { name: "Show Winners" })).toHaveAttribute(
       "href",
@@ -287,6 +283,7 @@ describe("cultivar page components", () => {
             id: "photo-1",
             url: "/assets/bouquet.png",
             listingId: "listing-1",
+            listingSlug: "coffee-frenzy-prime-fan",
             listingTitle: "Coffee Frenzy Prime Fan",
             sellerSlug: "seeded-daylily",
             sellerTitle: "Seeded Daylily",
@@ -299,6 +296,14 @@ describe("cultivar page components", () => {
     expect(
       screen.getByRole("heading", { level: 2, name: /photos in catalogs/i }),
     ).toBeVisible();
+    expect(
+      screen.getByRole("link", {
+        name: "View Coffee Frenzy Prime Fan from Seeded Daylily",
+      }),
+    ).toHaveAttribute(
+      "href",
+      "/seeded-daylily/coffee-frenzy-prime-fan",
+    );
     expect(screen.queryByText(/add a photo/i)).not.toBeInTheDocument();
   });
 });

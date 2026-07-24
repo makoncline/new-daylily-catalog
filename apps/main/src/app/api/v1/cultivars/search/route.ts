@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
-import { getRequestBaseUrl } from "@/lib/agent-readiness";
+import { getTrustedBaseUrl } from "@/lib/agent-readiness";
 import { getCultivarSearchTelemetryProperties } from "@/lib/analytics/cultivar-search-telemetry";
 import { reportError } from "@/lib/error-utils";
-import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
+import { getPublicCloudflareCacheHeaders } from "@/lib/public-cache-policy";
 import {
   getPublicSearchApiDisabledResponse,
   isPublicSearchApiEnabled,
@@ -136,7 +136,7 @@ export async function GET(request: Request) {
     const summaryLimit = summaryMode ? getSummaryLimit(searchParams) : null;
     const results = await searchCultivars({
       award: searchParams.get("award") ?? undefined,
-      baseUrl: getRequestBaseUrl(request) ?? getCanonicalBaseUrl(),
+      baseUrl: getTrustedBaseUrl(request),
       bloomHabit: searchParams.get("bloomHabit") ?? undefined,
       bloomSizeMax: getNumberParam(searchParams, "bloomSizeMax"),
       bloomSizeMin: getNumberParam(searchParams, "bloomSizeMin"),
@@ -213,7 +213,9 @@ export async function GET(request: Request) {
             }
           : {}),
       },
-      { headers: getTelemetryHeaders(requestId, durationMs) },
+      {
+        headers: getPublicCloudflareCacheHeaders(),
+      },
     );
   } catch (error) {
     if (error instanceof PublicSearchIndexUnavailableError) {

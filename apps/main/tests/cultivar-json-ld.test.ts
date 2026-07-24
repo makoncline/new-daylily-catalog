@@ -22,7 +22,7 @@ describe("cultivar json-ld", () => {
           {
             title: "Rolling Oaks",
             slug: "rolling-oaks",
-            offers: [{ id: "offer-1", price: 100 }],
+            offers: [{ id: "offer-1", slug: "starman-fan", price: 100 }],
           },
         ],
       },
@@ -41,12 +41,15 @@ describe("cultivar json-ld", () => {
       cultivarPage,
     ) as {
       "@type": string;
-      offers?: unknown[];
+      offers?: Array<{ url: string }>;
       isRelatedTo?: Array<{ name: string; url: string }>;
     };
 
     expect(jsonLd["@type"]).toBe("Product");
     expect(jsonLd.offers).toHaveLength(1);
+    expect(jsonLd.offers?.[0]?.url).toBe(
+      "https://daylily-catalog.com/rolling-oaks/starman-fan",
+    );
     expect(jsonLd.isRelatedTo).toEqual([
       expect.objectContaining({
         name: "Isle of Wight",
@@ -69,7 +72,7 @@ describe("cultivar json-ld", () => {
           {
             title: "Rolling Oaks",
             slug: "rolling-oaks",
-            offers: [{ id: "offer-1", price: null }],
+            offers: [{ id: "offer-1", slug: "starman-fan", price: null }],
           },
         ],
       },
@@ -110,7 +113,7 @@ describe("cultivar json-ld", () => {
           {
             title: "Rolling Oaks",
             slug: "rolling-oaks",
-            offers: [{ id: "offer-1", price: 100 }],
+            offers: [{ id: "offer-1", slug: "starman-fan", price: 100 }],
           },
         ],
       },

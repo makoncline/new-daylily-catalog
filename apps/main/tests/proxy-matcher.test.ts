@@ -13,19 +13,13 @@ vi.mock("@clerk/nextjs/server", () => ({
 }));
 
 describe("proxy matcher", () => {
-  it("does not run for routes that no longer need proxy handling", async () => {
+  it("does not run for static assets", async () => {
     const { config } = await import("@/proxy");
 
     expect(
       unstable_doesMiddlewareMatch({
         config,
-        url: "/users/user-1/listing-1",
-      }),
-    ).toBe(false);
-    expect(
-      unstable_doesMiddlewareMatch({
-        config,
-        url: "/catalog/listing-1/extra",
+        url: "/_next/static/app.js",
       }),
     ).toBe(false);
   });
@@ -97,6 +91,12 @@ describe("proxy matcher", () => {
       unstable_doesMiddlewareMatch({
         config,
         url: "/graceful_petals_daylilies/20-16",
+      }),
+    ).toBe(true);
+    expect(
+      unstable_doesMiddlewareMatch({
+        config,
+        url: "/guides/growing/soil",
       }),
     ).toBe(true);
   });

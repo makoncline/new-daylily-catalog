@@ -40,6 +40,9 @@ describe("public cultivar search facets route", () => {
       facet: "hybridizer",
       query: "Re",
     });
+    expect(response.headers.get("Cloudflare-CDN-Cache-Control")).toBe(
+      "public, max-age=43200, stale-while-revalidate=604800, stale-if-error=86400",
+    );
     await expect(response.json()).resolves.toEqual({
       options: [{ count: 42, label: "Reed", value: "Reed" }],
     });

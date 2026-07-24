@@ -1,5 +1,7 @@
 "use client";
 
+import { type ComponentProps, type ReactNode } from "react";
+import { Slot } from "@radix-ui/react-slot";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TruncatedText } from "@/components/truncated-text";
@@ -18,7 +20,6 @@ import { ImagePlaceholder } from "./image-placeholder";
 import { ImagePopover } from "@/components/image-popover";
 import { AddToCartButton } from "@/components/add-to-cart-button";
 import { useDisplayAhsListing } from "@/hooks/use-display-ahs-listing";
-import { useListingDialogQueryState } from "@/hooks/use-listing-dialog-query-state";
 import {
   formatListingCardTitle,
   getListingCardTitleSizeClass,
@@ -29,10 +30,15 @@ type ListingCardProps = {
   listing: RouterOutputs["public"]["getListings"][number];
   className?: string;
   priority?: boolean;
+  children: ReactNode;
 };
 
-export function ListingCard({ listing, priority = false }: ListingCardProps) {
-  const { openListing } = useListingDialogQueryState();
+export function ListingCard({
+  listing,
+  className,
+  priority = false,
+  children,
+}: ListingCardProps) {
   const displayAhsListing = useDisplayAhsListing(listing);
   const displayTitle = formatListingCardTitle(listing.title);
   const titleSizeClass = getListingCardTitleSizeClass(displayTitle.length);
@@ -45,19 +51,12 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
 
   return (
     <Card
-      className="group hover:border-primary relative flex h-full cursor-pointer flex-col overflow-hidden transition-all"
-      onClick={() => openListing(listing.id)}
+      className={cn(
+        "group hover:border-primary relative flex h-full cursor-pointer flex-col overflow-hidden transition-all",
+        className,
+      )}
     >
-      {/* Create SEO links for each URL variation */}
-      {/* {urlVariations.map((url, index) => (
-                    <SEOLink
-          key={`seo-link-${index}`}
-          href={url}
-          onCustomClick={() => openListing(listing.id)}
-          ariaLabel={`View details for ${listing.title}`}
-          srText={`View ${listing.title}`}
-        />
-      ))} */}
+      {children}
 
       <div className="relative">
         <div className="aspect-square">
@@ -87,7 +86,7 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
 
         {/* Images Preview */}
         {hasMultipleImages && (
-          <div className="absolute bottom-2 left-2">
+          <div className="absolute bottom-2 left-2 z-20">
             <ImagePopover
               images={listing.images}
               size="sm"
@@ -98,7 +97,7 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
 
         {/* AHS Link Badge */}
         {displayAhsListing && (
-          <div className="absolute right-2 bottom-2">
+          <div className="absolute right-2 bottom-2 z-20">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -183,7 +182,7 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
           <div className="flex items-center justify-between">
             {/* Lists */}
             {listing.lists.length > 0 && (
-              <div className="flex items-center gap-2">
+              <div className="relative z-20 flex items-center gap-2">
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger>
@@ -217,7 +216,7 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
 
             {/* Add to Cart Button - Only show if listing has a price */}
             {listing.price !== null && (
-              <div className="z-10">
+              <div className="relative z-20">
                 <AddToCartButton
                   listing={{
                     id: listing.id,
@@ -232,5 +231,29 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+interface ListingCardActionProps extends ComponentProps<"button"> {
+  asChild?: boolean;
+}
+
+export function ListingCardAction({
+  asChild = false,
+  className,
+  type = "button",
+  ...props
+}: ListingCardActionProps) {
+  const Comp = asChild ? Slot : "button";
+
+  return (
+    <Comp
+      type={asChild ? undefined : type}
+      className={cn(
+        "focus-visible:ring-ring absolute inset-0 z-10 rounded-xl focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset",
+        className,
+      )}
+      {...props}
+    />
   );
 }

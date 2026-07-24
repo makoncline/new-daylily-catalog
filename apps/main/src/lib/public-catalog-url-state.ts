@@ -53,3 +53,18 @@ export function getPublicProfilePagePath(slug: string, page: number) {
 
   return `/${slug}/page/${page}`;
 }
+
+export function getPublicListingPath({
+  listingId,
+  listingSlug,
+  sellerSlug,
+}: {
+  listingId: string;
+  listingSlug: string | null;
+  sellerSlug: string;
+}) {
+  const listingSegment =
+    listingSlug === null || listingSlug.length === 0 ? listingId : listingSlug;
+
+  return `/${sellerSlug}/${listingSegment}`;
+}

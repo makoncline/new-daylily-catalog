@@ -1,4 +1,5 @@
 export const CULTIVAR_SITEMAP_PAGE_SIZE = 45_000;
+export const PUBLIC_LISTING_SITEMAP_PAGE_SIZE = 45_000;
 
 export interface SitemapUrl {
   url: string;

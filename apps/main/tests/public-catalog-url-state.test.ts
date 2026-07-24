@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  getPublicListingPath,
   getPublicProfilePagePath,
   hasNonPageProfileParams,
   parsePositiveInteger,
@@ -7,6 +8,30 @@ import {
 } from "@/lib/public-catalog-url-state";
 
 describe("public catalog url state", () => {
+  it("builds canonical listing paths with an ID fallback", () => {
+    expect(
+      getPublicListingPath({
+        listingId: "listing-1",
+        listingSlug: "a-green-desire",
+        sellerSlug: "grower",
+      }),
+    ).toBe("/grower/a-green-desire");
+    expect(
+      getPublicListingPath({
+        listingId: "listing-1",
+        listingSlug: null,
+        sellerSlug: "grower",
+      }),
+    ).toBe("/grower/listing-1");
+    expect(
+      getPublicListingPath({
+        listingId: "listing-1",
+        listingSlug: "",
+        sellerSlug: "grower",
+      }),
+    ).toBe("/grower/listing-1");
+  });
+
   it("parses positive integer and falls back for invalid values", () => {
     expect(parsePositiveInteger("5", 1)).toBe(5);
     expect(parsePositiveInteger("0", 1)).toBe(1);

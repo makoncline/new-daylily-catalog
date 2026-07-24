@@ -94,8 +94,12 @@ describe("PublicHeader", () => {
     expect(dashboardLink).toHaveAttribute("href", "/sign-in");
   });
 
-  it("uses the high-contrast hero navigation on the grower landing page", () => {
-    navigationState.pathname = "/start-membership";
+  it.each([
+    "/start-membership",
+    "/daylily-database-software",
+    "/sell-daylilies-online",
+  ])("uses the high-contrast hero navigation on %s", (pathname) => {
+    navigationState.pathname = pathname;
     render(<PublicHeader />);
 
     expect(screen.getByRole("banner")).toHaveClass("text-white");
@@ -103,6 +107,11 @@ describe("PublicHeader", () => {
     expect(screen.getByRole("button", { name: "Dashboard" })).toHaveClass(
       "text-white",
     );
+    expect(
+      screen
+        .getAllByRole("link", { name: "For growers" })
+        .every((link) => link.getAttribute("aria-current") === "page"),
+    ).toBe(true);
   });
 
   it("keeps importer discovery independent from cultivar search discovery", () => {

@@ -20,6 +20,7 @@ import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 import { IMAGES } from "@/lib/constants/images";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import { getSocialCardImageUrl } from "@/lib/social-card";
+import { getPublicListingPath } from "@/lib/public-catalog-url-state";
 import { serializeJsonLd } from "@/lib/utils/json-ld";
 import {
   formatAhsListingSummary,
@@ -126,7 +127,11 @@ function getListingTitle(listing: PublicListingPageData) {
 }
 
 function getCanonicalListingPath(listing: PublicListingPageData) {
-  return `/${listing.userSlug}/${listing.slug || listing.id}`;
+  return getPublicListingPath({
+    listingId: listing.id,
+    listingSlug: listing.slug,
+    sellerSlug: listing.userSlug,
+  });
 }
 
 export async function generateMetadata({

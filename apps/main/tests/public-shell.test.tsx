@@ -8,6 +8,12 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/components/public-nav", () => ({
+  isGrowerMarketingPath: (pathname: string) =>
+    [
+      "/start-membership",
+      "/daylily-database-software",
+      "/sell-daylilies-online",
+    ].includes(pathname),
   PublicHeader: () => <header>Public header</header>,
 }));
 
@@ -37,8 +43,12 @@ describe("PublicShell", () => {
     expect(main.parentElement).toHaveClass("bg-[#f1f4ec]");
   });
 
-  it("uses the dark page background on the grower landing page", () => {
-    navigationState.pathname = "/start-membership";
+  it.each([
+    "/start-membership",
+    "/daylily-database-software",
+    "/sell-daylilies-online",
+  ])("uses the dark page background on %s", (pathname) => {
+    navigationState.pathname = pathname;
 
     render(<PublicShell>Membership</PublicShell>);
 
