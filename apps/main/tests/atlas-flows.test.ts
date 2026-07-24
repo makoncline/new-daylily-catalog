@@ -140,7 +140,7 @@ describe("Atlas flow contract", () => {
       "Preview the catalog",
       "Download the prepared spreadsheet",
     ]);
-    expect(statesForFlow(importer)).toHaveLength(16);
+    expect(statesForFlow(importer)).toHaveLength(18);
     expect(
       getAtlasState("catalog-importer-desktop-results").urlReproducible,
     ).toBe(false);
@@ -153,13 +153,12 @@ describe("Atlas flow contract", () => {
     const importer = getAtlasFlow("dashboard-catalog-importer");
 
     expect(importer.steps.map(({ title }) => title)).toEqual([
-      "Start or resume",
-      "Review listings to create",
-      "Resolve catalog data",
-      "Resolve existing listings",
+      "Open the shared builder",
+      "Select listings to create",
+      "Explain excluded rows",
       "Confirm and create",
     ]);
-    expect(statesForFlow(importer)).toHaveLength(15);
+    expect(statesForFlow(importer)).toHaveLength(11);
   });
 
   it.each([

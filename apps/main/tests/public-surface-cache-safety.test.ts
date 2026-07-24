@@ -231,13 +231,11 @@ describe("public surface cache safety", () => {
       );
 
       if (isCatalogImporterServerPage) {
-        expect(source, absolutePath).toContain("@clerk/nextjs/server");
         expect(source, absolutePath).toContain(
           'export const dynamic = "force-dynamic"',
         );
-      } else {
-        expect(source, absolutePath).not.toContain("@clerk/nextjs");
       }
+      expect(source, absolutePath).not.toContain("@clerk/nextjs");
       expect(source, absolutePath).not.toContain("useAuth(");
       expect(source, absolutePath).not.toContain("useUser(");
       expect(source, absolutePath).not.toContain("SignInButton");
