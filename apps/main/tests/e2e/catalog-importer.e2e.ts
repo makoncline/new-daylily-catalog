@@ -313,15 +313,16 @@ test.describe("catalog importer", () => {
     await expect(
       page.getByText("0 of 2 completed", { exact: true }),
     ).toBeVisible();
-    await expect(
-      page.getByRole("heading", { name: "Vanguard 2" }),
-    ).toBeVisible();
-    await expect(page.getByRole("button", { name: "Omit row" })).toHaveCount(0);
 
     const reviewQuiz = page.getByRole("region", {
       name: "Review potential matches",
     });
-    const sourceRow = reviewQuiz.getByRole("table", {
+    await expect(
+      reviewQuiz.getByText("Vanguard 2", { exact: true }),
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: "Omit row" })).toHaveCount(0);
+
+    const sourceRow = reviewQuiz.getByRole("region", {
       name: "Uploaded spreadsheet row 25",
     });
     await expect(sourceRow).toBeVisible();
@@ -332,21 +333,18 @@ test.describe("catalog importer", () => {
     await reviewQuiz.focus();
     await page.keyboard.press("1");
     await expect(
-      page.getByText("Vanguard is now linked in your preview."),
-    ).toBeVisible();
-    await expect(
       page.locator(
         '[aria-live="polite"][aria-label="Catalog importer updates"]',
       ),
     ).toContainText("Vanguard 2 matched to Vanguard. Moving to Mystery Bloom.");
     await expect(
-      page.getByRole("button", { name: "Undo identity decision" }),
+      page.getByRole("button", { name: "Reset review for Vanguard 2" }),
     ).toBeVisible();
     await expect(
       page.getByText("1 of 2 completed", { exact: true }),
     ).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: "Mystery Bloom" }),
+      reviewQuiz.getByText("Mystery Bloom", { exact: true }),
     ).toBeVisible();
     await expect
       .poll(async () =>
@@ -366,16 +364,18 @@ test.describe("catalog importer", () => {
     await expect(
       page.getByRole("button", { name: "Issues 2/3" }),
     ).toBeVisible();
-    await expect(
-      page.getByRole("heading", { name: "Mystery Bloom" }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: "Use match 1: Mystery Daylily" }),
-    ).toBeVisible();
 
     const restoredReviewQuiz = page.getByRole("region", {
       name: "Review potential matches",
     });
+    await expect(
+      restoredReviewQuiz.getByText("Mystery Bloom", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      restoredReviewQuiz.getByRole("button", {
+        name: "Use match 1: Mystery Daylily",
+      }),
+    ).toBeVisible();
     await expect(
       restoredReviewQuiz.getByRole("button", { name: "Decide later" }),
     ).toHaveCount(0);
@@ -397,31 +397,25 @@ test.describe("catalog importer", () => {
     ).toHaveCount(0);
 
     await page.getByRole("button", { name: "Download" }).click();
-    await page.getByText("File details").click();
-    const downloadSummary = page.locator("details", {
-      hasText: "Retain 25 source rows in one CSV table",
+    const importSummary = page.getByRole("region", {
+      name: "23 listings ready for import",
     });
-    await expect(downloadSummary).toContainText(
-      "Retain 25 source rows in one CSV table",
+    await expect(importSummary).toContainText(
+      "You started with 25 spreadsheet rows.",
     );
-    await expect(downloadSummary).toContainText(
-      "Include 2 seller-approved corrections",
-    );
-    await expect(downloadSummary).toContainText(
-      "Add Daylily Catalog identity to 24 linked listings",
-    );
-    await expect(downloadSummary).not.toContainText("intentionally unmatched");
-    await expect(downloadSummary).toContainText(
-      "Exclude from the clean catalog 1 source row",
-    );
-    await expect(downloadSummary).toContainText(
-      "Leave 0 cultivar decisions, 0 required values, and 1 warning unresolved",
+    await expect(importSummary).toContainText("23 linked automatically");
+    await expect(importSummary).toContainText("1 linked manually");
+    await expect(importSummary).toContainText("0 unlinked");
+    await expect(importSummary).toContainText("1 excluded");
+    await expect(importSummary).toContainText("2 issues corrected");
+    await expect(importSummary).toContainText(
+      "1 spreadsheet item remain and will not be imported.",
     );
     await expect(
-      page.getByRole("heading", {
-        name: "Build a public catalog with Pro",
-      }),
+      importSummary.getByRole("heading", { name: "Ready for import!" }),
     ).toBeVisible();
+
+    await page.getByText("File details").click();
     await expect(
       page.getByText("Nothing is published or imported", {
         exact: false,
@@ -454,8 +448,8 @@ test.describe("catalog importer", () => {
     );
     expect(csv).not.toContain("Vanguard 2");
     expect(csv).toContain("Daylily 2,12");
-    expect(csv).toContain("Original price: two for $20");
-    expect(csv).toContain("Original price: three for $30");
+    expect(csv).not.toContain("two for $20");
+    expect(csv).not.toContain("three for $30");
     expect(csv.split("\r\n")).toHaveLength(26);
   });
 
