@@ -176,7 +176,7 @@ test.describe("catalog importer", () => {
     await expect(page.getByRole("main")).toHaveCount(1);
     await expect(
       page.getByRole("heading", {
-        name: "Build your daylily catalog",
+        name: "Build a daylily catalog import",
       }),
     ).toBeVisible();
     await expect(
@@ -201,9 +201,7 @@ test.describe("catalog importer", () => {
       page.getByLabel("Cultivar reference ID", { exact: true }),
     ).toHaveCount(0);
     await expect(
-      page.getByText(
-        "A whole number. Currency symbols are cleaned.",
-      ),
+      page.getByText("A whole number. Currency symbols are cleaned."),
     ).toHaveCount(0);
     await page.getByRole("button", { name: "About Price" }).click();
     await expect(page.getByRole("tooltip")).toContainText(
@@ -432,7 +430,7 @@ test.describe("catalog importer", () => {
 
     const downloadPromise = page.waitForEvent("download");
     await page
-      .getByRole("button", { name: "Download original workbook" })
+      .getByRole("button", { name: "Download enhanced original" })
       .click();
     await page
       .getByRole("alertdialog", {
@@ -443,7 +441,7 @@ test.describe("catalog importer", () => {
     const download = await downloadPromise;
     const downloadPath = await download.path();
     expect(download.suggestedFilename()).toBe(
-      "spring-catalog-enriched-original.csv",
+      "spring-catalog-enhanced-original.csv",
     );
     expect(downloadPath).not.toBeNull();
     const csv = await readFile(downloadPath, "utf8");
@@ -554,7 +552,7 @@ test.describe("catalog importer", () => {
     await mobileActions.getByRole("button", { name: "Download" }).click();
     await expect(
       page.getByRole("button", {
-        name: "Download catalog-only spreadsheet",
+        name: "Download prepared import file",
       }),
     ).toBeVisible();
     await expect(

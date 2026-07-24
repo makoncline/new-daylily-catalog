@@ -24,7 +24,9 @@ const downloadCatalogImportFileMock = vi.hoisted(() => vi.fn());
 const requestCultivarMatchesMock = vi.hoisted(() => vi.fn());
 
 async function openPreview() {
-  return screen.findByRole("region", { name: "Catalog preview ready" });
+  return screen.findByRole("region", {
+    name: /Catalog preview ready|Spreadsheet processed/,
+  });
 }
 
 vi.mock("@/lib/analytics/posthog", () => ({
@@ -43,6 +45,7 @@ vi.mock("@/lib/catalog-importer-file", async (importOriginal) => ({
 describe("CatalogImporterWorkbench", () => {
   beforeEach(async () => {
     vi.unstubAllGlobals();
+    HTMLElement.prototype.scrollIntoView = vi.fn();
     vi.stubGlobal(
       "ResizeObserver",
       class {
@@ -134,9 +137,13 @@ describe("CatalogImporterWorkbench", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "Add listings manually" }),
     );
+    expect(screen.getByText("No listings added")).toBeVisible();
     const search = screen.getByLabelText("Search cultivar name");
     fireEvent.change(search, { target: { value: "Vanguard" } });
-    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    expect(
+      screen.queryByRole("button", { name: "Search" }),
+    ).not.toBeInTheDocument();
+    expect(requestCultivarMatchesMock).not.toHaveBeenCalled();
     expect(
       await screen.findByRole("img", { name: "Vanguard reference photo" }),
     ).toBeVisible();
@@ -144,13 +151,17 @@ describe("CatalogImporterWorkbench", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Add" }));
 
     expect(screen.getByText("1/10 listings")).toBeVisible();
-    expect(screen.getByRole("cell", { name: "Vanguard" })).toBeVisible();
+    const linkedCultivarCell = screen.getByRole("cell", { name: /Vanguard/ });
+    expect(linkedCultivarCell).toHaveTextContent("Vanguard — Stamile · 2017");
+    expect(linkedCultivarCell).toHaveTextContent(
+      'Purple · 7.5" bloom · 37" scape',
+    );
     expect(screen.queryByLabelText("Name for row 1")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Remove Vanguard" }));
     expect(screen.getByText("0/10 listings")).toBeVisible();
+    expect(screen.getByText("No listings added")).toBeVisible();
 
     fireEvent.change(search, { target: { value: "Vanguard" } });
-    fireEvent.click(screen.getByRole("button", { name: "Search" }));
     fireEvent.click(await screen.findByRole("button", { name: "Add" }));
     fireEvent.click(
       screen.getByRole("button", { name: "Build catalog preview" }),
@@ -178,6 +189,201 @@ describe("CatalogImporterWorkbench", () => {
     );
   });
 
+  it("shows the next useful action when no listings are linked", () => {
+    const spreadsheet = {
+      fileName: "unlinked.csv",
+      sheets: [
+        {
+          name: "Catalog",
+          rows: [
+            ["name", "price"],
+            ["Mystery Bloom", "12"],
+          ],
+        },
+      ],
+    };
+    const mapping = {
+      cultivarReferenceId: null,
+      description: null,
+      imageUrl: null,
+      price: 1,
+      privateNote: null,
+      title: 0,
+    };
+    const [sourceRow] = createCatalogImportRows({
+      headerRowIndex: 0,
+      mapping,
+      rows: spreadsheet.sheets[0]!.rows,
+    });
+    const initialDraft: CatalogImporterDraft = {
+      activeReviewRowId: null,
+      headerRowIndex: 0,
+      initialIssueCount: 0,
+      initialReviewCount: 1,
+      mapping,
+      matchedRows: [
+        {
+          ...sourceRow!,
+          identityReviewed: true,
+          linkState: "intentionally-unmatched",
+        },
+      ],
+      matchedRowsKey: "unlinked",
+      parsedSpreadsheet: spreadsheet,
+      selectedSheetIndex: 0,
+      version: 3,
+    };
+
+    render(<CatalogImporterWorkbench initialDraft={initialDraft} />);
+
+    expect(
+      screen.getByRole("region", { name: "Spreadsheet processed" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("heading", {
+        name: "1 listing is ready without a cultivar link",
+      }),
+    ).toBeVisible();
+    expect(screen.getByText("No linked cultivars to preview")).toBeVisible();
+    expect(
+      screen.getByText("1 listing is saved without a cultivar link."),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "View review decisions" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Clear filters" }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "View review decisions" }),
+    );
+
+    expect(screen.getByText("Review complete")).toBeVisible();
+    expect(screen.getByText("All 1 potential match reviewed.")).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "Reviewed without link 1" }),
+    ).toBeVisible();
+    expect(screen.getByText("Mystery Bloom")).toBeVisible();
+  });
+
+  it("pins only the row and mapped name columns in the spreadsheet preview", () => {
+    const initialDraft: CatalogImporterDraft = {
+      activeReviewRowId: null,
+      headerRowIndex: 0,
+      mapping: {
+        cultivarReferenceId: null,
+        description: 0,
+        imageUrl: null,
+        price: 1,
+        privateNote: null,
+        title: 3,
+      },
+      matchedRows: null,
+      matchedRowsKey: null,
+      parsedSpreadsheet: {
+        fileName: "reordered.csv",
+        sheets: [
+          {
+            name: "Catalog",
+            rows: [
+              ["description", "price", "notes", "name", "unmapped"],
+              ["Orange flower", "12", "front bed", "Example Daylily", "x"],
+            ],
+          },
+        ],
+      },
+      selectedSheetIndex: 0,
+      version: 3,
+    };
+
+    render(<CatalogImporterWorkbench initialDraft={initialDraft} />);
+
+    const spreadsheetPreview = screen
+      .getByRole("heading", { name: "Spreadsheet preview" })
+      .closest("section");
+    const pinnedColumns = spreadsheetPreview?.querySelector(
+      '[data-slot="data-table-pinned-left"]',
+    );
+    const scrollableColumns = spreadsheetPreview?.querySelector(
+      '[data-slot="data-table-scrollable"]',
+    );
+
+    expect(
+      within(pinnedColumns as HTMLElement)
+        .getAllByRole("columnheader")
+        .map((header) => header.textContent),
+    ).toEqual(["Row", "D"]);
+    expect(
+      within(scrollableColumns as HTMLElement)
+        .getAllByRole("columnheader")
+        .map((header) => header.textContent),
+    ).toEqual(["B", "A", "C", "E"]);
+  });
+
+  it("requires a sheet choice before preparing a multi-sheet workbook", async () => {
+    const initialDraft: CatalogImporterDraft = {
+      activeReviewRowId: null,
+      headerRowIndex: null,
+      mapping: {
+        cultivarReferenceId: null,
+        description: null,
+        imageUrl: null,
+        price: null,
+        privateNote: null,
+        title: null,
+      },
+      matchedRows: null,
+      matchedRowsKey: null,
+      parsedSpreadsheet: {
+        fileName: "multiple-sheets.xlsx",
+        sheets: [
+          {
+            name: "Archive",
+            rows: [["name"], ["Old Listing"]],
+          },
+          {
+            name: "Current Catalog",
+            rows: [
+              ["name", "price"],
+              ["Current Listing", "12"],
+            ],
+          },
+        ],
+      },
+      selectedSheetIndex: -1,
+      version: 3,
+    };
+
+    render(<CatalogImporterWorkbench initialDraft={initialDraft} />);
+
+    expect(screen.getByText("· 2 sheets")).toBeVisible();
+    expect(
+      screen.getByRole("combobox", { name: "Spreadsheet sheet" }),
+    ).toHaveTextContent("Select a sheet");
+    expect(
+      screen.queryByRole("heading", { name: "Map your columns" }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("combobox", { name: "Spreadsheet sheet" }),
+    );
+    fireEvent.click(
+      await screen.findByRole("option", {
+        name: "Current Catalog · 2 rows",
+      }),
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "Map your columns" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("region", {
+        name: "First 2 rows of Current Catalog",
+      }),
+    ).toBeVisible();
+  });
+
   it("tracks sample imports with aggregate properties only", async () => {
     render(<CatalogImporterWorkbench />);
 
@@ -198,6 +404,9 @@ describe("CatalogImporterWorkbench", () => {
       name: "Spreadsheet preview",
     });
     const spreadsheetPreviewSection = spreadsheetPreview.closest("section");
+    expect(
+      spreadsheetPreviewSection?.querySelector('[data-density="compact"]'),
+    ).not.toBeNull();
     const pinnedPreviewColumns = spreadsheetPreviewSection?.querySelector(
       '[data-slot="data-table-pinned-left"]',
     );
@@ -487,7 +696,7 @@ describe("CatalogImporterWorkbench", () => {
     fireEvent.click(screen.getByRole("button", { name: "Preview" }));
     expect(
       screen.getByRole("heading", {
-        name: "We matched 1 listing to 1 registered cultivar",
+        name: "We matched 1 listing to registered cultivars",
       }),
     ).toBeVisible();
   });
@@ -505,7 +714,7 @@ describe("CatalogImporterWorkbench", () => {
     await openPreview();
     fireEvent.click(screen.getByRole("button", { name: "Download" }));
     const downloadButton = screen.getByRole("button", {
-      name: "Download original workbook",
+      name: "Download enhanced original",
     });
 
     fireEvent.click(downloadButton);
@@ -576,6 +785,17 @@ describe("CatalogImporterWorkbench", () => {
       }),
     ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Download" })).toBeVisible();
+
+    fireEvent.click(screen.getByRole("button", { name: "Download" }));
+
+    expect(
+      screen.getByRole("link", { name: "Continue to import" }),
+    ).toHaveAttribute("href", "/dashboard/imports");
+    expect(
+      screen.queryByRole("heading", {
+        name: "Ready for import!",
+      }),
+    ).not.toBeInTheDocument();
   });
 
   it("opens the enriched catalog before preparation and membership prompts", async () => {
@@ -701,7 +921,7 @@ describe("CatalogImporterWorkbench", () => {
     ).not.toBeInTheDocument();
     expect(
       within(results).getByRole("heading", {
-        name: "We matched 8 listings to 7 registered cultivars",
+        name: "We matched 8 listings to registered cultivars",
       }),
     ).toBeVisible();
     expect(
@@ -962,19 +1182,17 @@ describe("CatalogImporterWorkbench", () => {
         remaining_count: 1,
       }),
     );
-    const unmatchedRows = screen
-      .getByText("1 left unmatched")
-      .closest("details");
-    expect(unmatchedRows).not.toBeNull();
-    fireEvent.click(screen.getByText("1 left unmatched"));
-    expect(unmatchedRows).toHaveTextContent("Vanguard 2");
+    expect(
+      screen.getByRole("heading", { name: "Reviewed without link 1" }),
+    ).toBeVisible();
+    expect(screen.getByText("Vanguard 2")).toBeVisible();
     expect(
       within(workspaceNavigation).getByRole("button", {
         name: "Review 1/2",
       }),
     ).toBeVisible();
     fireEvent.click(
-      screen.getByRole("button", { name: "Undo identity decision" }),
+      screen.getByRole("button", { name: "Reset review for Vanguard 2" }),
     );
     expect(
       within(workspaceNavigation).getByRole("button", {
@@ -1006,11 +1224,32 @@ describe("CatalogImporterWorkbench", () => {
         resolved_count: 1,
       }),
     );
-    await waitFor(async () => {
-      await expect(readCatalogImporterDraft()).resolves.toMatchObject({
-        initialIssueCount: 2,
-        initialReviewCount: 2,
-      });
+    expect(
+      screen.getByRole("heading", { name: "Resolved issues 1" }),
+    ).toBeVisible();
+    expect(screen.getByText("Price updated to $15")).toBeVisible();
+    expect(
+      screen.getByRole("button", {
+        name: "Undo issue change for row 11",
+      }),
+    ).toBeVisible();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    await expect(readCatalogImporterDraft()).resolves.toMatchObject({
+      initialIssueCount: 2,
+      initialReviewCount: 2,
+      reviewedIssueActions: [
+        expect.objectContaining({
+          message: "1 price value was updated.",
+          previousRows: [
+            expect.objectContaining({
+              sourceRow: 11,
+              sourceTitle: "Aerial Art",
+            }),
+          ],
+        }),
+      ],
     });
 
     fireEvent.click(
@@ -1018,12 +1257,44 @@ describe("CatalogImporterWorkbench", () => {
     );
     expect(
       screen.getByRole("button", {
-        name: "Download catalog-only spreadsheet",
+        name: "Download prepared import file",
       }),
     ).toBeVisible();
     expect(
-      screen.getByRole("button", { name: "Download original workbook" }),
+      screen.getByRole("button", { name: "Download enhanced original" }),
     ).toBeVisible();
+    expect(
+      screen.getByRole("heading", {
+        name: /\d+ listings? ready for import/,
+      }),
+    ).toBeVisible();
+    expect(
+      screen.getByText(/You started with 10 spreadsheet rows\./),
+    ).toBeVisible();
+    expect(screen.getByText(/linked automatically/)).toBeVisible();
+    expect(screen.getByText(/linked manually/)).toBeVisible();
+    expect(screen.getByText(/unlinked/)).toBeVisible();
+    expect(screen.getByText(/excluded/)).toBeVisible();
+    expect(screen.getByText(/issues corrected/)).toBeVisible();
+    expect(
+      screen.queryByRole("link", { name: "Continue to import" }),
+    ).not.toBeInTheDocument();
+    const downloadMembership = screen.getByRole("heading", {
+      name: "Ready for import!",
+    });
+    expect(downloadMembership).toBeVisible();
+    expect(
+      screen.getByRole("button", {
+        name: "Already have an account? Sign in",
+      }),
+    ).toBeVisible();
+    expect(
+      downloadMembership.compareDocumentPosition(
+        screen.getByRole("button", {
+          name: "Download prepared import file",
+        }),
+      ) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(screen.getByText("File details")).toBeVisible();
   }, 10_000);
 });

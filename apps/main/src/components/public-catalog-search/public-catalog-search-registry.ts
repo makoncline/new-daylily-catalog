@@ -327,12 +327,20 @@ export const PUBLIC_CATALOG_SEARCH_CULTIVAR_SECTION_DEFINITIONS: SectionDef[] =
 
       return {
         ...section,
-        groups: section.groups.map((group) => ({
-          ...group,
-          filterIds: group.filterIds.flatMap((filterId) =>
-            filterId === "hybridizer" ? ["hybridizer", "award"] : [filterId],
-          ),
-        })),
+        groups: [
+          {
+            filterIds: ["cultivarName", "linkedToCultivar"],
+            className: "space-y-4",
+          },
+          {
+            filterIds: ["hybridizer", "award"],
+            className: "flex flex-wrap gap-2",
+          },
+          {
+            filterIds: ["year"],
+            className: "space-y-4",
+          },
+        ],
         filters: [
           ...section.filters.map((filter) =>
             filter.id === "hybridizer" ? hybridizer : filter,

@@ -208,7 +208,7 @@ async function openCleaner(page: Page, viewport: typeof desktop) {
   await page.goto("/catalog-importer");
   await expect(
     page.getByRole("heading", {
-      name: "Build your daylily catalog",
+      name: "Build a daylily catalog import",
     }),
   ).toBeVisible();
 }
@@ -255,6 +255,31 @@ test("Desktop importer column mapping", async ({ page }) => {
   await captureAtlasState(page, "catalog-importer-desktop-mapping");
 });
 
+test("Desktop empty manual catalog", async ({ page }) => {
+  await openCleaner(page, desktop);
+  await page.getByRole("button", { name: "Add listings manually" }).click();
+  await expect(page.getByText("No listings added")).toBeVisible();
+  await captureAtlasState(page, "catalog-importer-desktop-manual-empty");
+});
+
+test("Desktop linked manual listing", async ({ page }) => {
+  await openCleaner(page, desktop);
+  await page.getByRole("button", { name: "Add listings manually" }).click();
+  await page
+    .getByRole("textbox", { name: "Search cultivar name" })
+    .fill("Happy Returns");
+  await expect(
+    page.getByRole("button", { name: "Add", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await expect(
+    page.getByRole("cell", {
+      name: /Happy Returns — Darrel A. Apps · 1986/,
+    }),
+  ).toBeVisible();
+  await captureAtlasState(page, "catalog-importer-desktop-manual-linked");
+});
+
 test("Desktop importer results", async ({ page }) => {
   await openCleaner(page, desktop);
   await uploadSpreadsheet(page);
@@ -296,7 +321,9 @@ test("Desktop importer review complete", async ({ page }) => {
   await uploadSpreadsheet(page);
   await openReviewQuiz(page);
   await page.getByRole("button", { name: /Use match 1/ }).click();
-  await expect(page.getByText("Names reviewed", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Reviewed linked 1" }),
+  ).toBeVisible();
   await captureAtlasState(page, "catalog-importer-desktop-review-complete");
 });
 
@@ -324,7 +351,7 @@ test("Desktop importer incomplete download", async ({ page }) => {
   await uploadSpreadsheet(page);
   await page.getByRole("button", { name: "Download" }).click();
   await page
-    .getByRole("button", { name: "Download original workbook" })
+    .getByRole("button", { name: "Download enhanced original" })
     .click();
   await expect(page.getByRole("alertdialog")).toBeVisible();
   await captureAtlasState(page, "catalog-importer-desktop-download-confirm");
@@ -335,7 +362,7 @@ test("Desktop importer download", async ({ page }) => {
   await uploadSpreadsheet(page);
   await page.getByRole("button", { name: "Download" }).click();
   await expect(
-    page.getByRole("heading", { name: "Download your current spreadsheet" }),
+    page.getByRole("heading", { name: "Your current import is ready" }),
   ).toBeVisible();
   await captureAtlasState(page, "catalog-importer-desktop-download");
 });
@@ -353,6 +380,14 @@ test("Desktop importer preview", async ({ page }) => {
   await page.locator("#catalog-importer-preview").scrollIntoViewIfNeeded();
   await page.getByRole("button", { name: "Search and filter" }).click();
   await page.getByRole("switch", { name: "Advanced" }).click();
+  await expect(page.getByTestId("advanced-search-sections-wide")).toBeVisible();
+  await expect
+    .poll(() =>
+      page.getByTestId("catalog-preview-listings-grid").evaluate((element) => {
+        return getComputedStyle(element).gridTemplateColumns.split(" ").length;
+      }),
+    )
+    .toBe(3);
   await captureAtlasState(page, "catalog-importer-desktop-preview");
 });
 
@@ -362,5 +397,13 @@ test("Mobile importer preview", async ({ page }) => {
   await page.locator("#catalog-importer-preview").scrollIntoViewIfNeeded();
   await page.getByRole("button", { name: "Search and filter" }).click();
   await page.getByRole("switch", { name: "Advanced" }).click();
+  await expect(page.getByTestId("advanced-search-sections-wide")).toBeHidden();
+  await expect
+    .poll(() =>
+      page.getByTestId("catalog-preview-listings-grid").evaluate((element) => {
+        return getComputedStyle(element).gridTemplateColumns.split(" ").length;
+      }),
+    )
+    .toBe(2);
   await captureAtlasState(page, "catalog-importer-mobile-preview");
 });

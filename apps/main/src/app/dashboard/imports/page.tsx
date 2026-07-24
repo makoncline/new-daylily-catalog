@@ -6,7 +6,7 @@ export default function DashboardImportsPage() {
     <div className="relative">
       <PageHeader
         heading="Import catalog"
-        text="Create new listings from a spreadsheet."
+        text="Select and create listings from a prepared import."
       />
       <DashboardCatalogImporterClient />
     </div>

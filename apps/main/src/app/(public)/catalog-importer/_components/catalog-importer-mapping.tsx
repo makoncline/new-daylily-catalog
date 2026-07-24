@@ -42,6 +42,7 @@ import {
   columnIndexToLabel,
   detectHeaderRow,
   getHeaderRowSummary,
+  getCatalogImportOrderedColumnIndexes,
   suggestColumnMapping,
 } from "@/lib/catalog-importer";
 import {
@@ -163,6 +164,14 @@ function SpreadsheetPreview({
       })),
     [controller.headerRowIndex, controller.sourcePreviewRows],
   );
+  const orderedColumnIndexes = useMemo(
+    () =>
+      getCatalogImportOrderedColumnIndexes(
+        controller.mapping,
+        controller.sourcePreviewColumnIndexes,
+      ),
+    [controller.mapping, controller.sourcePreviewColumnIndexes],
+  );
   const columns = useMemo<ColumnDef<(typeof data)[number], unknown>[]>(
     () => [
       {
@@ -175,7 +184,7 @@ function SpreadsheetPreview({
           </span>
         ),
       },
-      ...controller.sourcePreviewColumnIndexes.map(
+      ...orderedColumnIndexes.map(
         (columnIndex): ColumnDef<(typeof data)[number], unknown> => ({
           id: `column-${columnIndex}`,
           header: columnIndexToLabel(columnIndex),
@@ -183,7 +192,7 @@ function SpreadsheetPreview({
             getSourcePreviewCellText(row.cells[columnIndex] ?? null),
           cell: ({ getValue, row }) => (
             <span
-              className={`line-clamp-3 whitespace-normal ${
+              className={`line-clamp-2 whitespace-normal ${
                 row.original.isHeader ? "font-semibold" : ""
               }`}
             >
@@ -193,19 +202,18 @@ function SpreadsheetPreview({
         }),
       ),
     ],
-    [controller.sourcePreviewColumnIndexes],
+    [orderedColumnIndexes],
   );
   const pinnedColumns = useMemo(
     () => ({
       left: [
         "row",
-        ...controller.sourcePreviewColumnIndexes
-          .filter(
-            (columnIndex) =>
-              controller.mapping.title !== null &&
-              columnIndex <= controller.mapping.title,
-          )
-          .map((columnIndex) => `column-${columnIndex}`),
+        ...(controller.mapping.title !== null &&
+        controller.sourcePreviewColumnIndexes.includes(
+          controller.mapping.title,
+        )
+          ? [`column-${controller.mapping.title}`]
+          : []),
       ],
     }),
     [controller.mapping.title, controller.sourcePreviewColumnIndexes],
@@ -226,10 +234,10 @@ function SpreadsheetPreview({
       <h2 className="pb-2 font-semibold">Spreadsheet preview</h2>
       <div
         aria-label={`First ${controller.sourcePreviewRows.length.toLocaleString()} rows of ${controller.selectedSheet?.name ?? "the selected sheet"}`}
-        className="max-w-full min-w-0"
+        className="max-w-full min-w-0 [&_[data-slot=data-table-pinned-left]_td:first-child]:w-px [&_[data-slot=data-table-pinned-left]_td:first-child]:min-w-0 [&_[data-slot=data-table-pinned-left]_th:first-child]:w-px"
         role="region"
       >
-        <DataTable table={table} />
+        <DataTable density="compact" table={table} />
       </div>
     </section>
   );

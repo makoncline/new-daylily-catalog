@@ -19,8 +19,15 @@ export interface CatalogImporterDraft {
   matchedRowsKey: string | null;
   parsedSpreadsheet: ParsedSpreadsheet | null;
   projectId?: string;
+  reviewedIssueActions?: CatalogImporterReviewedIssueAction[];
   selectedSheetIndex: number;
   version: 3;
+}
+
+export interface CatalogImporterReviewedIssueAction {
+  id: number;
+  message: string;
+  previousRows: CatalogImportRow[];
 }
 
 export function createCatalogImporterProjectId() {
@@ -92,6 +99,7 @@ function normalizeCatalogImporterDraft(draft: CatalogImporterDraft) {
       draft.parsedSpreadsheet,
     ),
     projectId,
+    reviewedIssueActions: draft.reviewedIssueActions ?? [],
   };
 }
 

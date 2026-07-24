@@ -11,6 +11,7 @@ import {
   detectHeaderRow,
   getAutomaticCultivarMatch,
   getCatalogImportMappedColumnLabel,
+  getCatalogImportOrderedColumnIndexes,
   getCatalogImportState,
   getSourceColumns,
   suggestColumnMapping,
@@ -59,6 +60,22 @@ describe("catalog importer normalization", () => {
       "Daylily Catalog ID",
     ]);
     expect(getCatalogImportMappedColumnLabel(mapping, 6)).toBeNull();
+  });
+
+  it("orders the name and other mapped columns before unmapped columns", () => {
+    expect(
+      getCatalogImportOrderedColumnIndexes(
+        {
+          cultivarReferenceId: 5,
+          description: 0,
+          imageUrl: 4,
+          price: 1,
+          privateNote: null,
+          title: 3,
+        },
+        [0, 1, 2, 3, 4, 5],
+      ),
+    ).toEqual([3, 1, 0, 4, 5, 2]);
   });
 
   it("limits quiet-launch logging to the header and first five nonempty rows", () => {
@@ -968,6 +985,37 @@ describe("catalog importer normalization", () => {
       linkedListingCount: 1,
       pendingCultivarDecisionCount: 0,
       uniqueCultivarCount: 1,
+    });
+  });
+
+  it("does not queue excluded rows for cultivar or data review", () => {
+    const rows = createCatalogImportRows({
+      headerRowIndex: 0,
+      mapping: {
+        cultivarReferenceId: null,
+        description: null,
+        imageUrl: null,
+        price: 1,
+        privateNote: null,
+        title: 0,
+      },
+      rows: [
+        ["name", "price"],
+        ["Pending name", 10],
+        ["Invalid price", "trade"],
+      ],
+    }).map((row) => ({ ...row, outputState: "removed" as const }));
+
+    const state = getCatalogImportState(rows, 3);
+
+    expect(state.reviewRows).toHaveLength(0);
+    expect(state.requiredDataDecisionRows).toHaveLength(0);
+    expect(state.warningRows).toHaveLength(0);
+    expect(state.counts).toMatchObject({
+      includedListingCount: 0,
+      issueCount: 0,
+      reviewQueueCount: 0,
+      warningCount: 0,
     });
   });
 

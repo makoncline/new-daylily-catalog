@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import {
-  Fragment,
   useCallback,
   useMemo,
   useRef,
@@ -14,32 +13,18 @@ import {
   ArrowRight,
   CheckCircle2,
   CircleAlert,
-  Download,
   Sparkles,
-  Undo2,
 } from "lucide-react";
 import { SellerIntentLink } from "@/components/seller-intent-link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
-  Item,
-  ItemActions,
-  ItemContent,
-  ItemDescription,
-  ItemGroup,
-  ItemSeparator,
-  ItemTitle,
-} from "@/components/ui/item";
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
 import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 import {
@@ -60,9 +45,12 @@ import {
   CATALOG_IMPORTER_PREVIEW_FILTER_IDS,
   CatalogImporterCatalogPreview,
 } from "@/app/(public)/catalog-importer/_components/catalog-importer-catalog-preview";
+import { CatalogImporterDownloadOptions } from "@/app/(public)/catalog-importer/_components/catalog-importer-download-options";
 import { CatalogImporterMatchSheet } from "@/app/(public)/catalog-importer/_components/catalog-importer-match-sheet";
 import { CatalogImporterOverview } from "@/app/(public)/catalog-importer/_components/catalog-importer-overview";
 import { CatalogImporterReviewQuiz } from "@/app/(public)/catalog-importer/_components/catalog-importer-review-quiz";
+import { CatalogImporterReviewedIssues } from "@/app/(public)/catalog-importer/_components/catalog-importer-reviewed-issues";
+import { CatalogImporterReviewedRows } from "@/app/(public)/catalog-importer/_components/catalog-importer-reviewed-rows";
 import type { CatalogImporterStep } from "@/app/(public)/catalog-importer/_components/catalog-importer-step-nav";
 import type { CatalogImporterWorkbenchController } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
 import { capturePosthogEvent } from "@/lib/analytics/posthog";
@@ -155,11 +143,13 @@ interface CatalogImporterResultsProps {
 function CatalogImporterMembershipPrompt({
   ctaId,
   controller,
+  placement = "preview",
   membershipPriceDisplay,
   viewerState,
 }: {
   ctaId: string;
   controller: CatalogImporterWorkbenchController;
+  placement?: "preview" | "download";
   membershipPriceDisplay: MembershipPriceDisplay | null;
   viewerState: Extract<
     CatalogImporterViewerState,
@@ -243,7 +233,7 @@ function CatalogImporterMembershipPrompt({
   return (
     <section
       aria-labelledby={`${ctaId}-heading`}
-      className="bg-muted/25 grid gap-5 border-y px-1 py-6 sm:px-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center"
+      className="bg-muted/25 grid gap-5 rounded-lg px-4 py-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center"
       ref={trackPromptImpression}
     >
       <div className="max-w-3xl">
@@ -251,11 +241,14 @@ function CatalogImporterMembershipPrompt({
           id={`${ctaId}-heading`}
           className="text-xl font-semibold tracking-tight sm:text-2xl"
         >
-          Build a public catalog with Pro
+          {placement === "download"
+            ? "Ready for import!"
+            : "Build a public catalog with Pro"}
         </h2>
         <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
-          Publish and manage this collection with a hosted catalog and seller
-          dashboard. Your prepared workbook remains free.
+          {placement === "download"
+            ? "Sign up for Daylily Catalog to start."
+            : "Publish and manage this collection with a hosted catalog and seller dashboard. Your prepared workbook remains free."}
         </p>
       </div>
       <div className="flex min-w-56 flex-col gap-2 lg:items-stretch">
@@ -272,6 +265,9 @@ function CatalogImporterMembershipPrompt({
             />
           </TRPCReactProvider>
         )}
+        {placement === "download" && viewerState === "anonymous" ? (
+          <CatalogImporterLoginButton controller={controller} />
+        ) : null}
         {membershipPriceDisplay ? (
           <p className="text-muted-foreground text-center text-xs">
             Then {membershipPriceDisplay.amount}
@@ -295,6 +291,35 @@ function CatalogImporterMembershipPrompt({
         </SellerIntentLink>
       </div>
     </section>
+  );
+}
+
+function CatalogImporterLoginButton({
+  controller,
+}: {
+  controller: CatalogImporterWorkbenchController;
+}) {
+  const [leaving, setLeaving] = useState(false);
+
+  const openLogin = async () => {
+    setLeaving(true);
+    await controller.flushDraft();
+    const returnTo = encodeURIComponent("/dashboard/imports");
+    window.location.assign(`/sign-in?returnTo=${returnTo}`);
+  };
+
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className="w-full"
+      disabled={leaving}
+      onClick={() => void openLogin()}
+    >
+      {leaving ? <Spinner /> : null}
+      Already have an account? Sign in
+    </Button>
   );
 }
 
@@ -425,50 +450,6 @@ function SignedInCatalogImporterMembershipButton({
   );
 }
 
-function CatalogImporterUnmatchedRows({
-  controller,
-}: CatalogImporterResultsProps) {
-  const rows = controller.includedRows.filter(
-    (row) => row.linkState === "intentionally-unmatched",
-  );
-
-  if (rows.length === 0) {
-    return null;
-  }
-
-  return (
-    <details id="catalog-importer-unmatched" className="border-y py-3">
-      <summary className="cursor-pointer text-sm font-medium">
-        {rows.length.toLocaleString()} left unmatched
-      </summary>
-      <ItemGroup className="mt-3 max-h-96 overflow-auto">
-        {rows.map((row, index) => (
-          <Fragment key={row.id}>
-            {index > 0 ? <ItemSeparator /> : null}
-            <Item role="listitem" size="sm" className="px-0">
-              <ItemContent className="min-w-0">
-                <ItemTitle className="truncate">{row.sourceTitle}</ItemTitle>
-                <ItemDescription>Source row {row.sourceRow}</ItemDescription>
-              </ItemContent>
-              <ItemActions>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  aria-label={`Review ${row.sourceTitle} again`}
-                  onClick={() => controller.restoreUnmatchedRow(row.id)}
-                >
-                  Review again
-                </Button>
-              </ItemActions>
-            </Item>
-          </Fragment>
-        ))}
-      </ItemGroup>
-    </details>
-  );
-}
-
 export function CatalogImporterResults({
   activeStep,
   controller,
@@ -484,9 +465,6 @@ export function CatalogImporterResults({
   viewerState: CatalogImporterViewerState;
 }) {
   const [matchEditorRowId, setMatchEditorRowId] = useState<string | null>(null);
-  const [pendingDownload, setPendingDownload] = useState<
-    "clean" | "enriched" | null
-  >(null);
   const [previewGlobalFilter, setPreviewGlobalFilter] = useState("");
   const urlSearch = useSyncExternalStore(
     subscribeToCatalogImporterUrl,
@@ -501,14 +479,56 @@ export function CatalogImporterResults({
     () => new URLSearchParams(urlSearch).get("insight"),
     [urlSearch],
   );
+  const dashboardReturnPath = useMemo(
+    () =>
+      new URLSearchParams(urlSearch).get("returnTo") === "/dashboard/imports"
+        ? "/dashboard/imports"
+        : null,
+    [urlSearch],
+  );
+  const completionStats = useMemo(() => {
+    const listingRows = (controller.matchedRows ?? []).filter(
+      (row) => row.rowKind === "listing",
+    );
+    const includedRows = listingRows.filter(
+      (row) => row.outputState === "included",
+    );
+
+    return {
+      spreadsheetRowCount: listingRows.length,
+      automaticallyLinkedCount: includedRows.filter(
+        (row) =>
+          row.linkState === "linked" &&
+          row.match !== null &&
+          row.linkProvenance !== "user-confirmed",
+      ).length,
+      manuallyLinkedCount: includedRows.filter(
+        (row) =>
+          row.linkState === "linked" &&
+          row.match !== null &&
+          row.linkProvenance === "user-confirmed",
+      ).length,
+      unlinkedCount: includedRows.filter(
+        (row) => row.linkState !== "linked" || row.match === null,
+      ).length,
+      excludedCount: listingRows.filter((row) => row.outputState === "removed")
+        .length,
+      issuesCorrectedCount: controller.completedIssueCount,
+      readyForImportCount: includedRows.filter(
+        (row) =>
+          row.linkState !== "pending" &&
+          row.cultivarReferenceIdWarning === null &&
+          row.priceWarning === null &&
+          (row.duplicateOfSourceRow === null || row.duplicateAccepted),
+      ).length,
+    };
+  }, [controller.completedIssueCount, controller.matchedRows]);
   const insightView: AnalysisView = isCatalogImporterAnalysisView(insightParam)
     ? insightParam
     : "hybridizer";
   const previewFilterInteractionTracked = useRef(false);
   const matchEditorRow =
     controller.includedRows.find((row) => row.id === matchEditorRowId) ?? null;
-  const readyToDownload =
-    controller.reviewRows.length === 0 && controller.remainingIssueCount === 0;
   const remainingWork = [
     controller.reviewRows.length > 0
       ? `${controller.reviewRows.length.toLocaleString()} potential ${controller.reviewRows.length === 1 ? "match" : "matches"}`
@@ -573,22 +593,10 @@ export function CatalogImporterResults({
       params.set("insight", nextView);
     });
   }, []);
-  const requestDownload = (kind: "clean" | "enriched") => {
-    if (
-      controller.reviewRows.length > 0 ||
-      controller.remainingIssueCount > 0
-    ) {
-      setPendingDownload(kind);
-      return;
-    }
-
-    void controller.downloadResults(kind);
-  };
-
   return (
     <div
       id={`catalog-importer-step-${activeStep}`}
-      className="min-w-0 !scroll-mt-16 space-y-8"
+      className="min-w-0 !scroll-mt-16 space-y-6"
     >
       {membershipStarted && activeStep === "preview" ? (
         <Alert>
@@ -625,7 +633,8 @@ export function CatalogImporterResults({
             onGlobalFilterChange={setPreviewGlobalFilter}
             onOpenReview={handleOpenReview}
           />
-          {!membershipStarted &&
+          {!dashboardReturnPath &&
+          !membershipStarted &&
           (viewerState === "anonymous" ||
             viewerState === "signed_in_nonpro") ? (
             <CatalogImporterMembershipPrompt
@@ -641,7 +650,9 @@ export function CatalogImporterResults({
               onClick={() => continueToStep(previewNextStep)}
             >
               {previewNextStep === "review"
-                ? "Continue to review"
+                ? controller.reviewRows.length > 0
+                  ? "Continue to review"
+                  : "View review decisions"
                 : previewNextStep === "issues"
                   ? "Continue to issues"
                   : "Continue to download"}
@@ -653,54 +664,31 @@ export function CatalogImporterResults({
 
       {activeStep === "review" ? (
         <>
-          {controller.lastLinkAction ? (
-            <div
-              role="status"
-              className="flex flex-col gap-2 border-y py-3 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <p className="text-sm font-medium">
-                {controller.lastLinkAction.displayName}{" "}
-                {controller.lastLinkAction.kind === "excluded"
-                  ? "was excluded from the prepared workbook."
-                  : controller.lastLinkAction.kind === "left-unmatched"
-                    ? "will remain unmatched in the prepared workbook."
-                    : "is now linked in your preview."}
-              </p>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                aria-label="Undo identity decision"
-                onClick={controller.undoLastLinkAction}
-              >
-                <Undo2 aria-hidden="true" className="size-4" />
-                Undo
-              </Button>
-            </div>
-          ) : null}
           {controller.reviewRows.length > 0 ? (
             <CatalogImporterReviewQuiz
               controller={controller}
               onFindDifferentCultivar={handleOpenReview}
             />
           ) : (
-            <div className="border-y py-5">
-              <p className="font-medium">Names reviewed</p>
-              <p className="text-muted-foreground mt-1 text-sm">
-                {controller.reviewProgressTotal.toLocaleString()} reviewed ·{" "}
-                {controller.counts.linkedListingCount.toLocaleString()} linked
-                {controller.counts.intentionallyUnmatchedCount > 0
-                  ? ` · ${controller.counts.intentionallyUnmatchedCount.toLocaleString()} left unmatched`
-                  : ""}
-                {(controller.matchedRows ?? []).some(
-                  (row) => row.outputState === "removed",
-                )
-                  ? ` · ${(controller.matchedRows ?? []).filter((row) => row.outputState === "removed").length.toLocaleString()} excluded`
-                  : ""}
-              </p>
-            </div>
+            <Empty className="py-8 md:py-10">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <CheckCircle2 aria-hidden="true" />
+                </EmptyMedia>
+                <EmptyTitle>Review complete</EmptyTitle>
+                <EmptyDescription>
+                  {controller.reviewProgressTotal === 0
+                    ? "No potential matches needed review."
+                    : `All ${controller.reviewProgressTotal.toLocaleString()} potential ${
+                        controller.reviewProgressTotal === 1
+                          ? "match"
+                          : "matches"
+                      } reviewed.`}
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
           )}
-          <CatalogImporterUnmatchedRows controller={controller} />
+          <CatalogImporterReviewedRows controller={controller} />
           <div className="flex justify-end pt-2">
             <Button
               type="button"
@@ -717,36 +705,23 @@ export function CatalogImporterResults({
 
       {activeStep === "issues" ? (
         <>
-          {controller.lastIssueAction ? (
-            <div
-              role="status"
-              className="flex flex-col gap-2 border-y py-3 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <p className="text-sm font-medium">
-                {controller.lastIssueAction.message}
-              </p>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                aria-label="Undo spreadsheet issue change"
-                onClick={controller.undoLastIssueAction}
-              >
-                <Undo2 aria-hidden="true" className="size-4" />
-                Undo
-              </Button>
-            </div>
-          ) : null}
           {controller.issueCount > 0 || controller.counts.warningCount > 0 ? (
             <CatalogImporterIssues controller={controller} />
           ) : (
-            <div className="border-y py-5">
-              <p className="font-medium">Spreadsheet reviewed</p>
-              <p className="text-muted-foreground mt-1 text-sm">
-                {controller.issueProgressTotal.toLocaleString()} items reviewed
-              </p>
-            </div>
+            <Empty className="py-8 md:py-10">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <CheckCircle2 aria-hidden="true" />
+                </EmptyMedia>
+                <EmptyTitle>Issue review complete</EmptyTitle>
+                <EmptyDescription>
+                  {controller.issueProgressTotal.toLocaleString()} items
+                  reviewed
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
           )}
+          <CatalogImporterReviewedIssues controller={controller} />
           <div className="flex justify-end pt-2">
             <Button type="button" onClick={() => continueToStep("download")}>
               Continue to download
@@ -778,211 +753,98 @@ export function CatalogImporterResults({
               id="catalog-importer-download-heading"
               className="text-3xl font-semibold tracking-tight"
             >
-              {readyToDownload
-                ? "Your prepared spreadsheet is ready"
-                : "Download your current spreadsheet"}
+              {completionStats.readyForImportCount.toLocaleString()}{" "}
+              {completionStats.readyForImportCount === 1
+                ? "listing"
+                : "listings"}{" "}
+              ready for import
             </h2>
             <p className="text-muted-foreground mt-2 text-sm leading-6">
-              {remainingWork.length > 0
-                ? `${remainingWork.join(" and ")} remain. `
-                : null}
-              Upload either prepared file again later and we will recognize its
-              Daylily Catalog IDs and corrected fields.
+              You started with{" "}
+              {completionStats.spreadsheetRowCount.toLocaleString()} spreadsheet{" "}
+              {completionStats.spreadsheetRowCount === 1 ? "row" : "rows"}.
             </p>
           </div>
 
-          <ItemGroup className="border-y">
-            <Item className="flex-col items-stretch gap-3 px-0 py-5 sm:flex-row sm:items-center">
-              <ItemContent>
-                <ItemTitle>Catalog-only spreadsheet</ItemTitle>
-                <ItemDescription className="line-clamp-none">
-                  One normalized listing table without excluded rows or
-                  unrelated columns.
-                </ItemDescription>
-              </ItemContent>
-              <ItemActions className="w-full sm:w-auto">
-                <Button
-                  type="button"
-                  className="w-full sm:w-auto"
-                  disabled={controller.downloadingResults !== null}
-                  onClick={() => requestDownload("clean")}
-                >
-                  {controller.downloadingResults === "clean" ? (
-                    <Spinner data-icon="inline-start" />
-                  ) : (
-                    <Download data-icon="inline-start" />
-                  )}
-                  Download catalog-only spreadsheet
-                </Button>
-              </ItemActions>
-            </Item>
-            <ItemSeparator />
-            <Item className="flex-col items-stretch gap-3 px-0 py-5 sm:flex-row sm:items-center">
-              <ItemContent>
-                <ItemTitle>Original workbook with catalog data</ItemTitle>
-                <ItemDescription className="line-clamp-none">
-                  Your original sheets and rows with mapped fields, corrections,
-                  and Daylily Catalog references.
-                </ItemDescription>
-              </ItemContent>
-              <ItemActions className="w-full sm:w-auto">
-                <Button
-                  type="button"
-                  className="w-full sm:w-auto"
-                  variant="outline"
-                  disabled={controller.downloadingResults !== null}
-                  onClick={() => requestDownload("enriched")}
-                >
-                  {controller.downloadingResults === "enriched" ? (
-                    <Spinner data-icon="inline-start" />
-                  ) : (
-                    <Download data-icon="inline-start" />
-                  )}
-                  Download original workbook
-                </Button>
-              </ItemActions>
-            </Item>
-          </ItemGroup>
+          <ul className="text-muted-foreground flex flex-wrap gap-x-6 gap-y-2 text-sm">
+            <li>
+              <span className="text-foreground font-medium tabular-nums">
+                {completionStats.automaticallyLinkedCount.toLocaleString()}
+              </span>{" "}
+              linked automatically
+            </li>
+            <li>
+              <span className="text-foreground font-medium tabular-nums">
+                {completionStats.manuallyLinkedCount.toLocaleString()}
+              </span>{" "}
+              linked manually
+            </li>
+            <li>
+              <span className="text-foreground font-medium tabular-nums">
+                {completionStats.unlinkedCount.toLocaleString()}
+              </span>{" "}
+              unlinked
+            </li>
+            <li>
+              <span className="text-foreground font-medium tabular-nums">
+                {completionStats.excludedCount.toLocaleString()}
+              </span>{" "}
+              excluded
+            </li>
+            <li>
+              <span className="text-foreground font-medium tabular-nums">
+                {completionStats.issuesCorrectedCount.toLocaleString()}
+              </span>{" "}
+              issues corrected
+            </li>
+          </ul>
+
+          {remainingWork.length > 0 ? (
+            <p className="text-muted-foreground text-sm">
+              {remainingWork.join(" and ")} remain and will not be imported.
+            </p>
+          ) : null}
+
+          {viewerState === "pro" ? (
+            <div className="flex justify-end">
+              <Button asChild>
+                <Link href={dashboardReturnPath ?? "/dashboard/imports"}>
+                  Continue to import
+                  <ArrowRight />
+                </Link>
+              </Button>
+            </div>
+          ) : null}
+
+          {viewerState !== "pro" &&
+          !membershipStarted &&
+          (viewerState === "anonymous" ||
+            viewerState === "signed_in_nonpro") ? (
+            <CatalogImporterMembershipPrompt
+              ctaId="catalog-importer-download-membership"
+              controller={controller}
+              placement="download"
+              membershipPriceDisplay={membershipPriceDisplay}
+              viewerState={viewerState}
+            />
+          ) : null}
+
+          <CatalogImporterDownloadOptions controller={controller} />
 
           {controller.downloadSummary ? (
             <details className="mt-4 max-w-3xl">
               <summary className="cursor-pointer text-sm font-medium">
                 File details
               </summary>
-              <ul className="text-muted-foreground mt-3 grid gap-2 text-sm sm:grid-cols-2">
-                <li>
-                  Retain{" "}
-                  {controller.downloadSummary.fileType === "csv"
-                    ? `${controller.downloadSummary.retainedSourceRowCount.toLocaleString()} source rows in one CSV table`
-                    : `${controller.downloadSummary.retainedWorksheetCount.toLocaleString()} ${controller.downloadSummary.retainedWorksheetCount === 1 ? "worksheet" : "worksheets"} and ${controller.downloadSummary.retainedSourceRowCount.toLocaleString()} source rows`}
-                </li>
-                {controller.downloadSummary.appliedCorrectionCount > 0 ? (
-                  <li>
-                    Include{" "}
-                    {controller.downloadSummary.appliedCorrectionCount.toLocaleString()}{" "}
-                    seller-approved{" "}
-                    {controller.downloadSummary.appliedCorrectionCount === 1
-                      ? "correction"
-                      : "corrections"}
-                  </li>
-                ) : null}
-                {controller.downloadSummary.linkedIdentityCount > 0 ? (
-                  <li>
-                    Add Daylily Catalog identity to{" "}
-                    {controller.downloadSummary.linkedIdentityCount.toLocaleString()}{" "}
-                    linked{" "}
-                    {controller.downloadSummary.linkedIdentityCount === 1
-                      ? "listing"
-                      : "listings"}
-                  </li>
-                ) : null}
-                {controller.downloadSummary.intentionallyUnmatchedCount > 0 ? (
-                  <li>
-                    Keep{" "}
-                    {controller.downloadSummary.intentionallyUnmatchedCount.toLocaleString()}{" "}
-                    intentionally unmatched{" "}
-                    {controller.downloadSummary.intentionallyUnmatchedCount ===
-                    1
-                      ? "listing"
-                      : "listings"}
-                  </li>
-                ) : null}
-                {controller.downloadSummary.unresolvedCultivarCount +
-                  controller.downloadSummary.unresolvedValueCount +
-                  controller.downloadSummary.unresolvedWarningCount >
-                0 ? (
-                  <li>
-                    Exclude from the clean catalog{" "}
-                    {controller.downloadSummary.removedRowCount.toLocaleString()}{" "}
-                    source{" "}
-                    {controller.downloadSummary.removedRowCount === 1
-                      ? "row"
-                      : "rows"}
-                  </li>
-                ) : null}
-                <li>
-                  Leave{" "}
-                  {controller.downloadSummary.unresolvedCultivarCount.toLocaleString()}{" "}
-                  cultivar{" "}
-                  {controller.downloadSummary.unresolvedCultivarCount === 1
-                    ? "decision"
-                    : "decisions"}
-                  ,{" "}
-                  {controller.downloadSummary.unresolvedValueCount.toLocaleString()}{" "}
-                  required{" "}
-                  {controller.downloadSummary.unresolvedValueCount === 1
-                    ? "value"
-                    : "values"}
-                  , and{" "}
-                  {controller.downloadSummary.unresolvedWarningCount.toLocaleString()}{" "}
-                  {controller.downloadSummary.unresolvedWarningCount === 1
-                    ? "warning"
-                    : "warnings"}{" "}
-                  unresolved
-                </li>
-              </ul>
-              <p className="text-muted-foreground mt-4 text-xs leading-relaxed">
-                The catalog-only spreadsheet contains one normalized listing
-                table. The original workbook retains every worksheet and source
-                row as a value-only workbook. Mapped headers are standardized to
-                Name, Price, Description, and Private Note. Reference photos,
-                awards, and cultivar attributes are not copied. Formulas,
-                formatting, merged cells, drawings, comments, macros,
-                validation, and hidden state are not preserved. Nothing is
-                published or imported.
+              <p className="text-muted-foreground mt-3 text-sm leading-relaxed">
+                Both files can be uploaded to this builder again. They contain
+                values, not spreadsheet formatting, formulas, drawings, or
+                macros. Nothing is published or imported by downloading them.
               </p>
             </details>
           ) : null}
-          {!membershipStarted &&
-          (viewerState === "anonymous" ||
-            viewerState === "signed_in_nonpro") ? (
-            <CatalogImporterMembershipPrompt
-              ctaId="catalog-importer-download-membership"
-              controller={controller}
-              membershipPriceDisplay={membershipPriceDisplay}
-              viewerState={viewerState}
-            />
-          ) : null}
         </section>
       ) : null}
-
-      <AlertDialog
-        open={pendingDownload !== null}
-        onOpenChange={(open) => !open && setPendingDownload(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              Download before review is complete?
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {[
-                controller.reviewRows.length > 0
-                  ? `${controller.reviewRows.length.toLocaleString()} potential ${controller.reviewRows.length === 1 ? "match" : "matches"}`
-                  : null,
-                controller.remainingIssueCount > 0
-                  ? `${controller.remainingIssueCount.toLocaleString()} spreadsheet ${controller.remainingIssueCount === 1 ? "item" : "items"}`
-                  : null,
-              ]
-                .filter(Boolean)
-                .join(" and ")}{" "}
-              remain to review.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                const kind = pendingDownload;
-                setPendingDownload(null);
-                if (kind) void controller.downloadResults(kind);
-              }}
-            >
-              Download anyway
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       <CatalogImporterMatchSheet
         key={matchEditorRow?.id ?? "closed"}

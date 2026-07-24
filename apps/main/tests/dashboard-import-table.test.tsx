@@ -31,106 +31,44 @@ const row: CatalogImportRow = {
 };
 
 describe("DashboardImportTable", () => {
-  it("shows the original spreadsheet row while editing a listing", async () => {
-    const resetImportRow = vi.fn();
-    const updateImportRow = vi.fn();
+  it("pins Include and Name before the scrollable listing fields", () => {
     const controller = {
-      getOriginalImportRow: () => row,
-      getSourceCellsForRow: () => [
-        { column: "A", label: "Name", mapped: true, value: "Vanguard 2" },
-        { column: "B", label: "Price", mapped: true, value: "22.00" },
-        {
-          column: "C",
-          label: "Description",
-          mapped: true,
-          value: "Name needs confirmation",
-        },
-        {
-          column: "D",
-          label: "Private Note",
-          mapped: true,
-          value: "Holding area",
-        },
-      ],
       matchedRows: [row],
-      resetImportRow,
       setImportRowIncluded: vi.fn(),
       setImportRowsIncluded: vi.fn(),
-      updateImportRow,
     } as unknown as CatalogImporterWorkbenchController;
 
     render(
       <DashboardImportTable
         controller={controller}
         existingDuplicateCounts={new Map()}
-        onReviewRow={vi.fn()}
         view="all"
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Edit Vanguard 2" }));
-
-    const dialog = await screen.findByRole("dialog", {
-      name: "Edit import row",
-    });
-    const originalRow = within(dialog).getByLabelText(
-      "Uploaded spreadsheet row 9",
+    const pinnedColumns = document.querySelector(
+      '[data-slot="data-table-pinned-left"]',
     );
-
-    expect(
-      within(dialog).getByText("Original spreadsheet row · Spreadsheet row 9"),
-    ).toBeInTheDocument();
-    expect(within(originalRow).getByText("22.00")).toBeInTheDocument();
-    expect(
-      within(originalRow).getByText("Name needs confirmation"),
-    ).toBeInTheDocument();
-    expect(within(originalRow).getByText("Holding area")).toBeInTheDocument();
-
-    expect(
-      within(dialog).queryByRole("button", {
-        name: "Restore spreadsheet values",
-      }),
-    ).not.toBeInTheDocument();
-
-    fireEvent.change(within(dialog).getByLabelText("Description"), {
-      target: { value: "Edited description" },
-    });
-    fireEvent.click(
-      within(dialog).getByRole("button", {
-        name: "Restore spreadsheet values",
-      }),
+    const scrollableColumns = document.querySelector(
+      '[data-slot="data-table-scrollable"]',
     );
-
-    expect(resetImportRow).toHaveBeenCalledWith(row.id);
-    expect(within(dialog).getByLabelText("Description")).toHaveValue(
-      "Name needs confirmation",
-    );
-    expect(dialog).toBeInTheDocument();
+    expect(pinnedColumns).not.toBeNull();
+    expect(scrollableColumns).not.toBeNull();
     expect(
-      within(dialog).queryByRole("button", {
-        name: "Restore spreadsheet values",
+      within(pinnedColumns as HTMLElement).getByRole("columnheader", {
+        name: "Include",
       }),
-    ).not.toBeInTheDocument();
-
-    const priceInput = within(dialog).getByLabelText("Price");
-    fireEvent.change(priceInput, {
-      target: { value: "12.50" },
-    });
-    expect(
-      within(dialog).getByText("Price must be a whole number."),
     ).toBeVisible();
-    expect(within(dialog).getByRole("button", { name: "Save" })).toBeDisabled();
-
-    fireEvent.change(priceInput, {
-      target: { value: "0" },
-    });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
-
-    expect(updateImportRow).toHaveBeenCalledWith(row.id, {
-      description: row.description,
-      price: null,
-      privateNote: row.privateNote,
-    });
+    expect(
+      within(pinnedColumns as HTMLElement).getByRole("columnheader", {
+        name: "Name",
+      }),
+    ).toBeVisible();
+    expect(
+      within(scrollableColumns as HTMLElement).getByRole("columnheader", {
+        name: "Cultivar",
+      }),
+    ).toBeVisible();
   });
 
   it("includes only the rows shown in the current batch", () => {
@@ -153,7 +91,6 @@ describe("DashboardImportTable", () => {
       <DashboardImportTable
         controller={controller}
         existingDuplicateCounts={new Map()}
-        onReviewRow={vi.fn()}
         view="all"
       />,
     );
@@ -164,6 +101,33 @@ describe("DashboardImportTable", () => {
       excludedRows.slice(0, 50).map((currentRow) => currentRow.id),
       true,
     );
+  });
+
+  it("keeps dashboard import selection separate from the prepared row", () => {
+    const onRowSelectionChange = vi.fn();
+    const controller = {
+      matchedRows: [row],
+      setImportRowIncluded: vi.fn(),
+      setImportRowsIncluded: vi.fn(),
+    } as unknown as CatalogImporterWorkbenchController;
+
+    render(
+      <DashboardImportTable
+        controller={controller}
+        existingDuplicateCounts={new Map()}
+        onRowSelectionChange={onRowSelectionChange}
+        rowIds={new Set([row.id])}
+        selectedRowIds={new Set()}
+        view="all"
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Include Vanguard 2" }),
+    );
+
+    expect(onRowSelectionChange).toHaveBeenCalledWith(row.id, true);
+    expect(controller.setImportRowIncluded).not.toHaveBeenCalled();
   });
 
   it("shows only rows in the selected import view", () => {
@@ -185,7 +149,6 @@ describe("DashboardImportTable", () => {
       <DashboardImportTable
         controller={controller}
         existingDuplicateCounts={new Map()}
-        onReviewRow={vi.fn()}
         view="review"
       />,
     );
@@ -226,7 +189,6 @@ describe("DashboardImportTable", () => {
         <DashboardImportTable
           controller={controller}
           existingDuplicateCounts={new Map()}
-          onReviewRow={vi.fn()}
           view="all"
         />,
       );

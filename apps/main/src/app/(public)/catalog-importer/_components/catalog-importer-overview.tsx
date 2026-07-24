@@ -49,8 +49,21 @@ export function CatalogImporterOverview({
   const { counts } = controller;
   const linkedListingLabel =
     counts.linkedListingCount === 1 ? "listing" : "listings";
-  const cultivarLabel =
-    counts.uniqueCultivarCount === 1 ? "cultivar" : "cultivars";
+  const hasLinkedListings = counts.linkedListingCount > 0;
+  const processedHeading =
+    controller.reviewRows.length > 0
+      ? `${controller.reviewRows.length.toLocaleString()} ${
+          controller.reviewRows.length === 1 ? "listing needs" : "listings need"
+        } a cultivar decision`
+      : counts.intentionallyUnmatchedCount > 0
+        ? `${counts.intentionallyUnmatchedCount.toLocaleString()} ${
+            counts.intentionallyUnmatchedCount === 1
+              ? "listing is"
+              : "listings are"
+          } ready without ${counts.intentionallyUnmatchedCount === 1 ? "a cultivar link" : "cultivar links"}`
+        : counts.detectedListingCount === 0
+          ? "No listings were found"
+          : "No listings are included in this import";
   const outstandingMetrics = [
     controller.reviewRows.length > 0 ? (
       <RevealMetric
@@ -84,17 +97,24 @@ export function CatalogImporterOverview({
     <section
       id="catalog-importer-summary"
       role="region"
-      aria-label="Catalog preview ready"
+      aria-label={hasLinkedListings ? "Catalog preview ready" : "Spreadsheet processed"}
       className="border-primary/40 space-y-3 border-l-2 py-1 pl-5 sm:pl-7"
     >
-      <p className="text-primary text-sm font-medium">Catalog preview ready</p>
+      <p className="text-primary text-sm font-medium">
+        {hasLinkedListings ? "Catalog preview ready" : "Spreadsheet processed"}
+      </p>
       <h2
         id="catalog-importer-summary-heading"
         className="max-w-4xl text-3xl font-semibold tracking-tight text-balance sm:text-4xl"
       >
-        We matched {counts.linkedListingCount.toLocaleString()}{" "}
-        {linkedListingLabel} to {counts.uniqueCultivarCount.toLocaleString()}{" "}
-        registered {cultivarLabel}
+        {hasLinkedListings ? (
+          <>
+            We matched {counts.linkedListingCount.toLocaleString()}{" "}
+            {linkedListingLabel} to registered cultivars
+          </>
+        ) : (
+          processedHeading
+        )}
       </h2>
       {outstandingMetrics.length > 0 ? (
         <div className="flex max-w-2xl gap-8 pt-1">{outstandingMetrics}</div>

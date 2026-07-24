@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { type ComponentProps, useMemo, useState } from "react";
 import { CircleMinus, Save, Trash2 } from "lucide-react";
 import {
   AlertDialog,
@@ -15,6 +15,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Table,
@@ -29,6 +35,7 @@ import {
   isCatalogImportImagePreviewWarning,
   type CatalogImportRow,
 } from "@/lib/catalog-importer";
+import { cn } from "@/lib/utils";
 
 interface DuplicateGroup {
   id: string;
@@ -41,6 +48,24 @@ type ParsedInput<T> = { valid: true; value: T } | { valid: false; value: null };
 // existing repair helpers dormant until image ownership and upload are handled
 // by the dashboard image flow.
 const SHOW_IMAGE_ISSUES = false;
+
+function IssueTable({
+  className,
+  containerClassName,
+  ...props
+}: ComponentProps<typeof Table> & { containerClassName?: string }) {
+  return (
+    <div
+      className={cn(
+        "max-w-full overflow-hidden rounded-md border",
+        containerClassName,
+      )}
+      data-slot="catalog-importer-issue-table"
+    >
+      <Table className={className} {...props} />
+    </div>
+  );
+}
 
 function getDuplicateGroups(rows: CatalogImportRow[]) {
   const rowsBySourceRow = new Map(rows.map((row) => [row.sourceRow, row]));
@@ -70,10 +95,12 @@ function getDuplicateGroups(rows: CatalogImportRow[]) {
 }
 
 function parsePrice(value: string): ParsedInput<number | null> {
-  const normalized = value.replaceAll(",", "").replace(/^\$/, "").trim();
-  if (!normalized) {
+  const trimmed = value.trim();
+  if (!trimmed) {
     return { valid: true, value: null };
   }
+
+  const normalized = trimmed.replaceAll(",", "").replace(/^\$/, "");
   if (!/^\d+(?:\.\d+)?$/.test(normalized)) {
     return { valid: false, value: null };
   }
@@ -84,44 +111,6 @@ function parsePrice(value: string): ParsedInput<number | null> {
   }
 
   return { valid: true, value: price === 0 ? null : price };
-}
-
-function getBundlePriceSuggestion(value: string) {
-  const quantityWords: Record<string, number> = {
-    eight: 8,
-    five: 5,
-    four: 4,
-    nine: 9,
-    one: 1,
-    seven: 7,
-    six: 6,
-    ten: 10,
-    three: 3,
-    two: 2,
-  };
-  const match =
-    /^\s*(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s*(?:for|\/)\s*\$?\s*(\d+(?:\.\d+)?)\s*$/i.exec(
-      value.replaceAll(",", ""),
-    );
-  if (!match) {
-    return null;
-  }
-
-  const quantityToken = match[1]!.toLowerCase();
-  const quantity = /^\d+$/.test(quantityToken)
-    ? Number(quantityToken)
-    : (quantityWords[quantityToken] ?? 0);
-  const total = Number(match[2]);
-  if (
-    !Number.isInteger(quantity) ||
-    quantity <= 0 ||
-    !Number.isFinite(total) ||
-    total < 0
-  ) {
-    return null;
-  }
-
-  return total / quantity;
 }
 
 function parseImageUrl(value: string): ParsedInput<string> {
@@ -138,6 +127,57 @@ function parseImageUrl(value: string): ParsedInput<string> {
   } catch {
     return { valid: false, value: null };
   }
+}
+
+function ExcludeRowButton({
+  destination,
+  onClick,
+  sourceRow,
+}: {
+  destination: "import" | "workbook";
+  onClick: () => void;
+  sourceRow: number;
+}) {
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      className="text-muted-foreground hover:text-destructive"
+      aria-label={`Exclude row ${sourceRow} from ${destination}`}
+      onClick={onClick}
+    >
+      <Trash2 aria-hidden="true" data-icon="inline-start" />
+      Exclude row
+    </Button>
+  );
+}
+
+function DuplicateGroupActions({
+  count,
+  onExclude,
+  onKeep,
+}: {
+  count: number;
+  onExclude: () => void;
+  onKeep: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-1">
+      <Button type="button" variant="ghost" size="sm" onClick={onKeep}>
+        Keep {count.toLocaleString()}
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="text-destructive hover:text-destructive"
+        onClick={onExclude}
+      >
+        Exclude {count.toLocaleString()}
+      </Button>
+    </div>
+  );
 }
 
 function DuplicateGroupTable({
@@ -160,43 +200,21 @@ function DuplicateGroupTable({
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h4 className="font-semibold">Multiple listings for {title}</h4>
-        <div className="flex items-center gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() =>
-              controller.keepDuplicateRows(rows.map((row) => row.id))
-            }
-          >
-            Keep all
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="text-destructive hover:text-destructive"
-            onClick={() =>
-              controller.excludeDuplicateRows(rows.map((row) => row.id))
-            }
-          >
-            Exclude all
-          </Button>
-        </div>
+        <DuplicateGroupActions
+          count={rows.length}
+          onKeep={() => controller.keepDuplicateRows(rows.map((row) => row.id))}
+          onExclude={() =>
+            controller.excludeDuplicateRows(rows.map((row) => row.id))
+          }
+        />
       </div>
 
-      <Table
+      <IssueTable
         aria-label={`Duplicate rows for ${title}`}
         className="min-w-0 md:w-max md:min-w-full"
       >
         <TableHeader className="hidden md:table-header-group">
           <TableRow>
-            <TableHead
-              scope="col"
-              className="bg-muted/60 sticky left-0 z-10 w-px"
-            >
-              Action
-            </TableHead>
             <TableHead scope="col" className="w-px">
               Row
             </TableHead>
@@ -214,6 +232,9 @@ function DuplicateGroupTable({
                 {column.label}
               </TableHead>
             ))}
+            <TableHead scope="col" className="w-px">
+              Action
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -222,26 +243,11 @@ function DuplicateGroupTable({
               key={row.id}
               className="grid gap-3 py-4 md:table-row md:py-0"
             >
-              <TableCell className="flex items-center justify-between p-0 md:table-cell md:p-2">
-                <span className="text-muted-foreground font-mono text-xs md:hidden">
-                  Row {row.sourceRow}
-                </span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="text-destructive hover:text-destructive size-8"
-                  aria-label={`Exclude row ${row.sourceRow} from ${destination}`}
-                  title={`Exclude row ${row.sourceRow}`}
-                  onClick={() => controller.removeDuplicateRow(row.id)}
-                >
-                  <Trash2 className="size-4" />
-                </Button>
-              </TableCell>
               <TableHead
                 scope="row"
-                className="text-muted-foreground hidden h-auto font-mono text-xs font-normal md:table-cell"
+                className="text-muted-foreground flex h-auto font-mono text-xs font-normal md:table-cell"
               >
+                <span className="md:hidden">Row </span>
                 {row.sourceRow}
               </TableHead>
               {sourceCells.map((cell) => (
@@ -257,10 +263,17 @@ function DuplicateGroupTable({
                   )}
                 </TableCell>
               ))}
+              <TableCell className="p-0 md:table-cell md:p-2">
+                <ExcludeRowButton
+                  destination={destination}
+                  sourceRow={row.sourceRow}
+                  onClick={() => controller.removeDuplicateRow(row.id)}
+                />
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
-      </Table>
+      </IssueTable>
     </div>
   );
 }
@@ -275,26 +288,14 @@ function PriceIssuesTable({
   rows: CatalogImportRow[];
 }) {
   const [values, setValues] = useState<Record<string, string>>(() =>
-    Object.fromEntries(
-      rows.map((row) => {
-        const suggestion = getBundlePriceSuggestion(row.sourcePrice);
-        return [
-          row.id,
-          suggestion === null ? row.sourcePrice : suggestion.toFixed(2),
-        ];
-      }),
-    ),
+    Object.fromEntries(rows.map((row) => [row.id, row.sourcePrice])),
   );
   const parsedRows = rows.map((row) => {
-    const suggestion = getBundlePriceSuggestion(row.sourcePrice);
     const parsed = parsePrice(values[row.id] ?? row.sourcePrice);
     return {
-      canSave:
-        parsed.valid &&
-        (suggestion === null || controller.mapping.privateNote !== null),
+      canSave: parsed.valid,
       parsed,
       row,
-      suggestion,
     };
   });
   const canSaveAll = parsedRows.every(({ canSave }) => canSave);
@@ -312,7 +313,7 @@ function PriceIssuesTable({
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button type="button" variant="outline" size="sm">
-                Remove all prices
+                Remove all invalid prices
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
@@ -349,11 +350,11 @@ function PriceIssuesTable({
             disabled={!canSaveAll}
             onClick={() =>
               controller.resolvePriceIssues(
-                parsedRows.flatMap(({ canSave, parsed, row, suggestion }) =>
+                parsedRows.flatMap(({ canSave, parsed, row }) =>
                   canSave
                     ? [
                         {
-                          preserveOriginalOffer: suggestion !== null,
+                          preserveOriginalOffer: false,
                           price: parsed.value,
                           rowId: row.id,
                         },
@@ -368,64 +369,113 @@ function PriceIssuesTable({
         </div>
       </div>
 
-      <Table
+      <IssueTable
         aria-label="Price format rows"
-        className="mt-3 min-w-0 md:min-w-[34rem]"
+        className="min-w-0 md:min-w-[34rem]"
+        containerClassName="mt-3"
       >
         <TableHeader className="hidden md:table-header-group">
           <TableRow>
-            <TableHead
-              scope="col"
-              className="bg-background sticky left-0 z-10 w-px"
-            >
-              <span className="sr-only">Actions</span>
-            </TableHead>
             <TableHead scope="col" className="w-px">
               Row
             </TableHead>
             <TableHead scope="col">Name</TableHead>
-            <TableHead scope="col">Original price</TableHead>
+            <TableHead scope="col">Invalid price</TableHead>
             <TableHead scope="col" className="w-40">
-              Price
+              New price
+            </TableHead>
+            <TableHead scope="col" className="w-px">
+              <span className="sr-only">Actions</span>
             </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {parsedRows.map(({ canSave, parsed, row, suggestion }) => (
+          {parsedRows.map(({ canSave, parsed, row }) => (
             <TableRow
               key={row.id}
-              className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-2 py-4 md:table-row md:py-0"
+              className="grid grid-cols-2 gap-x-3 gap-y-3 py-4 md:table-row md:py-0"
             >
-              <TableCell className="col-start-2 row-start-4 flex items-end gap-1 p-0 md:table-cell md:p-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="size-8"
-                  disabled={!canSave}
-                  aria-label={`Save price for row ${row.sourceRow}`}
-                  title={`Save price for row ${row.sourceRow}`}
-                  onClick={() => {
-                    if (canSave && parsed.valid) {
-                      controller.resolvePriceIssues([
-                        {
-                          preserveOriginalOffer: suggestion !== null,
-                          price: parsed.value,
-                          rowId: row.id,
-                        },
-                      ]);
+              <TableHead
+                scope="row"
+                className="text-muted-foreground col-span-2 flex h-auto items-baseline gap-2 p-0 font-mono text-xs font-normal md:table-cell md:p-2"
+              >
+                <span className="md:hidden">Row {row.sourceRow}</span>
+                <span className="hidden md:inline">{row.sourceRow}</span>
+                <span className="text-foreground font-sans text-sm font-medium md:hidden">
+                  {row.sourceTitle}
+                </span>
+              </TableHead>
+              <TableCell className="hidden p-0 font-medium md:table-cell md:p-2">
+                {row.sourceTitle}
+              </TableCell>
+              <TableCell className="text-muted-foreground min-w-0 p-0 md:table-cell md:p-2">
+                <span className="mb-1 block text-xs font-medium md:hidden">
+                  Invalid price
+                </span>
+                <span className="break-words">{row.sourcePrice}</span>
+              </TableCell>
+              <TableCell className="min-w-0 p-0 md:table-cell md:p-2">
+                <span className="text-muted-foreground mb-1 block text-xs font-medium md:hidden">
+                  New price
+                </span>
+                <InputGroup className="h-8 md:w-40">
+                  <InputGroupInput
+                    aria-label={`Correct price for row ${row.sourceRow}`}
+                    aria-invalid={!parsed.valid}
+                    aria-describedby={
+                      !parsed.valid
+                        ? `catalog-importer-price-message-${row.sourceRow}`
+                        : undefined
                     }
-                  }}
-                >
-                  <Save className="size-4" />
-                </Button>
+                    inputMode="numeric"
+                    className="h-8"
+                    value={values[row.id] ?? row.sourcePrice}
+                    onChange={(event) => {
+                      const value = event.currentTarget.value;
+                      setValues((current) => ({
+                        ...current,
+                        [row.id]: value,
+                      }));
+                    }}
+                  />
+                  <InputGroupAddon align="inline-end" className="pr-1">
+                    <InputGroupButton
+                      size="icon-xs"
+                      disabled={!canSave}
+                      aria-label={`Save price for row ${row.sourceRow}`}
+                      title={`Save price for row ${row.sourceRow}`}
+                      onClick={() => {
+                        if (canSave && parsed.valid) {
+                          controller.resolvePriceIssues([
+                            {
+                              preserveOriginalOffer: false,
+                              price: parsed.value,
+                              rowId: row.id,
+                            },
+                          ]);
+                        }
+                      }}
+                    >
+                      <Save className="size-4" />
+                    </InputGroupButton>
+                  </InputGroupAddon>
+                </InputGroup>
+                {!parsed.valid ? (
+                  <p
+                    id={`catalog-importer-price-message-${row.sourceRow}`}
+                    className="text-destructive mt-1 text-xs"
+                  >
+                    Price must be a whole number.
+                  </p>
+                ) : null}
+              </TableCell>
+              <TableCell className="col-span-2 flex flex-wrap items-center gap-1 p-0 md:table-cell md:space-x-1 md:p-2">
                 <Button
                   type="button"
                   variant="ghost"
-                  size="icon"
-                  className="size-8"
+                  size="sm"
+                  className="text-muted-foreground hover:text-foreground"
                   aria-label={`Remove price from row ${row.sourceRow}`}
-                  title={`Remove price from row ${row.sourceRow}`}
                   onClick={() =>
                     controller.resolvePriceIssues([
                       {
@@ -437,85 +487,18 @@ function PriceIssuesTable({
                   }
                 >
                   <CircleMinus className="size-4" />
+                  Remove price
                 </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="text-destructive hover:text-destructive size-8"
-                  aria-label={`Exclude row ${row.sourceRow} from ${destination}`}
-                  title={`Exclude row ${row.sourceRow} from ${destination}`}
+                <ExcludeRowButton
+                  destination={destination}
+                  sourceRow={row.sourceRow}
                   onClick={() => controller.excludeIssueRows([row.id])}
-                >
-                  <Trash2 className="size-4" />
-                </Button>
-              </TableCell>
-              <TableHead
-                scope="row"
-                className="text-muted-foreground col-span-2 h-auto p-0 font-mono text-xs font-normal md:table-cell md:p-2"
-              >
-                <span className="font-sans font-medium md:hidden">Row </span>
-                {row.sourceRow}
-              </TableHead>
-              <TableCell className="col-span-2 p-0 font-medium md:table-cell md:p-2">
-                <span className="text-muted-foreground mb-1 block text-xs font-medium md:hidden">
-                  Name
-                </span>
-                {row.sourceTitle}
-              </TableCell>
-              <TableCell className="text-muted-foreground col-span-2 p-0 md:table-cell md:p-2">
-                <span className="mb-1 block text-xs font-medium md:hidden">
-                  Original price
-                </span>
-                {row.sourcePrice}
-              </TableCell>
-              <TableCell className="col-start-1 row-start-4 p-0 md:table-cell md:p-2">
-                <span className="text-muted-foreground mb-1 block text-xs font-medium md:hidden">
-                  Price
-                </span>
-                <Input
-                  aria-label={`Correct price for row ${row.sourceRow}`}
-                  aria-invalid={!parsed.valid}
-                  aria-describedby={
-                    !parsed.valid ||
-                    (suggestion !== null &&
-                      controller.mapping.privateNote === null)
-                      ? `catalog-importer-price-message-${row.sourceRow}`
-                      : undefined
-                  }
-                  inputMode="numeric"
-                  className="h-8 w-full md:w-32"
-                  value={values[row.id] ?? row.sourcePrice}
-                  onChange={(event) => {
-                    const value = event.currentTarget.value;
-                    setValues((current) => ({
-                      ...current,
-                      [row.id]: value,
-                    }));
-                  }}
                 />
-                {!parsed.valid ? (
-                  <p
-                    id={`catalog-importer-price-message-${row.sourceRow}`}
-                    className="text-destructive mt-1 text-xs"
-                  >
-                    Price must be a whole number.
-                  </p>
-                ) : suggestion !== null &&
-                  controller.mapping.privateNote === null ? (
-                  <p
-                    id={`catalog-importer-price-message-${row.sourceRow}`}
-                    className="text-muted-foreground mt-1 text-xs"
-                  >
-                    Map a private note column to preserve the original bundle
-                    offer, or leave this row unresolved.
-                  </p>
-                ) : null}
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
-      </Table>
+      </IssueTable>
     </section>
   );
 }
@@ -570,9 +553,10 @@ function ImageUrlIssuesTable({
         ) : null}
       </div>
 
-      <Table
+      <IssueTable
         aria-label="Seller image rows"
-        className="mt-4 min-w-0 sm:min-w-[58rem]"
+        className="min-w-0 sm:min-w-[58rem]"
+        containerClassName="mt-4"
       >
         <TableHeader className="hidden sm:table-header-group">
           <TableRow>
@@ -669,7 +653,7 @@ function ImageUrlIssuesTable({
             </TableRow>
           ))}
         </TableBody>
-      </Table>
+      </IssueTable>
     </section>
   );
 }
@@ -709,7 +693,10 @@ function ImagePreviewWarningsTable({
         </Button>
       </div>
 
-      <Table aria-label="Seller image preview warnings" className="mt-4">
+      <IssueTable
+        aria-label="Seller image preview warnings"
+        containerClassName="mt-4"
+      >
         <TableHeader className="hidden sm:table-header-group">
           <TableRow>
             <TableHead scope="col" className="w-px">
@@ -747,7 +734,7 @@ function ImagePreviewWarningsTable({
             </TableRow>
           ))}
         </TableBody>
-      </Table>
+      </IssueTable>
     </section>
   );
 }
@@ -809,7 +796,10 @@ function SavedIdIssuesTable({
         </p>
       ) : null}
 
-      <Table aria-label="Invalid saved cultivar ID rows" className="mt-4">
+      <IssueTable
+        aria-label="Invalid saved cultivar ID rows"
+        containerClassName="mt-4"
+      >
         <TableHeader className="hidden sm:table-header-group">
           <TableRow>
             <TableHead scope="col" className="w-px">
@@ -861,7 +851,7 @@ function SavedIdIssuesTable({
             </TableRow>
           ))}
         </TableBody>
-      </Table>
+      </IssueTable>
     </section>
   );
 }
@@ -938,7 +928,7 @@ export function CatalogImporterIssues({
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button type="button" variant="outline" size="sm">
-              Exclude all from {destination}
+              Exclude {issueRows.length.toLocaleString()} from {destination}
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
@@ -948,7 +938,7 @@ export function CatalogImporterIssues({
                 {destination}?
               </AlertDialogTitle>
               <AlertDialogDescription>
-                These listings will be skipped. You can undo this action.
+                These listings will be skipped.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -958,14 +948,14 @@ export function CatalogImporterIssues({
                   controller.excludeIssueRows(issueRows.map((row) => row.id))
                 }
               >
-                Exclude all
+                Exclude {issueRows.length.toLocaleString()}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
       </div>
 
-      <div className="mt-5 space-y-8">
+      <div className="mt-5 space-y-6">
         {duplicateGroups.length > 0 ? (
           <section aria-labelledby="duplicate-issues-heading">
             <h3 id="duplicate-issues-heading" className="font-semibold">

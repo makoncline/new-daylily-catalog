@@ -18,6 +18,16 @@ export const metadata: Metadata = {
   },
 };
 
-export default function SignInPage() {
-  return <SignInPageClient />;
+export default async function SignInPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ returnTo?: string | string[] }>;
+}) {
+  const { returnTo } = await searchParams;
+
+  return (
+    <SignInPageClient
+      returnTo={typeof returnTo === "string" ? returnTo : undefined}
+    />
+  );
 }

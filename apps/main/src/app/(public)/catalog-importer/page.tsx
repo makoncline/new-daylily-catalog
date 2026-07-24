@@ -9,9 +9,9 @@ export const dynamic = "force-dynamic";
 
 export function generateMetadata(): Metadata {
   const baseUrl = getCanonicalBaseUrl();
-  const title = `Free Daylily Catalog Spreadsheet Cleaner | ${METADATA_CONFIG.SITE_NAME}`;
+  const title = `Daylily Catalog Import Builder | ${METADATA_CONFIG.SITE_NAME}`;
   const description =
-    "Clean a daylily spreadsheet, match registered cultivars, preview the catalog, and download a prepared copy with Daylily Catalog IDs.";
+    "Build a daylily catalog import, match registered cultivars, review spreadsheet data, and download a prepared copy with Daylily Catalog IDs.";
 
   return {
     title,
@@ -41,21 +41,18 @@ export default async function CatalogImporterPage() {
     <div className="w-full px-3 py-8 lg:px-8 lg:py-12">
       <header className="mb-6 max-w-3xl">
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-          Build your daylily catalog
+          Build a daylily catalog import
         </h1>
         <p
           data-importer-upload-copy
           className="text-muted-foreground mt-2 text-base sm:text-lg"
         >
-          Upload an XLSX or CSV file to match cultivars, preview your catalog,
-          and prepare a clean copy.
+          Upload an XLSX or CSV file to match cultivars, preview the catalog,
+          review the data, and prepare the import.
         </p>
       </header>
 
-      <CatalogImporterClient
-        membershipPriceDisplay={membershipPriceDisplay}
-        viewerState="anonymous"
-      />
+      <CatalogImporterClient membershipPriceDisplay={membershipPriceDisplay} />
     </div>
   );
 }

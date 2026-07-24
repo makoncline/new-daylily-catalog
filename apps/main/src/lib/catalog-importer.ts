@@ -189,6 +189,7 @@ export interface CatalogImportRow {
   duplicateOfSourceRow: number | null;
   existingListingDecision?: CatalogImportExistingListingDecision | null;
   id: string;
+  identityReviewed?: boolean;
   imageUrl: string;
   imagePreviewAccepted?: boolean;
   imageUrlWarning: string | null;
@@ -465,6 +466,33 @@ export function getCatalogImportMappedColumnLabel(
   return mappedField === undefined
     ? null
     : CATALOG_IMPORT_DISPLAY_HEADERS[mappedField];
+}
+
+export function getCatalogImportOrderedColumnIndexes(
+  mapping: CatalogColumnMapping,
+  columnIndexes: number[],
+) {
+  const availableColumnIndexes = new Set(columnIndexes);
+  const mappedColumnIndexes = [
+    mapping.title,
+    mapping.price,
+    mapping.description,
+    mapping.privateNote,
+    mapping.imageUrl,
+    mapping.cultivarReferenceId,
+  ].filter(
+    (columnIndex): columnIndex is number =>
+      columnIndex !== null && availableColumnIndexes.has(columnIndex),
+  );
+  const uniqueMappedColumnIndexes = [...new Set(mappedColumnIndexes)];
+  const mappedColumnIndexSet = new Set(uniqueMappedColumnIndexes);
+
+  return [
+    ...uniqueMappedColumnIndexes,
+    ...columnIndexes.filter(
+      (columnIndex) => !mappedColumnIndexSet.has(columnIndex),
+    ),
+  ];
 }
 const LEGACY_CATALOG_ENRICHMENT_HEADERS = {
   cultivarReferenceId: [

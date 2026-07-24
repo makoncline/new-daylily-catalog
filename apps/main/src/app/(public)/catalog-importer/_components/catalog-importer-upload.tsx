@@ -96,6 +96,18 @@ export function CatalogImporterUpload({
   });
 
   if (controller.parsedSpreadsheet) {
+    const hasMultipleSheets =
+      controller.parsedSpreadsheet.sheets.length > 1;
+    const needsSheetSelection = hasMultipleSheets && !controller.selectedSheet;
+    const sourceSummary = needsSheetSelection
+      ? `${controller.parsedSpreadsheet.sheets.length.toLocaleString()} sheets`
+      : controller.parsedSpreadsheet.source === "manual"
+        ? `${Math.max(
+            (controller.selectedSheet?.rows.length ?? 1) - 1,
+            0,
+          ).toLocaleString()} listings`
+        : `${(controller.selectedSheet?.rows.length ?? 0).toLocaleString()} rows`;
+
     return (
       <section
         aria-label="Uploaded spreadsheet"
@@ -110,27 +122,20 @@ export function CatalogImporterUpload({
                 : controller.parsedSpreadsheet.fileName}
             </span>
             <span className="text-muted-foreground font-normal">
-              ·{" "}
-              {controller.parsedSpreadsheet.source === "manual"
-                ? Math.max(
-                    (controller.selectedSheet?.rows.length ?? 1) - 1,
-                    0,
-                  ).toLocaleString()
-                : (
-                    controller.selectedSheet?.rows.length ?? 0
-                  ).toLocaleString()}{" "}
-              {controller.parsedSpreadsheet.source === "manual"
-                ? "listings"
-                : "rows"}
+              · {sourceSummary}
             </span>
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-1">
-          {controller.parsedSpreadsheet.sheets.length > 1 ? (
+          {hasMultipleSheets ? (
             <div className="flex items-center gap-2">
               <Select
-                value={String(controller.selectedSheetIndex)}
+                value={
+                  controller.selectedSheet
+                    ? String(controller.selectedSheetIndex)
+                    : ""
+                }
                 onValueChange={(value) => {
                   controller.configureSheet(
                     controller.parsedSpreadsheet!,
@@ -140,10 +145,10 @@ export function CatalogImporterUpload({
                 }}
               >
                 <SelectTrigger
-                  className="h-8 w-48"
+                  className="h-8 w-56"
                   aria-label="Spreadsheet sheet"
                 >
-                  <SelectValue />
+                  <SelectValue placeholder="Select a sheet" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>

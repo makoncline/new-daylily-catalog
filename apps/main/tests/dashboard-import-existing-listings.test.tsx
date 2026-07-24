@@ -1,9 +1,7 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
-import type { CatalogImporterWorkbenchController } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 import {
   DashboardImportAlreadyExistingRows,
-  DashboardImportExistingListingReview,
   type DashboardImportExistingMatchRow,
 } from "@/app/dashboard/imports/_components/dashboard-import-existing-listings";
 import type { CatalogImportRow } from "@/lib/catalog-importer";
@@ -62,63 +60,26 @@ function getMatchRow(kind: "exact" | "possible") {
   } satisfies DashboardImportExistingMatchRow;
 }
 
-describe("dashboard import existing-listing decisions", () => {
-  it("requires one explicit decision for a changed existing listing", () => {
-    const setExistingListingDecision = vi.fn();
-    const controller = {
-      setExistingListingDecision,
-    } as unknown as CatalogImporterWorkbenchController;
-
+describe("dashboard existing listings", () => {
+  it("shows existing listings without a create override", () => {
     render(
-      <DashboardImportExistingListingReview
-        completedCount={0}
-        controller={controller}
-        rows={[getMatchRow("possible")]}
-        totalCount={1}
-      />,
-    );
-
-    fireEvent.click(
-      screen.getByRole("button", { name: "Keep existing listing" }),
-    );
-    expect(setExistingListingDecision).toHaveBeenCalledWith(
-      row.id,
-      "use-existing",
-    );
-
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: "Create new listing from spreadsheet",
-      }),
-    );
-    expect(setExistingListingDecision).toHaveBeenCalledWith(row.id, "create");
-
-    expect(
-      screen.queryByRole("button", { name: "Exclude from import" }),
-    ).not.toBeInTheDocument();
-  });
-
-  it("keeps exact matches visible with only a per-row create override", () => {
-    const setExistingListingDecision = vi.fn();
-    const controller = {
-      setExistingListingDecision,
-    } as unknown as CatalogImporterWorkbenchController;
-
-    render(
-      <DashboardImportAlreadyExistingRows
-        controller={controller}
-        rows={[getMatchRow("exact")]}
-      />,
+      <DashboardImportAlreadyExistingRows rows={[getMatchRow("exact")]} />,
     );
 
     expect(
-      screen.getByText("1 listing already exists and will be skipped"),
+      screen.getByText("1 existing listing will be skipped"),
     ).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Row" })).toBeVisible();
+    expect(screen.getByRole("columnheader", { name: "Name" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "Vanguard" })).toHaveAttribute(
+      "href",
+      "/dashboard/listings?editing=listing-1",
+    );
+    expect(screen.getByText("$22.00")).toBeVisible();
+    expect(screen.getByText("Incoming description")).toBeVisible();
+    expect(screen.getByText("Holding area")).toBeVisible();
     expect(
-      screen.queryByRole("button", { name: /create all/i }),
+      screen.queryByRole("button", { name: "Create anyway" }),
     ).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Create anyway" }));
-    expect(setExistingListingDecision).toHaveBeenCalledWith(row.id, "create");
   });
 });

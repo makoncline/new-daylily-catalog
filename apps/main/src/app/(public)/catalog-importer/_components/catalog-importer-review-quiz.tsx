@@ -152,60 +152,30 @@ export function CatalogImporterReviewQuiz({
 
         <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:justify-end">
           {controller.reviewRows.length > 1 ? (
-            <>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button type="button" variant="outline" size="sm">
-                    Leave all unmatched
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>
-                      Leave {controller.reviewRows.length.toLocaleString()}{" "}
-                      listings unmatched?
-                    </AlertDialogTitle>
-                    <AlertDialogDescription>
-                      They will remain without Daylily Catalog cultivar links.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={controller.leaveAllReviewRowsUnmatched}
-                    >
-                      Leave all unmatched
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button type="button" variant="outline" size="sm">
-                    Exclude all from {destination}
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>
-                      Exclude {controller.reviewRows.length.toLocaleString()}{" "}
-                      listings from {destination}?
-                    </AlertDialogTitle>
-                    <AlertDialogDescription>
-                      These listings will be skipped.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={controller.excludeAllReviewRows}
-                    >
-                      Exclude all
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button type="button" variant="outline" size="sm">
+                  Exclude all from {destination}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    Exclude {controller.reviewRows.length.toLocaleString()}{" "}
+                    listings from {destination}?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    These listings will be skipped.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={controller.excludeAllReviewRows}>
+                    Exclude all
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           ) : null}
           {canMove ? (
             <>

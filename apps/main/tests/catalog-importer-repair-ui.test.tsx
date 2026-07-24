@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { CatalogImporterIssues } from "@/app/(public)/catalog-importer/_components/catalog-importer-issues";
+import { CatalogImporterReviewedIssues } from "@/app/(public)/catalog-importer/_components/catalog-importer-reviewed-issues";
+import { CatalogImporterReviewedRows } from "@/app/(public)/catalog-importer/_components/catalog-importer-reviewed-rows";
 import { CatalogImporterReviewQuiz } from "@/app/(public)/catalog-importer/_components/catalog-importer-review-quiz";
 import type { CatalogImporterWorkbenchController } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
 import type {
@@ -74,7 +76,6 @@ function controller(
     excludeDuplicateRows: vi.fn(),
     excludeIssueRows: vi.fn(),
     keepDuplicateRows: vi.fn(),
-    leaveAllReviewRowsUnmatched: vi.fn(),
     removeDuplicateRow: vi.fn(),
     remainingIssueCount: 1,
     resetCandidateSearch: vi.fn(),
@@ -112,6 +113,144 @@ const vanguardCandidate: CultivarMatchCandidate = {
 };
 
 describe("catalog importer repair UI", () => {
+  it("groups reviewed identity decisions and resets one row", () => {
+    const resetReviewedRow = vi.fn();
+    const linked = importRow({
+      id: "row-2",
+      identityReviewed: true,
+      linkProvenance: "user-confirmed",
+      linkState: "linked",
+      match: vanguardCandidate,
+      sourceRow: 2,
+      sourceTitle: "Vanguard",
+    });
+    const unmatched = importRow({
+      id: "row-3",
+      identityReviewed: true,
+      linkState: "intentionally-unmatched",
+      sourceRow: 3,
+      sourceTitle: "Vanguard 2",
+    });
+    const excluded = importRow({
+      id: "row-4",
+      identityReviewed: true,
+      outputState: "removed",
+      sourceRow: 4,
+      sourceTitle: "Unknown flower",
+    });
+
+    render(
+      <CatalogImporterReviewedRows
+        controller={controller([linked, unmatched, excluded], {
+          matchedRows: [linked, unmatched, excluded],
+          resetReviewedRow,
+        })}
+      />,
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "Reviewed linked 1" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "Reviewed without link 1" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "Reviewed excluded 1" }),
+    ).toBeVisible();
+    expect(screen.getByText(/Stamile · 2017/)).toBeVisible();
+    expect(screen.getByText(/7.5" bloom/)).toBeVisible();
+    const excludedSection = screen
+      .getByRole("heading", { name: "Reviewed excluded 1" })
+      .closest("section");
+    expect(excludedSection).not.toBeNull();
+    expect(
+      excludedSection!.querySelector('[data-slot="data-table-scrollable"]'),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Reset review for Vanguard 2" }),
+    );
+    expect(resetReviewedRow).toHaveBeenCalledWith("row-3");
+  });
+
+  it("shows resolved issue changes as compact spreadsheet rows", () => {
+    const undoReviewedIssueAction = vi.fn();
+    const previousUpdatedPrice = importRow({
+      id: "row-2",
+      price: null,
+      priceWarning: "Price must be a whole number.",
+      sourcePrice: "two for $30",
+      sourceRow: 2,
+      sourceTitle: "Aerial Art",
+    });
+    const previousRemovedPrice = importRow({
+      id: "row-3",
+      price: null,
+      priceWarning: "Price must be a whole number.",
+      sourcePrice: "trade",
+      sourceRow: 3,
+      sourceTitle: "Brookwood Black Kitten",
+    });
+    const previousExcluded = importRow({
+      id: "row-4",
+      sourceRow: 4,
+      sourceTitle: "Wispy Rays",
+    });
+    const updatedPrice = {
+      ...previousUpdatedPrice,
+      price: 15,
+      priceWarning: null,
+    };
+    const removedPrice = {
+      ...previousRemovedPrice,
+      priceWarning: null,
+    };
+    const excluded = {
+      ...previousExcluded,
+      outputState: "removed" as const,
+    };
+
+    render(
+      <CatalogImporterReviewedIssues
+        controller={controller([updatedPrice, removedPrice, excluded], {
+          matchedRows: [updatedPrice, removedPrice, excluded],
+          reviewedIssueActions: [
+            {
+              id: 1,
+              message: "1 price value was updated.",
+              previousRows: [previousUpdatedPrice],
+            },
+            {
+              id: 2,
+              message: "1 price value was updated.",
+              previousRows: [previousRemovedPrice],
+            },
+            {
+              id: 3,
+              message: "1 listing was excluded.",
+              previousRows: [previousExcluded],
+            },
+          ],
+          undoReviewedIssueAction,
+        })}
+      />,
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "Resolved issues 3" }),
+    ).toBeVisible();
+    expect(screen.getByText("Price updated to $15")).toBeVisible();
+    expect(screen.getByText("Price removed")).toBeVisible();
+    expect(screen.getByText("Listing excluded")).toBeVisible();
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Undo issue change for row 3",
+      }),
+    );
+    expect(undoReviewedIssueAction).toHaveBeenCalledWith(2, "row-3");
+  });
+
   it("offers group and row actions for possible duplicates", () => {
     const first = importRow({
       id: "row-2",
@@ -145,9 +284,9 @@ describe("catalog importer repair UI", () => {
     expect(
       screen.getByRole("heading", { name: "Possible duplicate listings" }),
     ).toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: "Keep all" }));
+    fireEvent.click(screen.getByRole("button", { name: "Keep 2" }));
     expect(keepDuplicateRows).toHaveBeenCalledWith(["row-2", "row-3"]);
-    fireEvent.click(screen.getByRole("button", { name: "Exclude all" }));
+    fireEvent.click(screen.getByRole("button", { name: "Exclude 2" }));
     expect(excludeDuplicateRows).toHaveBeenCalledWith(["row-2", "row-3"]);
     expect(
       screen.getByRole("button", {
@@ -195,7 +334,7 @@ describe("catalog importer repair UI", () => {
     const table = screen.getByRole("table", { name: "Price format rows" });
     expect(within(table).getAllByRole("row")).toHaveLength(3);
     fireEvent.click(
-      screen.getByRole("button", { name: "Exclude all from import" }),
+      screen.getByRole("button", { name: "Exclude 2 from import" }),
     );
     const excludeDialog = screen.getByRole("alertdialog");
     expect(
@@ -204,7 +343,7 @@ describe("catalog importer repair UI", () => {
       }),
     ).toBeVisible();
     fireEvent.click(
-      within(excludeDialog).getByRole("button", { name: "Exclude all" }),
+      within(excludeDialog).getByRole("button", { name: "Exclude 2" }),
     );
     expect(excludeIssueRows).toHaveBeenCalledWith(["row-2", "row-3"]);
     excludeIssueRows.mockClear();
@@ -224,25 +363,43 @@ describe("catalog importer repair UI", () => {
     );
     expect(excludeIssueRows).toHaveBeenCalledWith(["row-2"]);
 
-    fireEvent.click(screen.getByRole("button", { name: "Remove all prices" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Remove all invalid prices" }),
+    );
     fireEvent.click(screen.getByRole("button", { name: "Remove prices" }));
     expect(resolvePriceIssues).toHaveBeenCalledWith([
       { preserveOriginalOffer: true, price: null, rowId: "row-2" },
       { preserveOriginalOffer: true, price: null, rowId: "row-3" },
     ]);
     resolvePriceIssues.mockClear();
+    const firstPriceInput = within(table).getByRole("textbox", {
+      name: "Correct price for row 2",
+    });
     const secondPriceInput = within(table).getByRole("textbox", {
       name: "Correct price for row 3",
     });
+    expect(firstPriceInput).toHaveValue("two for $30");
+    expect(screen.getByRole("button", { name: "Save all" })).toBeDisabled();
+    fireEvent.change(secondPriceInput, { target: { value: "$" } });
+    expect(
+      within(table).getByRole("button", { name: "Save price for row 3" }),
+    ).toBeDisabled();
+    expect(screen.getAllByText("Price must be a whole number.")).toHaveLength(
+      2,
+    );
+
     fireEvent.change(secondPriceInput, {
       target: { value: "12.50" },
     });
-    expect(screen.getByText("Price must be a whole number.")).toBeVisible();
+    expect(screen.getAllByText("Price must be a whole number.")).toHaveLength(
+      2,
+    );
     expect(screen.getByRole("button", { name: "Save all" })).toBeDisabled();
+    fireEvent.change(firstPriceInput, { target: { value: "15" } });
     fireEvent.change(secondPriceInput, { target: { value: "0" } });
     fireEvent.click(screen.getByRole("button", { name: "Save all" }));
     expect(resolvePriceIssues).toHaveBeenCalledWith([
-      { preserveOriginalOffer: true, price: 15, rowId: "row-2" },
+      { preserveOriginalOffer: false, price: 15, rowId: "row-2" },
       { preserveOriginalOffer: false, price: null, rowId: "row-3" },
     ]);
   });
@@ -270,7 +427,6 @@ describe("catalog importer repair UI", () => {
     });
     const excludeAllReviewRows = vi.fn();
     const excludeReviewRow = vi.fn();
-    const leaveAllReviewRowsUnmatched = vi.fn();
     const moveReviewRow = vi.fn();
     const onFindDifferentCultivar = vi.fn();
     const skipReviewRow = vi.fn();
@@ -278,6 +434,20 @@ describe("catalog importer repair UI", () => {
       <CatalogImporterReviewQuiz
         onFindDifferentCultivar={onFindDifferentCultivar}
         controller={controller([row, nextRow], {
+          activeReviewSourceCells: [
+            {
+              column: "A",
+              label: "Name",
+              mapped: true,
+              value: row.sourceTitle,
+            },
+            {
+              column: "B",
+              label: "Price",
+              mapped: true,
+              value: "12",
+            },
+          ],
           candidateResult: {
             candidates: [vanguardCandidate],
             error: null,
@@ -287,7 +457,6 @@ describe("catalog importer repair UI", () => {
           },
           excludeAllReviewRows,
           excludeReviewRow,
-          leaveAllReviewRowsUnmatched,
           moveReviewRow,
           skipReviewRow,
         })}
@@ -303,6 +472,32 @@ describe("catalog importer repair UI", () => {
       name: "Review potential matches",
     });
     expect(review).toHaveFocus();
+    const sourceRow = within(review).getByRole("region", {
+      name: "Uploaded spreadsheet row 2",
+    });
+    const pinnedColumns = sourceRow.querySelector(
+      '[data-slot="data-table-pinned-left"]',
+    );
+    const scrollableColumns = sourceRow.querySelector(
+      '[data-slot="data-table-scrollable"]',
+    );
+    expect(pinnedColumns).not.toBeNull();
+    expect(scrollableColumns).not.toBeNull();
+    expect(
+      within(pinnedColumns as HTMLElement).getByRole("columnheader", {
+        name: "Row",
+      }),
+    ).toBeVisible();
+    expect(
+      within(pinnedColumns as HTMLElement).getByRole("columnheader", {
+        name: "Name",
+      }),
+    ).toBeVisible();
+    expect(
+      within(scrollableColumns as HTMLElement).getByRole("columnheader", {
+        name: "Price",
+      }),
+    ).toBeVisible();
     const previous = within(review).getByRole("button", {
       name: "Previous unmatched name",
     });
@@ -345,17 +540,6 @@ describe("catalog importer repair UI", () => {
     fireEvent.keyDown(review, { key: "e" });
     expect(excludeReviewRow).toHaveBeenCalledOnce();
     expect(within(review).queryByRole("textbox")).not.toBeInTheDocument();
-    fireEvent.click(
-      within(review).getByRole("button", { name: "Leave all unmatched" }),
-    );
-    const leaveAllDialog = screen.getByRole("alertdialog");
-    fireEvent.click(
-      within(leaveAllDialog).getByRole("button", {
-        name: "Leave all unmatched",
-      }),
-    );
-    expect(leaveAllReviewRowsUnmatched).toHaveBeenCalledOnce();
-
     fireEvent.click(
       within(review).getByRole("button", {
         name: "Exclude all from workbook",

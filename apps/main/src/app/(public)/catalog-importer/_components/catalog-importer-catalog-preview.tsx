@@ -28,6 +28,7 @@ import {
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
+  EmptyTitle,
 } from "@/components/ui/empty";
 import {
   Sheet,
@@ -52,7 +53,7 @@ import { defaultTableConfig } from "@/lib/table-config";
 import { cn, formatPrice } from "@/lib/utils";
 import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
 
-const PREVIEW_PAGE_SIZE = 20;
+const PREVIEW_PAGE_SIZE = 18;
 
 interface CatalogImporterPreviewListing extends CatalogSearchListingRow {
   importRow: CatalogImportRow;
@@ -142,8 +143,8 @@ function CatalogImporterListingCard({
           <OptimizedImage
             key={image.url}
             image={image}
-            variant="thumb"
-            size="thumbnail"
+            variant="display"
+            size="full"
             alt={`${match.displayName} — ${imageLabel ?? "Cultivar photo"}`}
             onImageError={onImageError}
           />
@@ -338,6 +339,43 @@ export function CatalogImporterCatalogPreview({
     listingArea.scrollIntoView({ behavior, block: "start" });
   }
 
+  if (previewListings.length === 0) {
+    return (
+      <section
+        id="catalog-importer-preview"
+        aria-labelledby="catalog-importer-preview-heading"
+        className="!scroll-mt-16"
+      >
+        <Empty className="min-h-0 items-start border-0 p-0 text-left">
+          <EmptyHeader className="items-start text-left">
+            <EmptyTitle id="catalog-importer-preview-heading">
+              No linked cultivars to preview
+            </EmptyTitle>
+            <EmptyDescription>
+              {controller.reviewRows.length > 0
+                ? `${controller.reviewRows.length.toLocaleString()} ${
+                    controller.reviewRows.length === 1
+                      ? "listing needs"
+                      : "listings need"
+                  } a cultivar decision before registered details and photos can be shown.`
+                : intentionallyUnmatchedCount > 0
+                  ? `${intentionallyUnmatchedCount.toLocaleString()} ${
+                      intentionallyUnmatchedCount === 1
+                        ? "listing is"
+                        : "listings are"
+                    } saved without ${
+                      intentionallyUnmatchedCount === 1
+                        ? "a cultivar link"
+                        : "cultivar links"
+                    }.`
+                  : "No included listings have a cultivar link."}
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      </section>
+    );
+  }
+
   return (
     <section
       id="catalog-importer-preview"
@@ -393,18 +431,11 @@ export function CatalogImporterCatalogPreview({
         ) : null}
       </div>
 
-      <div
-        className={
-          !showSearchPanel
-            ? undefined
-            : panelCollapsed
-              ? "grid gap-4 lg:grid-cols-[auto_minmax(0,1fr)]"
-              : "grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]"
-        }
-      >
+      <div className="space-y-4">
         {showSearchPanel ? (
-          <div className="lg:sticky lg:top-24 lg:self-start">
+          <div>
             <PublicCatalogSearchAdvancedPanel
+              advancedSectionsColumns={3}
               table={table}
               listOptions={PREVIEW_LIST_OPTIONS}
               facetOptions={facetOptions}
@@ -448,7 +479,10 @@ export function CatalogImporterCatalogPreview({
               }
               className="bg-muted/10 max-h-[52rem] scroll-mt-24 overflow-y-auto overscroll-y-auto rounded-lg border p-3 pr-1 outline-none [scrollbar-gutter:stable] lg:max-h-[69rem] lg:pr-2 xl:max-h-[62rem]"
             >
-              <div className="grid grid-cols-2 gap-3">
+              <div
+                className="grid grid-cols-2 gap-3 lg:grid-cols-3"
+                data-testid="catalog-preview-listings-grid"
+              >
                 {visiblePreviewRows.map((row) => {
                   return (
                     <div
@@ -506,8 +540,9 @@ export function CatalogImporterCatalogPreview({
               <EmptyMedia variant="icon">
                 <ImageIcon aria-hidden="true" />
               </EmptyMedia>
+              <EmptyTitle>No listings match these filters</EmptyTitle>
               <EmptyDescription>
-                No linked cultivars match these filters.
+                Clear the current filters to see the linked cultivars.
               </EmptyDescription>
             </EmptyHeader>
             <Button

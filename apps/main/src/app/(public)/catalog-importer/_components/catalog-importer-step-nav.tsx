@@ -1,5 +1,6 @@
 "use client";
 
+import { CircleCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CatalogImporterWorkbenchController } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
 
@@ -22,7 +23,14 @@ export function CatalogImporterStepNav({
 }) {
   const hasSource = controller.parsedSpreadsheet !== null;
   const hasResults = controller.matchedRows !== null;
+  const reviewComplete =
+    controller.reviewProgressTotal > 0 &&
+    controller.completedReviewCount >= controller.reviewProgressTotal;
+  const issuesComplete =
+    controller.issueProgressTotal > 0 &&
+    controller.completedIssueCount >= controller.issueProgressTotal;
   const allSteps: Array<{
+    complete?: boolean;
     enabled: boolean;
     id: CatalogImporterStep;
     label: string;
@@ -33,16 +41,20 @@ export function CatalogImporterStepNav({
     {
       enabled: hasResults && controller.reviewProgressTotal > 0,
       id: "review",
-      label:
-        controller.reviewProgressTotal > 0
+      complete: reviewComplete,
+      label: reviewComplete
+        ? "Review"
+        : controller.reviewProgressTotal > 0
           ? `Review ${controller.completedReviewCount}/${controller.reviewProgressTotal}`
           : "Review",
     },
     {
       enabled: hasResults && controller.issueProgressTotal > 0,
       id: "issues",
-      label:
-        controller.issueProgressTotal > 0
+      complete: issuesComplete,
+      label: issuesComplete
+        ? "Issues"
+        : controller.issueProgressTotal > 0
           ? `Issues ${controller.completedIssueCount}/${controller.issueProgressTotal}`
           : "Issues",
     },
@@ -67,7 +79,7 @@ export function CatalogImporterStepNav({
             disabled={!step.enabled}
             aria-current={activeStep === step.id ? "step" : undefined}
             className={cn(
-              "relative py-3 text-sm font-medium whitespace-nowrap transition-colors",
+              "relative flex items-center gap-1.5 py-3 text-sm font-medium whitespace-nowrap transition-colors",
               activeStep === step.id
                 ? "text-foreground after:bg-primary after:absolute after:inset-x-0 after:bottom-0 after:h-0.5"
                 : "text-muted-foreground hover:text-foreground",
@@ -77,6 +89,12 @@ export function CatalogImporterStepNav({
             onClick={() => step.enabled && onStepChange(step.id)}
           >
             {step.label}
+            {step.complete ? (
+              <>
+                <CircleCheck aria-hidden="true" className="size-4" />
+                <span className="sr-only"> complete</span>
+              </>
+            ) : null}
           </button>
         ))}
       </div>

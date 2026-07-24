@@ -25,13 +25,11 @@ vi.mock(
   () => ({
     CatalogImporterClient: ({
       membershipStarted,
-      viewerState,
     }: {
       membershipStarted: boolean;
-      viewerState: string;
     }) => (
       <div>
-        Spreadsheet tools · {viewerState} ·{" "}
+        Spreadsheet tools ·{" "}
         {membershipStarted ? "Trial started" : "No return state"}
       </div>
     ),
@@ -46,11 +44,11 @@ describe("catalog importer quiet launch", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: "Build your daylily catalog",
+        name: "Build a daylily catalog import",
       }),
     ).toBeVisible();
     expect(
-      screen.getByText(/Spreadsheet tools · anonymous · No return state/),
+      screen.getByText(/Spreadsheet tools · No return state/),
     ).toBeVisible();
     expect(generateMetadata().robots).toEqual({
       follow: false,

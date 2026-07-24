@@ -47,6 +47,7 @@ export interface PublicCatalogSearchFacetOptions {
 export interface PublicCatalogSearchAdvancedPanelProps<
   TData = PublicCatalogListing,
 > {
+  advancedSectionsColumns?: 1 | 3;
   table: Table<TData>;
   listOptions: PublicCatalogSearchFacetOption[];
   facetOptions: PublicCatalogSearchFacetOptions;

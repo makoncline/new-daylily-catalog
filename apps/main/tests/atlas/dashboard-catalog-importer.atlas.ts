@@ -112,6 +112,10 @@ async function expectNoPageOverflow(page: Page) {
 }
 
 async function prepareListings(page: Page, csv = sampleCsv()) {
+  await page.getByRole("link", { name: "Build import" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Build a daylily catalog import" }),
+  ).toBeVisible();
   await page.locator('input[type="file"]').setInputFiles({
     name: "dashboard-import.csv",
     mimeType: "text/csv",
@@ -119,71 +123,59 @@ async function prepareListings(page: Page, csv = sampleCsv()) {
   });
   await page.getByRole("button", { name: "Build catalog preview" }).click();
   await expect(
-    page.getByRole("heading", { name: /listings are ready to create/ }),
+    page.getByRole("heading", { name: "Your catalog preview" }),
+  ).toBeVisible({ timeout: 30_000 });
+  await page.getByRole("button", { name: "Download", exact: true }).click();
+  await expect(
+    page.getByRole("heading", {
+      name: /Your (current )?import is ready/,
+    }),
+  ).toBeVisible({ timeout: 30_000 });
+  await page.getByRole("link", { name: "Continue to import" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Import catalog" }),
   ).toBeVisible({ timeout: 30_000 });
 }
 
 test("Dashboard importer start", async ({ page }) => {
   await openDashboardImporter(page, desktop);
+  await expect(page.getByRole("link", { name: "Build import" })).toBeVisible();
   await captureAtlasState(page, "dashboard-importer-start");
 });
 
 test("Dashboard importer ready", async ({ page }) => {
   await openDashboardImporter(page, desktop);
   await prepareListings(page);
-  await captureAtlasState(page, "dashboard-importer-ready");
-});
-
-test("Dashboard importer row editor", async ({ page }) => {
-  await openDashboardImporter(page, desktop);
-  await prepareListings(page);
-  await page.getByRole("button", { name: /Edit / }).first().click();
   await expect(
-    page.getByRole("dialog", { name: "Edit import row" }),
+    page.getByRole("heading", { name: "3 listings can be imported" }),
   ).toBeVisible();
-  await captureAtlasState(page, "dashboard-importer-row-editor");
+  await captureAtlasState(page, "dashboard-importer-ready");
 });
 
 test("Dashboard importer mobile ready", async ({ page }) => {
   await openDashboardImporter(page, mobile);
   await prepareListings(page);
-  await expect(page.getByRole("button", { name: /Edit / })).toHaveCount(3);
+  await expect(
+    page.getByRole("heading", { name: "3 listings can be imported" }),
+  ).toBeVisible();
   await expectNoPageOverflow(page);
   await captureAtlasState(page, "dashboard-importer-mobile-ready");
 });
 
-test("Dashboard importer mobile row editor", async ({ page }) => {
-  await openDashboardImporter(page, mobile);
-  await prepareListings(page);
-  await page.getByRole("button", { name: /Edit / }).first().click();
-  await expect(
-    page.getByRole("dialog", { name: "Edit import row" }),
-  ).toBeVisible();
-  await expectNoPageOverflow(page);
-  await captureAtlasState(page, "dashboard-importer-mobile-row-editor");
-});
-
-test("Dashboard importer cultivar review", async ({ page }) => {
+test("Dashboard importer excludes unreviewed listings", async ({ page }) => {
   await openDashboardImporter(page, desktop);
   await prepareListings(page, reviewCsv());
-  await page
-    .getByRole("button", { name: "Continue to cultivar review" })
-    .click();
-  await expect(
-    page.getByRole("heading", { name: "Review potential matches" }),
-  ).toBeVisible();
+  await expect(page.getByText("1 listing has not been reviewed")).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Continue to import" }),
   ).toBeDisabled();
   await captureAtlasState(page, "dashboard-importer-review");
 });
 
-test("Dashboard importer mobile cultivar review", async ({ page }) => {
+test("Dashboard importer mobile unreviewed listings", async ({ page }) => {
   await openDashboardImporter(page, mobile);
   await prepareListings(page, reviewCsv());
-  await page
-    .getByRole("button", { name: "Continue to cultivar review" })
-    .click();
+  await expect(page.getByText("1 listing has not been reviewed")).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Continue to import" }),
   ).toBeDisabled();
@@ -191,71 +183,45 @@ test("Dashboard importer mobile cultivar review", async ({ page }) => {
   await captureAtlasState(page, "dashboard-importer-mobile-review");
 });
 
-test("Dashboard importer data issues", async ({ page }) => {
+test("Dashboard importer excludes unresolved issues", async ({ page }) => {
   await openDashboardImporter(page, desktop);
   await prepareListings(page, issuesCsv());
-  await page.getByRole("button", { name: "Continue to data issues" }).click();
   await expect(
-    page.getByRole("region", { name: "Review spreadsheet data" }),
+    page.getByText("2 listings have unresolved issues"),
   ).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Continue to import" }),
-  ).toBeDisabled();
   await captureAtlasState(page, "dashboard-importer-issues");
 });
 
-test("Dashboard importer mobile data issues", async ({ page }) => {
+test("Dashboard importer mobile unresolved issues", async ({ page }) => {
   await openDashboardImporter(page, mobile);
   await prepareListings(page, issuesCsv());
-  await page.getByRole("button", { name: "Continue to data issues" }).click();
   await expect(
-    page.getByRole("button", { name: "Continue to import" }),
-  ).toBeDisabled();
+    page.getByText("2 listings have unresolved issues"),
+  ).toBeVisible();
   await expectNoPageOverflow(page);
   await captureAtlasState(page, "dashboard-importer-mobile-issues");
 });
 
-test("Dashboard importer possible existing listing", async ({ page }) => {
+test("Dashboard importer skips existing listings", async ({ page }) => {
   await openDashboardImporter(page, desktop);
   await prepareListings(page, existingListingCsv());
-  await page
-    .getByRole("button", { name: "Continue to existing listings" })
-    .click();
   await expect(
-    page.getByRole("heading", {
-      name: "Decide how to handle existing listings",
-    }),
+    page.getByText("1 existing listing will be skipped"),
   ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Create anyway" })).toHaveCount(
+    0,
+  );
   await captureAtlasState(page, "dashboard-importer-existing");
 });
 
 test("Dashboard importer mobile existing listing", async ({ page }) => {
   await openDashboardImporter(page, mobile);
   await prepareListings(page, existingListingCsv());
-  await page
-    .getByRole("button", { name: "Continue to existing listings" })
-    .click();
+  await expect(
+    page.getByText("1 existing listing will be skipped"),
+  ).toBeVisible();
   await expectNoPageOverflow(page);
   await captureAtlasState(page, "dashboard-importer-mobile-existing");
-});
-
-test("Dashboard importer exact existing listing", async ({ page }) => {
-  await openDashboardImporter(page, desktop);
-  await prepareListings(
-    page,
-    existingListingCsv({
-      description: "Bed P3",
-      price: "18.00",
-      privateNote:
-        "myCost: '10', from: '2018 Spring Hattiesburg Dayilily Meeting', ",
-    }),
-  );
-  await expect(
-    page.getByRole("heading", {
-      name: "1 listing already exists and will be skipped",
-    }),
-  ).toBeVisible();
-  await captureAtlasState(page, "dashboard-importer-already-exists");
 });
 
 test("Dashboard importer confirmation", async ({ page }) => {
@@ -266,26 +232,6 @@ test("Dashboard importer confirmation", async ({ page }) => {
     page.getByRole("heading", { name: "Create 3 listings?" }),
   ).toBeVisible();
   await captureAtlasState(page, "dashboard-importer-confirm");
-});
-
-test("Dashboard importer all listings already exist", async ({ page }) => {
-  await openDashboardImporter(page, desktop);
-  await prepareListings(
-    page,
-    existingListingCsv({
-      description: "Bed P3",
-      price: "18.00",
-      privateNote:
-        "myCost: '10', from: '2018 Spring Hattiesburg Dayilily Meeting', ",
-    }),
-  );
-  await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await expect(
-    page.getByRole("heading", {
-      name: "Everything in this spreadsheet is already in your catalog",
-    }),
-  ).toBeVisible();
-  await captureAtlasState(page, "dashboard-importer-all-existing");
 });
 
 test("Dashboard importer complete", async ({ page }) => {

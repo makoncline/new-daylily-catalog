@@ -1,19 +1,20 @@
 "use client";
 
 import { Fragment, useRef, useState } from "react";
-import { ImageOff, Plus, Search, Trash2 } from "lucide-react";
+import { ImageOff, ListPlus, Plus, Search, Trash2 } from "lucide-react";
+import { useDebouncedCallback } from "use-debounce";
 import { OptimizedImage } from "@/components/optimized-image";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
   EmptyDescription,
   EmptyHeader,
+  EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
 import {
   InputGroup,
   InputGroupAddon,
-  InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group";
 import {
@@ -28,6 +29,7 @@ import {
 } from "@/components/ui/item";
 import { Spinner } from "@/components/ui/spinner";
 import type { CatalogImporterWorkbenchController } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
+import { CatalogImporterCultivarSummary } from "@/app/(public)/catalog-importer/_components/catalog-importer-cultivar-summary";
 import { getCultivarImage } from "@/app/(public)/catalog-importer/_lib/catalog-importer-presentation";
 import type { CultivarMatchCandidate } from "@/lib/catalog-importer";
 import { requestCultivarMatches } from "@/lib/catalog-importer-match-client";
@@ -42,13 +44,19 @@ export function CatalogImporterManualTable({
   const [hasSearched, setHasSearched] = useState(false);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [selectedCultivars, setSelectedCultivars] = useState<
+    Map<string, CultivarMatchCandidate>
+  >(() => new Map());
   const searchRequestId = useRef(0);
   const rows = controller.selectedSheet?.rows.slice(1) ?? [];
   const remaining = Math.max(0, 10 - rows.length);
 
-  const searchCultivars = async () => {
-    const value = query.trim();
-    if (!value) return;
+  const searchCultivars = async (searchQuery: string) => {
+    const value = searchQuery.trim();
+    if (value.length < 2) {
+      setSearching(false);
+      return;
+    }
     const requestId = ++searchRequestId.current;
     setSearching(true);
     setHasSearched(false);
@@ -72,8 +80,20 @@ export function CatalogImporterManualTable({
       }
     }
   };
+  const debouncedSearchCultivars = useDebouncedCallback(
+    (searchQuery: string) => {
+      void searchCultivars(searchQuery);
+    },
+    300,
+  );
 
   const addCandidate = (candidate: CultivarMatchCandidate) => {
+    debouncedSearchCultivars.cancel();
+    setSelectedCultivars((current) => {
+      const next = new Map(current);
+      next.set(candidate.cultivarReferenceId, candidate);
+      return next;
+    });
     controller.addManualCatalogRow({
       cultivarReferenceId: candidate.cultivarReferenceId,
       name: candidate.displayName,
@@ -100,43 +120,36 @@ export function CatalogImporterManualTable({
 
       {remaining > 0 ? (
         <div className="max-w-3xl border-y py-4">
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              void searchCultivars();
-            }}
-          >
-            <InputGroup>
-              <InputGroupInput
-                value={query}
-                onChange={(event) => {
-                  searchRequestId.current += 1;
-                  setQuery(event.target.value);
-                  setCandidates([]);
-                  setHasSearched(false);
-                  setSearching(false);
-                  setSearchError(null);
-                }}
-                placeholder="Search cultivar name"
-                aria-label="Search cultivar name"
-              />
-              <InputGroupAddon align="inline-end">
-                <InputGroupButton
-                  type="submit"
-                  variant="default"
-                  size="sm"
-                  disabled={searching || !query.trim()}
-                >
-                  {searching ? (
-                    <Spinner data-icon="inline-start" />
-                  ) : (
-                    <Search data-icon="inline-start" />
-                  )}
-                  Search
-                </InputGroupButton>
-              </InputGroupAddon>
-            </InputGroup>
-          </form>
+          <InputGroup>
+            <InputGroupInput
+              value={query}
+              onChange={(event) => {
+                const value = event.target.value;
+                debouncedSearchCultivars.cancel();
+                searchRequestId.current += 1;
+                setQuery(value);
+                setCandidates([]);
+                setHasSearched(false);
+                setSearchError(null);
+                setSearching(value.trim().length >= 2);
+                if (value.trim().length >= 2) {
+                  debouncedSearchCultivars(value);
+                }
+              }}
+              placeholder="Search cultivar name"
+              aria-label="Search cultivar name"
+            />
+            <InputGroupAddon align="inline-end" aria-live="polite">
+              {searching ? (
+                <>
+                  <Spinner />
+                  <span className="sr-only">Searching cultivars</span>
+                </>
+              ) : (
+                <Search aria-hidden="true" />
+              )}
+            </InputGroupAddon>
+          </InputGroup>
 
           {searchError ? (
             <p className="text-destructive mt-3 text-sm">{searchError}</p>
@@ -208,13 +221,14 @@ export function CatalogImporterManualTable({
               size="sm"
               className="mt-2"
               onClick={() => {
+                debouncedSearchCultivars.cancel();
                 controller.addManualCatalogRow({ name: query.trim() });
                 setQuery("");
                 setCandidates([]);
                 setHasSearched(false);
               }}
             >
-              <Plus className="size-4" />
+              <Plus data-icon="inline-start" />
               Add “{query.trim()}” without a cultivar link
             </Button>
           ) : null}
@@ -225,37 +239,45 @@ export function CatalogImporterManualTable({
         </p>
       )}
 
-      <div className="rounded-md border">
-        <table className="w-full border-collapse text-sm">
-          <thead className="bg-muted/40">
-            <tr>
-              <th className="w-10 border-r border-b px-2 py-2 text-left font-medium">
-                #
-              </th>
-              <th className="border-r border-b px-3 py-2 text-left font-medium">
-                Name
-              </th>
-              <th className="w-12 border-b px-2 py-2">
-                <span className="sr-only">Actions</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 ? (
+      {rows.length === 0 ? (
+        <Empty className="border">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <ListPlus aria-hidden="true" />
+            </EmptyMedia>
+            <EmptyTitle>No listings added</EmptyTitle>
+            <EmptyDescription>
+              Search above to add your first listing.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      ) : (
+        <div className="rounded-md border">
+          <table className="w-full border-collapse text-sm">
+            <thead className="bg-muted/40">
               <tr>
-                <td colSpan={3} className="p-0">
-                  <Empty className="py-8">
-                    <EmptyHeader>
-                      <EmptyDescription>
-                        Search above to add your first listing.
-                      </EmptyDescription>
-                    </EmptyHeader>
-                  </Empty>
-                </td>
+                <th className="w-10 border-r border-b px-2 py-2 text-left font-medium">
+                  #
+                </th>
+                <th className="border-r border-b px-3 py-2 text-left font-medium">
+                  Cultivar
+                </th>
+                <th className="w-12 border-b px-2 py-2">
+                  <span className="sr-only">Actions</span>
+                </th>
               </tr>
-            ) : (
-              rows.map((row, dataIndex) => {
+            </thead>
+            <tbody>
+              {rows.map((row, dataIndex) => {
                 const rowIndex = dataIndex + 1;
+                const cultivarReferenceId = String(row[4] ?? "");
+                const selectedCultivar =
+                  selectedCultivars.get(cultivarReferenceId) ??
+                  controller.matchedRows?.find(
+                    (matchedRow) =>
+                      matchedRow.match?.cultivarReferenceId ===
+                      cultivarReferenceId,
+                  )?.match;
                 return (
                   <tr key={rowIndex}>
                     <th
@@ -264,8 +286,16 @@ export function CatalogImporterManualTable({
                     >
                       {rowIndex}
                     </th>
-                    <td className="border-r border-b px-3 py-2 font-medium">
-                      {String(row[0] ?? "")}
+                    <td className="border-r border-b px-3 py-2">
+                      {selectedCultivar ? (
+                        <CatalogImporterCultivarSummary
+                          candidate={selectedCultivar}
+                        />
+                      ) : (
+                        <div className="flex min-h-16 items-center font-medium">
+                          {String(row[0] ?? "")}
+                        </div>
+                      )}
                     </td>
                     <td className="border-b p-1 text-center">
                       <Button
@@ -278,16 +308,16 @@ export function CatalogImporterManualTable({
                           controller.removeManualCatalogRow(rowIndex)
                         }
                       >
-                        <Trash2 className="size-4" />
+                        <Trash2 data-icon="inline-start" />
                       </Button>
                     </td>
                   </tr>
                 );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
       <p className="text-muted-foreground text-xs tabular-nums">
         {rows.length}/10 listings
       </p>

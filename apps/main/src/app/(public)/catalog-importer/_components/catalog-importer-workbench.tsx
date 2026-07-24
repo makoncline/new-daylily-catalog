@@ -65,7 +65,9 @@ export function CatalogImporterWorkbench({
   return (
     <div
       id="catalog-importer-workbench"
-      data-workbook-active={controller.selectedSheet ? "true" : undefined}
+      data-workbook-active={
+        controller.parsedSpreadsheet ? "true" : undefined
+      }
     >
       <div className="space-y-4">
         <CatalogImporterStepNav
@@ -108,7 +110,7 @@ export function CatalogImporterWorkbench({
           </Alert>
         ) : null}
 
-        {activeStep === "prepare" && controller.selectedSheet ? (
+        {activeStep === "prepare" && controller.parsedSpreadsheet ? (
           <div
             id="catalog-importer-step-prepare"
             className="!scroll-mt-16 space-y-6 pt-2"
@@ -118,31 +120,33 @@ export function CatalogImporterWorkbench({
               onClear={reset}
               onEditMapping={undefined}
             />
-            {controller.parsedSpreadsheet?.source === "manual" ? (
-              <>
-                <CatalogImporterManualTable controller={controller} />
-                <div className="max-w-xl">
-                  <Button
-                    type="button"
-                    className="w-full"
-                    disabled={
-                      manualRowCount === 0 ||
-                      controller.processingStage !== null
-                    }
-                    onClick={() => void buildCatalog()}
-                  >
-                    {controller.processingStage
-                      ? "Building catalog preview…"
-                      : "Build catalog preview"}
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <CatalogImporterMapping
-                controller={controller}
-                onSubmit={() => void buildCatalog()}
-              />
-            )}
+            {controller.selectedSheet ? (
+              controller.parsedSpreadsheet.source === "manual" ? (
+                <>
+                  <CatalogImporterManualTable controller={controller} />
+                  <div className="max-w-xl">
+                    <Button
+                      type="button"
+                      className="w-full"
+                      disabled={
+                        manualRowCount === 0 ||
+                        controller.processingStage !== null
+                      }
+                      onClick={() => void buildCatalog()}
+                    >
+                      {controller.processingStage
+                        ? "Building catalog preview…"
+                        : "Build catalog preview"}
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <CatalogImporterMapping
+                  controller={controller}
+                  onSubmit={() => void buildCatalog()}
+                />
+              )
+            ) : null}
           </div>
         ) : null}
 
