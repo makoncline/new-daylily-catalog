@@ -98,7 +98,7 @@ export type AnalysisView =
   | "year";
 
 interface AnalysisFacet {
-  chart: "cloud" | "distribution" | "donut" | "ranked";
+  chart: "distribution" | "donut" | "ranked";
   filterId: CatalogImporterInsightFilter["id"];
   icon: LucideIcon;
   label: string;
@@ -117,18 +117,6 @@ interface InsightChartDatum {
   filterValue?: CatalogImporterInsightFilter["value"];
   label: string;
 }
-
-interface WordCloudPlacement extends InsightChartDatum {
-  fontSize: number;
-  height: number;
-  width: number;
-  x: number;
-  y: number;
-}
-
-const WORD_CLOUD_WIDTH = 1_000;
-const WORD_CLOUD_HEIGHT = 340;
-const WORD_CLOUD_PADDING = 8;
 
 const INSIGHT_CHART_CONFIG = {
   count: {
@@ -192,7 +180,7 @@ function getBloomHabitValues(match: CultivarMatchCandidate) {
 
 const ANALYSIS_FACETS: AnalysisFacet[] = [
   {
-    chart: "cloud",
+    chart: "ranked",
     filterId: "hybridizer",
     icon: Users,
     label: "By hybridizer",
@@ -746,148 +734,6 @@ function DistributionInsightChart({
   );
 }
 
-function estimateWordWidth(label: string, fontSize: number) {
-  return [...label].reduce((width, character) => {
-    if (character === " ") return width + fontSize * 0.32;
-    if (/[ilI1.'-]/.test(character)) return width + fontSize * 0.3;
-    if (/[mwMW@]/.test(character)) return width + fontSize * 0.82;
-    if (/[A-Z]/.test(character)) return width + fontSize * 0.64;
-    return width + fontSize * 0.53;
-  }, 0);
-}
-
-function hashWord(label: string) {
-  return [...label].reduce(
-    (hash, character) => (hash * 31 + character.charCodeAt(0)) >>> 0,
-    0,
-  );
-}
-
-function placementsOverlap(
-  candidate: WordCloudPlacement,
-  placed: WordCloudPlacement[],
-) {
-  return placed.some(
-    (item) =>
-      Math.abs(candidate.x - item.x) <
-        (candidate.width + item.width) / 2 + WORD_CLOUD_PADDING &&
-      Math.abs(candidate.y - item.y) <
-        (candidate.height + item.height) / 2 + WORD_CLOUD_PADDING,
-  );
-}
-
-function getWordCloudLayout(data: InsightChartDatum[]) {
-  const maximum = Math.max(...data.map((item) => item.count));
-  const minimum = Math.min(...data.map((item) => item.count));
-  const range = Math.max(maximum - minimum, 1);
-  const placed: WordCloudPlacement[] = [];
-
-  for (const [index, item] of data.entries()) {
-    const prominence = (item.count - minimum) / range;
-    const idealFontSize = 25 + Math.sqrt(prominence) * 39;
-    const startAngle = ((hashWord(item.label) % 360) * Math.PI) / 180;
-    let placement: WordCloudPlacement | null = null;
-
-    for (const scale of [1, 0.92, 0.84, 0.76]) {
-      const fontSize = idealFontSize * scale;
-      const width = estimateWordWidth(item.label, fontSize);
-      const height = fontSize * 1.05;
-
-      for (let step = 0; step < 2_400; step += 1) {
-        const angle = startAngle + step * 0.19;
-        const radius = index === 0 ? 0 : 5 + step * 0.55;
-        const candidate: WordCloudPlacement = {
-          ...item,
-          fontSize,
-          height,
-          width,
-          x: WORD_CLOUD_WIDTH / 2 + Math.cos(angle) * radius,
-          y: WORD_CLOUD_HEIGHT / 2 + Math.sin(angle) * radius * 0.48,
-        };
-        const withinBounds =
-          candidate.x - width / 2 >= WORD_CLOUD_PADDING &&
-          candidate.x + width / 2 <= WORD_CLOUD_WIDTH - WORD_CLOUD_PADDING &&
-          candidate.y - height / 2 >= WORD_CLOUD_PADDING &&
-          candidate.y + height / 2 <= WORD_CLOUD_HEIGHT - WORD_CLOUD_PADDING;
-
-        if (withinBounds && !placementsOverlap(candidate, placed)) {
-          placement = candidate;
-          break;
-        }
-      }
-
-      if (placement) break;
-    }
-
-    if (placement) placed.push(placement);
-  }
-
-  return placed;
-}
-
-function WordCloudInsightChart({
-  data,
-  onSelect,
-  title,
-}: {
-  data: InsightChartDatum[];
-  onSelect: (item: InsightChartDatum) => void;
-  title: string;
-}) {
-  const layout = useMemo(() => getWordCloudLayout(data), [data]);
-
-  return (
-    <div className="max-w-5xl min-w-0">
-      <svg
-        aria-label={`${title} word cloud`}
-        className="h-auto max-h-80 min-h-56 w-full overflow-visible"
-        preserveAspectRatio="xMidYMid meet"
-        role="group"
-        viewBox={`0 0 ${WORD_CLOUD_WIDTH} ${WORD_CLOUD_HEIGHT}`}
-      >
-        {layout.map((item, index) => (
-          <g
-            aria-label={`${item.label}, ${formatChartCount(item.count)}`}
-            className="group cursor-pointer outline-none"
-            key={item.label}
-            onClick={() => onSelect(item)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                onSelect(item);
-              }
-            }}
-            role="button"
-            tabIndex={0}
-            transform={`translate(${item.x} ${item.y})`}
-          >
-            <title>{`${item.label}: ${formatChartCount(item.count)}`}</title>
-            <rect
-              className="group-focus-visible:fill-accent fill-transparent"
-              height={item.height + WORD_CLOUD_PADDING}
-              rx={6}
-              width={item.width + WORD_CLOUD_PADDING * 2}
-              x={-item.width / 2 - WORD_CLOUD_PADDING}
-              y={-item.height / 2 - WORD_CLOUD_PADDING / 2}
-            />
-            <text
-              className="fill-primary group-focus-visible:fill-accent-foreground select-none"
-              dominantBaseline="central"
-              fontSize={item.fontSize}
-              fontWeight={index < 5 ? 700 : 600}
-              opacity={Math.max(0.68, 1 - index * 0.018)}
-              textAnchor="middle"
-            >
-              {item.label}
-            </text>
-          </g>
-        ))}
-      </svg>
-      <InsightChartTable data={data} title={title} />
-    </div>
-  );
-}
-
 function DonutInsightChart({
   data,
   onSelect,
@@ -1008,16 +854,6 @@ function InsightChart({
   if (facet.chart === "distribution") {
     return (
       <DistributionInsightChart
-        data={data}
-        onSelect={onSelect}
-        title={facet.title}
-      />
-    );
-  }
-
-  if (facet.chart === "cloud") {
-    return (
-      <WordCloudInsightChart
         data={data}
         onSelect={onSelect}
         title={facet.title}

@@ -9,12 +9,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import type { ColumnFiltersState, OnChangeFn } from "@tanstack/react-table";
-import {
-  ArrowRight,
-  CheckCircle2,
-  CircleAlert,
-  Sparkles,
-} from "lucide-react";
+import { ArrowRight, CheckCircle2, CircleAlert, Sparkles } from "lucide-react";
 import { SellerIntentLink } from "@/components/seller-intent-link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -54,7 +49,10 @@ import { CatalogImporterReviewedRows } from "@/app/(public)/catalog-importer/_co
 import type { CatalogImporterStep } from "@/app/(public)/catalog-importer/_components/catalog-importer-step-nav";
 import type { CatalogImporterWorkbenchController } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
 import { capturePosthogEvent } from "@/lib/analytics/posthog";
-import type { CatalogImportRow } from "@/lib/catalog-importer";
+import {
+  getCatalogImportRowDisposition,
+  type CatalogImportRow,
+} from "@/lib/catalog-importer";
 import { getPublicCatalogSearchFilterDefinition } from "@/components/public-catalog-search/public-catalog-search-registry";
 
 const CATALOG_IMPORTER_URL_CHANGE_EVENT = "catalog-importer-url-change";
@@ -514,12 +512,8 @@ export function CatalogImporterResults({
       excludedCount: listingRows.filter((row) => row.outputState === "removed")
         .length,
       issuesCorrectedCount: controller.completedIssueCount,
-      readyForImportCount: includedRows.filter(
-        (row) =>
-          row.linkState !== "pending" &&
-          row.cultivarReferenceIdWarning === null &&
-          row.priceWarning === null &&
-          (row.duplicateOfSourceRow === null || row.duplicateAccepted),
+      readyForImportCount: listingRows.filter(
+        (row) => getCatalogImportRowDisposition(row) === "ready",
       ).length,
     };
   }, [controller.completedIssueCount, controller.matchedRows]);

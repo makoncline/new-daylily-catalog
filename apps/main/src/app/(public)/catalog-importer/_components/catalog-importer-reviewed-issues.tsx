@@ -32,9 +32,6 @@ function getFallbackResolution(message: string) {
   if (normalizedMessage.includes("kept")) {
     return "Listing kept";
   }
-  if (normalizedMessage.includes("image")) {
-    return "Image reviewed";
-  }
   if (normalizedMessage.includes("id")) {
     return "Cultivar ID reviewed";
   }
@@ -62,10 +59,7 @@ function getResolution({
     return "Listing excluded";
   }
 
-  if (
-    previousRow.priceWarning !== null &&
-    currentRow.priceWarning === null
-  ) {
+  if (previousRow.priceWarning !== null && currentRow.priceWarning === null) {
     return currentRow.price === null
       ? "Price removed"
       : `Price updated to ${formatPrice(currentRow.price)}`;
@@ -73,15 +67,6 @@ function getResolution({
 
   if (!previousRow.duplicateAccepted && currentRow.duplicateAccepted) {
     return "Listing kept";
-  }
-
-  if (
-    previousRow.imageUrlWarning !== null &&
-    currentRow.imageUrlWarning === null
-  ) {
-    return currentRow.imagePreviewAccepted
-      ? "Image warning accepted"
-      : "Image updated";
   }
 
   if (

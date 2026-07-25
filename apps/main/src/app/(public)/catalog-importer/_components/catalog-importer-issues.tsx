@@ -14,7 +14,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   InputGroup,
   InputGroupAddon,
@@ -31,10 +30,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { CatalogImporterWorkbenchController } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
-import {
-  isCatalogImportImagePreviewWarning,
-  type CatalogImportRow,
-} from "@/lib/catalog-importer";
+import { type CatalogImportRow } from "@/lib/catalog-importer";
 import { cn } from "@/lib/utils";
 
 interface DuplicateGroup {
@@ -43,11 +39,6 @@ interface DuplicateGroup {
 }
 
 type ParsedInput<T> = { valid: true; value: T } | { valid: false; value: null };
-
-// Seller image transfer is intentionally outside the importer MVP. Keep the
-// existing repair helpers dormant until image ownership and upload are handled
-// by the dashboard image flow.
-const SHOW_IMAGE_ISSUES = false;
 
 function IssueTable({
   className,
@@ -111,22 +102,6 @@ function parsePrice(value: string): ParsedInput<number | null> {
   }
 
   return { valid: true, value: price === 0 ? null : price };
-}
-
-function parseImageUrl(value: string): ParsedInput<string> {
-  const normalized = value.trim();
-  if (!normalized) {
-    return { valid: true, value: "" };
-  }
-
-  try {
-    const url = new URL(normalized);
-    return url.protocol === "http:" || url.protocol === "https:"
-      ? { valid: true, value: url.toString() }
-      : { valid: false, value: null };
-  } catch {
-    return { valid: false, value: null };
-  }
 }
 
 function ExcludeRowButton({
@@ -503,242 +478,6 @@ function PriceIssuesTable({
   );
 }
 
-function ImageUrlIssuesTable({
-  controller,
-  rows,
-}: {
-  controller: CatalogImporterWorkbenchController;
-  rows: CatalogImportRow[];
-}) {
-  const [values, setValues] = useState<Record<string, string>>(() =>
-    Object.fromEntries(rows.map((row) => [row.id, row.sourceImageUrl])),
-  );
-  const parsedRows = rows.map((row) => ({
-    parsed: parseImageUrl(values[row.id] ?? row.sourceImageUrl),
-    row,
-  }));
-  const canSaveAll = parsedRows.every(({ parsed }) => parsed.valid);
-
-  return (
-    <section aria-labelledby="catalog-importer-image-issues-heading">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h3
-            id="catalog-importer-image-issues-heading"
-            className="font-semibold"
-          >
-            Seller images need review
-          </h3>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Enter a complete image URL or leave it blank.
-          </p>
-        </div>
-        {rows.length > 1 ? (
-          <Button
-            type="button"
-            variant="outline"
-            disabled={!canSaveAll}
-            onClick={() =>
-              controller.resolveImageUrlIssues(
-                parsedRows.flatMap(({ parsed, row }) =>
-                  parsed.valid
-                    ? [{ imageUrl: parsed.value, rowId: row.id }]
-                    : [],
-                ),
-              )
-            }
-          >
-            Save all
-          </Button>
-        ) : null}
-      </div>
-
-      <IssueTable
-        aria-label="Seller image rows"
-        className="min-w-0 sm:min-w-[58rem]"
-        containerClassName="mt-4"
-      >
-        <TableHeader className="hidden sm:table-header-group">
-          <TableRow>
-            <TableHead scope="col" className="w-px">
-              Row
-            </TableHead>
-            <TableHead scope="col">Name</TableHead>
-            <TableHead scope="col" className="max-w-72">
-              Original URL
-            </TableHead>
-            <TableHead scope="col" className="min-w-80">
-              Corrected URL
-            </TableHead>
-            <TableHead scope="col" className="w-px">
-              <span className="sr-only">Save</span>
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {parsedRows.map(({ parsed, row }) => (
-            <TableRow
-              key={row.id}
-              className="grid gap-3 py-4 sm:table-row sm:py-0"
-            >
-              <TableHead
-                scope="row"
-                className="text-muted-foreground flex h-auto items-center gap-2 p-0 font-mono text-xs font-normal sm:table-cell sm:p-2"
-              >
-                <span className="font-sans font-medium sm:hidden">Row</span>
-                {row.sourceRow}
-              </TableHead>
-              <TableCell className="p-0 font-medium sm:table-cell sm:p-2">
-                <span className="text-muted-foreground mb-1 block text-xs font-medium sm:hidden">
-                  Name
-                </span>
-                {row.sourceTitle}
-              </TableCell>
-              <TableCell className="text-muted-foreground max-w-72 p-0 break-all sm:table-cell sm:p-2">
-                <span className="mb-1 block text-xs font-medium sm:hidden">
-                  Original URL
-                </span>
-                {row.sourceImageUrl}
-              </TableCell>
-              <TableCell className="p-0 sm:table-cell sm:p-2">
-                <span className="text-muted-foreground mb-1 block text-xs font-medium sm:hidden">
-                  Corrected URL
-                </span>
-                <Input
-                  aria-label={`Correct image URL for row ${row.sourceRow}`}
-                  aria-invalid={!parsed.valid}
-                  aria-describedby={
-                    !parsed.valid
-                      ? `catalog-importer-image-message-${row.sourceRow}`
-                      : undefined
-                  }
-                  type="url"
-                  value={values[row.id] ?? row.sourceImageUrl}
-                  onChange={(event) => {
-                    const value = event.currentTarget.value;
-                    setValues((current) => ({
-                      ...current,
-                      [row.id]: value,
-                    }));
-                  }}
-                />
-                {!parsed.valid ? (
-                  <p
-                    id={`catalog-importer-image-message-${row.sourceRow}`}
-                    className="text-destructive mt-1 text-xs"
-                  >
-                    Use a complete http or https image URL.
-                  </p>
-                ) : null}
-              </TableCell>
-              <TableCell className="flex justify-end p-0 sm:table-cell sm:p-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  disabled={!parsed.valid}
-                  aria-label={`Save image URL for row ${row.sourceRow}`}
-                  title={`Save image URL for row ${row.sourceRow}`}
-                  onClick={() => {
-                    if (parsed.valid) {
-                      controller.resolveImageUrlIssues([
-                        { imageUrl: parsed.value, rowId: row.id },
-                      ]);
-                    }
-                  }}
-                >
-                  <Save className="size-4" />
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </IssueTable>
-    </section>
-  );
-}
-
-function ImagePreviewWarningsTable({
-  controller,
-  rows,
-}: {
-  controller: CatalogImporterWorkbenchController;
-  rows: CatalogImportRow[];
-}) {
-  return (
-    <section aria-labelledby="catalog-importer-image-warnings-heading">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h3
-            id="catalog-importer-image-warnings-heading"
-            className="font-semibold"
-          >
-            Seller images could not be previewed
-          </h3>
-          <p className="text-muted-foreground mt-1 text-sm">
-            The image host may block browser previews.
-          </p>
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() =>
-            controller.acknowledgeImagePreviewWarnings(
-              rows.map((row) => row.id),
-            )
-          }
-        >
-          Keep {rows.length === 1 ? "URL" : "URLs"}
-        </Button>
-      </div>
-
-      <IssueTable
-        aria-label="Seller image preview warnings"
-        containerClassName="mt-4"
-      >
-        <TableHeader className="hidden sm:table-header-group">
-          <TableRow>
-            <TableHead scope="col" className="w-px">
-              Row
-            </TableHead>
-            <TableHead scope="col">Name</TableHead>
-            <TableHead scope="col">Image URL</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((row) => (
-            <TableRow
-              key={row.id}
-              className="grid gap-3 py-4 sm:table-row sm:py-0"
-            >
-              <TableHead
-                scope="row"
-                className="text-muted-foreground flex h-auto items-center gap-2 p-0 font-mono text-xs font-normal sm:table-cell sm:p-2"
-              >
-                <span className="font-sans font-medium sm:hidden">Row</span>
-                {row.sourceRow}
-              </TableHead>
-              <TableCell className="p-0 font-medium sm:table-cell sm:p-2">
-                <span className="text-muted-foreground mb-1 block text-xs font-medium sm:hidden">
-                  Name
-                </span>
-                {row.sourceTitle}
-              </TableCell>
-              <TableCell className="text-muted-foreground max-w-96 p-0 break-all sm:table-cell sm:p-2">
-                <span className="mb-1 block text-xs font-medium sm:hidden">
-                  Image URL
-                </span>
-                {row.sourceImageUrl}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </IssueTable>
-    </section>
-  );
-}
-
 function SavedIdIssuesTable({
   controller,
   rows,
@@ -870,18 +609,6 @@ export function CatalogImporterIssues({
   const priceRows = controller.includedRows.filter(
     (row) => row.priceWarning !== null,
   );
-  const imagePreviewWarningRows = SHOW_IMAGE_ISSUES
-    ? controller.includedRows.filter((row) =>
-        isCatalogImportImagePreviewWarning(row.imageUrlWarning),
-      )
-    : [];
-  const imageUrlRows = SHOW_IMAGE_ISSUES
-    ? controller.includedRows.filter(
-        (row) =>
-          row.imageUrlWarning !== null &&
-          !isCatalogImportImagePreviewWarning(row.imageUrlWarning),
-      )
-    : [];
   const savedIdRows = controller.includedRows.filter(
     (row) => row.cultivarReferenceIdWarning !== null,
   );
@@ -890,16 +617,13 @@ export function CatalogImporterIssues({
       [
         ...duplicateGroups.flatMap((group) => group.rows),
         ...priceRows,
-        ...imagePreviewWarningRows,
-        ...imageUrlRows,
         ...savedIdRows,
       ].map((row) => [row.id, row]),
     ).values(),
   ];
 
-  const requiredIssueCount =
-    priceRows.length + imageUrlRows.length + savedIdRows.length;
-  const warningCount = duplicateGroups.length + imagePreviewWarningRows.length;
+  const requiredIssueCount = priceRows.length + savedIdRows.length;
+  const warningCount = duplicateGroups.length;
 
   if (requiredIssueCount === 0 && warningCount === 0) {
     return null;
@@ -980,21 +704,6 @@ export function CatalogImporterIssues({
               controller={controller}
               destination={destination}
               rows={priceRows}
-            />
-          </div>
-        ) : null}
-
-        {imageUrlRows.length > 0 ? (
-          <div>
-            <ImageUrlIssuesTable controller={controller} rows={imageUrlRows} />
-          </div>
-        ) : null}
-
-        {imagePreviewWarningRows.length > 0 ? (
-          <div>
-            <ImagePreviewWarningsTable
-              controller={controller}
-              rows={imagePreviewWarningRows}
             />
           </div>
         ) : null}

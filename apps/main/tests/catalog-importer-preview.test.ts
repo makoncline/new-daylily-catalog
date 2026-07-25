@@ -21,8 +21,6 @@ function previewRow(
     duplicateAccepted: false,
     duplicateOfSourceRow: null,
     id: "row-1",
-    imageUrl: "https://seller.example/listing.jpg",
-    imageUrlWarning: null,
     match: {
       bloomSizeIn: 6,
       bloomSeason: "Midseason",
@@ -56,7 +54,6 @@ function previewRow(
     outputState: "included",
     rowKind: "listing",
     sourceCultivarReferenceId: "",
-    sourceImageUrl: "https://seller.example/listing.jpg",
     sourcePrice: "25",
     sourceRow: 2,
     sourceTitle: "VANGUARD",
@@ -75,19 +72,19 @@ describe("catalog importer preview content", () => {
     expect(getAwardDisplayName("Future award")).toBe("Future award");
   });
 
-  it("uses seller fields first and cultivar reference data as fallback", () => {
+  it("uses seller descriptions and cultivar reference images", () => {
     const row = previewRow();
 
     expect(isCatalogPreviewRow(row)).toBe(true);
-    expect(getCatalogPreviewImage(row)).toEqual({
-      id: "uploaded-row-1",
-      url: "https://seller.example/listing.jpg",
+    expect(getCatalogPreviewImage(row)).toMatchObject({
+      id: "asset-1",
+      url: "https://media.example/display.jpg",
     });
-    expect(getCatalogPreviewImageLabel(row)).toBe("Seller photo");
+    expect(getCatalogPreviewImageLabel(row)).toBe("Reference photo");
     expect(getCatalogPreviewDescription(row)).toBe("Seller description");
     expect(getCatalogPreviewDatabaseDescription(row)).toContain("Purple");
 
-    const fallbackRow = previewRow({ description: "", imageUrl: "" });
+    const fallbackRow = previewRow({ description: "" });
     expect(getCatalogPreviewImage(fallbackRow)).toMatchObject({
       id: "asset-1",
       url: "https://media.example/display.jpg",

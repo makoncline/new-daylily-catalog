@@ -130,45 +130,6 @@ In a restricted agent environment, starting the local Next server may require
 elevated permission to bind its port. Rerun the Atlas command with that
 permission; do not change the app or test flow to work around the restriction.
 
-## Catalog mass import loop
-
-The current product and file contract are documented in
-[`catalog-list-cleaner.md`](./catalog-list-cleaner.md). The public flow is the
-spreadsheet preparation, matching, preview, and analysis stage of catalog mass
-import. It produces a copy of the original workbook with stable cultivar
-identity columns added; database writes belong to the later paid/dashboard
-continuation.
-
-For a focused before/after pass:
-
-```sh
-node apps/main/scripts/run-atlas-flow.mjs catalog-importer --output=local/atlas/catalog-cleaner-before
-node apps/main/scripts/run-atlas-flow.mjs catalog-importer --output=local/atlas/catalog-cleaner-after
-```
-
-In the visible Chrome walkthrough, use a real spreadsheet and confirm the
-download retains seller-owned columns, included rows, and worksheet values;
-applies only documented listing-field cleanup; and adds:
-
-```text
-Daylily Catalog ID,Daylily Catalog Cultivar Name,Daylily Catalog Cultivar URL
-```
-
-Confirm linked names use the registered cultivar name, unmatched names and
-unresolved seller values are retained, known-invalid saved IDs are blank, and
-only explicitly removed rows are omitted. XLSX formatting, formulas, comments,
-merges, drawings, validation, and hidden-sheet state are outside the prepared
-data-copy contract.
-
-The preview reuses the full `PublicCatalogSearchAdvancedPanel`, shared filter
-registry, and shared catalog-search columns. Its cultivar mode adds the same
-exact multi-select hybridizer, awards, Flower Show, and sculpted-type facets as
-the `/cultivars` search. The matching response must carry those indexed
-cultivar fields so filtering remains browser-side after matching. Importer
-matching and card rendering remain importer-owned; filter labels, semantics,
-facets, ranges, active-filter summaries, and responsive panel behavior remain
-shared.
-
 ## Integration loop
 
 ```sh

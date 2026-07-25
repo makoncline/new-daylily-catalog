@@ -19,8 +19,6 @@ function importRow(
     duplicateAccepted: false,
     duplicateOfSourceRow: null,
     id: "row-2",
-    imageUrl: "",
-    imageUrlWarning: null,
     linkProvenance: null,
     linkState: "pending",
     match: null,
@@ -30,7 +28,6 @@ function importRow(
     privateNote: "",
     rowKind: "listing",
     sourceCultivarReferenceId: "",
-    sourceImageUrl: "",
     sourcePrice: "12",
     sourceRow: 2,
     sourceTitle: "Vanguard 2",
@@ -45,7 +42,6 @@ function controller(
   overrides: Partial<CatalogImporterWorkbenchController> = {},
 ) {
   return {
-    acknowledgeImagePreviewWarnings: vi.fn(),
     activeReviewIndex: 0,
     activeReviewRow: rows[0] ?? null,
     activeReviewSourceCells: [
@@ -67,7 +63,6 @@ function controller(
     mapping: {
       cultivarReferenceId: null,
       description: null,
-      imageUrl: null,
       price: null,
       privateNote: null,
       title: 0,
@@ -79,7 +74,6 @@ function controller(
     removeDuplicateRow: vi.fn(),
     remainingIssueCount: 1,
     resetCandidateSearch: vi.fn(),
-    resolveImageUrlIssues: vi.fn(),
     resolvePriceIssues: vi.fn(),
     reviewQuery: rows[0]?.sourceTitle ?? "",
     reviewRows: rows,
@@ -321,7 +315,6 @@ describe("catalog importer repair UI", () => {
           mapping: {
             cultivarReferenceId: null,
             description: null,
-            imageUrl: null,
             price: 1,
             privateNote: 2,
             title: 0,
@@ -402,19 +395,6 @@ describe("catalog importer repair UI", () => {
       { preserveOriginalOffer: false, price: 15, rowId: "row-2" },
       { preserveOriginalOffer: false, price: null, rowId: "row-3" },
     ]);
-  });
-
-  it("does not add seller-image repair work to the importer MVP", () => {
-    const row = importRow({
-      imageUrlWarning: "Seller image could not be previewed",
-      sourceImageUrl: "https://seller.example/daylily.jpg",
-    });
-
-    const { container } = render(
-      <CatalogImporterIssues controller={controller([row])} />,
-    );
-
-    expect(container).toBeEmptyDOMElement();
   });
 
   it("focuses review and uses fixed keys to leave unmatched or exclude", () => {

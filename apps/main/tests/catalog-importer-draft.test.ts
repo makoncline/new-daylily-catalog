@@ -40,7 +40,6 @@ describe("catalog importer browser draft", () => {
       mapping: {
         cultivarReferenceId: null,
         description: 2,
-        imageUrl: null,
         price: 1,
         privateNote: 3,
         title: 0,
@@ -73,7 +72,6 @@ describe("catalog importer browser draft", () => {
       mapping: {
         cultivarReferenceId: null,
         description: null,
-        imageUrl: null,
         price: null,
         privateNote: null,
         title: 0,
@@ -102,7 +100,6 @@ describe("catalog importer browser draft", () => {
       mapping: {
         cultivarReferenceId: 4,
         description: 2,
-        imageUrl: null,
         price: 1,
         privateNote: 3,
         title: 0,
@@ -198,7 +195,6 @@ describe("catalog importer browser draft", () => {
       mapping: {
         cultivarReferenceId: null,
         description: null,
-        imageUrl: null,
         price: null,
         privateNote: null,
         title: 0,
@@ -236,7 +232,6 @@ describe("catalog importer browser draft", () => {
       mapping: {
         cultivarReferenceId: null,
         description: null,
-        imageUrl: null,
         price: null,
         privateNote: null,
         title: 0,

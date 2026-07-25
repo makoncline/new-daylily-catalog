@@ -17,15 +17,15 @@ import {
 } from "@/components/ui/empty";
 import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
-import type { CatalogImportRow } from "@/lib/catalog-importer";
+import {
+  getCatalogImportRowDisposition,
+  prepareCatalogImportListing,
+} from "@/lib/catalog-importer";
 import {
   clearCatalogImporterDraft,
   type CatalogImporterDraft,
 } from "@/lib/catalog-importer-draft";
-import {
-  getCatalogImportExistingListingMatch,
-  type CatalogImportComparableListing,
-} from "@/lib/catalog-import-existing-listings";
+import { getCatalogImportExistingListingMatch } from "@/lib/catalog-import-existing-listings";
 import { api } from "@/trpc/react";
 import { DashboardImportExcludedRows } from "./dashboard-import-excluded-rows";
 import { DashboardImportAlreadyExistingRows } from "./dashboard-import-existing-listings";
@@ -53,41 +53,6 @@ function scrollToImportStep(step: DashboardImportStep) {
       );
       (stepTarget ?? workflow)?.scrollIntoView?.({ block: "start" });
     }),
-  );
-}
-
-function appendOriginalPrice(privateNote: string, sourcePrice: string) {
-  if (!sourcePrice) return privateNote;
-  const line = `Original price: ${sourcePrice}`;
-  return privateNote.split("\n").includes(line)
-    ? privateNote
-    : [privateNote, line].filter(Boolean).join("\n");
-}
-
-function getPreparedListing(
-  row: CatalogImportRow,
-): CatalogImportComparableListing {
-  return {
-    cultivarReferenceId:
-      row.cultivarReferenceIdWarning === null
-        ? (row.match?.cultivarReferenceId ?? null)
-        : null,
-    description: row.description.trim() || null,
-    price: row.priceWarning === null ? row.price : null,
-    privateNote:
-      (row.priceWarning
-        ? appendOriginalPrice(row.privateNote, row.sourcePrice)
-        : row.privateNote
-      ).trim() || null,
-    title: row.match?.displayName ?? row.title,
-  };
-}
-
-function hasUnresolvedIssue(row: CatalogImportRow) {
-  return (
-    row.cultivarReferenceIdWarning !== null ||
-    (row.duplicateOfSourceRow !== null && !row.duplicateAccepted) ||
-    row.priceWarning !== null
   );
 }
 
@@ -190,20 +155,21 @@ export function DashboardCatalogImporter({
     [controller.matchedRows],
   );
   const includedRows = listingRows.filter(
-    (row) => row.outputState === "included",
+    (row) => getCatalogImportRowDisposition(row) !== "excluded",
   );
-  const reviewRowIds = new Set(controller.reviewRows.map((row) => row.id));
-  const reviewRows = includedRows.filter((row) => reviewRowIds.has(row.id));
-  const issueRows = includedRows.filter(
-    (row) => !reviewRowIds.has(row.id) && hasUnresolvedIssue(row),
+  const reviewRows = listingRows.filter(
+    (row) => getCatalogImportRowDisposition(row) === "review",
   );
-  const eligibleRows = includedRows.filter(
-    (row) => !reviewRowIds.has(row.id) && !hasUnresolvedIssue(row),
+  const issueRows = listingRows.filter(
+    (row) => getCatalogImportRowDisposition(row) === "issue",
+  );
+  const eligibleRows = listingRows.filter(
+    (row) => getCatalogImportRowDisposition(row) === "ready",
   );
   const existingMatchRows = useMemo(
     () =>
       eligibleRows.flatMap((row) => {
-        const comparable = getPreparedListing(row);
+        const comparable = prepareCatalogImportListing(row);
         const match = getCatalogImportExistingListingMatch(
           comparable,
           existingListings.data ?? [],
@@ -257,7 +223,7 @@ export function DashboardCatalogImporter({
   const runImport = async () => {
     setImportError(null);
     const rows = selectedReadyRows.map((row) => ({
-      ...getPreparedListing(row),
+      ...prepareCatalogImportListing(row),
       allowExistingDuplicate: false,
       importKey: `${controller.projectId}:${row.id}`,
     }));

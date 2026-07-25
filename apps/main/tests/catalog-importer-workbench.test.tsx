@@ -205,7 +205,6 @@ describe("CatalogImporterWorkbench", () => {
     const mapping = {
       cultivarReferenceId: null,
       description: null,
-      imageUrl: null,
       price: 1,
       privateNote: null,
       title: 0,
@@ -274,7 +273,6 @@ describe("CatalogImporterWorkbench", () => {
       mapping: {
         cultivarReferenceId: null,
         description: 0,
-        imageUrl: null,
         price: 1,
         privateNote: null,
         title: 3,
@@ -328,7 +326,6 @@ describe("CatalogImporterWorkbench", () => {
       mapping: {
         cultivarReferenceId: null,
         description: null,
-        imageUrl: null,
         price: null,
         privateNote: null,
         title: null,
@@ -569,7 +566,6 @@ describe("CatalogImporterWorkbench", () => {
       mapping: {
         cultivarReferenceId: null,
         description: 2,
-        imageUrl: 4,
         price: 1,
         privateNote: 3,
         title: 0,
@@ -621,7 +617,6 @@ describe("CatalogImporterWorkbench", () => {
     const mapping = {
       cultivarReferenceId: 1,
       description: null,
-      imageUrl: null,
       price: null,
       privateNote: null,
       title: 0,

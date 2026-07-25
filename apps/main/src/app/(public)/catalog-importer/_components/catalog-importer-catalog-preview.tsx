@@ -8,6 +8,8 @@ import {
 } from "@tanstack/react-table";
 import { ArrowUp, ChevronDown, ImageIcon, Info, Link2 } from "lucide-react";
 import { AhsListingDisplay } from "@/components/ahs-listing-display";
+import { CatalogListingCard } from "@/components/catalog-listing-card";
+import { CatalogListingGrid } from "@/components/catalog-listing-grid";
 import { ImagePlaceholder } from "@/components/image-placeholder";
 import type { OptimizedImageSource } from "@/components/optimized-image";
 import { OptimizedImage } from "@/components/optimized-image";
@@ -77,18 +79,10 @@ export function getCatalogPreviewRowId(rowId: string) {
 export function getCatalogPreviewImage(
   row: CatalogImportRow,
 ): OptimizedImageSource | null {
-  if (row.imageUrl) {
-    return {
-      id: `uploaded-${row.id}`,
-      url: row.imageUrl,
-    };
-  }
-
   return getCultivarImage(row.match);
 }
 
 export function getCatalogPreviewImageLabel(row: CatalogImportRow) {
-  if (row.imageUrl) return "Seller photo";
   return getCultivarImage(row.match) ? "Reference photo" : null;
 }
 
@@ -106,13 +100,11 @@ export function getCatalogPreviewDatabaseDescription(row: CatalogImportRow) {
 
 function CatalogImporterListingCard({
   highlighted = false,
-  onImageError,
   onOpen,
   openLabel,
   row,
 }: {
   highlighted?: boolean;
-  onImageError?: () => void;
   onOpen: () => void;
   openLabel?: string;
   row: CatalogImportRow;
@@ -126,61 +118,42 @@ function CatalogImporterListingCard({
   const databaseDescription = getCatalogPreviewDatabaseDescription(row);
 
   return (
-    <article
+    <CatalogListingCard.Root
       aria-label={match.displayName}
       className={cn(
-        "bg-card overflow-hidden rounded-lg border transition-shadow motion-reduce:transition-none",
+        "motion-reduce:transition-none",
         highlighted && "ring-primary ring-2 ring-offset-2",
       )}
     >
-      <button
-        type="button"
+      <CatalogListingCard.Action
         aria-label={openLabel ?? `View details for ${match.displayName}`}
-        className="focus-visible:ring-ring relative block w-full text-left outline-none focus-visible:ring-2 focus-visible:ring-inset"
         onClick={onOpen}
+      />
+      <CatalogListingCard.Media
+        key={image?.url ?? "missing-image"}
+        image={image}
+        alt={`${match.displayName} — ${imageLabel ?? "Cultivar photo"}`}
       >
-        {image ? (
-          <OptimizedImage
-            key={image.url}
-            image={image}
-            variant="display"
-            size="full"
-            alt={`${match.displayName} — ${imageLabel ?? "Cultivar photo"}`}
-            onImageError={onImageError}
-          />
-        ) : (
-          <ImagePlaceholder />
-        )}
-        {row.price !== null ? (
-          <span className="bg-background/90 absolute top-2 right-2 rounded-md px-2 py-1 text-xs font-semibold shadow-sm backdrop-blur">
-            {formatPrice(row.price)}
-          </span>
-        ) : null}
+        <CatalogListingCard.Price price={row.price} />
         <span className="bg-background/90 text-foreground absolute right-2 bottom-2 flex size-8 items-center justify-center rounded-full border shadow-sm backdrop-blur">
           <Info aria-hidden="true" className="size-3.5" />
         </span>
-      </button>
-      <div className="space-y-2 p-3">
-        <div className="min-w-0">
-          <h3 className="line-clamp-2 text-sm leading-tight font-semibold">
-            {match.displayName}
-          </h3>
-          <p className="text-muted-foreground mt-1 truncate text-xs">
-            {getCandidateMeta(match) || "Registered cultivar"}
-          </p>
-        </div>
-        {sellerDescription ? (
-          <p className="text-muted-foreground line-clamp-3 text-xs leading-relaxed">
-            {sellerDescription}
-          </p>
-        ) : null}
-        {databaseDescription ? (
-          <p className="text-muted-foreground line-clamp-3 text-xs leading-relaxed">
-            {databaseDescription}
-          </p>
-        ) : null}
-      </div>
-    </article>
+      </CatalogListingCard.Media>
+      <CatalogListingCard.Content className="p-3">
+        <CatalogListingCard.Title title={match.displayName} />
+        <CatalogListingCard.Meta
+          text={getCandidateMeta(match) || "Registered cultivar"}
+        />
+        <CatalogListingCard.Description
+          className="text-xs leading-relaxed"
+          text={sellerDescription}
+        />
+        <CatalogListingCard.Description
+          className="text-xs leading-relaxed"
+          text={databaseDescription}
+        />
+      </CatalogListingCard.Content>
+    </CatalogListingCard.Root>
   );
 }
 
@@ -479,8 +452,8 @@ export function CatalogImporterCatalogPreview({
               }
               className="bg-muted/10 max-h-[52rem] scroll-mt-24 overflow-y-auto overscroll-y-auto rounded-lg border p-3 pr-1 outline-none [scrollbar-gutter:stable] lg:max-h-[69rem] lg:pr-2 xl:max-h-[62rem]"
             >
-              <div
-                className="grid grid-cols-2 gap-3 lg:grid-cols-3"
+              <CatalogListingGrid
+                className="gap-3"
                 data-testid="catalog-preview-listings-grid"
               >
                 {visiblePreviewRows.map((row) => {
@@ -496,20 +469,11 @@ export function CatalogImporterCatalogPreview({
                           controller.lastLinkAction?.rowId === row.id
                         }
                         onOpen={() => setDetailsRowId(row.id)}
-                        onImageError={
-                          row.imageUrl
-                            ? () =>
-                                controller.flagImageUrlIssue(
-                                  row.id,
-                                  row.imageUrl,
-                                )
-                            : undefined
-                        }
                       />
                     </div>
                   );
                 })}
-              </div>
+              </CatalogListingGrid>
 
               {canShowMore ? (
                 <div className="mt-4 flex items-start justify-center">

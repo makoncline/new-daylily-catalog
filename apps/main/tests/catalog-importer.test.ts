@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  CATALOG_IMPORT_IMAGE_PREVIEW_WARNING_PREFIX,
   applyAutomaticCultivarMatches,
   assignCatalogImportDuplicateGroups,
   createCatalogCleanSpreadsheet,
@@ -12,9 +11,11 @@ import {
   getAutomaticCultivarMatch,
   getCatalogImportMappedColumnLabel,
   getCatalogImportOrderedColumnIndexes,
+  getCatalogImportRowDisposition,
   getCatalogImportState,
   getSourceColumns,
   suggestColumnMapping,
+  prepareCatalogImportListing,
   type SpreadsheetCell,
 } from "@/lib/catalog-importer";
 import { getCultivarMatchConfidence } from "@/lib/cultivar-match-score";
@@ -30,7 +31,6 @@ describe("catalog importer normalization", () => {
     expect(suggestColumnMapping(rows, 0)).toEqual({
       cultivarReferenceId: null,
       description: 2,
-      imageUrl: null,
       price: 1,
       privateNote: 3,
       title: 0,
@@ -41,7 +41,6 @@ describe("catalog importer normalization", () => {
     const mapping = {
       cultivarReferenceId: 5,
       description: 2,
-      imageUrl: 4,
       price: 1,
       privateNote: 3,
       title: 0,
@@ -56,7 +55,7 @@ describe("catalog importer normalization", () => {
       "Price",
       "Description",
       "Private Note",
-      "Image URL",
+      null,
       "Daylily Catalog ID",
     ]);
     expect(getCatalogImportMappedColumnLabel(mapping, 6)).toBeNull();
@@ -68,14 +67,13 @@ describe("catalog importer normalization", () => {
         {
           cultivarReferenceId: 5,
           description: 0,
-          imageUrl: 4,
           price: 1,
           privateNote: null,
           title: 3,
         },
         [0, 1, 2, 3, 4, 5],
       ),
-    ).toEqual([3, 1, 0, 4, 5, 2]);
+    ).toEqual([3, 1, 0, 5, 2, 4]);
   });
 
   it("limits quiet-launch logging to the header and first five nonempty rows", () => {
@@ -84,7 +82,6 @@ describe("catalog importer normalization", () => {
       mapping: {
         cultivarReferenceId: null,
         description: 2,
-        imageUrl: null,
         price: 1,
         privateNote: null,
         title: 0,
@@ -164,7 +161,6 @@ describe("catalog importer normalization", () => {
       mapping: {
         cultivarReferenceId: null,
         description: null,
-        imageUrl: null,
         price: 1,
         privateNote: null,
         title: 0,
@@ -195,6 +191,51 @@ describe("catalog importer normalization", () => {
     ]);
   });
 
+  it("uses one row policy for review, issues, exclusions, and import data", () => {
+    const [pendingRow] = createCatalogImportRows({
+      headerRowIndex: 0,
+      mapping: {
+        cultivarReferenceId: null,
+        description: null,
+        price: 1,
+        privateNote: 2,
+        title: 0,
+      },
+      rows: [
+        ["name", "price", "private note"],
+        ["Vanguard 2", "trade", "Bed"],
+      ],
+    });
+    expect(pendingRow).toBeDefined();
+    expect(getCatalogImportRowDisposition(pendingRow!)).toBe("review");
+
+    const issueRow = {
+      ...pendingRow!,
+      linkState: "intentionally-unmatched" as const,
+    };
+    expect(getCatalogImportRowDisposition(issueRow)).toBe("issue");
+    expect(prepareCatalogImportListing(issueRow)).toEqual({
+      cultivarReferenceId: null,
+      description: null,
+      price: null,
+      privateNote: "Bed\nOriginal price: trade",
+      title: "Vanguard 2",
+    });
+
+    expect(
+      getCatalogImportRowDisposition({
+        ...issueRow,
+        priceWarning: null,
+      }),
+    ).toBe("ready");
+    expect(
+      getCatalogImportRowDisposition({
+        ...issueRow,
+        outputState: "removed",
+      }),
+    ).toBe("excluded");
+  });
+
   it("creates a cleaned copy while preserving seller-owned workbook data", () => {
     const header = Array.from<SpreadsheetCell>({ length: 17 }).fill(null);
     header[3] = "Cultivar";
@@ -217,7 +258,6 @@ describe("catalog importer normalization", () => {
       mapping: {
         ...mapping,
         description: 12,
-        imageUrl: 14,
         price: 16,
         privateNote: 13,
       },
@@ -251,7 +291,6 @@ describe("catalog importer normalization", () => {
       mapping: {
         ...mapping,
         description: 12,
-        imageUrl: 14,
         price: 16,
         privateNote: 13,
       },
@@ -329,7 +368,6 @@ describe("catalog importer normalization", () => {
     const mapping = {
       cultivarReferenceId: null,
       description: null,
-      imageUrl: null,
       price: 1,
       privateNote: null,
       title: 0,
@@ -373,7 +411,6 @@ describe("catalog importer normalization", () => {
     const mapping = {
       cultivarReferenceId: null,
       description: null,
-      imageUrl: 2,
       price: 1,
       privateNote: null,
       title: 0,
@@ -429,7 +466,6 @@ describe("catalog importer normalization", () => {
     expect(mapping).toEqual({
       cultivarReferenceId: null,
       description: 2,
-      imageUrl: null,
       price: 1,
       privateNote: 3,
       title: 0,
@@ -451,7 +487,6 @@ describe("catalog importer normalization", () => {
     expect(mapping).toEqual({
       cultivarReferenceId: null,
       description: 2,
-      imageUrl: null,
       price: 1,
       privateNote: 3,
       title: 0,
@@ -493,7 +528,6 @@ describe("catalog importer normalization", () => {
       expect(suggestColumnMapping(rows, 0)).toEqual({
         cultivarReferenceId: 5,
         description: 2,
-        imageUrl: null,
         price: 1,
         privateNote: 3,
         title: 0,
@@ -662,7 +696,6 @@ describe("catalog importer normalization", () => {
       mapping: {
         cultivarReferenceId: null,
         description: null,
-        imageUrl: null,
         price: null,
         privateNote: null,
         title: 0,
@@ -714,7 +747,6 @@ describe("catalog importer normalization", () => {
       mapping: {
         cultivarReferenceId: null,
         description: null,
-        imageUrl: null,
         price: 1,
         privateNote: null,
         title: 0,
@@ -812,83 +844,12 @@ describe("catalog importer normalization", () => {
     ]);
   });
 
-  it("ignores spreadsheet image URLs in the MVP", () => {
-    const rows = createCatalogImportRows({
-      headerRowIndex: 0,
-      mapping: {
-        cultivarReferenceId: null,
-        description: null,
-        imageUrl: 1,
-        price: null,
-        privateNote: null,
-        title: 0,
-      },
-      rows: [
-        ["name", "image"],
-        ["Malformed image", "not-a-url"],
-        ["Blocked preview", "https://example.com/blocked.jpg"],
-      ],
-    });
-    const state = getCatalogImportState(
-      rows.map((row) =>
-        row.sourceTitle === "Blocked preview"
-          ? {
-              ...row,
-              imageUrlWarning: `${CATALOG_IMPORT_IMAGE_PREVIEW_WARNING_PREFIX}${row.imageUrl}`,
-            }
-          : row,
-      ),
-    );
-
-    expect(state.counts).toMatchObject({
-      issueCount: 0,
-      requiredDataDecisionCount: 0,
-      warningCount: 0,
-    });
-    expect(rows.every((row) => row.imageUrl === "")).toBe(true);
-  });
-
-  it("keeps an accepted seller image URL in the prepared workbook", () => {
-    const imageUrl = "https://seller.example/daylily.jpg";
-    const rows: SpreadsheetCell[][] = [
-      ["name", "image url"],
-      ["Blocked preview", imageUrl],
-    ];
-    const mapping = suggestColumnMapping(rows, 0);
-    const [row] = createCatalogImportRows({
-      headerRowIndex: 0,
-      mapping,
-      rows,
-    });
-
-    const enriched = createCatalogEnrichedSpreadsheet({
-      headerRowIndex: 0,
-      mapping,
-      matchedRows: [
-        {
-          ...row!,
-          imagePreviewAccepted: true,
-          imageUrl: "",
-          imageUrlWarning: null,
-        },
-      ],
-      parsedSpreadsheet: {
-        fileName: "catalog.xlsx",
-        sheets: [{ name: "Catalog", rows }],
-      },
-      selectedSheetIndex: 0,
-    });
-
-    expect(enriched.sheets[0]?.rows[1]?.[1]).toBe(imageUrl);
-  });
-
   it("keeps the best candidate for rows that still need review", () => {
     const [row] = createCatalogImportRows({
       headerRowIndex: 0,
       mapping: {
         cultivarReferenceId: null,
         description: null,
-        imageUrl: null,
         price: null,
         privateNote: null,
         title: 0,
@@ -994,7 +955,6 @@ describe("catalog importer normalization", () => {
       mapping: {
         cultivarReferenceId: null,
         description: null,
-        imageUrl: null,
         price: 1,
         privateNote: null,
         title: 0,
@@ -1025,7 +985,6 @@ describe("catalog importer normalization", () => {
       mapping: {
         cultivarReferenceId: 1,
         description: null,
-        imageUrl: null,
         price: null,
         privateNote: null,
         title: 0,
@@ -1118,7 +1077,6 @@ describe("catalog importer normalization", () => {
     const mapping = {
       cultivarReferenceId: null,
       description: null,
-      imageUrl: null,
       price: 1,
       privateNote: 2,
       title: 0,

@@ -24,10 +24,30 @@ export interface CatalogImporterDraft {
   version: 3;
 }
 
+export interface CatalogImporterSession {
+  activeReviewRowId: string | null;
+  headerRowIndex: number | null;
+  initialIssueCount: number;
+  initialReviewCount: number;
+  mapping: CatalogColumnMapping;
+  matchedRows: CatalogImportRow[] | null;
+  matchedRowsKey: string | null;
+  parsedSpreadsheet: ParsedSpreadsheet | null;
+  projectId: string;
+  reviewedIssueActions: CatalogImporterReviewedIssueAction[];
+  selectedSheetIndex: number;
+}
+
 export interface CatalogImporterReviewedIssueAction {
   id: number;
   message: string;
   previousRows: CatalogImportRow[];
+}
+
+export function serializeCatalogImporterSession(
+  session: CatalogImporterSession,
+): CatalogImporterDraft {
+  return { ...session, version: 3 };
 }
 
 export function createCatalogImporterProjectId() {
@@ -78,22 +98,25 @@ function normalizeCatalogImporterDraft(draft: CatalogImporterDraft) {
       ? draft.projectId
       : createCatalogImporterProjectId();
   const matchedRows =
-    draft.matchedRows?.map((row) => ({
-      ...row,
-      existingListingDecision:
-        row.existingListingDecision === "create" ||
-        row.existingListingDecision === "use-existing"
-          ? row.existingListingDecision
-          : null,
-      imagePreviewAccepted: false,
-      imageUrl: "",
-      imageUrlWarning: null,
-      sourceImageUrl: "",
-    })) ?? null;
+    draft.matchedRows?.map((row) => {
+      const current = { ...row } as Record<string, unknown>;
+      delete current.existingListingDecision;
+      delete current.imagePreviewAccepted;
+      delete current.imageUrl;
+      delete current.imageUrlWarning;
+      delete current.sourceImageUrl;
+      return current as unknown as CatalogImportRow;
+    }) ?? null;
 
   return {
     ...draft,
-    mapping: { ...draft.mapping, imageUrl: null },
+    mapping: {
+      cultivarReferenceId: draft.mapping.cultivarReferenceId,
+      description: draft.mapping.description,
+      price: draft.mapping.price,
+      privateNote: draft.mapping.privateNote,
+      title: draft.mapping.title,
+    },
     matchedRows,
     parsedSpreadsheet: normalizeManualCatalogSpreadsheet(
       draft.parsedSpreadsheet,
@@ -197,14 +220,14 @@ function migrateCatalogImportRow(value: unknown): CatalogImportRow | null {
   delete current.matchStatus;
   delete current.removed;
   delete current.skipped;
+  delete current.existingListingDecision;
+  delete current.imagePreviewAccepted;
+  delete current.imageUrl;
+  delete current.imageUrlWarning;
+  delete current.sourceImageUrl;
 
   return {
     ...current,
-    existingListingDecision:
-      legacy.existingListingDecision === "create" ||
-      legacy.existingListingDecision === "use-existing"
-        ? legacy.existingListingDecision
-        : null,
     linkProvenance,
     linkState,
     match,
@@ -257,7 +280,6 @@ function migrateDraft(value: unknown): CatalogImporterDraft | null {
           : null,
       description:
         typeof mapping.description === "number" ? mapping.description : null,
-      imageUrl: typeof mapping.imageUrl === "number" ? mapping.imageUrl : null,
       price: typeof mapping.price === "number" ? mapping.price : null,
       privateNote:
         typeof mapping.privateNote === "number" ? mapping.privateNote : null,

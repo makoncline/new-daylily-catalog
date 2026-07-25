@@ -5,14 +5,6 @@ import {
 
 export type SpreadsheetCell = string | number | boolean | Date | null;
 
-export const CATALOG_IMPORT_IMAGE_PREVIEW_WARNING_PREFIX = "preview-failed:";
-
-export function isCatalogImportImagePreviewWarning(value: string | null) {
-  return (
-    value?.startsWith(CATALOG_IMPORT_IMAGE_PREVIEW_WARNING_PREFIX) ?? false
-  );
-}
-
 export interface SpreadsheetSheet {
   name: string;
   rows: SpreadsheetCell[][];
@@ -33,7 +25,6 @@ export interface SourceColumn {
 export interface CatalogColumnMapping {
   cultivarReferenceId: number | null;
   description: number | null;
-  imageUrl: number | null;
   price: number | null;
   privateNote: number | null;
   title: number | null;
@@ -180,19 +171,14 @@ export type CatalogImportLinkProvenance =
   | "exact-name"
   | "saved-id"
   | "user-confirmed";
-export type CatalogImportExistingListingDecision = "create" | "use-existing";
 
 export interface CatalogImportRow {
   cultivarReferenceIdWarning: string | null;
   description: string;
   duplicateAccepted: boolean;
   duplicateOfSourceRow: number | null;
-  existingListingDecision?: CatalogImportExistingListingDecision | null;
   id: string;
   identityReviewed?: boolean;
-  imageUrl: string;
-  imagePreviewAccepted?: boolean;
-  imageUrlWarning: string | null;
   linkProvenance: CatalogImportLinkProvenance | null;
   linkState: CatalogImportLinkState;
   match: CultivarMatchCandidate | null;
@@ -202,12 +188,82 @@ export interface CatalogImportRow {
   privateNote: string;
   rowKind: CatalogImportRowKind;
   sourceCultivarReferenceId: string;
-  sourceImageUrl: string;
   sourcePrice: string;
   sourceRow: number;
   sourceTitle: string;
   suggestedMatch: CultivarMatchCandidate | null;
   title: string;
+}
+
+export type CatalogImportRowDisposition =
+  | "excluded"
+  | "review"
+  | "issue"
+  | "ready";
+
+export interface CatalogImportPreparedListing {
+  cultivarReferenceId: string | null;
+  description: string | null;
+  price: number | null;
+  privateNote: string | null;
+  title: string;
+}
+
+export function appendCatalogImportOriginalPriceNote(
+  privateNote: string,
+  sourcePrice: string,
+) {
+  if (!sourcePrice) {
+    return privateNote;
+  }
+
+  const note = `Original price: ${sourcePrice}`;
+  return privateNote.split("\n").includes(note)
+    ? privateNote
+    : [privateNote, note].filter(Boolean).join("\n");
+}
+
+export function hasCatalogImportBlockingIssue(row: CatalogImportRow) {
+  return (
+    row.cultivarReferenceIdWarning !== null ||
+    (row.duplicateOfSourceRow !== null && !row.duplicateAccepted) ||
+    row.priceWarning !== null
+  );
+}
+
+export function getCatalogImportRowDisposition(
+  row: CatalogImportRow,
+): CatalogImportRowDisposition {
+  if (row.rowKind !== "listing" || row.outputState === "removed") {
+    return "excluded";
+  }
+  if (row.linkState === "pending" && row.cultivarReferenceIdWarning === null) {
+    return "review";
+  }
+  if (hasCatalogImportBlockingIssue(row)) {
+    return "issue";
+  }
+
+  return "ready";
+}
+
+export function prepareCatalogImportListing(
+  row: CatalogImportRow,
+): CatalogImportPreparedListing {
+  return {
+    cultivarReferenceId:
+      row.cultivarReferenceIdWarning === null
+        ? (row.match?.cultivarReferenceId ?? null)
+        : null,
+    description: row.description.trim() || null,
+    price: row.priceWarning === null ? row.price : null,
+    privateNote:
+      (row.priceWarning
+        ? appendCatalogImportOriginalPriceNote(row.privateNote, row.sourcePrice)
+        : row.privateNote
+      ).trim() || null,
+    title: row.match?.displayName ?? row.title,
+  };
 }
 
 export interface CatalogImportDownloadSummary {
@@ -263,16 +319,13 @@ export function getCatalogImportState(
 ) {
   const detectedRows = rows.filter((row) => row.rowKind === "listing");
   const includedRows = detectedRows.filter(
-    (row) => row.outputState === "included",
+    (row) => getCatalogImportRowDisposition(row) !== "excluded",
   );
   const linkedRows = includedRows.filter(
     (row) => row.linkState === "linked" && row.match !== null,
   );
   const reviewRows = includedRows.filter(
-    (row) =>
-      row.linkState === "pending" &&
-      row.match === null &&
-      row.cultivarReferenceIdWarning === null,
+    (row) => getCatalogImportRowDisposition(row) === "review",
   );
   const intentionallyUnmatchedRows = includedRows.filter(
     (row) => row.linkState === "intentionally-unmatched",
@@ -294,7 +347,6 @@ export function getCatalogImportState(
   const priceIssueCount = includedRows.filter(
     (row) => row.priceWarning !== null,
   ).length;
-  const imageIssueCount = 0;
   const savedIdIssueCount = savedIdIssueRows.length;
   const uniqueMatches = [
     ...new Map(
@@ -342,7 +394,6 @@ export function getCatalogImportState(
     counts: {
       detectedListingCount: detectedRows.length,
       duplicateGroupCount,
-      imageIssueCount,
       includedListingCount: includedRows.length,
       intentionallyUnmatchedCount: intentionallyUnmatchedRows.length,
       issueCount: requiredDataDecisionRows.length + savedIdIssueCount,
@@ -397,15 +448,6 @@ const HEADER_PATTERNS = {
     /^details?$/,
     /^color(?: description)?$/,
   ],
-  imageUrl: [
-    /^image url$/,
-    /^photo url$/,
-    /^picture url$/,
-    /^image$/,
-    /^photo$/,
-    /^picture$/,
-    /^url$/,
-  ],
   price: [/^price$/, /^cost$/, /^amount$/, /^\$$/],
   privateNote: [
     /^private notes?$/,
@@ -447,7 +489,6 @@ const CATALOG_IMPORT_DISPLAY_HEADERS: Record<
 > = {
   cultivarReferenceId: CATALOG_ENRICHMENT_HEADERS.cultivarReferenceId,
   description: CATALOG_MAPPED_OUTPUT_HEADERS.description,
-  imageUrl: "Image URL",
   price: CATALOG_MAPPED_OUTPUT_HEADERS.price,
   privateNote: CATALOG_MAPPED_OUTPUT_HEADERS.privateNote,
   title: CATALOG_MAPPED_OUTPUT_HEADERS.title,
@@ -478,7 +519,6 @@ export function getCatalogImportOrderedColumnIndexes(
     mapping.price,
     mapping.description,
     mapping.privateNote,
-    mapping.imageUrl,
     mapping.cultivarReferenceId,
   ].filter(
     (columnIndex): columnIndex is number =>
@@ -776,7 +816,6 @@ export function suggestColumnMapping(
     description: isCatalogImportTemplate
       ? findHeaderMappedColumn("description", columns)
       : findUniqueCanonicalHeaderColumn("description", columns),
-    imageUrl: null,
     price: isCatalogImportTemplate
       ? findHeaderMappedColumn("price", columns)
       : findUniqueCanonicalHeaderColumn("price", columns),
@@ -824,28 +863,6 @@ export function cleanCultivarTitle(sourceTitle: string) {
   return match?.[1]?.trim() ?? title;
 }
 
-function getImageUrl(value: SpreadsheetCell | undefined) {
-  const source = cellToText(value);
-  if (!source) {
-    return { imageUrl: "", source, warning: null };
-  }
-
-  if (!URL_PATTERN.test(source)) {
-    return { imageUrl: "", source, warning: source };
-  }
-
-  try {
-    const url = new URL(source);
-    if (url.protocol !== "http:" && url.protocol !== "https:") {
-      return { imageUrl: "", source, warning: source };
-    }
-
-    return { imageUrl: url.toString(), source, warning: null };
-  } catch {
-    return { imageUrl: "", source, warning: source };
-  }
-}
-
 export function createCatalogImportRows({
   headerRowIndex,
   mapping,
@@ -877,7 +894,6 @@ export function createCatalogImportRows({
     const price = parsePriceValue(
       mapping.price === null ? undefined : row[mapping.price],
     );
-    const image = getImageUrl(undefined);
     const description =
       mapping.description === null ? "" : cellToText(row[mapping.description]);
     const sourcePrivateNote =
@@ -901,11 +917,7 @@ export function createCatalogImportRows({
       description,
       duplicateAccepted: false,
       duplicateOfSourceRow: null,
-      existingListingDecision: null,
       id: `source-row-${sourceRow}`,
-      imageUrl: image.imageUrl,
-      imagePreviewAccepted: false,
-      imageUrlWarning: image.warning,
       linkProvenance: null,
       linkState: "pending",
       match: null,
@@ -915,7 +927,6 @@ export function createCatalogImportRows({
       privateNote: sourcePrivateNote,
       rowKind,
       sourceCultivarReferenceId,
-      sourceImageUrl: image.source,
       sourcePrice: price.source,
       sourceRow,
       sourceTitle,

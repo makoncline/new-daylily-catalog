@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableLayout } from "@/components/data-table/data-table-layout";
 import { DataTablePagination } from "@/components/data-table/data-table-pagination";
@@ -13,62 +12,20 @@ import {
   DataTableDownload,
   DataTableViewOptions,
 } from "@/components/data-table";
-import { Button } from "@/components/ui/button";
 import { APP_CONFIG } from "@/config/constants";
 import { LISTING_TABLE_COLUMN_NAMES } from "@/config/constants";
 import { getColumns } from "./columns";
 import { useDashboardListingReadModel } from "@/app/dashboard/_lib/dashboard-db/use-dashboard-listing-read-model";
-import {
-  PublicCatalogSearchFilterChips,
-  PublicCatalogSearchFilterField,
-  PublicCatalogSearchFilterFields,
-  PublicCatalogSearchQueryField,
-  PublicCatalogSearchResetButton,
-  PublicCatalogSearchResultCount,
-  PublicCatalogSearchModeToggle,
-  PublicCatalogSearchSection,
-} from "@/components/public-catalog-search/public-catalog-search-composable";
+import { PublicCatalogSearchAdvancedPanel } from "@/components/public-catalog-search/public-catalog-search-advanced-panel";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import {
   buildPublicCatalogSearchColumnNames,
   buildPublicCatalogSearchFacetOptions,
   buildPublicCatalogSearchListOptions,
-  PUBLIC_CATALOG_SEARCH_SECTION_DEFINITIONS,
-  PUBLIC_CATALOG_SEARCH_TOOLBAR_FILTERS,
-  type PublicCatalogSearchSectionDefinition,
 } from "@/components/public-catalog-search/public-catalog-search-registry";
 import type { PublicCatalogSearchMode } from "@/components/public-catalog-search/public-catalog-search-types";
 import { logDashboardTiming } from "@/app/dashboard/_lib/dashboard-timing";
 import { api } from "@/trpc/react";
-
-function getSectionGroupFilters(
-  section: PublicCatalogSearchSectionDefinition,
-  filterIds: string[],
-) {
-  const filtersById = new Map(
-    section.filters.map((filter) => [filter.id, filter]),
-  );
-  const filters: PublicCatalogSearchSectionDefinition["filters"] = [];
-
-  for (const filterId of filterIds) {
-    const filter = filtersById.get(filterId);
-    if (filter) {
-      filters.push(filter);
-    }
-  }
-
-  return filters;
-}
-
-function isFacetFilterGroup(
-  section: PublicCatalogSearchSectionDefinition,
-  filterIds: string[],
-) {
-  const filters = getSectionGroupFilters(section, filterIds);
-  return (
-    filters.length > 0 && filters.every((filter) => filter.kind === "facet")
-  );
-}
 
 function ListingsTableLive() {
   const firstRowsPaintedRef = React.useRef(false);
@@ -193,124 +150,19 @@ function ListingsTableLive() {
     );
   }
 
-  const searchContext = { table, listOptions, facetOptions };
-  const isAdvanced = searchMode === "advanced";
-
   return (
     <div className="space-y-4" data-testid="listing-table">
-      <div className="bg-muted/10 space-y-1.5 rounded-md border p-3">
-        <div className="flex items-center gap-2">
-          <div className="text-sm font-semibold">Search</div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-6 gap-1 px-1.5"
-            onClick={() => setSearchCollapsed((collapsed) => !collapsed)}
-            title="Toggle search filters (Alt+/)"
-            data-testid="search-collapse-toggle"
-          >
-            {searchCollapsed ? (
-              <ChevronDown className="size-4" />
-            ) : (
-              <ChevronUp className="size-4" />
-            )}
-            <span className="sr-only">
-              {searchCollapsed ? "Show search filters" : "Hide search filters"}
-            </span>
-          </Button>
-        </div>
-
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-            <PublicCatalogSearchResultCount table={table} />
-            <PublicCatalogSearchFilterChips
-              table={table}
-              listOptions={listOptions}
-            />
-          </div>
-          <PublicCatalogSearchResetButton table={table} />
-        </div>
-
-        {!searchCollapsed ? (
-          <div className="space-y-2 border-t pt-2">
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
-              <div className="space-y-1.5">
-                <div className="text-xs font-medium tracking-wide uppercase">
-                  Listing Search
-                </div>
-                <PublicCatalogSearchQueryField
-                  table={table}
-                  onSubmit={scrollToResultsSummary}
-                  inputClassName="h-8"
-                />
-              </div>
-
-              <PublicCatalogSearchModeToggle
-                id="dashboard-listings-search-mode-switch"
-                checked={isAdvanced}
-                onCheckedChange={(checked) =>
-                  setSearchMode(checked ? "advanced" : "basic")
-                }
-              />
-            </div>
-
-            <PublicCatalogSearchFilterFields
-              className="flex flex-wrap items-center gap-2"
-              definitions={PUBLIC_CATALOG_SEARCH_TOOLBAR_FILTERS}
-              context={searchContext}
-            />
-          </div>
-        ) : null}
-
-        {!searchCollapsed && isAdvanced ? (
-          <div className="grid grid-cols-1 gap-4 border-t pt-3 lg:grid-cols-4">
-            {PUBLIC_CATALOG_SEARCH_SECTION_DEFINITIONS.map((section) => (
-              <PublicCatalogSearchSection
-                key={section.id}
-                title={section.label}
-              >
-                <div className="space-y-3">
-                  {section.groups.map((group) => {
-                    const groupFilters = getSectionGroupFilters(
-                      section,
-                      group.filterIds,
-                    );
-
-                    if (groupFilters.length === 0) {
-                      return null;
-                    }
-
-                    const facetGroup = isFacetFilterGroup(
-                      section,
-                      group.filterIds,
-                    );
-
-                    return (
-                      <div
-                        key={group.filterIds.join("-")}
-                        className={
-                          facetGroup
-                            ? "flex flex-wrap items-start gap-2"
-                            : "space-y-3"
-                        }
-                      >
-                        {groupFilters.map((definition) => (
-                          <PublicCatalogSearchFilterField
-                            key={definition.id}
-                            definition={definition}
-                            context={searchContext}
-                          />
-                        ))}
-                      </div>
-                    );
-                  })}
-                </div>
-              </PublicCatalogSearchSection>
-            ))}
-          </div>
-        ) : null}
-      </div>
+      <PublicCatalogSearchAdvancedPanel
+        advancedSectionsColumns={3}
+        table={table}
+        listOptions={listOptions}
+        facetOptions={facetOptions}
+        mode={searchMode}
+        onModeChange={setSearchMode}
+        collapsed={searchCollapsed}
+        onCollapsedChange={setSearchCollapsed}
+        onSearchSubmit={scrollToResultsSummary}
+      />
 
       <div id="dashboard-listings-results" className="min-w-0">
         <DataTableLayout

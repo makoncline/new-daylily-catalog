@@ -1,12 +1,7 @@
 import { normalizeCultivarName } from "@/lib/utils/cultivar-utils";
+import type { CatalogImportPreparedListing } from "@/lib/catalog-importer";
 
-export interface CatalogImportComparableListing {
-  cultivarReferenceId: string | null;
-  description: string | null;
-  price: number | null;
-  privateNote: string | null;
-  title: string;
-}
+export type CatalogImportComparableListing = CatalogImportPreparedListing;
 
 export interface CatalogImportExistingListing
   extends CatalogImportComparableListing {

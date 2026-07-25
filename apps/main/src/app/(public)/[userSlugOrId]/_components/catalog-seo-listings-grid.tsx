@@ -1,5 +1,6 @@
 "use client";
 
+import { CatalogListingGrid } from "@/components/catalog-listing-grid";
 import { ListingCard, ListingCardAction } from "@/components/listing-card";
 import { ViewListingDialog } from "@/components/view-listing-dialog";
 import { getPublicListingPath } from "@/lib/public-catalog-url-state";
@@ -22,7 +23,7 @@ export function CatalogSeoListingsGrid({
 
   return (
     <>
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
+      <CatalogListingGrid>
         {listings.map((listing) => (
           <div key={listing.id}>
             <ListingCard listing={listing}>
@@ -39,7 +40,7 @@ export function CatalogSeoListingsGrid({
             </ListingCard>
           </div>
         ))}
-      </div>
+      </CatalogListingGrid>
 
       <ViewListingDialog listings={listings} />
     </>
