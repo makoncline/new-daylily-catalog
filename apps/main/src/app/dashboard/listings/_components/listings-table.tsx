@@ -17,6 +17,7 @@ import { LISTING_TABLE_COLUMN_NAMES } from "@/config/constants";
 import { getColumns } from "./columns";
 import { useDashboardListingReadModel } from "@/app/dashboard/_lib/dashboard-db/use-dashboard-listing-read-model";
 import { PublicCatalogSearchAdvancedPanel } from "@/components/public-catalog-search/public-catalog-search-advanced-panel";
+import { PublicCatalogSearchResultCount } from "@/components/public-catalog-search/public-catalog-search-composable";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import {
   buildPublicCatalogSearchColumnNames,
@@ -168,7 +169,8 @@ function ListingsTableLive() {
         <DataTableLayout
           table={table}
           toolbar={
-            <div className="flex items-center justify-end">
+            <div className="flex items-center justify-between gap-3">
+              <PublicCatalogSearchResultCount table={table} />
               <DataTableViewOptions table={table} />
             </div>
           }
