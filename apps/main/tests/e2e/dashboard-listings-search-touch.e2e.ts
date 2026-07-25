@@ -37,23 +37,27 @@ test.describe("dashboard listings search touch interactions @local", () => {
     await dashboardListings.isReady();
     await expect(page.getByTestId("listing-table")).toBeVisible();
 
-    await page.getByTestId("search-collapse-toggle").tap();
+    await page.getByTestId("search-panel-collapse").tap();
     await expect(page.getByTestId("search-all-fields-input")).toBeHidden();
 
-    await page.getByTestId("search-collapse-toggle").tap();
+    await page.getByTestId("search-panel-expand").tap();
     await expect(page.getByTestId("search-all-fields-input")).toBeVisible();
 
     await page.getByTestId("search-mode-switch").tap();
-    await expect(page.getByTestId("advanced-filter-title")).toBeVisible();
+    await expect(
+      page.locator('[data-testid="advanced-filter-title"]:visible'),
+    ).toBeVisible();
 
     const activeChips = page.getByTestId("active-filter-chips");
 
-    await page.getByTestId("advanced-filter-for-sale").tap();
+    await page.locator('[data-testid="advanced-filter-for-sale"]:visible').tap();
     await expect(
       activeChips.getByRole("button", { name: "For Sale" }),
     ).toBeVisible();
 
-    await page.getByTestId("advanced-filter-has-photo").tap();
+    await page
+      .locator('[data-testid="advanced-filter-has-photo"]:visible')
+      .tap();
     await expect(
       activeChips.getByRole("button", { name: "Has Photo" }),
     ).toBeVisible();
