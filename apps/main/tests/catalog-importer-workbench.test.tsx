@@ -12,6 +12,9 @@ import { CatalogImporterWorkbench } from "@/app/(public)/catalog-importer/_compo
 import {
   createCatalogImportRows,
   createCatalogImportSampleSpreadsheet,
+  type CatalogColumnMapping,
+  type CultivarMatchCandidate,
+  type CultivarNameMatchResult,
 } from "@/lib/catalog-importer";
 import {
   clearCatalogImporterDraft,
@@ -22,6 +25,85 @@ import {
 const capturePosthogEventMock = vi.hoisted(() => vi.fn());
 const downloadCatalogImportFileMock = vi.hoisted(() => vi.fn());
 const requestCultivarMatchesMock = vi.hoisted(() => vi.fn());
+
+const savedIdCandidate: CultivarMatchCandidate = {
+  awardNames: null,
+  bloomSizeIn: 7.5,
+  bloomSeason: "Late",
+  color: "Purple",
+  confidence: 100,
+  cultivarReferenceId: "cultivar-aw-shucks",
+  displayName: "A.W. Shucks",
+  form: "Spider",
+  hybridizer: "Herrington",
+  imageAsset: null,
+  imageUrl: null,
+  listingCount: 1,
+  normalizedName: "a w shucks",
+  ploidy: "Diploid",
+  rebloom: true,
+  scapeHeightIn: 26,
+  year: 2014,
+};
+
+function createSavedIdMatchResults(): CultivarNameMatchResult[] {
+  return [
+    {
+      candidates: [savedIdCandidate],
+      exactMatch: savedIdCandidate,
+      inputName: "A.W. Shucks",
+      normalizedInput: "a.w. shucks",
+    },
+  ];
+}
+
+function createSavedIdDraft({ includePriceIssue = false } = {}) {
+  const spreadsheet = {
+    fileName: "saved-id.csv",
+    sheets: [
+      {
+        name: "Catalog",
+        rows: [
+          ["name", "price", "Daylily Catalog ID"],
+          ["A.W. Shucks", "12", "missing-id"],
+          ...(includePriceIssue ? [["Trade Winds", "trade", ""]] : []),
+        ],
+      },
+    ],
+  };
+  const mapping = {
+    cultivarReferenceId: 2,
+    description: null,
+    price: 1,
+    privateNote: null,
+    title: 0,
+  } satisfies CatalogColumnMapping;
+  const sourceRows = createCatalogImportRows({
+    headerRowIndex: 0,
+    mapping,
+    rows: spreadsheet.sheets[0]!.rows,
+  });
+  const initialDraft: CatalogImporterDraft = {
+    activeReviewRowId: null,
+    headerRowIndex: 0,
+    mapping,
+    matchedRows: sourceRows.map((row, index) =>
+      index === 0
+        ? {
+            ...row,
+            cultivarReferenceIdWarning: "missing-id",
+            linkState: "pending",
+          }
+        : row,
+    ),
+    matchedRowsKey: "saved-id",
+    parsedSpreadsheet: spreadsheet,
+    selectedSheetIndex: 0,
+    version: 3,
+  };
+
+  return initialDraft;
+}
 
 async function openPreview() {
   return screen.findByRole("region", {
@@ -602,75 +684,9 @@ describe("CatalogImporterWorkbench", () => {
   });
 
   it("replaces an unavailable saved ID only after a confident name rematch", async () => {
-    const spreadsheet = {
-      fileName: "saved-id.csv",
-      sheets: [
-        {
-          name: "Catalog",
-          rows: [
-            ["name", "Daylily Catalog ID"],
-            ["A.W. Shucks", "missing-id"],
-          ],
-        },
-      ],
-    };
-    const mapping = {
-      cultivarReferenceId: 1,
-      description: null,
-      price: null,
-      privateNote: null,
-      title: 0,
-    };
-    const [sourceRow] = createCatalogImportRows({
-      headerRowIndex: 0,
-      mapping,
-      rows: spreadsheet.sheets[0]!.rows,
-    });
-    const candidate = {
-      awardNames: null,
-      bloomSizeIn: 7.5,
-      bloomSeason: "Late",
-      color: "Purple",
-      confidence: 100,
-      cultivarReferenceId: "cultivar-aw-shucks",
-      displayName: "A.W. Shucks",
-      form: "Spider",
-      hybridizer: "Herrington",
-      imageAsset: null,
-      imageUrl: null,
-      listingCount: 1,
-      normalizedName: "a w shucks",
-      ploidy: "Diploid",
-      rebloom: true,
-      scapeHeightIn: 26,
-      year: 2014,
-    };
-    requestCultivarMatchesMock.mockResolvedValue([
-      {
-        candidates: [candidate],
-        exactMatch: candidate,
-        inputName: "A.W. Shucks",
-        normalizedInput: "a.w. shucks",
-      },
-    ]);
-    const initialDraft: CatalogImporterDraft = {
-      activeReviewRowId: null,
-      headerRowIndex: 0,
-      mapping,
-      matchedRows: [
-        {
-          ...sourceRow!,
-          cultivarReferenceIdWarning: "missing-id",
-          linkState: "pending",
-        },
-      ],
-      matchedRowsKey: "saved-id",
-      parsedSpreadsheet: spreadsheet,
-      selectedSheetIndex: 0,
-      version: 3,
-    };
+    requestCultivarMatchesMock.mockResolvedValue(createSavedIdMatchResults());
 
-    render(<CatalogImporterWorkbench initialDraft={initialDraft} />);
+    render(<CatalogImporterWorkbench initialDraft={createSavedIdDraft()} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Issues 0/1" }));
     expect(
@@ -694,6 +710,105 @@ describe("CatalogImporterWorkbench", () => {
         name: "We matched 1 listing to registered cultivars",
       }),
     ).toBeVisible();
+  });
+
+  it("preserves issue repairs made while a saved ID rematch is pending", async () => {
+    let resolveRematch:
+      | ((results: CultivarNameMatchResult[]) => void)
+      | undefined;
+    requestCultivarMatchesMock.mockImplementation(
+      () =>
+        new Promise<CultivarNameMatchResult[]>((resolve) => {
+          resolveRematch = resolve;
+        }),
+    );
+
+    render(
+      <CatalogImporterWorkbench
+        initialDraft={createSavedIdDraft({ includePriceIssue: true })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Issues 0/2" }));
+    fireEvent.click(screen.getByRole("button", { name: "Match by name" }));
+    await waitFor(() =>
+      expect(requestCultivarMatchesMock).toHaveBeenCalledOnce(),
+    );
+
+    const priceIssues = screen.getByRole("region", {
+      name: "Price formats need review",
+    });
+    fireEvent.change(
+      within(priceIssues).getByLabelText("Correct price for row 3"),
+      {
+        target: { value: "25" },
+      },
+    );
+    fireEvent.click(
+      within(priceIssues).getByRole("button", {
+        name: "Save price for row 3",
+      }),
+    );
+
+    await act(async () => {
+      resolveRematch?.(createSavedIdMatchResults());
+    });
+
+    await waitFor(async () => {
+      const draft = await readCatalogImporterDraft();
+      const savedIdRow = draft?.matchedRows?.find(
+        (row) => row.id === "source-row-2",
+      );
+      const repairedPriceRow = draft?.matchedRows?.find(
+        (row) => row.id === "source-row-3",
+      );
+      expect(savedIdRow?.cultivarReferenceIdWarning).toBeNull();
+      expect(savedIdRow?.match?.cultivarReferenceId).toBe("cultivar-aw-shucks");
+      expect(repairedPriceRow?.price).toBe(25);
+      expect(repairedPriceRow?.priceWarning).toBeNull();
+      expect(draft?.reviewedIssueActions).toHaveLength(2);
+    });
+  });
+
+  it("does not restore cleared progress after a saved ID rematch resolves", async () => {
+    let resolveRematch:
+      | ((results: CultivarNameMatchResult[]) => void)
+      | undefined;
+    requestCultivarMatchesMock.mockImplementation(
+      () =>
+        new Promise<CultivarNameMatchResult[]>((resolve) => {
+          resolveRematch = resolve;
+        }),
+    );
+
+    render(<CatalogImporterWorkbench initialDraft={createSavedIdDraft()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Issues 0/1" }));
+    fireEvent.click(screen.getByRole("button", { name: "Match by name" }));
+    await waitFor(() =>
+      expect(requestCultivarMatchesMock).toHaveBeenCalledOnce(),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Start" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Clear local progress" }),
+    );
+    fireEvent.click(
+      within(
+        screen.getByRole("alertdialog", { name: "Clear local progress?" }),
+      ).getByRole("button", { name: "Clear local progress" }),
+    );
+
+    await act(async () => {
+      resolveRematch?.(createSavedIdMatchResults());
+    });
+
+    expect(
+      await screen.findByText("Drop a spreadsheet here, or choose a file"),
+    ).toBeVisible();
+    await waitFor(async () => {
+      await expect(readCatalogImporterDraft()).resolves.toBeNull();
+    });
   });
 
   it("reports download failures separately and allows another download", async () => {

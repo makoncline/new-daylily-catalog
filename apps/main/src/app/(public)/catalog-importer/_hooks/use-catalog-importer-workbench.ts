@@ -340,6 +340,8 @@ export function useCatalogImporterWorkbench(
   const exactMatchAbortController = useRef<AbortController | null>(null);
   const closeCandidateRequestId = useRef(0);
   const searchCandidateRequestId = useRef(0);
+  const savedIdRematchRequestId = useRef(0);
+  const savedIdRematchAbortController = useRef<AbortController | null>(null);
   const draftWriteChain = useRef(Promise.resolve());
   const identityDecisionTracked = useRef(false);
   const previewTracked = useRef(initialDraft?.matchedRows != null);
@@ -831,6 +833,9 @@ export function useCatalogImporterWorkbench(
     exactMatchAbortController.current = null;
     closeCandidateRequestId.current += 1;
     searchCandidateRequestId.current += 1;
+    savedIdRematchRequestId.current += 1;
+    savedIdRematchAbortController.current?.abort();
+    savedIdRematchAbortController.current = null;
     setMatchingProgress(null);
     setProcessingStage(null);
     setMatchError(null);
@@ -1808,19 +1813,80 @@ export function useCatalogImporterWorkbench(
 
   const clearCultivarReferenceIdIssues = useCallback(
     async (rowIds: string[]) => {
-      if (!matchedRows) {
+      const rowsBeforeRequest = sessionRef.current.matchedRows;
+      if (!rowsBeforeRequest) {
         return;
       }
       const targetIds = new Set(rowIds);
-      const targetRows = matchedRows.filter((row) => targetIds.has(row.id));
+      const targetRows = rowsBeforeRequest.filter((row) =>
+        targetIds.has(row.id),
+      );
       if (targetRows.length === 0) {
         return;
       }
 
-      const results = await requestCultivarMatches({
-        includeCandidates: true,
-        names: targetRows.map((row) => row.title),
-      });
+      const invalidIdStateByRowId = new Map(
+        targetRows.map((row) => [
+          row.id,
+          {
+            sourceCultivarReferenceId: row.sourceCultivarReferenceId,
+            warning: row.cultivarReferenceIdWarning,
+          },
+        ]),
+      );
+      const requestId = savedIdRematchRequestId.current + 1;
+      savedIdRematchRequestId.current = requestId;
+      savedIdRematchAbortController.current?.abort();
+      const controller = new AbortController();
+      savedIdRematchAbortController.current = controller;
+
+      let results: Awaited<ReturnType<typeof requestCultivarMatches>>;
+      try {
+        results = await requestCultivarMatches({
+          includeCandidates: true,
+          names: targetRows.map((row) => row.title),
+          signal: controller.signal,
+        });
+      } catch (error) {
+        if (
+          controller.signal.aborted ||
+          savedIdRematchRequestId.current !== requestId
+        ) {
+          return;
+        }
+        throw error;
+      } finally {
+        if (savedIdRematchAbortController.current === controller) {
+          savedIdRematchAbortController.current = null;
+        }
+      }
+      if (
+        controller.signal.aborted ||
+        savedIdRematchRequestId.current !== requestId
+      ) {
+        return;
+      }
+
+      const currentRows = sessionRef.current.matchedRows;
+      if (!currentRows) {
+        return;
+      }
+      const currentTargetIds = new Set(
+        currentRows.flatMap((row) => {
+          const initialState = invalidIdStateByRowId.get(row.id);
+          return initialState &&
+            row.outputState === "included" &&
+            row.cultivarReferenceIdWarning === initialState.warning &&
+            row.sourceCultivarReferenceId ===
+              initialState.sourceCultivarReferenceId
+            ? [row.id]
+            : [];
+        }),
+      );
+      if (currentTargetIds.size === 0) {
+        return;
+      }
+
       const resultsByName = new Map(
         results.flatMap((result) =>
           result.normalizedInput
@@ -1830,8 +1896,8 @@ export function useCatalogImporterWorkbench(
       );
       let replacedCount = 0;
       const nextRows = assignCatalogImportDuplicateGroups(
-        matchedRows.map((row) => {
-          if (!targetIds.has(row.id)) {
+        currentRows.map((row) => {
+          if (!currentTargetIds.has(row.id)) {
             return row;
           }
 
@@ -1848,7 +1914,6 @@ export function useCatalogImporterWorkbench(
           return {
             ...row,
             cultivarReferenceIdWarning: null,
-            duplicateAccepted: false,
             linkProvenance: automaticMatch
               ? automaticMatch.confidence === 100
                 ? ("exact-name" as const)
@@ -1864,13 +1929,13 @@ export function useCatalogImporterWorkbench(
         }),
       );
       const nextReviewRow = getCatalogImportState(nextRows).reviewRows.find(
-        (row) => targetIds.has(row.id),
+        (row) => currentTargetIds.has(row.id),
       );
       if (nextReviewRow) {
         setReviewQuery(nextReviewRow.sourceTitle);
         void loadCandidates(nextReviewRow);
       }
-      const reviewCount = targetRows.length - replacedCount;
+      const reviewCount = currentTargetIds.size - replacedCount;
       const replacementSummary =
         replacedCount > 0
           ? `${replacedCount.toLocaleString()} ${
@@ -1888,20 +1953,20 @@ export function useCatalogImporterWorkbench(
         .join(" ");
       const nextReviewedIssueActions = createReviewedIssueActions(
         actionSummary,
-        matchedRows,
-        targetRows.map((row) => row.id),
+        currentRows,
+        currentTargetIds,
       );
       saveMatchedRows(nextRows, nextReviewRow?.id, {
         reviewedIssueActions: nextReviewedIssueActions,
       });
       captureIssueResolution({
         issueType: "saved_id",
-        resolvedCount: targetRows.length,
+        resolvedCount: currentTargetIds.size,
         rows: nextRows,
       });
       setLiveAnnouncement(actionSummary);
     },
-    [createReviewedIssueActions, loadCandidates, matchedRows, saveMatchedRows],
+    [createReviewedIssueActions, loadCandidates, saveMatchedRows],
   );
 
   const undoReviewedIssueAction = useCallback(

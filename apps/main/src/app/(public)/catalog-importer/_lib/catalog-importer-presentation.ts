@@ -113,12 +113,6 @@ export function getCandidateAhsDisplayListing(
   };
 }
 
-export function getUploadedImages(
-  _row: CatalogImportRow,
-): OptimizedImageSource[] {
-  return [];
-}
-
 export function getCandidateMeta(candidate: CultivarMatchCandidate) {
   return [candidate.hybridizer, candidate.year]
     .filter((value) => value !== null && value !== "")
