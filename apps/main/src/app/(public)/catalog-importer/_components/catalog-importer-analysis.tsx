@@ -619,8 +619,9 @@ function RankedInsightChart({
     <div className="min-w-0">
       <ChartContainer
         config={INSIGHT_CHART_CONFIG}
-        className="h-56 w-full min-w-0 overflow-hidden"
+        className="w-full min-w-0 overflow-hidden"
         aria-label={`${title} chart`}
+        style={{ height: Math.max(224, data.length * 32) }}
       >
         <BarChart
           accessibilityLayer

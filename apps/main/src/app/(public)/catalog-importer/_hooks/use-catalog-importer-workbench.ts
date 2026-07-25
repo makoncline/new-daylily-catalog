@@ -181,6 +181,37 @@ function removeRowFromDuplicateGroup(rows: CatalogImportRow[], rowId: string) {
   );
 }
 
+function getNextReviewedIssueActions({
+  actionId,
+  affectedRowIds,
+  message,
+  previousRows,
+  reviewedIssueActions,
+}: {
+  actionId: number;
+  affectedRowIds: Iterable<string>;
+  message: string;
+  previousRows: CatalogImportRow[];
+  reviewedIssueActions: CatalogImporterSession["reviewedIssueActions"];
+}) {
+  const affectedIds = new Set(affectedRowIds);
+  const affectedRows = previousRows.filter((row) => affectedIds.has(row.id));
+  if (affectedRows.length === 0) {
+    return reviewedIssueActions;
+  }
+
+  return [
+    ...reviewedIssueActions.filter((action) =>
+      action.previousRows.every((row) => !affectedIds.has(row.id)),
+    ),
+    {
+      id: actionId,
+      message,
+      previousRows: affectedRows,
+    },
+  ];
+}
+
 export function useCatalogImporterWorkbench(
   initialDraft: CatalogImporterDraft | null = null,
 ) {
@@ -284,37 +315,24 @@ export function useCatalogImporterWorkbench(
       0,
     ),
   );
-  const recordIssueAction = useCallback(
+  const createReviewedIssueActions = useCallback(
     (
       message: string,
       previousRows: CatalogImportRow[],
       affectedRowIds: Iterable<string>,
     ) => {
-      const affectedIds = new Set(affectedRowIds);
-      const affectedRows = previousRows.filter((row) =>
-        affectedIds.has(row.id),
-      );
-      if (affectedRows.length === 0) {
-        return;
+      const actionId = issueActionSequence.current + 1;
+      const nextActions = getNextReviewedIssueActions({
+        actionId,
+        affectedRowIds,
+        message,
+        previousRows,
+        reviewedIssueActions: sessionRef.current.reviewedIssueActions,
+      });
+      if (nextActions !== sessionRef.current.reviewedIssueActions) {
+        issueActionSequence.current = actionId;
       }
-
-      issueActionSequence.current += 1;
-      const nextActions = [
-        ...sessionRef.current.reviewedIssueActions.filter((action) =>
-          action.previousRows.every((row) => !affectedIds.has(row.id)),
-        ),
-        {
-          id: issueActionSequence.current,
-          message,
-          previousRows: affectedRows,
-        },
-      ];
-      const nextSession = {
-        ...sessionRef.current,
-        reviewedIssueActions: nextActions,
-      };
-      sessionRef.current = nextSession;
-      setSession(nextSession);
+      return nextActions;
     },
     [],
   );
@@ -506,6 +524,10 @@ export function useCatalogImporterWorkbench(
     (
       nextRows: CatalogImportRow[],
       nextActiveReviewRowId = activeReviewRowId,
+      sessionUpdates: Pick<
+        Partial<CatalogImporterSession>,
+        "reviewedIssueActions"
+      > = {},
     ) => {
       const nextImportState = getCatalogImportState(nextRows);
       const nextInitialIssueCount = Math.max(
@@ -518,6 +540,7 @@ export function useCatalogImporterWorkbench(
       );
       setLastLinkAction(null);
       void commitSession({
+        ...sessionUpdates,
         activeReviewRowId: nextActiveReviewRowId,
         initialIssueCount: nextInitialIssueCount,
         initialReviewCount: nextInitialReviewCount,
@@ -552,6 +575,7 @@ export function useCatalogImporterWorkbench(
           matchedRows: null,
           matchedRowsKey: null,
           parsedSpreadsheet: spreadsheet,
+          reviewedIssueActions: [],
           selectedSheetIndex: nextSheetIndex,
         });
         return false;
@@ -582,6 +606,7 @@ export function useCatalogImporterWorkbench(
           matchedRows: rows,
           matchedRowsKey: null,
           parsedSpreadsheet: spreadsheet,
+          reviewedIssueActions: [],
           selectedSheetIndex: nextSheetIndex,
         });
         setProcessingStage(null);
@@ -629,6 +654,7 @@ export function useCatalogImporterWorkbench(
         matchedRows: null,
         matchedRowsKey: null,
         parsedSpreadsheet: spreadsheet,
+        reviewedIssueActions: [],
         selectedSheetIndex: nextSheetIndex,
       });
       if (exactMatchRequestId.current !== requestId) {
@@ -728,6 +754,7 @@ export function useCatalogImporterWorkbench(
           matchedRows: nextRows,
           matchedRowsKey: nextMatchKey,
           parsedSpreadsheet: spreadsheet,
+          reviewedIssueActions: [],
           selectedSheetIndex: nextSheetIndex,
         });
         if (exactMatchRequestId.current !== requestId) {
@@ -804,17 +831,6 @@ export function useCatalogImporterWorkbench(
     exactMatchAbortController.current = null;
     closeCandidateRequestId.current += 1;
     searchCandidateRequestId.current += 1;
-    const nextSession = {
-      ...sessionRef.current,
-      activeReviewRowId: null,
-      initialIssueCount: 0,
-      initialReviewCount: 0,
-      matchedRows: null,
-      matchedRowsKey: null,
-      reviewedIssueActions: [],
-    };
-    sessionRef.current = nextSession;
-    setSession(nextSession);
     setMatchingProgress(null);
     setProcessingStage(null);
     setMatchError(null);
@@ -969,6 +985,7 @@ export function useCatalogImporterWorkbench(
         matchedRows: null,
         matchedRowsKey: null,
         parsedSpreadsheet: spreadsheet,
+        reviewedIssueActions: [],
         selectedSheetIndex: sheetIndex,
       });
     },
@@ -1010,6 +1027,7 @@ export function useCatalogImporterWorkbench(
             matchedRows: null,
             matchedRowsKey: null,
             parsedSpreadsheet: spreadsheet,
+            reviewedIssueActions: [],
             selectedSheetIndex: -1,
           });
         }
@@ -1068,6 +1086,7 @@ export function useCatalogImporterWorkbench(
         matchedRows: null,
         matchedRowsKey: null,
         parsedSpreadsheet: nextSpreadsheet,
+        reviewedIssueActions: [],
       });
     },
     [parsedSpreadsheet, commitSession, resetMatches, selectedSheetIndex],
@@ -1157,6 +1176,7 @@ export function useCatalogImporterWorkbench(
         matchedRows: null,
         matchedRowsKey: null,
         parsedSpreadsheet,
+        reviewedIssueActions: [],
         selectedSheetIndex,
       });
     },
@@ -1189,6 +1209,7 @@ export function useCatalogImporterWorkbench(
         matchedRows: null,
         matchedRowsKey: null,
         parsedSpreadsheet,
+        reviewedIssueActions: [],
         selectedSheetIndex,
       });
     },
@@ -1604,12 +1625,14 @@ export function useCatalogImporterWorkbench(
       }
 
       const nextRows = removeRowFromDuplicateGroup(matchedRows, rowId);
-      recordIssueAction(
+      const nextReviewedIssueActions = createReviewedIssueActions(
         `Source row ${removedRow.sourceRow} was excluded.`,
         matchedRows,
         [rowId],
       );
-      saveMatchedRows(nextRows);
+      saveMatchedRows(nextRows, undefined, {
+        reviewedIssueActions: nextReviewedIssueActions,
+      });
       captureIssueResolution({
         issueType: "duplicate",
         resolvedCount: 1,
@@ -1617,7 +1640,7 @@ export function useCatalogImporterWorkbench(
       });
       setLiveAnnouncement(`Source row ${removedRow.sourceRow} removed.`);
     },
-    [matchedRows, recordIssueAction, saveMatchedRows],
+    [createReviewedIssueActions, matchedRows, saveMatchedRows],
   );
 
   const keepDuplicateRows = useCallback(
@@ -1636,12 +1659,14 @@ export function useCatalogImporterWorkbench(
             }
           : row,
       );
-      recordIssueAction(
+      const nextReviewedIssueActions = createReviewedIssueActions(
         `Kept ${retainedIds.size.toLocaleString()} listings.`,
         matchedRows,
         retainedIds,
       );
-      saveMatchedRows(nextRows);
+      saveMatchedRows(nextRows, undefined, {
+        reviewedIssueActions: nextReviewedIssueActions,
+      });
       captureIssueResolution({
         issueType: "duplicate",
         resolvedCount: retainedIds.size,
@@ -1651,7 +1676,7 @@ export function useCatalogImporterWorkbench(
         `${retainedIds.size.toLocaleString()} duplicate listings kept.`,
       );
     },
-    [matchedRows, recordIssueAction, saveMatchedRows],
+    [createReviewedIssueActions, matchedRows, saveMatchedRows],
   );
 
   const excludeDuplicateRows = useCallback(
@@ -1672,12 +1697,14 @@ export function useCatalogImporterWorkbench(
             : row,
         ),
       );
-      recordIssueAction(
+      const nextReviewedIssueActions = createReviewedIssueActions(
         `${excludedIds.size.toLocaleString()} listings were excluded.`,
         matchedRows,
         excludedIds,
       );
-      saveMatchedRows(nextRows);
+      saveMatchedRows(nextRows, undefined, {
+        reviewedIssueActions: nextReviewedIssueActions,
+      });
       captureIssueResolution({
         issueType: "duplicate",
         resolvedCount: excludedIds.size,
@@ -1687,7 +1714,7 @@ export function useCatalogImporterWorkbench(
         `${excludedIds.size.toLocaleString()} duplicate listings excluded.`,
       );
     },
-    [matchedRows, recordIssueAction, saveMatchedRows],
+    [createReviewedIssueActions, matchedRows, saveMatchedRows],
   );
 
   const excludeIssueRows = useCallback(
@@ -1708,12 +1735,14 @@ export function useCatalogImporterWorkbench(
             : row,
         ),
       );
-      recordIssueAction(
+      const nextReviewedIssueActions = createReviewedIssueActions(
         `${excludedIds.size.toLocaleString()} listings were excluded.`,
         matchedRows,
         excludedIds,
       );
-      saveMatchedRows(nextRows);
+      saveMatchedRows(nextRows, undefined, {
+        reviewedIssueActions: nextReviewedIssueActions,
+      });
       captureIssueResolution({
         issueType: "excluded",
         resolvedCount: excludedIds.size,
@@ -1723,7 +1752,7 @@ export function useCatalogImporterWorkbench(
         `${excludedIds.size.toLocaleString()} listings excluded.`,
       );
     },
-    [matchedRows, recordIssueAction, saveMatchedRows],
+    [createReviewedIssueActions, matchedRows, saveMatchedRows],
   );
 
   const resolvePriceIssues = useCallback(
@@ -1757,12 +1786,14 @@ export function useCatalogImporterWorkbench(
             }
           : row,
       );
-      recordIssueAction(
+      const nextReviewedIssueActions = createReviewedIssueActions(
         `${prices.size.toLocaleString()} price ${prices.size === 1 ? "value was" : "values were"} updated.`,
         matchedRows,
         prices.keys(),
       );
-      saveMatchedRows(nextRows);
+      saveMatchedRows(nextRows, undefined, {
+        reviewedIssueActions: nextReviewedIssueActions,
+      });
       captureIssueResolution({
         issueType: "price",
         resolvedCount: prices.size,
@@ -1772,7 +1803,7 @@ export function useCatalogImporterWorkbench(
         `${prices.size.toLocaleString()} price ${prices.size === 1 ? "issue" : "issues"} resolved.`,
       );
     },
-    [matchedRows, recordIssueAction, saveMatchedRows],
+    [createReviewedIssueActions, matchedRows, saveMatchedRows],
   );
 
   const clearCultivarReferenceIdIssues = useCallback(
@@ -1855,12 +1886,14 @@ export function useCatalogImporterWorkbench(
       const actionSummary = [replacementSummary, reviewSummary]
         .filter(Boolean)
         .join(" ");
-      recordIssueAction(
+      const nextReviewedIssueActions = createReviewedIssueActions(
         actionSummary,
         matchedRows,
         targetRows.map((row) => row.id),
       );
-      saveMatchedRows(nextRows, nextReviewRow?.id);
+      saveMatchedRows(nextRows, nextReviewRow?.id, {
+        reviewedIssueActions: nextReviewedIssueActions,
+      });
       captureIssueResolution({
         issueType: "saved_id",
         resolvedCount: targetRows.length,
@@ -1868,7 +1901,7 @@ export function useCatalogImporterWorkbench(
       });
       setLiveAnnouncement(actionSummary);
     },
-    [loadCandidates, matchedRows, recordIssueAction, saveMatchedRows],
+    [createReviewedIssueActions, loadCandidates, matchedRows, saveMatchedRows],
   );
 
   const undoReviewedIssueAction = useCallback(
@@ -1910,13 +1943,9 @@ export function useCatalogImporterWorkbench(
             : [];
         },
       );
-      const nextSession = {
-        ...sessionRef.current,
+      saveMatchedRows(nextRows, undefined, {
         reviewedIssueActions: nextActions,
-      };
-      sessionRef.current = nextSession;
-      setSession(nextSession);
-      saveMatchedRows(nextRows);
+      });
       setLiveAnnouncement("Spreadsheet issue change undone.");
     },
     [matchedRows, reviewedIssueActions, saveMatchedRows],
