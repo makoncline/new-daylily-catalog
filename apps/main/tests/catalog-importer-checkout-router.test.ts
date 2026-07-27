@@ -282,6 +282,66 @@ describe("catalog importer checkout", () => {
     });
   });
 
+  it("claims legacy onboarding sessions but rejects unrelated sessions", async () => {
+    await withTempAppDb(async () => {
+      const { db } = await import("@/server/db");
+      const { createCaller } = await import("@/server/api/root");
+      const { getCatalogImporterCheckoutStatus } = await import(
+        "@/server/catalog-importer/checkout-service"
+      );
+      stripeMocks.checkoutRetrieve.mockResolvedValue({
+        id: "cs_test_legacy_onboarding",
+        metadata: {
+          flow: "anonymous_onboarding",
+          email: "legacy@example.com",
+        },
+        customer: "cus_legacy_onboarding",
+        customer_email: "legacy@example.com",
+        subscription: { status: "trialing" },
+      });
+
+      await expect(
+        getCatalogImporterCheckoutStatus(db, "cs_test_legacy_onboarding"),
+      ).resolves.toMatchObject({
+        email: "legacy@example.com",
+        isActive: true,
+      });
+
+      const user = await db.user.create({
+        data: { clerkUserId: "clerk_legacy_onboarding" },
+      });
+      const caller = createCaller(async () => ({
+        db,
+        headers: new Headers(),
+        _authUser: {
+          ...user,
+          clerk: { email: "legacy@example.com", createdAt: Date.now() },
+        } as unknown as TRPCInternalContext["_authUser"],
+      }));
+
+      await expect(
+        caller.catalogImporter.claimCheckout({
+          sessionId: "cs_test_legacy_onboarding",
+        }),
+      ).resolves.toEqual({ ok: true });
+
+      await expect(
+        db.user.findUniqueOrThrow({
+          where: { id: user.id },
+          select: { stripeCustomerId: true },
+        }),
+      ).resolves.toEqual({ stripeCustomerId: "cus_legacy_onboarding" });
+
+      stripeMocks.checkoutRetrieve.mockResolvedValue({
+        id: "cs_test_unrelated",
+        metadata: { flow: "other_checkout" },
+      });
+      await expect(
+        getCatalogImporterCheckoutStatus(db, "cs_test_unrelated"),
+      ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    });
+  });
+
   it("creates signed-in importer checkout through its own procedure", async () => {
     const caller = catalogImporterRouter.createCaller({
       db: {
