@@ -194,6 +194,21 @@ const READ_ONLY_MUTATION_PATHS = new Set([
   "dashboardDb.image.listByListingIdsReplica",
 ]);
 
+const REDACTED_MUTATION_PATHS = new Set(["dashboardDb.listing.importRows"]);
+
+function getMutationAuditInput(path: string, input: unknown) {
+  if (!REDACTED_MUTATION_PATHS.has(path)) {
+    return input;
+  }
+
+  const rows =
+    input && typeof input === "object" && "rows" in input
+      ? (input as { rows?: unknown }).rows
+      : null;
+
+  return { rowCount: Array.isArray(rows) ? rows.length : 0 };
+}
+
 const isAuthenticated = t.middleware(async (opts) => {
   if (typeof opts.ctx._authUser === "undefined") {
     opts.ctx._authUserPromise ??= resolveAuthenticatedUser(
@@ -213,7 +228,9 @@ const isAuthenticated = t.middleware(async (opts) => {
 
   const shouldAuditMutation =
     opts.type === "mutation" && !READ_ONLY_MUTATION_PATHS.has(opts.path);
-  const rawInput = shouldAuditMutation ? await opts.getRawInput() : undefined;
+  const rawInput = shouldAuditMutation
+    ? getMutationAuditInput(opts.path, await opts.getRawInput())
+    : undefined;
   const startedAt = Date.now();
 
   const result = await opts.next({

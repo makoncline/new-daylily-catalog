@@ -83,7 +83,15 @@ describe("Stripe webhook route", () => {
   it("syncs relevant customer events and records funnel events", async () => {
     const event = {
       type: "customer.subscription.created",
-      data: { object: { customer: "cus_test" } },
+      data: {
+        object: {
+          customer: "cus_test",
+          metadata: {
+            conversion_id: "conversion-test",
+            entry_source: "catalog_importer",
+          },
+        },
+      },
     };
     mocks.constructEvent.mockReturnValue(event);
     mocks.funnelEvents.mockReturnValue([
@@ -108,6 +116,8 @@ describe("Stripe webhook route", () => {
         source_page: "/api/stripe-webhook",
         stripe_customer_id: "cus_test",
         synced_subscription_status: "active",
+        conversion_id: "conversion-test",
+        entry_source: "catalog_importer",
       },
     });
   });

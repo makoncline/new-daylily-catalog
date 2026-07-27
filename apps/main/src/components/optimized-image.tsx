@@ -44,6 +44,7 @@ interface OptimizedImageProps extends React.HTMLAttributes<HTMLDivElement> {
   className?: string;
   priority?: boolean;
   fit?: "contain" | "cover";
+  onImageError?: () => void;
 }
 
 export interface OptimizedImageSource {
@@ -101,6 +102,7 @@ export function OptimizedImage({
   className,
   priority = false,
   fit = IMAGE_CONFIG.FIT,
+  onImageError,
   ...props
 }: OptimizedImageProps) {
   const [loadedImageUrl, setLoadedImageUrl] = React.useState<string | null>(
@@ -189,6 +191,7 @@ export function OptimizedImage({
         priority={priority}
         transformSource={transformSource}
         onLoad={handleLoad}
+        onImageError={onImageError}
       />
     </div>
   );
@@ -204,6 +207,7 @@ interface OptimizedImageInnerProps {
   priority: boolean;
   transformSource: string | null;
   onLoad: React.ReactEventHandler<HTMLImageElement>;
+  onImageError?: () => void;
 }
 
 function OptimizedImageInner({
@@ -216,6 +220,7 @@ function OptimizedImageInner({
   priority,
   transformSource,
   onLoad,
+  onImageError,
 }: OptimizedImageInnerProps) {
   const [fallbackSrc, setFallbackSrc] = React.useState<string | null>(null);
   const currentSrc = fallbackSrc ?? imageUrl;
@@ -229,6 +234,7 @@ function OptimizedImageInner({
           return;
         }
 
+        onImageError?.();
         if (!transformSource) return;
 
         const reportKey = `${src}::${imageUrl}`;
@@ -250,7 +256,16 @@ function OptimizedImageInner({
           },
         });
       },
-      [currentSrc, fallbackTarget, imageUrl, src, transformSource, size, fit],
+      [
+        currentSrc,
+        fallbackTarget,
+        imageUrl,
+        onImageError,
+        src,
+        transformSource,
+        size,
+        fit,
+      ],
     );
 
   return (

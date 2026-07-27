@@ -14,6 +14,8 @@ dotenv.config({
 
 const e2ePort = process.env.E2E_PORT ?? "3100";
 const baseURL = process.env.BASE_URL ?? `http://localhost:${e2ePort}`;
+const vercelAutomationBypassSecret =
+  process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
 const isProdScenario = process.env.E2E_PROD_SCENARIO === "1";
 const isProfileScenario = process.env.E2E_PROFILE_SCENARIO === "1";
 const grepInvert = (() => {
@@ -40,6 +42,12 @@ process.env.NEXT_PUBLIC_POSTHOG_HOST = "https://us.i.posthog.com";
 if (!process.env.BASE_URL) {
   const tmpDir = path.join(process.cwd(), "tests", ".tmp");
   fs.mkdirSync(tmpDir, { recursive: true });
+  const runtimeFlagsPath = path.join(tmpDir, "e2e-runtime-feature-flags.json");
+  fs.writeFileSync(
+    runtimeFlagsPath,
+    JSON.stringify({ publicCultivarSearch: true }),
+  );
+  process.env.RUNTIME_FEATURE_FLAGS_PATH = runtimeFlagsPath;
 
   const existingUrl = process.env.DATABASE_URL;
   const isTempDb =
@@ -82,6 +90,12 @@ export default defineConfig({
     baseURL,
     screenshot: "only-on-failure",
     bypassCSP: true,
+    extraHTTPHeaders: vercelAutomationBypassSecret
+      ? {
+          "x-vercel-protection-bypass": vercelAutomationBypassSecret,
+          "x-vercel-set-bypass-cookie": "true",
+        }
+      : undefined,
     ...devices["Desktop Chrome"],
   },
 

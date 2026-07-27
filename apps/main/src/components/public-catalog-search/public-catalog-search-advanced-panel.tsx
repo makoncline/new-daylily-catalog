@@ -7,12 +7,15 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import {
   countPublicCatalogSearchSectionFilters,
+  PUBLIC_CATALOG_SEARCH_CULTIVAR_SECTION_DEFINITIONS,
   PUBLIC_CATALOG_SEARCH_SECTION_DEFINITIONS,
   PUBLIC_CATALOG_SEARCH_TOOLBAR_FILTERS,
+  type PublicCatalogSearchSectionDefinition,
 } from "./public-catalog-search-registry";
 import { PublicCatalogSearchFilterSection } from "./public-catalog-search-panel-controls";
 import {
   PublicCatalogSearchActiveFilterChips,
+  type PublicCatalogSearchComposerContext,
   PublicCatalogSearchFilterField,
   PublicCatalogSearchFilterFields,
   PublicCatalogSearchQueryField,
@@ -21,7 +24,7 @@ import {
 import { type PublicCatalogSearchAdvancedPanelProps } from "./public-catalog-search-types";
 
 function getSectionGroupFilters(
-  section: (typeof PUBLIC_CATALOG_SEARCH_SECTION_DEFINITIONS)[number],
+  section: PublicCatalogSearchSectionDefinition,
   filterIds: string[],
 ) {
   type SectionFilter = (typeof section.filters)[number];
@@ -40,7 +43,72 @@ function getSectionGroupFilters(
   return filters;
 }
 
+function AdvancedSectionFields<TData>({
+  context,
+  section,
+}: {
+  context: PublicCatalogSearchComposerContext<TData>;
+  section: PublicCatalogSearchSectionDefinition;
+}) {
+  return (
+    <div className="space-y-4">
+      {section.groups.map((group) => {
+        const groupFilters = getSectionGroupFilters(section, group.filterIds);
+
+        if (groupFilters.length === 0) {
+          return null;
+        }
+
+        return (
+          <div
+            key={group.filterIds.join("-")}
+            className={cn(group.className ?? "space-y-4")}
+          >
+            {groupFilters.map((definition) => (
+              <PublicCatalogSearchFilterField
+                key={definition.id}
+                definition={definition}
+                context={context}
+              />
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function AdvancedSectionsAccordion<TData>({
+  context,
+  sectionDefinitions,
+  className,
+}: {
+  context: PublicCatalogSearchComposerContext<TData>;
+  sectionDefinitions: PublicCatalogSearchSectionDefinition[];
+  className?: string;
+}) {
+  return (
+    <Accordion
+      type="multiple"
+      defaultValue={["listing"]}
+      className={cn("mt-4 space-y-1", className)}
+    >
+      {sectionDefinitions.map((section) => (
+        <PublicCatalogSearchFilterSection
+          key={section.id}
+          definition={section}
+          count={countPublicCatalogSearchSectionFilters(context.table, section)}
+          className={cn(section.id === "details" && "border-b-0")}
+        >
+          <AdvancedSectionFields context={context} section={section} />
+        </PublicCatalogSearchFilterSection>
+      ))}
+    </Accordion>
+  );
+}
+
 export function PublicCatalogSearchAdvancedPanel<TData>({
+  advancedSectionsColumns = 1,
   table,
   listOptions,
   facetOptions,
@@ -49,9 +117,26 @@ export function PublicCatalogSearchAdvancedPanel<TData>({
   collapsed,
   onCollapsedChange,
   onSearchSubmit,
+  showCultivarFacets = false,
+  toolbarFilterIds,
 }: PublicCatalogSearchAdvancedPanelProps<TData>) {
   const isAdvanced = mode === "advanced";
   const panelContext = { table, listOptions, facetOptions };
+  const sectionDefinitions = showCultivarFacets
+    ? PUBLIC_CATALOG_SEARCH_CULTIVAR_SECTION_DEFINITIONS
+    : PUBLIC_CATALOG_SEARCH_SECTION_DEFINITIONS;
+  const toolbarFilters = PUBLIC_CATALOG_SEARCH_TOOLBAR_FILTERS.filter(
+    (definition) =>
+      (listOptions.length > 0 || definition.id !== "lists") &&
+      (!toolbarFilterIds || toolbarFilterIds.includes(definition.id)),
+  );
+  const wideSectionColumns = [
+    sectionDefinitions.filter(
+      (section) => section.id === "listing" || section.id === "registration",
+    ),
+    sectionDefinitions.filter((section) => section.id === "traits"),
+    sectionDefinitions.filter((section) => section.id === "details"),
+  ];
 
   if (collapsed) {
     return (
@@ -127,53 +212,48 @@ export function PublicCatalogSearchAdvancedPanel<TData>({
 
       <PublicCatalogSearchFilterFields
         className="mt-4 flex flex-wrap items-center gap-2"
-        definitions={PUBLIC_CATALOG_SEARCH_TOOLBAR_FILTERS}
+        definitions={toolbarFilters}
         context={panelContext}
       />
 
       {isAdvanced ? (
-        <Accordion
-          type="multiple"
-          defaultValue={["listing"]}
-          className="mt-4 space-y-1"
-        >
-          {PUBLIC_CATALOG_SEARCH_SECTION_DEFINITIONS.map((section) => (
-            <PublicCatalogSearchFilterSection
-              key={section.id}
-              definition={section}
-              count={countPublicCatalogSearchSectionFilters(table, section.id)}
-              className={cn(section.id === "details" && "border-b-0")}
+        advancedSectionsColumns === 3 ? (
+          <>
+            <AdvancedSectionsAccordion
+              className="lg:hidden"
+              context={panelContext}
+              sectionDefinitions={sectionDefinitions}
+            />
+            <div
+              className="mt-5 hidden gap-x-6 lg:grid lg:grid-cols-3"
+              data-testid="advanced-search-sections-wide"
             >
-              <div className="space-y-4">
-                {section.groups.map((group) => {
-                  const groupFilters = getSectionGroupFilters(
-                    section,
-                    group.filterIds,
-                  );
-
-                  if (groupFilters.length === 0) {
-                    return null;
-                  }
-
-                  return (
-                    <div
-                      key={group.filterIds.join("-")}
-                      className={cn(group.className ?? "space-y-4")}
+              {wideSectionColumns.map((sections) => (
+                <div
+                  key={sections.map((section) => section.id).join("-")}
+                  className="space-y-6"
+                >
+                  {sections.map((section) => (
+                    <PublicCatalogSearchSection
+                      key={section.id}
+                      title={section.label}
                     >
-                      {groupFilters.map((definition) => (
-                        <PublicCatalogSearchFilterField
-                          key={definition.id}
-                          definition={definition}
-                          context={panelContext}
-                        />
-                      ))}
-                    </div>
-                  );
-                })}
-              </div>
-            </PublicCatalogSearchFilterSection>
-          ))}
-        </Accordion>
+                      <AdvancedSectionFields
+                        context={panelContext}
+                        section={section}
+                      />
+                    </PublicCatalogSearchSection>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <AdvancedSectionsAccordion
+            context={panelContext}
+            sectionDefinitions={sectionDefinitions}
+          />
+        )
       ) : null}
     </div>
   );

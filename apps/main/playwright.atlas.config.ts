@@ -37,6 +37,7 @@ export default defineConfig({
       testMatch: [
         "public-catalog.atlas.ts",
         "cultivar-search.atlas.ts",
+        "catalog-importer.atlas.ts",
         "onboarding-membership.atlas.ts",
         "buyer-inquiry.atlas.ts",
       ],
@@ -50,6 +51,7 @@ export default defineConfig({
       testMatch: [
         "dashboard-home.atlas.ts",
         "listing-management.atlas.ts",
+        "dashboard-catalog-importer.atlas.ts",
         "listing-media.atlas.ts",
         "list-management.atlas.ts",
         "profile-management.atlas.ts",

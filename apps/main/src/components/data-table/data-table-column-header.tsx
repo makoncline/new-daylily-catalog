@@ -22,6 +22,7 @@ interface DataTableColumnHeaderProps<TData, TValue> {
   title: React.ReactNode;
   className?: string;
   enableFilter?: boolean;
+  onQueryChange?: () => void;
 }
 
 const ACTIVE_COLUMN_FILTER_KEY = "active-column-filter";
@@ -31,13 +32,16 @@ export function DataTableColumnHeader<TData, TValue>({
   title,
   className,
   enableFilter,
+  onQueryChange,
 }: DataTableColumnHeaderProps<TData, TValue>) {
   const columnFilterValue = column.getFilterValue();
   const value = typeof columnFilterValue === "string" ? columnFilterValue : "";
   const filterInputRef = React.useRef<HTMLInputElement>(null);
   const [filterOpen, setFilterOpen] = React.useState(() => {
     if (typeof window === "undefined") return false;
-    return window.sessionStorage.getItem(ACTIVE_COLUMN_FILTER_KEY) === column.id;
+    return (
+      window.sessionStorage.getItem(ACTIVE_COLUMN_FILTER_KEY) === column.id
+    );
   });
 
   const updateFilterOpen = (open: boolean) => {
@@ -57,6 +61,7 @@ export function DataTableColumnHeader<TData, TValue>({
       window.sessionStorage.setItem(ACTIVE_COLUMN_FILTER_KEY, column.id);
     }
     setFilterOpen(true);
+    onQueryChange?.();
     column.setFilterValue(event.target.value);
   };
 
@@ -73,6 +78,7 @@ export function DataTableColumnHeader<TData, TValue>({
           className="data-[state=open]:bg-accent -ml-1 h-8"
           onClick={(event) => {
             event.stopPropagation();
+            onQueryChange?.();
             column.toggleSorting(column.getIsSorted() === "asc");
           }}
         >

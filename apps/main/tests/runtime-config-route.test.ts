@@ -104,6 +104,7 @@ describe("runtime config route", () => {
         host: "https://eu.i.posthog.com",
       },
       features: {
+        catalogImporterDiscovery: false,
         imageModerationEnforced: false,
         publicCultivarSearch: false,
       },
@@ -149,6 +150,7 @@ describe("runtime config route", () => {
         enabled: false,
       },
       features: {
+        catalogImporterDiscovery: false,
         publicCultivarSearch: false,
       },
     });

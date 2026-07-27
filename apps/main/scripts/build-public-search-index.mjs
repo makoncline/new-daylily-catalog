@@ -613,6 +613,9 @@ CREATE INDEX CultivarSearchIndex_branches_idx
 CREATE INDEX CultivarSearchIndex_hasImage_idx
   ON CultivarSearchIndex(hasImage);
 
+CREATE INDEX CultivarSearchIndex_normalizedName_idx
+  ON CultivarSearchIndex(normalizedName);
+
 CREATE INDEX CultivarSearchIndex_listingCount_idx
   ON CultivarSearchIndex(listingCount);
 
@@ -693,7 +696,7 @@ CREATE INDEX CultivarListingSearchIndex_hasPhoto_idx
 
 INSERT INTO SearchIndexMeta(key, value)
 VALUES
-  ('schemaVersion', '12'),
+  ('schemaVersion', '13'),
   ('builtAt', strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   ('sourcePath', ${quoteSqlString(sourcePath)});
 ANALYZE;

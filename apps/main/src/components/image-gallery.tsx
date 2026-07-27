@@ -58,6 +58,7 @@ function Thumbnail({
         image={image}
         alt={image.alt ?? generateAltText(true)}
         size="thumbnail"
+        variant="thumb"
         className="h-full w-full"
       />
     </button>
@@ -107,6 +108,7 @@ export function ImageGallery({
           image={selectedImage}
           alt={selectedImage.alt ?? generateAltText(false)}
           size="full"
+          variant="display"
           priority
           className="h-full w-full"
         />

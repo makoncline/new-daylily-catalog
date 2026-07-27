@@ -7,10 +7,7 @@ import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 import { env, requireEnv } from "@/env";
 import { MAX_ONBOARDING_IMAGE_DATA_URL_LENGTH } from "@/lib/onboarding/anonymous-onboarding-draft";
 import { captureServerPosthogEvent } from "@/server/analytics/posthog-server";
-import {
-  getCanonicalBaseUrl,
-  getRequestBaseUrl,
-} from "@/lib/utils/getBaseUrl";
+import { getCanonicalBaseUrl, getRequestBaseUrl } from "@/lib/utils/getBaseUrl";
 import { getStripeClient } from "@/server/stripe/client";
 import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
 import {
@@ -29,6 +26,10 @@ import {
 import { createUserImageRecord } from "@/server/services/user-image-records";
 import { getSupportedImageContentType } from "@/types/image";
 import type { TRPCInternalContext } from "@/server/api/trpc";
+import {
+  CATALOG_IMPORTER_ENTRY_SOURCE,
+  CATALOG_IMPORTER_RETURN_PATH,
+} from "@/lib/catalog-importer-membership";
 import {
   createLocalE2ECheckoutSession,
   getLocalE2ECheckoutDetails,
@@ -49,10 +50,27 @@ export const collectEmailInputSchema = z.object({
   changed: z.boolean().default(false),
 });
 
-export const checkoutInputSchema = z.object({
-  email: emailSchema,
-  draftId: draftIdSchema,
-});
+export const checkoutInputSchema = z
+  .object({
+    conversionId: z.string().uuid().optional(),
+    email: emailSchema,
+    draftId: draftIdSchema,
+    entrySource: z.literal(CATALOG_IMPORTER_ENTRY_SOURCE).optional(),
+    returnTo: z.literal(CATALOG_IMPORTER_RETURN_PATH).optional(),
+  })
+  .superRefine((input, context) => {
+    const sourceFieldCount = [
+      input.conversionId,
+      input.entrySource,
+      input.returnTo,
+    ].filter(Boolean).length;
+    if (sourceFieldCount !== 0 && sourceFieldCount !== 3) {
+      context.addIssue({
+        code: "custom",
+        message: "Checkout source fields must be provided together.",
+      });
+    }
+  });
 
 export const checkoutStatusInputSchema = z.object({
   sessionId: checkoutSessionIdSchema,
@@ -81,6 +99,8 @@ interface AnonymousCheckoutDetails {
   email: string;
   status: string | null;
   created: number;
+  entrySource: string | null;
+  returnTo: string | null;
 }
 
 type AuthenticatedUser = NonNullable<TRPCInternalContext["_authUser"]>;
@@ -192,6 +212,11 @@ async function getStripeCheckoutDetails(
       typeof session.created === "number" && Number.isFinite(session.created)
         ? session.created
         : Math.floor(Date.now() / 1000),
+    entrySource: session.metadata?.entry_source ?? null,
+    returnTo:
+      session.metadata?.return_to === CATALOG_IMPORTER_RETURN_PATH
+        ? CATALOG_IMPORTER_RETURN_PATH
+        : null,
   };
 }
 
@@ -446,10 +471,7 @@ function getAnonymousCheckoutBaseUrl(headers?: Headers | null) {
   const canonicalBaseUrl = getCanonicalBaseUrl();
   const requestBaseUrl = getRequestBaseUrl(headers);
 
-  if (
-    isLocalBaseUrl(canonicalBaseUrl) &&
-    isLocalBaseUrl(requestBaseUrl)
-  ) {
+  if (isLocalBaseUrl(canonicalBaseUrl) && isLocalBaseUrl(requestBaseUrl)) {
     return requestBaseUrl;
   }
 
@@ -466,11 +488,26 @@ export async function createAnonymousOnboardingCheckout({
   input: z.infer<typeof checkoutInputSchema>;
 }) {
   const baseUrl = getAnonymousCheckoutBaseUrl(headers);
+  const isCatalogImporterCheckout =
+    input.entrySource === CATALOG_IMPORTER_ENTRY_SOURCE &&
+    input.returnTo === CATALOG_IMPORTER_RETURN_PATH &&
+    Boolean(input.conversionId);
+  const sourceMetadata: Record<string, string> = isCatalogImporterCheckout
+    ? {
+        conversion_id: input.conversionId!,
+        entry_source: CATALOG_IMPORTER_ENTRY_SOURCE,
+        return_to: CATALOG_IMPORTER_RETURN_PATH,
+      }
+    : {};
 
   if (isLocalE2ECheckoutEnabled()) {
     const session = await createLocalE2ECheckoutSession({
       db,
       email: input.email,
+      entrySource: isCatalogImporterCheckout
+        ? CATALOG_IMPORTER_ENTRY_SOURCE
+        : null,
+      returnTo: isCatalogImporterCheckout ? CATALOG_IMPORTER_RETURN_PATH : null,
     });
 
     return {
@@ -496,14 +533,16 @@ export async function createAnonymousOnboardingCheckout({
         flow: ANONYMOUS_ONBOARDING_FLOW,
         draftId: input.draftId,
         email: input.email,
+        ...sourceMetadata,
       },
     },
     success_url: `${baseUrl}/onboarding/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${baseUrl}/onboarding`,
+    cancel_url: `${baseUrl}${isCatalogImporterCheckout ? CATALOG_IMPORTER_RETURN_PATH : "/onboarding"}`,
     metadata: {
       flow: ANONYMOUS_ONBOARDING_FLOW,
       draftId: input.draftId,
       email: input.email,
+      ...sourceMetadata,
     },
     client_reference_id: input.draftId,
   });
@@ -529,6 +568,8 @@ export async function getAnonymousOnboardingCheckoutStatus(
     email: details.email,
     status: details.status,
     isActive: hasActiveSubscription(details.status),
+    entrySource: details.entrySource,
+    returnTo: details.returnTo,
   };
 }
 
@@ -576,7 +617,9 @@ export async function claimAnonymousOnboardingCheckout({
     });
   }
 
-  const shouldImportProfile = accountWasCreatedForCheckout(user, details.created);
+  const shouldImportProfile =
+    details.entrySource !== CATALOG_IMPORTER_ENTRY_SOURCE &&
+    accountWasCreatedForCheckout(user, details.created);
   const profileImport = shouldImportProfile
     ? await prepareProfileImport({
         db,

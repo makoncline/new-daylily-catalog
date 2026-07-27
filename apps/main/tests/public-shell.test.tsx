@@ -56,6 +56,16 @@ describe("PublicShell", () => {
     expect(screen.getByRole("main")).toHaveClass("-mt-16", "lg:-mt-20");
   });
 
+  it("uses the neutral workspace shell for the catalog importer", () => {
+    navigationState.pathname = "/catalog-importer";
+
+    render(<PublicShell>Catalog importer</PublicShell>);
+
+    expect(screen.getByRole("main").parentElement).toHaveClass("bg-[#f6f8f3]");
+    expect(screen.getByRole("main")).toHaveClass("flex", "flex-col");
+    expect(screen.getByRole("main")).not.toHaveClass("-mt-16", "lg:-mt-20");
+  });
+
   it("uses the light page background away from dark landing pages", () => {
     navigationState.pathname = "/catalogs";
 

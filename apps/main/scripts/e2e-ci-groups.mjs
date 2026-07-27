@@ -4,6 +4,7 @@ import path from "node:path";
 /** @type {Record<1 | 2 | 3, string[]>} */
 export const e2eCiGroups = {
   1: [
+    "tests/e2e/catalog-importer.e2e.ts",
     "tests/e2e/listing-image-manager.e2e.ts",
     "tests/e2e/manual-signin.e2e.ts",
     "tests/e2e/public-profile-first-response.e2e.ts",
@@ -54,9 +55,7 @@ export function discoverLocalE2eFiles(appRoot = defaultAppRoot) {
         const source = fs.readFileSync(absolutePath, "utf8");
         const isAttachOnly =
           !source.includes("@local") &&
-          ["@preview", "@profile", "@prod"].some((tag) =>
-            source.includes(tag),
-          );
+          ["@preview", "@profile", "@prod"].some((tag) => source.includes(tag));
         if (isAttachOnly) return [];
 
         return [path.relative(appRoot, absolutePath).split(path.sep).join("/")];

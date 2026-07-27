@@ -129,6 +129,38 @@ describe("Atlas flow contract", () => {
     ).toBe(false);
   });
 
+  it("declares the public catalog import journey at desktop and mobile sizes", () => {
+    const importer = getAtlasFlow("catalog-importer");
+
+    expect(importer.steps.map(({ title }) => title)).toEqual([
+      "Start from a spreadsheet",
+      "Reveal the prepared catalog",
+      "Resolve uncertain matches",
+      "Repair spreadsheet data",
+      "Preview the catalog",
+      "Download the prepared spreadsheet",
+    ]);
+    expect(statesForFlow(importer)).toHaveLength(18);
+    expect(
+      getAtlasState("catalog-importer-desktop-results").urlReproducible,
+    ).toBe(false);
+    expect(
+      getAtlasState("catalog-importer-mobile-review").urlReproducible,
+    ).toBe(false);
+  });
+
+  it("declares the signed-in create-only catalog import journey", () => {
+    const importer = getAtlasFlow("dashboard-catalog-importer");
+
+    expect(importer.steps.map(({ title }) => title)).toEqual([
+      "Open the shared builder",
+      "Select listings to create",
+      "Explain excluded rows",
+      "Confirm and create",
+    ]);
+    expect(statesForFlow(importer)).toHaveLength(11);
+  });
+
   it.each([
     ["state id", "id", "Duplicate Atlas state id"],
     ["capture", "capture", "Duplicate Atlas capture"],

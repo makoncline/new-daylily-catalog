@@ -17,6 +17,10 @@ const stateFor =
   });
 const publicState = stateFor("tests/atlas/public-catalog.atlas.ts");
 const cultivarState = stateFor("tests/atlas/cultivar-search.atlas.ts");
+const importerState = stateFor("tests/atlas/catalog-importer.atlas.ts");
+const dashboardImporterState = stateFor(
+  "tests/atlas/dashboard-catalog-importer.atlas.ts",
+);
 const onboardingState = stateFor("tests/atlas/onboarding-membership.atlas.ts");
 const dashboardHomeState = stateFor(
   "tests/atlas/dashboard-home.atlas.ts",
@@ -259,6 +263,295 @@ export const ATLAS_FLOWS = [
             "Mobile cultivar detail",
             "The canonical cultivar page at the phone-width mobile size.",
             "/cultivar/coffee-frenzy",
+          ),
+        ],
+      },
+    ],
+  },
+  {
+    id: "catalog-importer",
+    audience: "public",
+    title: "Prepare a daylily catalog spreadsheet",
+    description:
+      "Start from a spreadsheet, link registered cultivars, resolve catalog issues, preview the catalog, and download the prepared workbook.",
+    tests: {
+      unit: [],
+      integration: [
+        testRef("integration", "tests/catalog-importer.test.ts"),
+        testRef("integration", "tests/catalog-importer-draft.test.ts"),
+        testRef("integration", "tests/catalog-importer-workbench.test.tsx"),
+      ],
+      e2e: [testRef("e2e", "tests/e2e/catalog-importer.e2e.ts")],
+    },
+    steps: [
+      {
+        title: "Start from a spreadsheet",
+        states: [
+          importerState(
+            "catalog-importer-desktop-upload",
+            "Desktop catalog upload",
+            "The spreadsheet starting point for catalog preparation on desktop.",
+            "/catalog-importer",
+          ),
+          importerState(
+            "catalog-importer-mobile-upload",
+            "Mobile catalog upload",
+            "The same upload state at phone width.",
+            "/catalog-importer",
+          ),
+          importerState(
+            "catalog-importer-desktop-mapping",
+            "Desktop column mapping",
+            "The source spreadsheet preview and compact field mapping before processing.",
+            "/catalog-importer",
+            false,
+          ),
+          importerState(
+            "catalog-importer-desktop-manual-empty",
+            "Desktop empty manual catalog",
+            "The manual builder before its first listing is added.",
+            "/catalog-importer",
+            false,
+          ),
+          importerState(
+            "catalog-importer-desktop-manual-linked",
+            "Desktop linked manual listing",
+            "Automatic cultivar search and the compact linked-cultivar row.",
+            "/catalog-importer",
+            false,
+          ),
+        ],
+      },
+      {
+        title: "Reveal the prepared catalog",
+        states: [
+          importerState(
+            "catalog-importer-desktop-results",
+            "Desktop catalog results",
+            "The personalized enrichment reveal, preparation status, and complete results workspace.",
+            "/catalog-importer",
+            false,
+          ),
+          importerState(
+            "catalog-importer-mobile-results",
+            "Mobile catalog results",
+            "The personalized reveal and persistent preparation actions at phone width.",
+            "/catalog-importer",
+            false,
+          ),
+          importerState(
+            "catalog-importer-desktop-details",
+            "Cultivar details sheet",
+            "A preview listing opened with the shared Daylily Database display.",
+            "/catalog-importer",
+            false,
+          ),
+        ],
+      },
+      {
+        title: "Resolve uncertain matches",
+        states: [
+          importerState(
+            "catalog-importer-desktop-review",
+            "Desktop catalog review",
+            "The source spreadsheet row and focused registered-cultivar decision workspace.",
+            "/catalog-importer",
+            false,
+          ),
+          importerState(
+            "catalog-importer-mobile-review",
+            "Mobile catalog review",
+            "The phone-width source context and side-by-side candidate choice.",
+            "/catalog-importer",
+            false,
+          ),
+          importerState(
+            "catalog-importer-desktop-review-complete",
+            "Cultivar review complete",
+            "The compact outcome after the final uncertain name is resolved.",
+            "/catalog-importer",
+            false,
+          ),
+        ],
+      },
+      {
+        title: "Repair spreadsheet data",
+        states: [
+          importerState(
+            "catalog-importer-desktop-issues",
+            "Desktop spreadsheet issues",
+            "Duplicate and price decisions shown in spreadsheet-shaped tables.",
+            "/catalog-importer",
+            false,
+          ),
+          importerState(
+            "catalog-importer-mobile-issues",
+            "Mobile spreadsheet issues",
+            "The same repair work at phone width without clipped controls.",
+            "/catalog-importer",
+            false,
+          ),
+        ],
+      },
+      {
+        title: "Preview the catalog",
+        states: [
+          importerState(
+            "catalog-importer-desktop-preview",
+            "Desktop catalog preview",
+            "The customer-facing cards, full shared search panel, and collection analysis.",
+            "/catalog-importer",
+            false,
+          ),
+          importerState(
+            "catalog-importer-mobile-preview",
+            "Mobile catalog preview",
+            "The searchable cards, advanced filters, and persistent preparation actions at phone width.",
+            "/catalog-importer",
+            false,
+          ),
+        ],
+      },
+      {
+        title: "Download the prepared spreadsheet",
+        states: [
+          importerState(
+            "catalog-importer-desktop-download",
+            "Desktop spreadsheet download",
+            "Both prepared workbook choices with their exact output boundaries.",
+            "/catalog-importer",
+            false,
+          ),
+          importerState(
+            "catalog-importer-mobile-download",
+            "Mobile spreadsheet download",
+            "The prepared workbook choices at phone width without clipped actions.",
+            "/catalog-importer",
+            false,
+          ),
+          importerState(
+            "catalog-importer-desktop-download-confirm",
+            "Incomplete download confirmation",
+            "The explicit remaining-work confirmation before an early download.",
+            "/catalog-importer",
+            false,
+          ),
+        ],
+      },
+    ],
+  },
+  {
+    id: "dashboard-catalog-importer",
+    audience: "member",
+    title: "Create listings from a prepared catalog",
+    description:
+      "Build one browser-local import, select its eligible listings, and create new catalog listings.",
+    tests: {
+      unit: [],
+      integration: [
+        testRef("integration", "tests/dashboard-import-table.test.tsx"),
+        testRef(
+          "integration",
+          "tests/dashboard-import-existing-listings.test.tsx",
+        ),
+        testRef("integration", "tests/dashboard-import-start-over.test.tsx"),
+      ],
+      e2e: [testRef("e2e", "tests/e2e/catalog-importer.e2e.ts")],
+    },
+    steps: [
+      {
+        title: "Open the shared builder",
+        states: [
+          dashboardImporterState(
+            "dashboard-importer-start",
+            "Dashboard importer start",
+            "The signed-in handoff to the shared browser-local import builder.",
+            "/dashboard/imports",
+          ),
+        ],
+      },
+      {
+        title: "Select listings to create",
+        states: [
+          dashboardImporterState(
+            "dashboard-importer-ready",
+            "Dashboard listings ready",
+            "Eligible prepared rows with only final import selection controls.",
+            "/dashboard/imports",
+            false,
+          ),
+          dashboardImporterState(
+            "dashboard-importer-mobile-ready",
+            "Mobile dashboard listings ready",
+            "The same final selection table at phone width without page-level overflow.",
+            "/dashboard/imports",
+            false,
+          ),
+        ],
+      },
+      {
+        title: "Explain excluded rows",
+        states: [
+          dashboardImporterState(
+            "dashboard-importer-review",
+            "Unreviewed listings excluded",
+            "Rows that still need a cultivar decision are excluded and link back to the builder.",
+            "/dashboard/imports",
+            false,
+          ),
+          dashboardImporterState(
+            "dashboard-importer-mobile-review",
+            "Mobile unreviewed listings",
+            "The same exclusion summary and builder return path at phone width.",
+            "/dashboard/imports",
+            false,
+          ),
+          dashboardImporterState(
+            "dashboard-importer-issues",
+            "Unresolved data excluded",
+            "Rows with unresolved spreadsheet issues are excluded without repair controls.",
+            "/dashboard/imports",
+            false,
+          ),
+          dashboardImporterState(
+            "dashboard-importer-mobile-issues",
+            "Mobile unresolved data",
+            "The same issue exclusion summary at phone width.",
+            "/dashboard/imports",
+            false,
+          ),
+          dashboardImporterState(
+            "dashboard-importer-existing",
+            "Existing listing skipped",
+            "A prepared row already represented in the member catalog, with no create override.",
+            "/dashboard/imports",
+            false,
+          ),
+          dashboardImporterState(
+            "dashboard-importer-mobile-existing",
+            "Mobile existing listing",
+            "The same skipped existing listing at phone width.",
+            "/dashboard/imports",
+            false,
+          ),
+        ],
+      },
+      {
+        title: "Confirm and create",
+        states: [
+          dashboardImporterState(
+            "dashboard-importer-confirm",
+            "Create-only confirmation",
+            "The exact new-listing count and create-only consequences before the write.",
+            "/dashboard/imports",
+            false,
+          ),
+          dashboardImporterState(
+            "dashboard-importer-complete",
+            "Catalog import complete",
+            "The terminal state after retry-safe listing creation succeeds.",
+            "/dashboard/imports",
+            false,
           ),
         ],
       },

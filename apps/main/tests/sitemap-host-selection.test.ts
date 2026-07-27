@@ -255,7 +255,7 @@ describe("sitemap and robots host selection", () => {
     expect(robotsText).toContain("Sitemap: http://localhost:4123/sitemap.xml");
   });
 
-  it("includes static pages and gates the cultivar search page", async () => {
+  it("includes static pages and discovers public tools through independent flags", async () => {
     process.env.VERCEL_ENV = "development";
     delete process.env.VERCEL_URL;
     delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
@@ -272,11 +272,29 @@ describe("sitemap and robots host selection", () => {
     expect(sitemapText).not.toContain(
       "<loc>http://localhost:4123/cultivars</loc>",
     );
+    expect(await (await mainSitemap()).text()).not.toContain(
+      "<loc>http://localhost:4123/catalog-importer</loc>",
+    );
 
     writeFileSync(runtimeFlagsPath, '{"publicCultivarSearch":true}');
 
     expect(await (await mainSitemap()).text()).toContain(
       "<loc>http://localhost:4123/cultivars</loc>",
+    );
+    expect(await (await mainSitemap()).text()).not.toContain(
+      "<loc>http://localhost:4123/catalog-importer</loc>",
+    );
+
+    writeFileSync(
+      runtimeFlagsPath,
+      '{"catalogImporterDiscovery":true,"publicCultivarSearch":false}',
+    );
+
+    expect(await (await mainSitemap()).text()).not.toContain(
+      "<loc>http://localhost:4123/cultivars</loc>",
+    );
+    expect(await (await mainSitemap()).text()).toContain(
+      "<loc>http://localhost:4123/catalog-importer</loc>",
     );
   });
 

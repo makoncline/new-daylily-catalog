@@ -6,6 +6,15 @@ export default async function globalTeardown(_config: FullConfig) {
   // Skip if we were running against a remote BASE_URL
   if (process.env.BASE_URL) return;
 
+  const runtimeFlagsPath = process.env.RUNTIME_FEATURE_FLAGS_PATH;
+  if (
+    runtimeFlagsPath?.startsWith(
+      path.join(process.cwd(), "tests", ".tmp") + path.sep,
+    )
+  ) {
+    fs.rmSync(runtimeFlagsPath, { force: true });
+  }
+
   // Read the temp DB file path written by global-setup
   const metaFile = path.join(process.cwd(), "tests", ".tmp", "e2e-db-path.txt");
   let dbPath = "";

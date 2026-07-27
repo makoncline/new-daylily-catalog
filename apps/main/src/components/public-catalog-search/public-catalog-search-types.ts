@@ -32,17 +32,22 @@ export interface PublicCatalogSearchFacetOption {
 }
 
 export interface PublicCatalogSearchFacetOptions {
+  award: PublicCatalogSearchFacetOption[];
   bloomHabit: PublicCatalogSearchFacetOption[];
   bloomSeason: PublicCatalogSearchFacetOption[];
+  flowerShow: PublicCatalogSearchFacetOption[];
   form: PublicCatalogSearchFacetOption[];
-  ploidy: PublicCatalogSearchFacetOption[];
   foliageType: PublicCatalogSearchFacetOption[];
   fragrance: PublicCatalogSearchFacetOption[];
+  hybridizer: PublicCatalogSearchFacetOption[];
+  ploidy: PublicCatalogSearchFacetOption[];
+  sculptedType: PublicCatalogSearchFacetOption[];
 }
 
 export interface PublicCatalogSearchAdvancedPanelProps<
   TData = PublicCatalogListing,
 > {
+  advancedSectionsColumns?: 1 | 3;
   table: Table<TData>;
   listOptions: PublicCatalogSearchFacetOption[];
   facetOptions: PublicCatalogSearchFacetOptions;
@@ -51,4 +56,6 @@ export interface PublicCatalogSearchAdvancedPanelProps<
   collapsed: boolean;
   onCollapsedChange: (collapsed: boolean) => void;
   onSearchSubmit?: () => void;
+  showCultivarFacets?: boolean;
+  toolbarFilterIds?: string[];
 }

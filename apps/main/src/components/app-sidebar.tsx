@@ -3,6 +3,7 @@
 import * as React from "react";
 import {
   Command,
+  FileUp,
   Flower2,
   ListTodo,
   Send,
@@ -68,6 +69,12 @@ export function AppSidebar({
         url: "/dashboard/tags",
         icon: Tag,
         isActive: pathname.startsWith("/dashboard/tags"),
+      },
+      {
+        title: "Import catalog",
+        url: "/dashboard/imports",
+        icon: FileUp,
+        isActive: pathname.startsWith("/dashboard/imports"),
       },
     ],
     [pathname],

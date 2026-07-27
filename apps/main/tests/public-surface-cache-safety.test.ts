@@ -1,9 +1,4 @@
-import {
-  existsSync,
-  readFileSync,
-  readdirSync,
-  statSync,
-} from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -50,7 +45,9 @@ function collectSourceFiles(sourcePath: string): string[] {
         return collect(entryPath);
       }
 
-      if (SOURCE_EXTENSIONS.some((extension) => entryPath.endsWith(extension))) {
+      if (
+        SOURCE_EXTENSIONS.some((extension) => entryPath.endsWith(extension))
+      ) {
         return [entryPath];
       }
 
@@ -216,7 +213,7 @@ describe("public surface cache safety", () => {
     expect(source).not.toContain("TRPCReactProvider");
   });
 
-  it("keeps public and membership import graphs free of Clerk auth", () => {
+  it("keeps public clients and static membership routes free of Clerk auth", () => {
     const publicEntryPoints = [
       ...collectSourceFiles("src/app/(public)"),
       ...collectSourceFiles("src/app/start-membership"),
@@ -229,7 +226,15 @@ describe("public surface cache safety", () => {
 
     for (const absolutePath of publicFiles) {
       const source = readFileSync(absolutePath, "utf8");
+      const isCatalogImporterServerPage = absolutePath.endsWith(
+        "src/app/(public)/catalog-importer/page.tsx",
+      );
 
+      if (isCatalogImporterServerPage) {
+        expect(source, absolutePath).toContain(
+          'export const dynamic = "force-dynamic"',
+        );
+      }
       expect(source, absolutePath).not.toContain("@clerk/nextjs");
       expect(source, absolutePath).not.toContain("useAuth(");
       expect(source, absolutePath).not.toContain("useUser(");
@@ -272,7 +277,9 @@ describe("public surface cache safety", () => {
   it("keeps the dashboard wrapped in authenticated app providers", () => {
     const dashboardLayout = readSource("src/app/dashboard/layout.tsx");
     const authProviders = readSource("src/components/auth-providers.tsx");
-    const dashboardProviders = readSource("src/components/dashboard-providers.tsx");
+    const dashboardProviders = readSource(
+      "src/components/dashboard-providers.tsx",
+    );
 
     expect(dashboardLayout).toContain("<DashboardProviders>");
     expect(authProviders).toContain("ClerkProvider");
@@ -311,8 +318,10 @@ describe("public surface cache safety", () => {
     expect(signUp).toContain(
       "redirect(SUBSCRIPTION_CONFIG.NEW_USER_ONBOARDING_PATH)",
     );
-    expect(signIn).toContain("window.location.replace(DASHBOARD_PATH)");
-    expect(signIn).toContain("forceRedirectUrl={DASHBOARD_PATH}");
+    expect(signIn).toContain("returnTo === DASHBOARD_IMPORTS_PATH");
+    expect(signIn).toContain("? DASHBOARD_IMPORTS_PATH");
+    expect(signIn).toContain("window.location.replace(redirectPath)");
+    expect(signIn).toContain("forceRedirectUrl={redirectPath}");
     expect(signIn).toContain("withSignUp={false}");
     expect(signIn).not.toContain("signUpForceRedirectUrl");
   });
@@ -323,10 +332,11 @@ describe("public surface cache safety", () => {
     expect(proxy).toContain("isAppRouterRscRequest");
     expect(proxy).toContain('req.nextUrl.searchParams.has("_rsc")');
     expect(proxy).toContain('req.headers.get("rsc") === "1"');
-    expect(proxy).toContain('response.headers.set("Cache-Control", "no-store")');
+    expect(proxy).toContain(
+      'response.headers.set("Cache-Control", "no-store")',
+    );
     expect(proxy).toContain("!isProtectedRoute(req)");
     expect(proxy).toContain('key: "_rsc"');
     expect(proxy).toContain('key: "rsc"');
   });
-
 });

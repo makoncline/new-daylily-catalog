@@ -1,10 +1,7 @@
 "use client";
 
 import { type ComponentProps, type ReactNode } from "react";
-import { Slot } from "@radix-ui/react-slot";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TruncatedText } from "@/components/truncated-text";
 import {
   Tooltip,
   TooltipContent,
@@ -13,17 +10,11 @@ import {
 } from "@/components/ui/tooltip";
 import { ListChecks, Link2 } from "lucide-react";
 import { type RouterOutputs } from "@/trpc/react";
-import { cn, formatPrice } from "@/lib/utils";
 import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
-import { OptimizedImage } from "./optimized-image";
-import { ImagePlaceholder } from "./image-placeholder";
 import { ImagePopover } from "@/components/image-popover";
 import { AddToCartButton } from "@/components/add-to-cart-button";
 import { useDisplayAhsListing } from "@/hooks/use-display-ahs-listing";
-import {
-  formatListingCardTitle,
-  getListingCardTitleSizeClass,
-} from "@/components/listing-card-title";
+import { CatalogListingCard } from "@/components/catalog-listing-card";
 import Link from "next/link";
 
 type ListingCardProps = {
@@ -40,9 +31,6 @@ export function ListingCard({
   children,
 }: ListingCardProps) {
   const displayAhsListing = useDisplayAhsListing(listing);
-  const displayTitle = formatListingCardTitle(listing.title);
-  const titleSizeClass = getListingCardTitleSizeClass(displayTitle.length);
-  const titleWasTruncated = displayTitle !== listing.title;
   const cultivarRouteSegment = toCultivarRouteSegment(
     listing.cultivarReference?.normalizedName,
   );
@@ -50,39 +38,15 @@ export function ListingCard({
   const hasMultipleImages = listing.images.length > 1;
 
   return (
-    <Card
-      className={cn(
-        "group hover:border-primary relative flex h-full cursor-pointer flex-col overflow-hidden transition-all",
-        className,
-      )}
-    >
+    <CatalogListingCard.Root className={className}>
       {children}
 
-      <div className="relative">
-        <div className="aspect-square">
-          {firstImage ? (
-            <OptimizedImage
-              image={firstImage}
-              alt={listing.title}
-              size="full"
-              priority={priority}
-              className="object-cover"
-            />
-          ) : (
-            <ImagePlaceholder />
-          )}
-        </div>
-
-        <div className="absolute top-2 right-2">
-          {listing.price && (
-            <Badge
-              variant="secondary"
-              className="hover:bg-secondary backdrop-blur-sm"
-            >
-              {formatPrice(listing.price)}
-            </Badge>
-          )}
-        </div>
+      <CatalogListingCard.Media
+        image={firstImage ?? null}
+        alt={listing.title}
+        priority={priority}
+      >
+        <CatalogListingCard.Price price={listing.price} />
 
         {/* Images Preview */}
         {hasMultipleImages && (
@@ -140,101 +104,77 @@ export function ListingCard({
             </TooltipProvider>
           </div>
         )}
-      </div>
+      </CatalogListingCard.Media>
 
-      <CardContent className="flex flex-1 flex-col p-4">
-        <div className="flex flex-1 flex-col justify-between gap-4">
-          <div className="space-y-2">
-            <h3
-              className={cn(
-                "font-semibold tracking-tight break-words whitespace-normal",
-                titleSizeClass,
-              )}
-              title={titleWasTruncated ? listing.title : undefined}
-            >
-              {displayTitle}
-            </h3>
+      <CatalogListingCard.Content>
+        <CatalogListingCard.Title title={listing.title} />
+        {(displayAhsListing?.hybridizer ?? displayAhsListing?.year) ? (
+          <CatalogListingCard.Meta
+            text={`${displayAhsListing?.hybridizer ?? "Unknown"}, ${displayAhsListing?.year ?? "Year Unknown"}`}
+          />
+        ) : null}
+        {listing.description ? (
+          <CatalogListingCard.Description text={listing.description} />
+        ) : null}
+      </CatalogListingCard.Content>
 
-            {/* Hybridizer and Year */}
-            {(displayAhsListing?.hybridizer ?? displayAhsListing?.year) && (
-              <Badge
-                variant="secondary"
-                className="inline-flex items-center gap-1"
-              >
-                <TruncatedText
-                  text={`${displayAhsListing?.hybridizer ?? "Unknown"}, ${displayAhsListing?.year ?? "Year Unknown"}`}
-                  lines={1}
-                />
-              </Badge>
-            )}
+      {listing.lists.length > 0 || listing.price !== null ? (
+        <CatalogListingCard.Footer>
+          {listing.lists.length > 0 ? (
+            <div className="relative z-20 flex items-center gap-2">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <Badge
+                      variant="secondary"
+                      className="flex cursor-pointer items-center gap-1 text-xs"
+                    >
+                      <ListChecks className="size-3" />
+                      <span>
+                        {listing.lists.length}{" "}
+                        {listing.lists.length === 1 ? "list" : "lists"}
+                      </span>
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" align="start" className="p-0">
+                    <div className="flex max-w-[300px] flex-col gap-2 p-2">
+                      {listing.lists.map((list) => (
+                        <div
+                          key={list.id}
+                          className="flex items-center justify-between gap-4"
+                        >
+                          <span className="font-medium">{list.title}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          ) : (
+            <span />
+          )}
 
-            {/* Description */}
-            {listing.description && (
-              <TruncatedText
-                text={listing.description}
-                lines={3}
-                className="text-muted-foreground text-sm"
+          {listing.price !== null ? (
+            <div className="relative z-20">
+              <AddToCartButton
+                listing={{
+                  id: listing.id,
+                  title: listing.title,
+                  price: listing.price,
+                  userId: listing.userId,
+                }}
               />
-            )}
-          </div>
-
-          {/* Footer with Lists and Add to Cart Button */}
-          <div className="flex items-center justify-between">
-            {/* Lists */}
-            {listing.lists.length > 0 && (
-              <div className="relative z-20 flex items-center gap-2">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <Badge
-                        variant="secondary"
-                        className="flex cursor-pointer items-center gap-1 text-xs"
-                      >
-                        <ListChecks className="size-3" />
-                        <span>
-                          {listing.lists.length}{" "}
-                          {listing.lists.length === 1 ? "list" : "lists"}
-                        </span>
-                      </Badge>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" align="start" className="p-0">
-                      <div className="flex max-w-[300px] flex-col gap-2 p-2">
-                        {listing.lists.map((list) => (
-                          <div
-                            key={list.id}
-                            className="flex items-center justify-between gap-4"
-                          >
-                            <span className="font-medium">{list.title}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-            )}
-
-            {/* Add to Cart Button - Only show if listing has a price */}
-            {listing.price !== null && (
-              <div className="relative z-20">
-                <AddToCartButton
-                  listing={{
-                    id: listing.id,
-                    title: listing.title,
-                    price: listing.price,
-                    userId: listing.userId,
-                  }}
-                />
-              </div>
-            )}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+            </div>
+          ) : null}
+        </CatalogListingCard.Footer>
+      ) : null}
+    </CatalogListingCard.Root>
   );
 }
 
-interface ListingCardActionProps extends ComponentProps<"button"> {
+interface ListingCardActionProps
+  extends ComponentProps<typeof CatalogListingCard.Action> {
   asChild?: boolean;
 }
 
@@ -244,15 +184,11 @@ export function ListingCardAction({
   type = "button",
   ...props
 }: ListingCardActionProps) {
-  const Comp = asChild ? Slot : "button";
-
   return (
-    <Comp
-      type={asChild ? undefined : type}
-      className={cn(
-        "focus-visible:ring-ring absolute inset-0 z-10 rounded-xl focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset",
-        className,
-      )}
+    <CatalogListingCard.Action
+      asChild={asChild}
+      type={type}
+      className={className}
       {...props}
     />
   );

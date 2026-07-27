@@ -479,17 +479,7 @@ export function PublicCatalogSearchFilterControl<TData>({
     case "range": {
       if (!column) return null;
       const bounds = getRangeBounds(context.table, column);
-      if (!bounds) {
-        return (
-          <div className="w-full max-w-64 space-y-2">
-            <Label className="text-xs font-medium tracking-wide uppercase">
-              {definition.label}
-              {definition.unit ? ` (${definition.unit})` : ""}
-            </Label>
-            <p className="text-muted-foreground text-xs">No numeric values</p>
-          </div>
-        );
-      }
+      if (!bounds) return null;
 
       return (
         <PublicCatalogSearchRangeFilter
@@ -510,16 +500,17 @@ export function PublicCatalogSearchFilterControl<TData>({
       );
     }
     case "facet": {
+      const options = getFacetOptions(definition, context);
+      if (!column || options.length === 0) return null;
+
       return (
         <div data-testid={definition.testId}>
-          {column ? (
-            <DataTableFacetedFilter
-              column={column}
-              title={definition.label}
-              options={getFacetOptions(definition, context)}
-              table={context.table}
-            />
-          ) : null}
+          <DataTableFacetedFilter
+            column={column}
+            title={definition.label}
+            options={options}
+            table={context.table}
+          />
         </div>
       );
     }

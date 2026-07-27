@@ -114,6 +114,7 @@ describe("seller funnel proxy protection", () => {
     const middlewareEvent = {} as Parameters<NextMiddleware>[1];
 
     for (const url of [
+      "http://localhost:3000/catalog-importer",
       "http://localhost:3000/catalogs/extra",
       "http://localhost:3000/catalog/legacy-listing",
       "http://localhost:3000/onboarding",

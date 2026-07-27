@@ -6,7 +6,7 @@ export const metadata: Metadata = {
     "How Daylily Catalog collects, uses, shares, retains, and lets users control data.",
 };
 
-const updatedAt = "July 9, 2026";
+const updatedAt = "July 19, 2026";
 
 function Section({
   children,
@@ -71,6 +71,13 @@ export default function PrivacyPage() {
             device information, error reports, performance information, and
             rate-limit data. Rate-limit data can include hashed IP-derived and
             email-derived keys.
+          </p>
+          <p>
+            Browser file tools can read and store files and work-in-progress
+            data on your device. When a tool needs information from Daylily
+            Catalog, it sends only the values needed for that request, such as
+            names or saved identifiers used for matching. We do not send file
+            contents through product analytics.
           </p>
         </Section>
 
@@ -162,6 +169,10 @@ export default function PrivacyPage() {
             and timestamps for abuse prevention. Logs, analytics, and error
             reports are kept only as long as needed for operations, security,
             debugging, and product improvement.
+          </p>
+          <p>
+            Work saved only in your browser remains on that device until the
+            tool clears it or you clear the browser&apos;s site data.
           </p>
         </Section>
 

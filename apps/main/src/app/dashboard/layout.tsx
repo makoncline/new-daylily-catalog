@@ -56,7 +56,7 @@ export default async function DashboardLayout({
                 </div>
               </div>
             </header>
-            <div className="flex-1 space-y-4 p-8">
+            <div className="min-w-0 flex-1 space-y-4 p-8">
               <DashboardBillingAlert />
               {children}
             </div>
