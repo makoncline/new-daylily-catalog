@@ -8,23 +8,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
-import {
-  CATALOG_IMPORTER_ENTRY_SOURCE,
-  CATALOG_IMPORTER_RETURN_PATH,
-} from "@/lib/catalog-importer-membership";
+import { useIsHydrated } from "@/hooks/use-is-hydrated";
+import type { CatalogImporterCheckoutSource } from "@/lib/catalog-importer-membership";
 import { capturePosthogEvent } from "@/lib/analytics/posthog";
 import type { MembershipPriceDisplay } from "@/server/stripe/membership-price-display";
 import { api } from "@/trpc/react";
 
 export function CatalogImporterCheckoutStart({
-  conversionId,
+  checkoutSource,
   membershipPriceDisplay,
 }: {
-  conversionId: string;
+  checkoutSource: CatalogImporterCheckoutSource;
   membershipPriceDisplay: MembershipPriceDisplay;
 }) {
+  const isReady = useIsHydrated();
   const [email, setEmail] = useState("");
-  const createCheckout = api.onboarding.createCheckout.useMutation();
+  const createCheckout = api.catalogImporter.createCheckout.useMutation();
   const emailIsValid = /.+@.+\..+/.test(email.trim());
 
   const startCheckout = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -34,28 +33,25 @@ export function CatalogImporterCheckoutStart({
     }
 
     capturePosthogEvent("checkout_started", {
-      conversion_id: conversionId,
-      entry_source: CATALOG_IMPORTER_ENTRY_SOURCE,
+      conversion_id: checkoutSource.conversionId,
+      entry_source: checkoutSource.entrySource,
       source: "catalog_importer",
     });
     try {
       const result = await createCheckout.mutateAsync({
-        conversionId,
-        draftId: conversionId,
         email,
-        entrySource: CATALOG_IMPORTER_ENTRY_SOURCE,
-        returnTo: CATALOG_IMPORTER_RETURN_PATH,
+        ...checkoutSource,
       });
       capturePosthogEvent("checkout_redirect_ready", {
-        conversion_id: conversionId,
-        entry_source: CATALOG_IMPORTER_ENTRY_SOURCE,
+        conversion_id: checkoutSource.conversionId,
+        entry_source: checkoutSource.entrySource,
         source: "catalog_importer",
       });
       window.location.assign(result.url);
     } catch {
       capturePosthogEvent("checkout_failed", {
-        conversion_id: conversionId,
-        entry_source: CATALOG_IMPORTER_ENTRY_SOURCE,
+        conversion_id: checkoutSource.conversionId,
+        entry_source: checkoutSource.entrySource,
         source: "catalog_importer",
       });
     }
@@ -64,7 +60,7 @@ export function CatalogImporterCheckoutStart({
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-10 sm:py-16">
       <Link
-        href={CATALOG_IMPORTER_RETURN_PATH}
+        href={checkoutSource.returnTo}
         className="text-muted-foreground inline-flex items-center gap-2 text-sm hover:underline"
       >
         <ArrowLeft className="size-4" />
@@ -97,6 +93,7 @@ export function CatalogImporterCheckoutStart({
               type="email"
               required
               autoComplete="email"
+              disabled={!isReady}
               value={email}
               onChange={(event) => setEmail(event.target.value)}
             />
@@ -105,7 +102,7 @@ export function CatalogImporterCheckoutStart({
           <Button
             type="submit"
             size="lg"
-            disabled={!emailIsValid || createCheckout.isPending}
+            disabled={!isReady || !emailIsValid || createCheckout.isPending}
           >
             {createCheckout.isPending ? (
               <Spinner />

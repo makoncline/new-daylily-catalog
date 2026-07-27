@@ -79,8 +79,7 @@ export const integrationNetworkHandlers = [
     const body = await request.formData();
 
     if (
-      body.get("customer_email") ===
-      "integration-stripe-failure@example.com"
+      body.get("customer_email") === "integration-stripe-failure@example.com"
     ) {
       return HttpResponse.json(
         {
@@ -94,29 +93,30 @@ export const integrationNetworkHandlers = [
     }
 
     return HttpResponse.json({
-      id: "cs_test_integration_onboarding",
+      id: "cs_test_integration_catalog_importer",
       object: "checkout.session",
-      url: `${process.env.APP_BASE_URL ?? "http://localhost:3210"}/onboarding/checkout/success?session_id=cs_test_integration_onboarding`,
+      url: `${process.env.APP_BASE_URL ?? "http://localhost:3210"}/catalog-importer/checkout/success?session_id=cs_test_integration_catalog_importer`,
     });
   }),
-  http.get(
-    "*/v1/checkout/sessions/cs_test_integration_onboarding",
-    () =>
-      HttpResponse.json({
-        id: "cs_test_integration_onboarding",
-        object: "checkout.session",
-        created: 1_700_000_000,
-        customer: {
-          id: "cus_integration_onboarding",
-          object: "customer",
-          email: "integration-stripe-success@example.com",
-        },
-        metadata: { flow: "anonymous_onboarding" },
-        subscription: {
-          id: "sub_integration_onboarding",
-          object: "subscription",
-          status: "trialing",
-        },
-      }),
+  http.get("*/v1/checkout/sessions/cs_test_integration_catalog_importer", () =>
+    HttpResponse.json({
+      id: "cs_test_integration_catalog_importer",
+      object: "checkout.session",
+      created: 1_700_000_000,
+      customer: {
+        id: "cus_integration_catalog_importer",
+        object: "customer",
+        email: "integration-stripe-success@example.com",
+      },
+      metadata: {
+        entry_source: "catalog_importer",
+        return_to: "/catalog-importer",
+      },
+      subscription: {
+        id: "sub_integration_catalog_importer",
+        object: "subscription",
+        status: "trialing",
+      },
+    }),
   ),
 ];

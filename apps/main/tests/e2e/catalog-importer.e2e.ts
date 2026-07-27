@@ -247,11 +247,11 @@ test.describe("catalog importer", () => {
     ).toHaveCount(0);
     await expect(
       page.getByRole("heading", {
-        name: "Build a public catalog with Pro",
+        name: "Publish this catalog with Pro",
       }),
     ).toBeVisible();
     await expect(
-      page.getByText("Your prepared workbook remains free", {
+      page.getByText("Give buyers one public link", {
         exact: false,
       }),
     ).toBeVisible();
@@ -412,7 +412,9 @@ test.describe("catalog importer", () => {
       "1 spreadsheet item remain and will not be imported.",
     );
     await expect(
-      importSummary.getByRole("heading", { name: "Ready for import!" }),
+      importSummary.getByRole("heading", {
+        name: "Publish with Daylily Catalog Pro",
+      }),
     ).toBeVisible();
 
     await page.getByText("File details").click();

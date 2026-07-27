@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-interface OnboardingStatusPageProps {
+interface CheckoutStatusPageProps {
   actions?: ReactNode;
   children?: ReactNode;
   description: string;
@@ -9,14 +9,14 @@ interface OnboardingStatusPageProps {
   title: string;
 }
 
-export function OnboardingStatusPage({
+export function CheckoutStatusPage({
   actions,
   children,
   description,
   eyebrow,
   testId,
   title,
-}: OnboardingStatusPageProps) {
+}: CheckoutStatusPageProps) {
   return (
     <div className="bg-muted/20" data-testid={testId}>
       <section className="mx-auto w-full max-w-6xl px-4 py-14 sm:py-20 lg:px-8 lg:py-24">

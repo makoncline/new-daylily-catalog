@@ -2,6 +2,7 @@
 
 import type { CatalogImporterWorkbenchController } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
 import type { CatalogImporterStep } from "@/app/(public)/catalog-importer/_components/catalog-importer-step-nav";
+import { getCultivarImage } from "@/app/(public)/catalog-importer/_lib/catalog-importer-presentation";
 
 function RevealMetric({
   count,
@@ -50,6 +51,9 @@ export function CatalogImporterOverview({
   const linkedListingLabel =
     counts.linkedListingCount === 1 ? "listing" : "listings";
   const hasLinkedListings = counts.linkedListingCount > 0;
+  const referencePhotoCount = controller.includedRows.filter(
+    (row) => row.match && getCultivarImage(row.match),
+  ).length;
   const processedHeading =
     controller.reviewRows.length > 0
       ? `${controller.reviewRows.length.toLocaleString()} ${
@@ -64,7 +68,25 @@ export function CatalogImporterOverview({
         : counts.detectedListingCount === 0
           ? "No listings were found"
           : "No listings are included in this import";
-  const outstandingMetrics = [
+  const metrics = [
+    <RevealMetric
+      key="source"
+      count={counts.detectedListingCount}
+      label={
+        counts.detectedListingCount === 1 ? "listing found" : "listings found"
+      }
+      testId="detected-listing-count"
+    />,
+    <RevealMetric
+      key="photos"
+      count={referencePhotoCount}
+      label={
+        referencePhotoCount === 1
+          ? "reference photo available"
+          : "reference photos available"
+      }
+      testId="reference-photo-count"
+    />,
     controller.reviewRows.length > 0 ? (
       <RevealMetric
         key="review"
@@ -97,7 +119,9 @@ export function CatalogImporterOverview({
     <section
       id="catalog-importer-summary"
       role="region"
-      aria-label={hasLinkedListings ? "Catalog preview ready" : "Spreadsheet processed"}
+      aria-label={
+        hasLinkedListings ? "Catalog preview ready" : "Spreadsheet processed"
+      }
       className="border-primary/40 space-y-3 border-l-2 py-1 pl-5 sm:pl-7"
     >
       <p className="text-primary text-sm font-medium">
@@ -116,8 +140,16 @@ export function CatalogImporterOverview({
           processedHeading
         )}
       </h2>
-      {outstandingMetrics.length > 0 ? (
-        <div className="flex max-w-2xl gap-8 pt-1">{outstandingMetrics}</div>
+      {hasLinkedListings ? (
+        <p className="text-muted-foreground max-w-3xl text-sm leading-6">
+          Your spreadsheet stores the inventory. This private preview shows how
+          buyers could explore it.
+        </p>
+      ) : null}
+      {metrics.length > 0 ? (
+        <div className="flex max-w-3xl flex-wrap gap-x-8 gap-y-3 pt-1">
+          {metrics}
+        </div>
       ) : null}
     </section>
   );

@@ -363,6 +363,16 @@ export function CatalogImporterCatalogPreview({
           >
             Your catalog preview
           </h2>
+          <p className="text-muted-foreground mt-1 max-w-3xl text-sm leading-6">
+            Buyers could search by name, price, hybridizer, bloom season, and
+            other registered details before they contact you.
+          </p>
+          <p className="mt-2 font-mono text-sm">
+            daylilycatalog.com/your-catalog
+            <span className="text-muted-foreground ml-2 font-sans text-xs">
+              private preview
+            </span>
+          </p>
           {linkedRows.length < controller.includedRows.length ? (
             <p className="text-muted-foreground mt-1 text-sm">
               {linkedRows.length.toLocaleString()} of{" "}

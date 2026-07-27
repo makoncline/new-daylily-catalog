@@ -1,34 +1,20 @@
-import type { Metadata } from "next";
-import { db } from "@/server/db";
-import { getAnonymousOnboardingCheckoutStatus } from "@/server/onboarding/anonymous-onboarding-service";
-import { CheckoutSuccessPageClient } from "./checkout-success-page-client";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Finish Your Account | Daylily Catalog",
-  robots: {
-    index: false,
-    follow: false,
-    nocache: true,
-  },
-};
-
-export default async function OnboardingCheckoutSuccessPage({
+export default async function OnboardingCheckoutSuccessRedirect({
   searchParams,
 }: {
   searchParams: Promise<{ session_id?: string }>;
 }) {
-  const params = await searchParams;
-  const sessionId = params.session_id;
-  const status = sessionId
-    ? await getAnonymousOnboardingCheckoutStatus(db, sessionId).catch(
-        (error: unknown) => {
-          console.error("Unable to load onboarding checkout status", error);
-          return null;
-        },
-      )
-    : null;
+  const sessionId = (await searchParams).session_id;
+  if (!sessionId) {
+    redirect("/catalog-importer");
+  }
 
-  return <CheckoutSuccessPageClient status={status} />;
+  redirect(
+    `/catalog-importer/checkout/success?session_id=${encodeURIComponent(
+      sessionId,
+    )}`,
+  );
 }

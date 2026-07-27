@@ -11,7 +11,7 @@ export function generateMetadata(): Metadata {
   const baseUrl = getCanonicalBaseUrl();
   const title = `Daylily Catalog Import Builder | ${METADATA_CONFIG.SITE_NAME}`;
   const description =
-    "Build a daylily catalog import, match registered cultivars, review spreadsheet data, and download a prepared copy with Daylily Catalog IDs.";
+    "Turn a daylily spreadsheet into a private, buyer-friendly catalog preview with matched cultivars, reference photos, filters, and prepared files.";
 
   return {
     title,
@@ -41,14 +41,15 @@ export default async function CatalogImporterPage() {
     <div className="w-full px-3 py-8 lg:px-8 lg:py-12">
       <header className="mb-6 max-w-3xl">
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-          Build a daylily catalog import
+          Turn the catalog you already have into one buyers can browse
         </h1>
         <p
           data-importer-upload-copy
           className="text-muted-foreground mt-2 text-base sm:text-lg"
         >
-          Upload an XLSX or CSV file to match cultivars, preview the catalog,
-          review the data, and prepare the import.
+          Upload a spreadsheet, add listings manually, or try a sample. We will
+          match registered cultivars, add reference photos and details, and
+          build a private catalog preview. Nothing is published.
         </p>
       </header>
 

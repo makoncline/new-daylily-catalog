@@ -562,20 +562,23 @@ export const ATLAS_FLOWS = [
     audience: "member",
     title: "Create a catalog and start membership",
     description:
-      "Understand the grower offer, build a catalog preview, and reach the trial handoff.",
+      "Understand the grower offer, transform an existing catalog, and reach the trial handoff.",
     tests: {
       unit: [
-        testRef("unit", "tests/anonymous-onboarding-draft.test.ts"),
-        testRef("unit", "tests/anonymous-onboarding-config.test.ts"),
+        testRef("unit", "tests/catalog-importer-draft.test.ts"),
+        testRef("unit", "tests/catalog-importer-file.test.ts"),
       ],
       integration: [
-        testRef("integration", "tests/anonymous-onboarding-layout.test.tsx"),
-        testRef("integration", "tests/onboarding-router.test.ts"),
+        testRef("integration", "tests/catalog-importer-workbench.test.tsx"),
+        testRef(
+          "integration",
+          "tests/catalog-importer-checkout-router.test.ts",
+        ),
         fullAppIntegrationRef(
-          "tests/integration/onboarding-provider-boundaries.integration.ts",
+          "tests/integration/catalog-importer-checkout-provider-boundaries.integration.ts",
         ),
       ],
-      e2e: [testRef("e2e", "tests/e2e/onboarding-full-flow.e2e.ts")],
+      e2e: [testRef("e2e", "tests/e2e/catalog-importer-onboarding.e2e.ts")],
     },
     steps: [
       {
@@ -590,104 +593,36 @@ export const ATLAS_FLOWS = [
         ],
       },
       {
-        title: "Start setup",
+        title: "Bring a catalog",
         states: [
           onboardingState(
-            "onboarding-email-empty",
-            "Email empty",
-            "The initial setup state before an account email is entered.",
-            "/onboarding?step=email",
+            "onboarding-importer-start",
+            "Catalog source choices",
+            "Upload, manual entry, and sample paths start the same private preview.",
+            "/catalog-importer",
           ),
+        ],
+      },
+      {
+        title: "See the transformation",
+        states: [
           onboardingState(
-            "onboarding-email-invalid",
-            "Email invalid",
-            "An incomplete email keeps progression unavailable.",
-            "/onboarding?step=email",
-            false,
-          ),
-          onboardingState(
-            "onboarding-email-valid",
-            "Email valid",
-            "A valid account email makes setup ready to continue.",
-            "/onboarding?step=email",
+            "onboarding-importer-results",
+            "Personalized catalog results",
+            "Matched listings, reference photos, cleanup work, and the Pro publishing bridge.",
+            "/catalog-importer",
             false,
           ),
         ],
       },
       {
-        title: "Build a profile",
+        title: "Choose the outcome",
         states: [
           onboardingState(
-            "onboarding-profile-default",
-            "Profile defaults",
-            "The starter profile and live catalog-card preview.",
-            "/onboarding?step=profile",
-            false,
-          ),
-          onboardingState(
-            "onboarding-profile-custom",
-            "Profile customized",
-            "Realistic seller details with an alternate starter image.",
-            "/onboarding?step=profile",
-            false,
-          ),
-          onboardingState(
-            "onboarding-profile-upload",
-            "Profile upload",
-            "The visible image upload dropzone before a file is selected.",
-            "/onboarding?step=profile",
-            false,
-          ),
-          onboardingState(
-            "onboarding-profile-crop",
-            "Profile crop",
-            "The real crop dialog after selecting a profile image.",
-            "/onboarding?step=profile",
-            false,
-          ),
-        ],
-      },
-      {
-        title: "Build an example listing",
-        states: [
-          onboardingState(
-            "onboarding-listing-default",
-            "Listing defaults",
-            "The initial example listing with generated placeholder content.",
-            "/onboarding?step=listing",
-            false,
-          ),
-          onboardingState(
-            "onboarding-listing-custom",
-            "Listing customized",
-            "A selected cultivar with realistic title, price, and description.",
-            "/onboarding?step=listing",
-            false,
-          ),
-          onboardingState(
-            "onboarding-listing-upload",
-            "Listing upload",
-            "The visible listing-image upload dropzone.",
-            "/onboarding?step=listing",
-            false,
-          ),
-          onboardingState(
-            "onboarding-listing-crop",
-            "Listing crop",
-            "The real crop dialog after selecting a listing image.",
-            "/onboarding?step=listing",
-            false,
-          ),
-        ],
-      },
-      {
-        title: "Review the catalog",
-        states: [
-          onboardingState(
-            "onboarding-catalog-preview",
-            "Catalog preview",
-            "The completed seller and example-listing preview before membership.",
-            "/onboarding?step=preview",
+            "onboarding-importer-choice",
+            "Download or publish",
+            "The explicit choice between free prepared files and a live Pro catalog.",
+            "/catalog-importer",
             false,
           ),
         ],
@@ -696,10 +631,10 @@ export const ATLAS_FLOWS = [
         title: "Start the trial",
         states: [
           onboardingState(
-            "onboarding-checkout-review",
-            "Checkout review",
-            "The account email and membership terms immediately before Stripe.",
-            "/onboarding?step=checkout",
+            "onboarding-importer-checkout",
+            "Importer checkout",
+            "The account email and exact trial terms immediately before Stripe.",
+            "/catalog-importer/checkout?conversion_id=12a94b5f-3da4-4d28-b6df-76f8f4bc8392&entry=catalog_importer&return_to=%2Fcatalog-importer",
             false,
           ),
         ],
@@ -720,7 +655,7 @@ export const ATLAS_FLOWS = [
       ],
       e2e: [
         testRef("e2e", "tests/e2e/new-user-journey.e2e.ts"),
-        testRef("e2e", "tests/e2e/onboarding-full-flow.e2e.ts"),
+        testRef("e2e", "tests/e2e/catalog-importer-onboarding.e2e.ts"),
       ],
     },
     steps: [

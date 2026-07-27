@@ -208,7 +208,7 @@ async function openCleaner(page: Page, viewport: typeof desktop) {
   await page.goto("/catalog-importer");
   await expect(
     page.getByRole("heading", {
-      name: "Build a daylily catalog import",
+      name: "Turn the catalog you already have into one buyers can browse",
     }),
   ).toBeVisible();
 }
@@ -362,7 +362,7 @@ test("Desktop importer download", async ({ page }) => {
   await uploadSpreadsheet(page);
   await page.getByRole("button", { name: "Finish" }).click();
   await expect(
-    page.getByRole("heading", { name: "Your current import is ready" }),
+    page.getByRole("heading", { name: "Choose what happens next" }),
   ).toBeVisible();
   await captureAtlasState(page, "catalog-importer-desktop-download");
 });

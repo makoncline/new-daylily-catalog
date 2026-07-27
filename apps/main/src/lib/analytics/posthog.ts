@@ -36,6 +36,7 @@ export type PosthogEventName =
   | "catalog_import_downloaded"
   | "catalog_import_membership_prompt_viewed"
   | "catalog_import_membership_prompt_dismissed"
+  | "catalog_import_publish_setup_completed"
   | "seller_order_method_clicked"
   | "first_listing_created"
   | "first_image_uploaded"

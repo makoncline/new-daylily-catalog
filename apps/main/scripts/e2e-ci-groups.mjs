@@ -20,7 +20,7 @@ export const e2eCiGroups = {
   3: [
     "tests/e2e/new-user-journey.e2e.ts",
     "tests/e2e/listings-page-features.e2e.ts",
-    "tests/e2e/onboarding-full-flow.e2e.ts",
+    "tests/e2e/catalog-importer-onboarding.e2e.ts",
     "tests/e2e/lists-page-features.e2e.ts",
     "tests/e2e/signed-in-user-tour.e2e.ts",
   ],

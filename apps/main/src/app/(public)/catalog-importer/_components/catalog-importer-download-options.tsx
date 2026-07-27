@@ -23,11 +23,14 @@ import {
 } from "@/components/ui/item";
 import { Spinner } from "@/components/ui/spinner";
 import type { CatalogImporterWorkbenchController } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
+import { cn } from "@/lib/utils";
 
 export function CatalogImporterDownloadOptions({
   controller,
+  stacked = false,
 }: {
   controller: CatalogImporterWorkbenchController;
+  stacked?: boolean;
 }) {
   const [pendingDownload, setPendingDownload] = useState<
     "clean" | "enriched" | null
@@ -48,7 +51,12 @@ export function CatalogImporterDownloadOptions({
   return (
     <>
       <ItemGroup className="gap-5">
-        <Item className="flex-col items-stretch gap-3 px-0 sm:flex-row sm:items-center">
+        <Item
+          className={cn(
+            "flex-col items-stretch gap-3 px-0",
+            !stacked && "sm:flex-row sm:items-center",
+          )}
+        >
           <ItemContent>
             <ItemTitle>Prepared import file</ItemTitle>
             <ItemDescription className="line-clamp-none">
@@ -57,10 +65,10 @@ export function CatalogImporterDownloadOptions({
               omitted. Use it in the importer or upload it to the builder again.
             </ItemDescription>
           </ItemContent>
-          <ItemActions className="w-full sm:w-auto">
+          <ItemActions className={cn("w-full", !stacked && "sm:w-auto")}>
             <Button
               type="button"
-              className="w-full sm:w-auto"
+              className={cn("w-full", !stacked && "sm:w-auto")}
               disabled={controller.downloadingResults !== null}
               onClick={() => requestDownload("clean")}
             >
@@ -73,7 +81,12 @@ export function CatalogImporterDownloadOptions({
             </Button>
           </ItemActions>
         </Item>
-        <Item className="flex-col items-stretch gap-3 px-0 sm:flex-row sm:items-center">
+        <Item
+          className={cn(
+            "flex-col items-stretch gap-3 px-0",
+            !stacked && "sm:flex-row sm:items-center",
+          )}
+        >
           <ItemContent>
             <ItemTitle>Enhanced original</ItemTitle>
             <ItemDescription className="line-clamp-none">
@@ -81,10 +94,10 @@ export function CatalogImporterDownloadOptions({
               Daylily Catalog identity added. Excluded rows remain.
             </ItemDescription>
           </ItemContent>
-          <ItemActions className="w-full sm:w-auto">
+          <ItemActions className={cn("w-full", !stacked && "sm:w-auto")}>
             <Button
               type="button"
-              className="w-full sm:w-auto"
+              className={cn("w-full", !stacked && "sm:w-auto")}
               variant="outline"
               disabled={controller.downloadingResults !== null}
               onClick={() => requestDownload("enriched")}

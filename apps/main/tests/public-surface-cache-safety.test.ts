@@ -297,9 +297,9 @@ describe("public surface cache safety", () => {
   });
 
   it("keeps non-dashboard auth layouts on the minimal auth provider", () => {
-    expect(readSource("src/app/onboarding/layout.tsx")).toContain(
-      "<AuthProviders>",
-    );
+    expect(
+      readSource("src/app/catalog-importer/checkout/layout.tsx"),
+    ).toContain("<AuthProviders>");
     expect(readSource("src/app/start-membership/layout.tsx")).not.toContain(
       "AuthProviders",
     );

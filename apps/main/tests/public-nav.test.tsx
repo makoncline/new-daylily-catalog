@@ -73,7 +73,7 @@ describe("PublicHeader", () => {
   });
 
   it("renders enabled cultivar search in the mobile navigation", () => {
-    navigationState.pathname = "/onboarding";
+    navigationState.pathname = "/catalog-importer/checkout";
     featureState.catalogImporterDiscovery = true;
     featureState.publicCultivarSearch = true;
     render(<PublicHeader />);
@@ -89,9 +89,22 @@ describe("PublicHeader", () => {
     expect(catalogsLink).toHaveAttribute("href", "/catalogs");
     expect(cultivarLink).toHaveAttribute("href", "/cultivars");
     expect(importerLink).toHaveAttribute("href", "/catalog-importer");
+    expect(importerLink).toHaveAttribute("aria-current", "page");
     expect(growersLink).toHaveAttribute("href", "/start-membership");
-    expect(growersLink).toHaveAttribute("aria-current", "page");
+    expect(growersLink).not.toHaveAttribute("aria-current");
     expect(dashboardLink).toHaveAttribute("href", "/sign-in");
+  });
+
+  it("does not mark the importer active for a seller slug with the same prefix", () => {
+    navigationState.pathname = "/catalog-importer-gardens";
+    featureState.catalogImporterDiscovery = true;
+    render(<PublicHeader />);
+
+    expect(
+      screen
+        .getAllByRole("link", { name: "Import a catalog" })
+        .every((link) => !link.hasAttribute("aria-current")),
+    ).toBe(true);
   });
 
   it.each([

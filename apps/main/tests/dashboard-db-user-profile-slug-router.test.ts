@@ -82,6 +82,11 @@ describe("dashboardDb.userProfile slug namespace", () => {
       available: false,
     });
     await expect(
+      caller.checkSlug({ slug: "catalog-importer" }),
+    ).resolves.toEqual({
+      available: false,
+    });
+    await expect(
       caller.checkSlug({ slug: "daylily-database-software" }),
     ).resolves.toEqual({
       available: false,

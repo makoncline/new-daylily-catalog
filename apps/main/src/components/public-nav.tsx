@@ -34,10 +34,11 @@ export function PublicHeader() {
     pathname === "/" || isGrowerMarketingPage || pathname === "/cultivars";
   const isCultivarsActive =
     pathname === "/cultivars" || pathname.startsWith("/cultivar/");
-  const isCatalogImporterActive = pathname === "/catalog-importer";
+  const isCatalogImporterActive =
+    pathname === "/catalog-importer" ||
+    pathname.startsWith("/catalog-importer/");
   const isCatalogsActive = pathname === "/catalogs";
-  const isGrowersActive =
-    isGrowerMarketingPage || pathname.startsWith("/onboarding");
+  const isGrowersActive = isGrowerMarketingPage;
 
   useEffect(() => {
     mobileNavRef.current?.removeAttribute("open");

@@ -81,21 +81,22 @@ const marketingDarkSecondaryButton = `${marketingButtonBase} border border-white
 
 const HOW_IT_WORKS_STEPS = [
   {
-    title: "Add your grower info",
-    detail: "Name, location, photos, and contact info.",
+    title: "Bring your catalog",
+    detail: "Upload a spreadsheet, add listings manually, or try a sample.",
   },
   {
-    title: "Add your daylily listings",
+    title: "See the transformation",
     detail:
-      "Photos, prices, availability, notes, and cultivar details when available.",
+      "Review matched cultivars, photos, details, and buyer-friendly filters.",
   },
   {
-    title: "Preview your catalog",
-    detail: "See what buyers will see before it goes public.",
+    title: "Prepare what matters",
+    detail: "Confirm uncertain names now, or continue with the ready listings.",
   },
   {
-    title: "Start your trial",
-    detail: "Checkout first, then verify your email to open your dashboard.",
+    title: "Publish with Pro",
+    detail:
+      "Start your trial, choose your public URL, and import the ready listings.",
   },
 ] as const;
 

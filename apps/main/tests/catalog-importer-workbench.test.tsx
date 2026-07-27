@@ -1,4 +1,5 @@
 import "fake-indexeddb/auto";
+import type { ComponentProps } from "react";
 import {
   act,
   fireEvent,
@@ -8,7 +9,7 @@ import {
   within,
 } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { CatalogImporterWorkbench } from "@/app/(public)/catalog-importer/_components/catalog-importer-workbench";
+import { CatalogImporterWorkbench as CatalogImporterWorkbenchComponent } from "@/app/(public)/catalog-importer/_components/catalog-importer-workbench";
 import {
   createCatalogImportRows,
   createCatalogImportSampleSpreadsheet,
@@ -21,10 +22,39 @@ import {
   readCatalogImporterDraft,
   type CatalogImporterDraft,
 } from "@/lib/catalog-importer-draft";
+import type {
+  CatalogImporterViewerResolution,
+  CatalogImporterViewerState,
+} from "@/lib/catalog-importer-membership";
 
 const capturePosthogEventMock = vi.hoisted(() => vi.fn());
 const downloadCatalogImportFileMock = vi.hoisted(() => vi.fn());
 const requestCultivarMatchesMock = vi.hoisted(() => vi.fn());
+
+type TestViewerState =
+  | CatalogImporterViewerState
+  | Extract<CatalogImporterViewerResolution["status"], "unavailable">;
+
+function CatalogImporterWorkbench({
+  viewerState = "anonymous",
+  ...props
+}: Omit<
+  ComponentProps<typeof CatalogImporterWorkbenchComponent>,
+  "viewerResolution"
+> & {
+  viewerState?: TestViewerState;
+}) {
+  const viewerResolution: CatalogImporterViewerResolution =
+    viewerState === "unavailable"
+      ? { status: "unavailable" }
+      : { status: "ready", viewerState };
+  return (
+    <CatalogImporterWorkbenchComponent
+      {...props}
+      viewerResolution={viewerResolution}
+    />
+  );
+}
 
 const savedIdCandidate: CultivarMatchCandidate = {
   awardNames: null,
@@ -891,7 +921,7 @@ describe("CatalogImporterWorkbench", () => {
 
     expect(
       screen.queryByRole("heading", {
-        name: "Build a public catalog with Pro",
+        name: "Publish this catalog with Pro",
       }),
     ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Finish" })).toBeVisible();
@@ -903,8 +933,46 @@ describe("CatalogImporterWorkbench", () => {
     ).toHaveAttribute("href", "/dashboard/imports");
     expect(
       screen.queryByRole("heading", {
-        name: "Ready for import!",
+        name: "Publish with Daylily Catalog Pro",
       }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("explains how to recover when account status is unavailable", async () => {
+    render(<CatalogImporterWorkbench viewerState="unavailable" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Use sample catalog" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Build catalog preview" }),
+    );
+    await openPreview();
+
+    expect(screen.getByText(/We could not check your account/)).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Reload account status" }),
+    ).toBeVisible();
+  });
+
+  it("does not reload an in-memory catalog when browser storage is unavailable", async () => {
+    vi.stubGlobal("indexedDB", undefined);
+    render(<CatalogImporterWorkbench viewerState="unavailable" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Use sample catalog" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Build catalog preview" }),
+    );
+    await openPreview();
+
+    expect(
+      await screen.findByText(
+        "Browser progress could not be saved on this device.",
+      ),
+    ).toBeVisible();
+    expect(
+      screen.getByText(/Keep this page open so you do not lose the catalog/),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Reload account status" }),
     ).not.toBeInTheDocument();
   });
 
@@ -1225,7 +1293,7 @@ describe("CatalogImporterWorkbench", () => {
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
 
     const membership = screen.getByRole("heading", {
-      name: "Build a public catalog with Pro",
+      name: "Publish this catalog with Pro",
     });
     await waitFor(
       () =>
@@ -1241,19 +1309,19 @@ describe("CatalogImporterWorkbench", () => {
     );
 
     expect(
-      results.compareDocumentPosition(insights) &
+      results.compareDocumentPosition(membership) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      membership.compareDocumentPosition(insights) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(
       insights.compareDocumentPosition(preview) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    expect(
-      preview.compareDocumentPosition(membership) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
     expect(membership.parentElement).toHaveTextContent(
-      "Your prepared workbook remains free",
+      "Give buyers one public link",
     );
     expect(
       within(membership.closest("section")!).queryByRole("button", {
@@ -1362,9 +1430,7 @@ describe("CatalogImporterWorkbench", () => {
       ],
     });
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "Continue to finish" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Continue to finish" }));
     expect(
       screen.getByRole("button", {
         name: "Download prepared import file",
@@ -1390,7 +1456,7 @@ describe("CatalogImporterWorkbench", () => {
       screen.queryByRole("link", { name: "Continue to import" }),
     ).not.toBeInTheDocument();
     const downloadMembership = screen.getByRole("heading", {
-      name: "Ready for import!",
+      name: "Publish with Daylily Catalog Pro",
     });
     expect(downloadMembership).toBeVisible();
     expect(

@@ -9,7 +9,6 @@ import {
   TEST_USER,
 } from "../../src/lib/test-utils/e2e-users";
 import { signInTestUser } from "./utils/auth";
-import { seedOnboardingExampleCultivars } from "../../src/lib/test-utils/seed-onboarding-example-cultivars";
 
 test.describe("dashboard setup journey @local", () => {
   test("signed-in user can complete dashboard setup after sign-in", async ({
@@ -28,16 +27,15 @@ test.describe("dashboard setup journey @local", () => {
     await withTempE2EDb(async (db) => {
       const authedUser = await createAuthedUser(db);
       const clerkUserId = TEST_USER.clerkId;
-      await seedOnboardingExampleCultivars(db);
       await db.user.update({
         where: { id: authedUser.id },
         data: { stripeCustomerId: null },
       });
 
       // Phase 1: auth and profile completion
-      // direct signup URLs should enter anonymous onboarding, not Clerk signup
+      // Direct signup URLs should enter the importer, not Clerk signup.
       await page.goto("/sign-up");
-      await expect(page).toHaveURL(/\/onboarding/);
+      await expect(page).toHaveURL(/\/catalog-importer/);
 
       // arrive on the home page
       await homePage.goto();
