@@ -23,7 +23,6 @@ import {
 
 const emailSchema = z.string().trim().email().max(254).toLowerCase();
 const checkoutSessionIdSchema = z.string().trim().min(1).max(255);
-const LEGACY_ANONYMOUS_ONBOARDING_FLOW = "anonymous_onboarding";
 
 export const catalogImporterCheckoutInputSchema =
   catalogImporterCheckoutSourceSchema.extend({
@@ -98,13 +97,10 @@ async function getStripeCheckoutDetails(
     expand: ["customer", "subscription"],
   });
 
-  const isCatalogImporterCheckout =
-    session.metadata?.entry_source === CATALOG_IMPORTER_ENTRY_SOURCE &&
-    session.metadata?.return_to === CATALOG_IMPORTER_RETURN_PATH;
-  const isLegacyOnboardingCheckout =
-    session.metadata?.flow === LEGACY_ANONYMOUS_ONBOARDING_FLOW;
-
-  if (!isCatalogImporterCheckout && !isLegacyOnboardingCheckout) {
+  if (
+    session.metadata?.entry_source !== CATALOG_IMPORTER_ENTRY_SOURCE ||
+    session.metadata?.return_to !== CATALOG_IMPORTER_RETURN_PATH
+  ) {
     throw new TRPCError({
       code: "BAD_REQUEST",
       message: "This checkout link is not valid for catalog import.",
