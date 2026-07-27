@@ -39,6 +39,7 @@ export type ListingData = ListingBase & {
   lists: ListingListRef[];
   ahsListing: CultivarReferenceAhsListing | null;
   cultivarReferenceImage: CultivarReferenceImage | null;
+  cultivarReferenceNormalizedName: string | null;
 };
 type ListingRow = Row<ListingData>;
 

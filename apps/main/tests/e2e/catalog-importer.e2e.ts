@@ -396,7 +396,7 @@ test.describe("catalog importer", () => {
       page.getByRole("region", { name: "Review potential matches" }),
     ).toHaveCount(0);
 
-    await page.getByRole("button", { name: "Download" }).click();
+    await page.getByRole("button", { name: "Finish" }).click();
     const importSummary = page.getByRole("region", {
       name: "23 listings ready for import",
     });
@@ -543,7 +543,7 @@ test.describe("catalog importer", () => {
       expect(box!.y + box!.height).toBeLessThanOrEqual(844);
     }
 
-    await mobileActions.getByRole("button", { name: "Download" }).click();
+    await mobileActions.getByRole("button", { name: "Finish" }).click();
     await expect(
       page.getByRole("button", {
         name: "Download prepared import file",

@@ -25,17 +25,20 @@ export interface DashboardImportExistingMatchRow {
 }
 
 export function DashboardImportAlreadyExistingRows({
+  importedRows = [],
   rows,
 }: {
+  importedRows?: CatalogImportRow[];
   rows: DashboardImportExistingMatchRow[];
 }) {
-  if (rows.length === 0) return null;
+  const total = rows.length + importedRows.length;
+  if (total === 0) return null;
 
   return (
     <section className="space-y-3">
       <h3 className="text-sm font-medium">
-        {rows.length.toLocaleString()} existing{" "}
-        {rows.length === 1 ? "listing" : "listings"} will be skipped
+        {total.toLocaleString()} {total === 1 ? "listing is" : "listings are"}{" "}
+        in your catalog
       </h3>
       <div className="max-h-96 overflow-auto rounded-md border">
         <Table>
@@ -43,6 +46,7 @@ export function DashboardImportAlreadyExistingRows({
             <TableRow>
               <TableHead className="w-20">Row</TableHead>
               <TableHead>Name</TableHead>
+              <TableHead className="w-36">Status</TableHead>
               <TableHead className="w-24">Price</TableHead>
               <TableHead>Description</TableHead>
               <TableHead>Private note</TableHead>
@@ -85,6 +89,14 @@ export function DashboardImportAlreadyExistingRows({
                   </TableCell>
                   <TableCell className="p-0 align-top md:p-2">
                     <p className="text-muted-foreground mb-2 text-xs font-medium md:hidden">
+                      Status
+                    </p>
+                    <span className="text-muted-foreground text-sm">
+                      Already existed
+                    </span>
+                  </TableCell>
+                  <TableCell className="p-0 align-top md:p-2">
+                    <p className="text-muted-foreground mb-2 text-xs font-medium md:hidden">
                       Price
                     </p>
                     <span className="text-sm tabular-nums">
@@ -122,6 +134,63 @@ export function DashboardImportAlreadyExistingRows({
                 </TableRow>
               );
             })}
+            {importedRows.map((row) => (
+              <TableRow
+                key={`imported-${row.id}`}
+                className="grid gap-2 p-3 md:table-row md:p-0"
+              >
+                <TableCell className="p-0 align-top md:p-2">
+                  <p className="text-muted-foreground mb-2 text-xs font-medium md:hidden">
+                    Row
+                  </p>
+                  <span className="text-muted-foreground font-mono text-xs">
+                    {row.sourceRow}
+                  </span>
+                </TableCell>
+                <TableCell className="p-0 align-top font-medium md:p-2">
+                  <p className="text-muted-foreground mb-2 text-xs font-medium md:hidden">
+                    Name
+                  </p>
+                  {row.title}
+                </TableCell>
+                <TableCell className="p-0 align-top md:p-2">
+                  <p className="text-muted-foreground mb-2 text-xs font-medium md:hidden">
+                    Status
+                  </p>
+                  <span className="text-sm">Imported</span>
+                </TableCell>
+                <TableCell className="p-0 align-top md:p-2">
+                  <p className="text-muted-foreground mb-2 text-xs font-medium md:hidden">
+                    Price
+                  </p>
+                  <span className="text-sm tabular-nums">
+                    {row.price === null ? "—" : formatPrice(row.price)}
+                  </span>
+                </TableCell>
+                <TableCell className="p-0 align-top md:p-2">
+                  <p className="text-muted-foreground mb-2 text-xs font-medium md:hidden">
+                    Description
+                  </p>
+                  <span
+                    className="line-clamp-1 text-sm"
+                    title={row.description || undefined}
+                  >
+                    {row.description || "—"}
+                  </span>
+                </TableCell>
+                <TableCell className="p-0 align-top md:p-2">
+                  <p className="text-muted-foreground mb-2 text-xs font-medium md:hidden">
+                    Private note
+                  </p>
+                  <span
+                    className="text-muted-foreground line-clamp-1 text-sm"
+                    title={row.privateNote || undefined}
+                  >
+                    {row.privateNote || "—"}
+                  </span>
+                </TableCell>
+              </TableRow>
+            ))}
           </TableBody>
         </Table>
       </div>

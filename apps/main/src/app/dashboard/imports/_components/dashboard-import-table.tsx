@@ -1,18 +1,19 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { type ColumnDef, useReactTable } from "@tanstack/react-table";
+import { ArrowUp } from "lucide-react";
+import { CatalogImporterCultivarSummary } from "@/app/(public)/catalog-importer/_components/catalog-importer-cultivar-summary";
 import { DataTable } from "@/components/data-table";
-import { OptimizedImage } from "@/components/optimized-image";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { getCultivarImage } from "@/app/(public)/catalog-importer/_lib/catalog-importer-presentation";
 import type { CatalogImporterWorkbenchController } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
-import type { CatalogImportRow } from "@/lib/catalog-importer";
+import {
+  prepareCatalogImportListing,
+  type CatalogImportRow,
+} from "@/lib/catalog-importer";
 import { defaultTableConfig } from "@/lib/table-config";
 import { formatPrice } from "@/lib/utils";
-
-const PAGE_SIZE = 50;
 
 export type DashboardImportTableView =
   | "all"
@@ -27,6 +28,7 @@ interface DashboardImportTableProps {
   onRowSelectionChange?: (rowId: string, selected: boolean) => void;
   onRowsSelectionChange?: (rowIds: string[], selected: boolean) => void;
   rowIds?: ReadonlySet<string>;
+  selectionLimit: number;
   selectedRowIds?: ReadonlySet<string>;
   view: DashboardImportTableView;
 }
@@ -56,11 +58,13 @@ export function DashboardImportTable({
   onRowSelectionChange,
   onRowsSelectionChange,
   rowIds,
+  selectionLimit,
   selectedRowIds,
   view,
 }: DashboardImportTableProps) {
-  const tableId = useId();
-  const [page, setPage] = useState(0);
+  const [visibleCount, setVisibleCount] = useState(selectionLimit);
+  const [showReturnToTop, setShowReturnToTop] = useState(false);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
   const rows = useMemo(
     () =>
       (controller.matchedRows ?? []).filter(
@@ -72,51 +76,63 @@ export function DashboardImportTable({
       ),
     [controller.matchedRows, existingDuplicateCounts, rowIds, view],
   );
-  const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
-  const currentPage = Math.min(page, pageCount - 1);
-  const visibleRows = rows.slice(
-    currentPage * PAGE_SIZE,
-    currentPage * PAGE_SIZE + PAGE_SIZE,
+  const visibleRows = useMemo(
+    () => rows.slice(0, visibleCount),
+    [rows, visibleCount],
   );
+  const remainingRowCount = Math.max(0, rows.length - visibleRows.length);
+  const nextLoadCount = Math.min(selectionLimit, remainingRowCount);
+  const selectedVisibleRowCount = visibleRows.filter((row) =>
+    selectedRowIds
+      ? selectedRowIds.has(row.id)
+      : row.outputState === "included",
+  ).length;
   const allVisibleRowsIncluded =
     visibleRows.length > 0 &&
-    visibleRows.every((row) =>
-      selectedRowIds
-        ? selectedRowIds.has(row.id)
-        : row.outputState === "included",
-    );
-  const showImage = rows.some((row) => getCultivarImage(row.match) !== null);
-  const showCultivar = rows.some(
-    (row) =>
-      !row.match ||
-      row.linkState !== "linked" ||
-      row.match.displayName !== row.title,
-  );
-  const showPrice = rows.some(
-    (row) => row.price !== null || row.priceWarning !== null,
-  );
-  const showDescription = rows.some((row) => row.description.trim().length > 0);
-  const showPrivateNote = rows.some((row) => row.privateNote.trim().length > 0);
-  const changePage = (nextPage: number) => {
-    setPage(nextPage);
-    requestAnimationFrame(() =>
-      document.getElementById(tableId)?.scrollIntoView?.({ block: "start" }),
-    );
-  };
+    selectedVisibleRowCount ===
+      (selectedRowIds
+        ? Math.min(selectionLimit, visibleRows.length)
+        : visibleRows.length);
+  const someVisibleRowsIncluded = selectedVisibleRowCount > 0;
   const columns = useMemo(() => {
     const nextColumns: ColumnDef<CatalogImportRow, unknown>[] = [
       {
         id: "include",
-        header: "Include",
+        header: () => (
+          <Checkbox
+            checked={
+              allVisibleRowsIncluded
+                ? true
+                : someVisibleRowsIncluded
+                  ? "indeterminate"
+                  : false
+            }
+            aria-label={`Select up to ${selectionLimit.toLocaleString()} visible listings`}
+            onCheckedChange={(checked) => {
+              const visibleRowIds = visibleRows.map((row) => row.id);
+              if (onRowsSelectionChange) {
+                onRowsSelectionChange(visibleRowIds, checked === true);
+                return;
+              }
+              controller.setImportRowsIncluded(visibleRowIds, checked === true);
+            }}
+          />
+        ),
         cell: ({ row: tableRow }) => {
           const currentRow = tableRow.original;
+          const importName = prepareCatalogImportListing(currentRow).title;
           const selected = selectedRowIds
             ? selectedRowIds.has(currentRow.id)
             : currentRow.outputState === "included";
+          const selectionLimitReached =
+            selectedRowIds !== undefined &&
+            !selected &&
+            selectedRowIds.size >= selectionLimit;
           return (
             <Checkbox
               checked={selected}
-              aria-label={`Include ${currentRow.title}`}
+              disabled={selectionLimitReached}
+              aria-label={`Include ${importName}`}
               onCheckedChange={(checked) => {
                 const nextSelected = checked === true;
                 if (onRowSelectionChange) {
@@ -134,6 +150,7 @@ export function DashboardImportTable({
         header: "Name",
         cell: ({ row: tableRow }) => {
           const currentRow = tableRow.original;
+          const importName = prepareCatalogImportListing(currentRow).title;
           const existingDuplicateCount =
             existingDuplicateCounts.get(currentRow.id) ?? 0;
           const selected = selectedRowIds
@@ -144,18 +161,10 @@ export function DashboardImportTable({
             <div className={selected ? "min-w-0" : "min-w-0 opacity-55"}>
               <span
                 className="line-clamp-2 font-medium whitespace-normal"
-                title={currentRow.title}
+                title={importName}
               >
-                {currentRow.title}
+                {importName}
               </span>
-              <span className="text-muted-foreground mt-1 block font-mono text-xs">
-                Row {currentRow.sourceRow}
-              </span>
-              {currentRow.duplicateOfSourceRow !== null ? (
-                <span className="text-muted-foreground mt-1 block text-xs">
-                  Also linked on row {currentRow.duplicateOfSourceRow}
-                </span>
-              ) : null}
               {existingDuplicateCount > 0 ? (
                 <span className="text-muted-foreground mt-1 block text-xs">
                   {existingDuplicateCount} existing listing
@@ -166,53 +175,7 @@ export function DashboardImportTable({
           );
         },
       },
-    ];
-
-    if (showImage) {
-      nextColumns.push({
-        id: "image",
-        header: "Image",
-        cell: ({ row: tableRow }) => {
-          const currentRow = tableRow.original;
-          const image = getCultivarImage(currentRow.match);
-
-          return image ? (
-            <OptimizedImage
-              image={image}
-              alt={`${currentRow.match?.displayName ?? currentRow.title} reference photo`}
-              className="size-12 rounded-md border"
-              variant="thumb"
-            />
-          ) : null;
-        },
-      });
-    }
-
-    if (showCultivar) {
-      nextColumns.push({
-        id: "cultivar",
-        header: "Cultivar",
-        cell: ({ row: tableRow }) => {
-          const currentRow = tableRow.original;
-
-          return currentRow.match ? (
-            <span
-              className="line-clamp-2 whitespace-normal"
-              title={currentRow.match.displayName}
-            >
-              {currentRow.match.displayName}
-            </span>
-          ) : currentRow.linkState === "intentionally-unmatched" ? (
-            <span className="text-muted-foreground">Unlinked</span>
-          ) : (
-            <span className="text-muted-foreground">Needs review</span>
-          );
-        },
-      });
-    }
-
-    if (showPrice) {
-      nextColumns.push({
+      {
         id: "price",
         header: "Price",
         cell: ({ row: tableRow }) => {
@@ -230,11 +193,8 @@ export function DashboardImportTable({
             </span>
           );
         },
-      });
-    }
-
-    if (showDescription) {
-      nextColumns.push({
+      },
+      {
         id: "description",
         header: "Description",
         cell: ({ row: tableRow }) => (
@@ -245,11 +205,8 @@ export function DashboardImportTable({
             {tableRow.original.description || "—"}
           </span>
         ),
-      });
-    }
-
-    if (showPrivateNote) {
-      nextColumns.push({
+      },
+      {
         id: "privateNote",
         header: "Private note",
         cell: ({ row: tableRow }) => (
@@ -260,20 +217,33 @@ export function DashboardImportTable({
             {tableRow.original.privateNote || "—"}
           </span>
         ),
-      });
-    }
+      },
+      {
+        id: "cultivar",
+        header: "Linked cultivar",
+        cell: ({ row: tableRow }) =>
+          tableRow.original.match ? (
+            <CatalogImporterCultivarSummary
+              candidate={tableRow.original.match}
+              className="w-max max-w-96"
+            />
+          ) : (
+            <span className="text-muted-foreground">Not linked</span>
+          ),
+      },
+    ];
 
     return nextColumns;
   }, [
     controller,
+    allVisibleRowsIncluded,
     existingDuplicateCounts,
     onRowSelectionChange,
+    onRowsSelectionChange,
+    selectionLimit,
     selectedRowIds,
-    showCultivar,
-    showDescription,
-    showImage,
-    showPrice,
-    showPrivateNote,
+    someVisibleRowsIncluded,
+    visibleRows,
   ]);
 
   // TanStack Table exposes mutable APIs by design; React Compiler cannot memoize this hook.
@@ -284,12 +254,7 @@ export function DashboardImportTable({
     data: visibleRows,
     enableSorting: false,
     getRowId: (currentRow) => currentRow.id,
-    initialState: {
-      pagination: {
-        pageIndex: 0,
-        pageSize: PAGE_SIZE,
-      },
-    },
+    manualPagination: true,
     meta: {
       pinnedColumns: {
         left: ["include", "name"],
@@ -298,66 +263,56 @@ export function DashboardImportTable({
   });
 
   return (
-    <div id={tableId} className="scroll-mt-4 space-y-3">
-      <div className="max-h-[42rem] overflow-y-auto">
-        <DataTable table={table} />
-      </div>
-
-      {pageCount > 1 || !allVisibleRowsIncluded ? (
-        <div className="flex items-center justify-between gap-3 text-sm">
-          <div className="flex items-center gap-3">
-            <span className="text-muted-foreground">
-              {rows.length.toLocaleString()} row{rows.length === 1 ? "" : "s"}
-            </span>
-            {!allVisibleRowsIncluded ? (
+    <div className="space-y-3">
+      <div className="relative">
+        <div
+          ref={scrollAreaRef}
+          className="max-h-[60vh] overflow-y-auto lg:max-h-[42rem]"
+          data-slot="dashboard-import-scroll-area"
+          onScroll={(event) => {
+            const shouldShow = event.currentTarget.scrollTop > 32;
+            if (shouldShow !== showReturnToTop) {
+              setShowReturnToTop(shouldShow);
+            }
+          }}
+        >
+          <DataTable table={table} />
+          {remainingRowCount > 0 ? (
+            <div className="flex justify-center py-3">
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
-                disabled={visibleRows.length === 0}
-                title="Include all rows shown on this page"
-                onClick={() => {
-                  const visibleRowIds = visibleRows.map((row) => row.id);
-                  if (onRowsSelectionChange) {
-                    onRowsSelectionChange(visibleRowIds, true);
-                    return;
-                  }
-                  controller.setImportRowsIncluded(visibleRowIds, true);
-                }}
-              >
-                Include all
-              </Button>
-            ) : null}
-          </div>
-          {pageCount > 1 ? (
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={currentPage === 0}
-                onClick={() => changePage(Math.max(0, currentPage - 1))}
-              >
-                Previous
-              </Button>
-              <span className="text-muted-foreground tabular-nums">
-                {currentPage + 1} of {pageCount}
-              </span>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={currentPage >= pageCount - 1}
                 onClick={() =>
-                  changePage(Math.min(pageCount - 1, currentPage + 1))
+                  setVisibleCount((current) =>
+                    Math.min(rows.length, current + selectionLimit),
+                  )
                 }
               >
-                Next
+                Show {nextLoadCount.toLocaleString()} more
               </Button>
             </div>
           ) : null}
         </div>
-      ) : null}
+        {visibleRows.length > 8 && showReturnToTop ? (
+          <div className="absolute right-3 bottom-3 z-10">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                if (scrollAreaRef.current) {
+                  scrollAreaRef.current.scrollTop = 0;
+                }
+                setShowReturnToTop(false);
+              }}
+            >
+              <ArrowUp />
+              Return to top
+            </Button>
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

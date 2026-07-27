@@ -62,10 +62,12 @@ describe("dashboard existing listings", () => {
     );
 
     expect(
-      screen.getByText("1 existing listing will be skipped"),
+      screen.getByText("1 listing is in your catalog"),
     ).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Row" })).toBeVisible();
     expect(screen.getByRole("columnheader", { name: "Name" })).toBeVisible();
+    expect(screen.getByRole("columnheader", { name: "Status" })).toBeVisible();
+    expect(screen.getByText("Already existed")).toBeVisible();
     expect(screen.getByRole("link", { name: "Vanguard" })).toHaveAttribute(
       "href",
       "/dashboard/listings?editing=listing-1",

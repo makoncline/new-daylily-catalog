@@ -822,7 +822,7 @@ describe("CatalogImporterWorkbench", () => {
       await screen.findByRole("button", { name: "Build catalog preview" }),
     );
     await openPreview();
-    fireEvent.click(screen.getByRole("button", { name: "Download" }));
+    fireEvent.click(screen.getByRole("button", { name: "Finish" }));
     const downloadButton = screen.getByRole("button", {
       name: "Download enhanced original",
     });
@@ -894,9 +894,9 @@ describe("CatalogImporterWorkbench", () => {
         name: "Build a public catalog with Pro",
       }),
     ).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Download" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Finish" })).toBeVisible();
 
-    fireEvent.click(screen.getByRole("button", { name: "Download" }));
+    fireEvent.click(screen.getByRole("button", { name: "Finish" }));
 
     expect(
       screen.getByRole("link", { name: "Continue to import" }),
@@ -1081,7 +1081,7 @@ describe("CatalogImporterWorkbench", () => {
     ).toBeVisible();
     expect(
       within(workspaceNavigation).getByRole("button", {
-        name: "Download",
+        name: "Finish",
       }),
     ).toBeVisible();
     const preview = screen.getByRole("heading", {
@@ -1363,7 +1363,7 @@ describe("CatalogImporterWorkbench", () => {
     });
 
     fireEvent.click(
-      screen.getByRole("button", { name: "Continue to download" }),
+      screen.getByRole("button", { name: "Continue to finish" }),
     );
     expect(
       screen.getByRole("button", {

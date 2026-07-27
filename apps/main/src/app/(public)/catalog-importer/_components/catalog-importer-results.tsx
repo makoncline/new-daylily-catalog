@@ -649,7 +649,7 @@ export function CatalogImporterResults({
                   : "View review decisions"
                 : previewNextStep === "issues"
                   ? "Continue to issues"
-                  : "Continue to download"}
+                  : "Continue to finish"}
               <ArrowRight aria-hidden="true" className="size-4" />
             </Button>
           </div>
@@ -690,7 +690,7 @@ export function CatalogImporterResults({
             >
               {reviewNextStep === "issues"
                 ? "Continue to issues"
-                : "Continue to download"}
+                : "Continue to finish"}
               <ArrowRight aria-hidden="true" className="size-4" />
             </Button>
           </div>
@@ -718,7 +718,7 @@ export function CatalogImporterResults({
           <CatalogImporterReviewedIssues controller={controller} />
           <div className="flex justify-end pt-2">
             <Button type="button" onClick={() => continueToStep("download")}>
-              Continue to download
+              Continue to finish
               <ArrowRight aria-hidden="true" className="size-4" />
             </Button>
           </div>

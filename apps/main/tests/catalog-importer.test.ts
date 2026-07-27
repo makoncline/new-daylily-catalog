@@ -893,6 +893,64 @@ describe("catalog importer normalization", () => {
     ]);
   });
 
+  it("reviews the strongest potential matches before rows without candidates", () => {
+    const rows = createCatalogImportRows({
+      headerRowIndex: 0,
+      mapping: {
+        cultivarReferenceId: null,
+        description: null,
+        price: null,
+        privateNote: null,
+        title: 0,
+      },
+      rows: [
+        ["name"],
+        ["Custom seedling"],
+        ["Possible match"],
+        ["Strong match"],
+      ],
+    });
+    const candidate = {
+      bloomSizeIn: null,
+      bloomSeason: null,
+      color: null,
+      cultivarReferenceId: "cultivar-example",
+      displayName: "Example",
+      form: null,
+      hybridizer: null,
+      imageAsset: null,
+      imageUrl: null,
+      listingCount: 0,
+      normalizedName: "example",
+      ploidy: null,
+      rebloom: null,
+      scapeHeightIn: null,
+      year: null,
+    };
+    const state = getCatalogImportState(
+      rows.map((row, index) => ({
+        ...row,
+        suggestedMatch:
+          index === 1
+            ? { ...candidate, confidence: 61 }
+            : index === 2
+              ? { ...candidate, confidence: 88 }
+              : null,
+      })),
+    );
+
+    expect(
+      state.reviewRows.map((row) => [
+        row.title,
+        row.suggestedMatch?.confidence ?? null,
+      ]),
+    ).toEqual([
+      ["Strong match", 88],
+      ["Possible match", 61],
+      ["Custom seedling", null],
+    ]);
+  });
+
   it("restores a saved cultivar reference ID before matching by name", () => {
     const rows: SpreadsheetCell[][] = [
       ["name", "Daylily Catalog ID"],
@@ -1070,9 +1128,17 @@ describe("catalog importer normalization", () => {
 
   it("offers a clean catalog and a full enriched original from the same decisions", () => {
     const sourceRows: SpreadsheetCell[][] = [
-      ["plant", "cost", "seller notes", "unrelated"],
-      ["VANGUARD", "two for $30", "Front table", "keep me"],
-      ["VANGUARD backup", "12", "Duplicate tray", "also keep me"],
+      ["plant", "cost", "seller notes", "unrelated", null, "", null],
+      ["VANGUARD", "two for $30", "Front table", "keep me", null, "", null],
+      [
+        "VANGUARD backup",
+        "12",
+        "Duplicate tray",
+        "also keep me",
+        null,
+        "",
+        null,
+      ],
     ];
     const mapping = {
       cultivarReferenceId: null,

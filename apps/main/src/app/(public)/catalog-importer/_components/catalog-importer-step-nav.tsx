@@ -58,7 +58,7 @@ export function CatalogImporterStepNav({
           ? `Issues ${controller.completedIssueCount}/${controller.issueProgressTotal}`
           : "Issues",
     },
-    { enabled: hasResults, id: "download", label: "Download" },
+    { enabled: hasResults, id: "download", label: "Finish" },
   ];
   const steps = allSteps.filter(
     (step) =>

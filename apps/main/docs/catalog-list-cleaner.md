@@ -33,10 +33,12 @@ browser-local project and separates rows into:
 - already present in the seller's catalog; and
 - excluded by the seller.
 
-Only selected, ready rows are sent to the listing import mutation. Existing
-exact listings are skipped. The client sends a stable project-and-row import
-key, and the server skips keys that it has already processed. The flow does not
-update or merge existing listings.
+Only selected, ready rows are sent to the listing import mutation. One request
+contains at most 100 rows. The selection table reveals more rows in groups of
+100 without clearing the current selection. Existing exact listings are
+skipped. The client sends a stable project-and-row import key, and the server
+skips keys that it has already processed. The flow does not update or merge
+existing listings.
 
 ## Row identity and preparation
 
@@ -67,6 +69,11 @@ The enhanced workbook keeps the selected worksheet's seller-owned columns and
 all other worksheets. It adds the identity columns and applies approved mapped
 field corrections. Rows excluded from the prepared catalog remain in the
 enhanced workbook.
+
+The dashboard listing CSV uses the same seller fields and identity columns
+before its reporting columns. It can be uploaded to the builder again. The
+builder maps the supported fields and preserves the remaining columns as
+seller-owned data.
 
 ## Unsupported data
 

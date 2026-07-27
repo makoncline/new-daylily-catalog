@@ -6,6 +6,7 @@ import { type Table } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 
 interface DataTableDownloadProps<TData> {
+  createCsv?: (rows: TData[]) => string;
   table: Table<TData>;
   filenamePrefix?: string;
 }
@@ -23,6 +24,7 @@ interface CustomColumnMeta {
 }
 
 export function DataTableDownload<TData>({
+  createCsv,
   table,
   filenamePrefix = "table-data",
 }: DataTableDownloadProps<TData>) {
@@ -82,6 +84,14 @@ export function DataTableDownload<TData>({
   };
 
   const downloadAsCsv = () => {
+    const sourceRows = table.getCoreRowModel().rows.map((row) => row.original);
+    const customCsv = createCsv?.(sourceRows);
+
+    if (customCsv !== undefined) {
+      downloadCsv(customCsv);
+      return;
+    }
+
     // Get visible columns
     const headerGroups = table.getHeaderGroups();
     if (!headerGroups.length) return;
@@ -129,6 +139,10 @@ export function DataTableDownload<TData>({
     ].join("\n");
 
     // Create and trigger download
+    downloadCsv(csvContent);
+  };
+
+  const downloadCsv = (csvContent: string) => {
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);

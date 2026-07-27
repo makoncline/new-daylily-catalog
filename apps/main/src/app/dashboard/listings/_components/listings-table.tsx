@@ -12,6 +12,7 @@ import {
   DataTableDownload,
   DataTableViewOptions,
 } from "@/components/data-table";
+import { createDashboardListingsCsv } from "@/app/dashboard/listings/_lib/dashboard-listings-export";
 import { APP_CONFIG } from "@/config/constants";
 import { LISTING_TABLE_COLUMN_NAMES } from "@/config/constants";
 import { getColumns } from "./columns";
@@ -182,7 +183,11 @@ function ListingsTableLive() {
                   APP_CONFIG.TABLE.PAGINATION.DASHBOARD_PAGE_SIZE_OPTIONS
                 }
               />
-              <DataTableDownload table={table} filenamePrefix="listings" />
+              <DataTableDownload
+                createCsv={createDashboardListingsCsv}
+                table={table}
+                filenamePrefix="listings"
+              />
             </>
           }
           noResults={

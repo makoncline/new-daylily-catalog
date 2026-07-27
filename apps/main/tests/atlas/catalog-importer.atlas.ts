@@ -349,7 +349,7 @@ test("Mobile importer issues", async ({ page }) => {
 test("Desktop importer incomplete download", async ({ page }) => {
   await openCleaner(page, desktop);
   await uploadSpreadsheet(page);
-  await page.getByRole("button", { name: "Download" }).click();
+  await page.getByRole("button", { name: "Finish" }).click();
   await page
     .getByRole("button", { name: "Download enhanced original" })
     .click();
@@ -360,7 +360,7 @@ test("Desktop importer incomplete download", async ({ page }) => {
 test("Desktop importer download", async ({ page }) => {
   await openCleaner(page, desktop);
   await uploadSpreadsheet(page);
-  await page.getByRole("button", { name: "Download" }).click();
+  await page.getByRole("button", { name: "Finish" }).click();
   await expect(
     page.getByRole("heading", { name: "Your current import is ready" }),
   ).toBeVisible();
@@ -370,7 +370,7 @@ test("Desktop importer download", async ({ page }) => {
 test("Mobile importer download", async ({ page }) => {
   await openCleaner(page, mobile);
   await uploadSpreadsheet(page);
-  await page.getByRole("button", { name: "Download" }).click();
+  await page.getByRole("button", { name: "Finish" }).click();
   await captureAtlasState(page, "catalog-importer-mobile-download");
 });
 

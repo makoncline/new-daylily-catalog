@@ -324,9 +324,14 @@ export function getCatalogImportState(
   const linkedRows = includedRows.filter(
     (row) => row.linkState === "linked" && row.match !== null,
   );
-  const reviewRows = includedRows.filter(
-    (row) => getCatalogImportRowDisposition(row) === "review",
-  );
+  const reviewRows = includedRows
+    .filter((row) => getCatalogImportRowDisposition(row) === "review")
+    .sort(
+      (left, right) =>
+        (right.suggestedMatch?.confidence ?? -1) -
+          (left.suggestedMatch?.confidence ?? -1) ||
+        left.sourceRow - right.sourceRow,
+    );
   const intentionallyUnmatchedRows = includedRows.filter(
     (row) => row.linkState === "intentionally-unmatched",
   );
@@ -995,8 +1000,20 @@ function cloneSheetRows(rows: SpreadsheetCell[][]) {
   return rows.map((row) => [...row]);
 }
 
-function getMaxColumnCount(rows: SpreadsheetCell[][]) {
-  return rows.reduce((largest, row) => Math.max(largest, row.length), 0);
+function getFilledColumnCount(rows: SpreadsheetCell[][]) {
+  return rows.reduce((largest, row) => {
+    for (
+      let columnIndex = row.length - 1;
+      columnIndex >= largest;
+      columnIndex--
+    ) {
+      if (!isBlankCell(row[columnIndex])) {
+        return columnIndex + 1;
+      }
+    }
+
+    return largest;
+  }, 0);
 }
 
 function ensureEnrichmentColumns(
@@ -1005,7 +1022,7 @@ function ensureEnrichmentColumns(
 ) {
   const headerRow = rows[headerRowIndex] ?? [];
   rows[headerRowIndex] = headerRow;
-  let nextColumnIndex = getMaxColumnCount(rows);
+  let nextColumnIndex = getFilledColumnCount(rows);
 
   return Object.fromEntries(
     Object.entries(CATALOG_ENRICHMENT_HEADERS).map(([field, header]) => {
@@ -1081,13 +1098,13 @@ export function createCatalogEnrichedSpreadsheet({
     const firstRowIsBlank = firstRow.every((cell) => isBlankCell(cell));
     if (firstRowIsBlank) {
       outputHeaderRowIndex = 0;
-      const sourceColumnCount = getMaxColumnCount(originalRows);
+      const sourceColumnCount = getFilledColumnCount(originalRows);
       originalRows[0] = Array.from(
         { length: sourceColumnCount },
         (_, index) => `Column ${columnIndexToLabel(index)}`,
       );
     } else {
-      const sourceColumnCount = getMaxColumnCount(originalRows);
+      const sourceColumnCount = getFilledColumnCount(originalRows);
       originalRows.unshift(
         Array.from(
           { length: sourceColumnCount },
