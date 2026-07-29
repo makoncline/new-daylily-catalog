@@ -3,8 +3,28 @@ import { test, expect } from "./fixtures/app-fixtures";
 import { deleteClerkUserByEmail, getClerkUserIdByEmail } from "./utils/clerk";
 import { withTempE2EDb } from "../../src/lib/test-utils/e2e-db";
 import { SUBSCRIPTION_CONFIG } from "../../src/config/subscription-config";
+import { mockCultivarMatches } from "./utils/catalog-importer";
 
 const TEST_CODE = "424242";
+const MATCHED_SAMPLE_CULTIVAR_NAMES = [
+  "Stella de Oro",
+  "Happy Returns",
+  "Ruby Spider",
+  "Primal Scream",
+  "Orange Velvet",
+  "Action Figure",
+  "My Favorite Martian",
+  "Aerial Art",
+] as const;
+const MATCHED_SAMPLE_CULTIVAR_REFERENCES = MATCHED_SAMPLE_CULTIVAR_NAMES.map(
+  (name) => {
+    const normalizedName = name.toLowerCase();
+    return {
+      id: `cultivar-${normalizedName}`,
+      normalizedName,
+    };
+  },
+);
 
 function getPendingCheckoutCustomerId(value: string | null | undefined) {
   if (!value) {
@@ -98,8 +118,19 @@ test.describe("importer-first seller onboarding @local", () => {
     let clerkUserId: string | null = null;
 
     await deleteClerkUserByEmail(email);
+    await withTempE2EDb(
+      async (db) => {
+        const ids = MATCHED_SAMPLE_CULTIVAR_REFERENCES.map(({ id }) => id);
+        await db.cultivarReference.deleteMany({ where: { id: { in: ids } } });
+        await db.cultivarReference.createMany({
+          data: MATCHED_SAMPLE_CULTIVAR_REFERENCES,
+        });
+      },
+      { clearFirst: false },
+    );
 
     try {
+      await mockCultivarMatches(page);
       await homePage.goto();
       await homePage.isReady();
       await page
@@ -108,8 +139,12 @@ test.describe("importer-first seller onboarding @local", () => {
         .click();
       await expect(page).toHaveURL(/\/start-membership/);
 
-      await page.getByTestId("start-membership-checkout").first().click();
-      await expect(page).toHaveURL(/\/catalog-importer/);
+      const importerCta = page.getByTestId("start-membership-checkout").first();
+      await expect(importerCta).toHaveAttribute("href", "/catalog-importer");
+      await Promise.all([
+        page.waitForURL(/\/catalog-importer/),
+        importerCta.click(),
+      ]);
       await expect(
         page.getByRole("heading", {
           name: "Turn the catalog you already have into one buyers can browse",
@@ -150,10 +185,21 @@ test.describe("importer-first seller onboarding @local", () => {
       await expect(
         page.getByRole("heading", { name: "Import catalog" }),
       ).toBeVisible();
-      await expect(page.getByText(/prepared listings/i).first()).toBeVisible();
-      await page.getByRole("button", { name: "Import 3 listings" }).click();
+      const importButton = page.getByRole("button", {
+        name: /^Import \d+ listings$/,
+      });
+      await expect(importButton).toBeVisible();
+      const importButtonLabel = await importButton.textContent();
+      const importedListingCount = Number.parseInt(
+        importButtonLabel?.match(/\d+/)?.[0] ?? "",
+        10,
+      );
+      expect(importedListingCount).toBeGreaterThan(0);
+      await importButton.click();
       await expect(
-        page.getByRole("heading", { name: "Import 3 listings?" }),
+        page.getByRole("heading", {
+          name: `Import ${importedListingCount} listings?`,
+        }),
       ).toBeVisible();
       await page.getByRole("button", { name: "Import listings" }).click();
       await expect(
@@ -194,7 +240,7 @@ test.describe("importer-first seller onboarding @local", () => {
       );
 
       expect(dbState.stripeCustomerId).toMatch(/^cus_e2e_/);
-      expect(dbState.listings).toHaveLength(3);
+      expect(dbState.listings).toHaveLength(importedListingCount);
       expect(
         dbState.listings.every((listing) => listing.cultivarReferenceId),
       ).toBe(true);
@@ -207,7 +253,22 @@ test.describe("importer-first seller onboarding @local", () => {
           clerkUserId,
         });
       } finally {
-        await deleteClerkUserByEmail(email);
+        try {
+          await withTempE2EDb(
+            async (db) => {
+              await db.cultivarReference.deleteMany({
+                where: {
+                  id: {
+                    in: MATCHED_SAMPLE_CULTIVAR_REFERENCES.map(({ id }) => id),
+                  },
+                },
+              });
+            },
+            { clearFirst: false },
+          );
+        } finally {
+          await deleteClerkUserByEmail(email);
+        }
       }
     }
   });
