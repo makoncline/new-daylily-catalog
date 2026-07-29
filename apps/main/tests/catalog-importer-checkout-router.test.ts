@@ -133,7 +133,7 @@ describe("catalog importer checkout", () => {
       },
       success_url:
         "https://daylilycatalog.test/catalog-importer/checkout/success?session_id={CHECKOUT_SESSION_ID}",
-      cancel_url: "https://daylilycatalog.test/catalog-importer",
+      cancel_url: `https://daylilycatalog.test/catalog-importer?checkout=canceled&import_id=${checkoutInput().importId}`,
       metadata: {
         email: "seller@example.com",
         import_id: checkoutInput().importId,
@@ -157,7 +157,8 @@ describe("catalog importer checkout", () => {
       expect.objectContaining({
         success_url:
           "http://localhost:3007/catalog-importer/checkout/success?session_id={CHECKOUT_SESSION_ID}",
-        cancel_url: "http://localhost:3007/catalog-importer",
+        cancel_url:
+          "http://localhost:3007/catalog-importer?checkout=canceled&import_id=123e4567-e89b-42d3-a456-426614174000",
       }),
     );
   });
