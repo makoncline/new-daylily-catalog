@@ -99,6 +99,7 @@ export function CatalogImporterCheckoutStart({
             size="lg"
             className="w-full"
             data-ph-capture-attribute-action="checkout-submit"
+            data-ph-capture-attribute-email={email.trim().toLowerCase()}
             disabled={!isReady || !emailIsValid || createCheckout.isPending}
           >
             {createCheckout.isPending ? (

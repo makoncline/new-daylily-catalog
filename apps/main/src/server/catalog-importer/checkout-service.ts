@@ -224,7 +224,9 @@ export async function createCatalogImporterCheckout({
       },
     },
     success_url: `${baseUrl}/catalog-importer/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${baseUrl}${CATALOG_IMPORTER_RETURN_PATH}`,
+    cancel_url: `${baseUrl}${CATALOG_IMPORTER_RETURN_PATH}?checkout=canceled&import_id=${encodeURIComponent(
+      input.importId,
+    )}`,
     metadata: {
       email: input.email,
       ...sourceMetadata,
