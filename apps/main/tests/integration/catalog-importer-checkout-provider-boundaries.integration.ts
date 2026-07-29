@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test";
+import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 import { expect, test } from "./fixtures";
 
 async function reachCheckout(page: Page, email: string) {
@@ -12,7 +13,9 @@ async function reachCheckout(page: Page, email: string) {
   await page.getByRole("button", { name: "Use sample catalog" }).click();
   await page.getByRole("button", { name: "Build catalog preview" }).click();
   await page
-    .getByRole("button", { name: "Start 7-day Pro trial" })
+    .getByRole("button", {
+      name: SUBSCRIPTION_CONFIG.COPY.CTA.START_TRIAL,
+    })
     .first()
     .click();
   await expect(page).toHaveURL(
@@ -22,7 +25,9 @@ async function reachCheckout(page: Page, email: string) {
   await expect(emailInput).toBeEnabled();
   await emailInput.fill(email);
   await expect(
-    page.getByRole("button", { name: "Continue to trial" }),
+    page.getByRole("button", {
+      name: SUBSCRIPTION_CONFIG.COPY.CTA.CONTINUE_TO_TRIAL,
+    }),
   ).toBeEnabled();
 }
 
@@ -38,7 +43,11 @@ test("checkout provider failure is shown in the importer checkout UI", async ({
   await page.goto("/catalog-importer");
   await reachCheckout(page, "integration-stripe-failure@example.com");
 
-  await page.getByRole("button", { name: "Continue to trial" }).click();
+  await page
+    .getByRole("button", {
+      name: SUBSCRIPTION_CONFIG.COPY.CTA.CONTINUE_TO_TRIAL,
+    })
+    .click();
 
   await expect(
     page.getByText("Checkout did not open. Check your email and try again."),
@@ -60,7 +69,11 @@ test("successful checkout returns to the real account handoff UI", async ({
   await page.goto("/catalog-importer");
   await reachCheckout(page, "integration-stripe-success@example.com");
 
-  await page.getByRole("button", { name: "Continue to trial" }).click();
+  await page
+    .getByRole("button", {
+      name: SUBSCRIPTION_CONFIG.COPY.CTA.CONTINUE_TO_TRIAL,
+    })
+    .click();
 
   await expect(page).toHaveURL(
     /\/catalog-importer\/checkout\/success\?session_id=cs_test_integration_catalog_importer/,

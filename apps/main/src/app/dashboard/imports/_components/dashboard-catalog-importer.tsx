@@ -18,13 +18,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyTitle,
-} from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
 import {
   getCatalogImportRowDisposition,
@@ -67,7 +60,7 @@ function ExcludedImportGroup({
   if (count === 0) return null;
 
   return (
-    <div className="flex flex-col gap-1 border-t py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
       <div>
         <p className="font-medium">
           {count.toLocaleString()} {title}
@@ -166,12 +159,13 @@ export function DashboardCatalogImporter({
   const defaultSelectedRowIds = useMemo(
     () =>
       new Set(
-        readyRows.slice(0, IMPORT_BATCH_SIZE).map((currentRow) => currentRow.id),
+        readyRows
+          .slice(0, IMPORT_BATCH_SIZE)
+          .map((currentRow) => currentRow.id),
       ),
     [readyRows],
   );
-  const effectiveSelectedRowIds =
-    selectedRowIds ?? defaultSelectedRowIds;
+  const effectiveSelectedRowIds = selectedRowIds ?? defaultSelectedRowIds;
   const selectedReadyRows = useMemo(
     () => readyRows.filter((row) => effectiveSelectedRowIds.has(row.id)),
     [effectiveSelectedRowIds, readyRows],
@@ -185,25 +179,31 @@ export function DashboardCatalogImporter({
   );
   const builderExcludedCount = listingRows.length - includedRows.length;
 
-  const setRowSelected = useCallback((rowId: string, selected: boolean) => {
-    setSelectedRowIds((current) => {
-      const next = new Set(current ?? defaultSelectedRowIds);
-      if (selected && next.size < IMPORT_BATCH_SIZE) next.add(rowId);
-      else next.delete(rowId);
-      return next;
-    });
-  }, [defaultSelectedRowIds]);
-
-  const setRowsSelected = useCallback((rowIds: string[], selected: boolean) => {
-    setSelectedRowIds((current) => {
-      const next = new Set(current ?? defaultSelectedRowIds);
-      for (const rowId of rowIds) {
+  const setRowSelected = useCallback(
+    (rowId: string, selected: boolean) => {
+      setSelectedRowIds((current) => {
+        const next = new Set(current ?? defaultSelectedRowIds);
         if (selected && next.size < IMPORT_BATCH_SIZE) next.add(rowId);
-        else if (!selected) next.delete(rowId);
-      }
-      return next;
-    });
-  }, [defaultSelectedRowIds]);
+        else next.delete(rowId);
+        return next;
+      });
+    },
+    [defaultSelectedRowIds],
+  );
+
+  const setRowsSelected = useCallback(
+    (rowIds: string[], selected: boolean) => {
+      setSelectedRowIds((current) => {
+        const next = new Set(current ?? defaultSelectedRowIds);
+        for (const rowId of rowIds) {
+          if (selected && next.size < IMPORT_BATCH_SIZE) next.add(rowId);
+          else if (!selected) next.delete(rowId);
+        }
+        return next;
+      });
+    },
+    [defaultSelectedRowIds],
+  );
 
   const startOver = () => {
     controller.resetImporter();
@@ -238,8 +238,7 @@ export function DashboardCatalogImporter({
       setImportedRowIds((current) => new Set([...current, ...importedIds]));
       setSelectedRowIds(null);
       setBatchResult({
-        alreadyExistedCount:
-          result.existingCount + result.skippedExactCount,
+        alreadyExistedCount: result.existingCount + result.skippedExactCount,
         createdCount: result.createdCount,
         remainingCount: Math.max(0, readyRows.length - rows.length),
       });
@@ -253,19 +252,25 @@ export function DashboardCatalogImporter({
 
   if (!controller.matchedRows) {
     return (
-      <Empty className="border">
-        <EmptyHeader>
-          <EmptyTitle>
+      <section
+        className="flex max-w-xl flex-col gap-6 py-4"
+        aria-labelledby="dashboard-import-empty-heading"
+      >
+        <div className="flex flex-col gap-2">
+          <h2
+            id="dashboard-import-empty-heading"
+            className="text-2xl font-semibold tracking-tight"
+          >
             {controller.parsedSpreadsheet
               ? "Finish building your import"
               : "Build an import first"}
-          </EmptyTitle>
-          <EmptyDescription>
+          </h2>
+          <p className="text-muted-foreground text-sm leading-6">
             Map the spreadsheet, review cultivar matches, and fix data in the
             shared import builder.
-          </EmptyDescription>
-        </EmptyHeader>
-        <EmptyContent>
+          </p>
+        </div>
+        <div>
           <Button asChild>
             <Link href={IMPORT_BUILDER_HREF}>
               {controller.parsedSpreadsheet
@@ -273,8 +278,8 @@ export function DashboardCatalogImporter({
                 : "Build import"}
             </Link>
           </Button>
-        </EmptyContent>
-      </Empty>
+        </div>
+      </section>
     );
   }
 
@@ -310,7 +315,7 @@ export function DashboardCatalogImporter({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-10 sm:gap-12">
       <div className="absolute top-0 right-0">
         <DashboardImportStartOver
           disabled={importRows.isPending}
@@ -318,8 +323,11 @@ export function DashboardCatalogImporter({
         />
       </div>
 
-      <section className="space-y-6" aria-labelledby="import-summary-heading">
-        <div>
+      <section
+        className="flex flex-col gap-8"
+        aria-labelledby="import-summary-heading"
+      >
+        <div className="flex flex-col gap-2">
           <h2
             id="import-summary-heading"
             className="text-3xl font-semibold tracking-tight"
@@ -332,19 +340,16 @@ export function DashboardCatalogImporter({
                 ? readyRows.length === 1
                   ? "1 listing remains"
                   : `${readyRows.length.toLocaleString()} listings remain`
-              : readyRows.length === 1
-                ? "1 listing is ready to import"
-                : `${readyRows.length.toLocaleString()} listings are ready to import`}
+                : readyRows.length === 1
+                  ? "1 listing is ready to import"
+                  : `${readyRows.length.toLocaleString()} listings are ready to import`}
           </h2>
           {readyRows.length > 0 ? (
-            <p className="text-muted-foreground mt-2">
+            <p className="text-muted-foreground">
               Import up to 100 listings at a time.{" "}
               <span className="text-foreground font-medium">
                 {selectedReadyRows.length.toLocaleString()} of{" "}
-                {Math.min(
-                  IMPORT_BATCH_SIZE,
-                  readyRows.length,
-                ).toLocaleString()}{" "}
+                {Math.min(IMPORT_BATCH_SIZE, readyRows.length).toLocaleString()}{" "}
                 selected.
               </span>
             </p>
@@ -427,7 +432,7 @@ export function DashboardCatalogImporter({
           rows={existingMatchRows}
         />
 
-        <div className="space-y-6">
+        <div className="flex flex-col gap-10">
           <DashboardImportExcludedRows
             controller={controller}
             kind="review"

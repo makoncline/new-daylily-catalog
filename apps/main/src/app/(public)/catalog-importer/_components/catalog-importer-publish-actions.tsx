@@ -2,11 +2,26 @@
 
 import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, Check, Sparkles } from "lucide-react";
+import {
+  ProUpgrade,
+  ProUpgradeActions,
+  ProUpgradeContent,
+  ProUpgradeDescription,
+  ProUpgradeDetails,
+  ProUpgradeFeature,
+  ProUpgradeFeatures,
+  ProUpgradeHeader,
+  ProUpgradeSubtitle,
+  ProUpgradeTitle,
+} from "@/components/pro-upgrade";
 import { SellerIntentLink } from "@/components/seller-intent-link";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
+import {
+  getSubscriptionPriceCopy,
+  SUBSCRIPTION_CONFIG,
+} from "@/config/subscription-config";
 import { capturePosthogEvent } from "@/lib/analytics/posthog";
 import {
   CATALOG_IMPORTER_ENTRY_SOURCE,
@@ -17,7 +32,6 @@ import {
   type CatalogImporterViewerResolution,
   type CatalogImporterViewerState,
 } from "@/lib/catalog-importer-membership";
-import { cn } from "@/lib/utils";
 import type { MembershipPriceDisplay } from "@/server/stripe/membership-price-display";
 import { api, TRPCReactProvider } from "@/trpc/react";
 import type { CatalogImporterWorkbenchController } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
@@ -41,7 +55,7 @@ export function CatalogImporterPublishActions({
     return (
       <section className="border-primary/50 bg-primary/5 space-y-4 rounded-lg border p-5">
         <h3 className="text-xl font-semibold">
-          Publish with Daylily Catalog Pro
+          Publish with {SUBSCRIPTION_CONFIG.OFFER.PRODUCT_NAME}
         </h3>
         {viewerResolution.status === "checking" ? (
           <p className="text-muted-foreground flex items-center gap-2 text-sm">
@@ -82,7 +96,7 @@ export function CatalogImporterPublishActions({
         <Button asChild>
           <Link href={dashboardReturnPath ?? "/dashboard/imports"}>
             Continue to import
-            <ArrowRight />
+            <ArrowRight data-icon="inline-end" />
           </Link>
         </Button>
       </section>
@@ -117,6 +131,9 @@ function CatalogImporterMembershipPrompt({
   placement: "preview" | "finish";
   viewerState: Exclude<CatalogImporterViewerState, "pro">;
 }) {
+  const priceCopy = membershipPriceDisplay
+    ? getSubscriptionPriceCopy(membershipPriceDisplay)
+    : null;
   const observerRef = useRef<IntersectionObserver | null>(null);
   const impressionTimerRef = useRef<number | null>(null);
   const impressionTrackedRef = useRef(false);
@@ -192,76 +209,87 @@ function CatalogImporterMembershipPrompt({
   );
 
   return (
-    <section
+    <ProUpgrade
       aria-labelledby={`${ctaId}-heading`}
-      className={cn(
-        "border-primary/50 bg-primary/5 grid gap-5 rounded-lg border px-5 py-6",
-        placement === "preview" &&
-          "lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center",
-      )}
+      className={placement === "preview" ? "py-4 sm:py-6" : undefined}
       ref={trackPromptImpression}
     >
-      <div className="max-w-3xl">
-        <h2
-          id={`${ctaId}-heading`}
-          className="text-xl font-semibold tracking-tight sm:text-2xl"
-        >
+      <ProUpgradeHeader>
+        {placement === "finish" ? (
+          <p className="text-xs font-semibold tracking-wide text-[#b7791f] uppercase">
+            Recommended
+          </p>
+        ) : null}
+        <ProUpgradeTitle id={`${ctaId}-heading`}>
           {placement === "finish"
-            ? "Publish with Daylily Catalog Pro"
+            ? "Publish your catalog"
             : "Publish this catalog with Pro"}
-        </h2>
-        <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
-          Give buyers one public link where they can browse listings, filter
-          cultivars, view registered details, and send inquiries. Manage updates
-          from your seller dashboard.
-        </p>
-        <ul className="text-muted-foreground mt-4 grid gap-2 text-sm sm:grid-cols-2">
-          <li>One public catalog link</li>
-          <li>Searchable listings and details</li>
-          <li>Direct buyer inquiries</li>
-          <li>Daylily Catalog discovery eligibility</li>
-        </ul>
-      </div>
-      <div className="flex min-w-56 flex-col gap-2 lg:items-stretch">
-        {viewerState === "anonymous" ? (
-          <AnonymousCatalogImporterMembershipButton
-            controller={controller}
-            ctaId={ctaId}
-          />
-        ) : (
-          <TRPCReactProvider>
-            <SignedInCatalogImporterMembershipButton
+        </ProUpgradeTitle>
+        <ProUpgradeDescription>
+          {placement === "finish"
+            ? "Give buyers a public, searchable catalog."
+            : "Give buyers one public link where they can browse listings, filter cultivars, view registered details, and send inquiries. Manage updates from your seller dashboard."}
+        </ProUpgradeDescription>
+      </ProUpgradeHeader>
+      <ProUpgradeContent>
+        <ProUpgradeDetails>
+          <ProUpgradeSubtitle>What Pro adds</ProUpgradeSubtitle>
+          <ProUpgradeFeatures>
+            {[
+              "One public catalog link",
+              "Searchable listings and details",
+              "Direct buyer inquiries",
+              "Daylily Catalog discovery eligibility",
+            ].map((feature) => (
+              <ProUpgradeFeature key={feature}>
+                <Check className="text-muted-foreground size-4 shrink-0" />
+                {feature}
+              </ProUpgradeFeature>
+            ))}
+          </ProUpgradeFeatures>
+        </ProUpgradeDetails>
+        <ProUpgradeActions className="gap-2">
+          {viewerState === "anonymous" ? (
+            <AnonymousCatalogImporterMembershipButton
               controller={controller}
               ctaId={ctaId}
             />
-          </TRPCReactProvider>
-        )}
-        {placement === "finish" && viewerState === "anonymous" ? (
-          <CatalogImporterLoginButton controller={controller} />
-        ) : null}
-        {membershipPriceDisplay ? (
-          <p className="text-muted-foreground text-center text-xs">
-            No charge today. Then {membershipPriceDisplay.amount}
-            {membershipPriceDisplay.interval}. Cancel anytime.
-          </p>
-        ) : (
-          <p className="text-muted-foreground text-center text-xs">
-            Progress stays in this browser.
-          </p>
-        )}
-        <SellerIntentLink
-          href="/start-membership"
-          className="text-muted-foreground text-center text-xs underline-offset-4 hover:underline"
-          ctaId={`${ctaId}-details`}
-          ctaLabel="See Pro details"
-          entrySurface="catalog_importer_preview"
-          sourcePageType="catalog_importer"
-          sourcePath={CATALOG_IMPORTER_RETURN_PATH}
-        >
-          See Pro details
-        </SellerIntentLink>
-      </div>
-    </section>
+          ) : (
+            <TRPCReactProvider>
+              <SignedInCatalogImporterMembershipButton
+                controller={controller}
+                ctaId={ctaId}
+              />
+            </TRPCReactProvider>
+          )}
+          {placement === "finish" && viewerState === "anonymous" ? (
+            <CatalogImporterLoginButton controller={controller} />
+          ) : null}
+          {priceCopy ? (
+            <p className="text-muted-foreground text-center text-xs">
+              {priceCopy.summaryWithCancellation}
+            </p>
+          ) : (
+            <p className="text-muted-foreground text-center text-xs">
+              {SUBSCRIPTION_CONFIG.COPY.IMPORTER.PRICE_UNAVAILABLE}
+            </p>
+          )}
+          {placement === "preview" ? (
+            <SellerIntentLink
+              href="/start-membership"
+              className="text-muted-foreground text-center text-xs underline-offset-4 hover:underline"
+              ctaId={`${ctaId}-details`}
+              ctaLabel="See Pro details"
+              entrySurface="catalog_importer_preview"
+              sourcePageType="catalog_importer"
+              sourcePath={CATALOG_IMPORTER_RETURN_PATH}
+            >
+              See Pro details
+            </SellerIntentLink>
+          ) : null}
+        </ProUpgradeActions>
+      </ProUpgradeContent>
+    </ProUpgrade>
   );
 }
 
@@ -282,14 +310,14 @@ function CatalogImporterLoginButton({
   return (
     <Button
       type="button"
-      variant="outline"
+      variant="link"
       size="sm"
-      className="w-full"
+      className="h-auto w-full p-0"
       disabled={leaving}
       onClick={() => void openLogin()}
     >
-      {leaving ? <Spinner /> : null}
-      Already have an account? Sign in
+      {leaving ? <Spinner data-icon="inline-start" /> : null}
+      Sign in instead
     </Button>
   );
 }
@@ -319,7 +347,7 @@ function trackTrialCta(
   capturePosthogEvent("seller_cta_clicked", {
     conversion_id: conversionId,
     cta_id: ctaId,
-    cta_label: `Start ${SUBSCRIPTION_CONFIG.FREE_TRIAL_DAYS}-day Pro trial`,
+    cta_label: SUBSCRIPTION_CONFIG.COPY.CTA.START_TRIAL,
     entry_source: CATALOG_IMPORTER_ENTRY_SOURCE,
     entry_surface: "catalog_importer_preview",
     source_page_type: "catalog_importer",
@@ -368,8 +396,12 @@ function AnonymousCatalogImporterMembershipButton({
         disabled={leaving}
         onClick={() => void startTrial()}
       >
-        {leaving ? <Spinner /> : <Sparkles className="size-4" />}
-        Start {SUBSCRIPTION_CONFIG.FREE_TRIAL_DAYS}-day Pro trial
+        {leaving ? (
+          <Spinner data-icon="inline-start" />
+        ) : (
+          <Sparkles data-icon="inline-start" />
+        )}
+        {SUBSCRIPTION_CONFIG.COPY.CTA.START_TRIAL}
       </Button>
       {startError ? (
         <p className="text-destructive text-center text-xs" role="alert">
@@ -441,8 +473,12 @@ function SignedInCatalogImporterMembershipButton({
         disabled={leaving}
         onClick={() => void startTrial()}
       >
-        {leaving ? <Spinner /> : <Sparkles className="size-4" />}
-        Start {SUBSCRIPTION_CONFIG.FREE_TRIAL_DAYS}-day Pro trial
+        {leaving ? (
+          <Spinner data-icon="inline-start" />
+        ) : (
+          <Sparkles data-icon="inline-start" />
+        )}
+        {SUBSCRIPTION_CONFIG.COPY.CTA.START_TRIAL}
       </Button>
       {startError ? (
         <p className="text-destructive text-center text-xs" role="alert">

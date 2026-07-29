@@ -8,7 +8,10 @@ import {
   SellerLandingViewTracker,
 } from "./_components/seller-landing-actions";
 import { PRO_FEATURES, METADATA_CONFIG } from "@/config/constants";
-import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
+import {
+  getSubscriptionPriceCopy,
+  SUBSCRIPTION_CONFIG,
+} from "@/config/subscription-config";
 import { IMAGES } from "@/lib/constants/images";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import { serializeJsonLd } from "@/lib/utils/json-ld";
@@ -95,8 +98,7 @@ const HOW_IT_WORKS_STEPS = [
   },
   {
     title: "Publish with Pro",
-    detail:
-      "Start your trial, choose your public URL, and import the ready listings.",
+    detail: SUBSCRIPTION_CONFIG.COPY.MARKETING.PUBLISH_STEP,
   },
 ] as const;
 
@@ -111,8 +113,8 @@ const FAQ_ITEMS = [
       "No. Daylily Catalog does not process buyer payments. You handle the sale directly.",
   },
   {
-    question: "When does my free trial start?",
-    answer: "The trial starts at checkout, before your dashboard opens.",
+    question: SUBSCRIPTION_CONFIG.COPY.MARKETING.TRIAL_FAQ_QUESTION,
+    answer: SUBSCRIPTION_CONFIG.COPY.MARKETING.TRIAL_FAQ_ANSWER,
   },
   {
     question: "Can I build my catalog before publishing?",
@@ -180,6 +182,8 @@ function StartMembershipHero({
 }: {
   membershipPriceDisplay: MembershipPriceDisplay;
 }) {
+  const priceCopy = getSubscriptionPriceCopy(membershipPriceDisplay);
+
   return (
     <MarketingHero>
       <MarketingHeroContent
@@ -200,9 +204,8 @@ function StartMembershipHero({
 
           <p className="mt-6 max-w-[34rem] text-xl leading-8 font-medium text-pretty text-[#dfe9dc] lg:mt-4 lg:text-lg lg:leading-7">
             Add photos, prices, availability, notes, and contact info. Build and
-            preview your catalog first. Start a{" "}
-            {SUBSCRIPTION_CONFIG.FREE_TRIAL_DAYS}-day trial before your
-            dashboard opens.
+            preview your catalog first.{" "}
+            {SUBSCRIPTION_CONFIG.COPY.MARKETING.HERO_TRIAL}
           </p>
 
           <div className="mt-8 flex flex-col gap-4 lg:mt-5 lg:flex-row lg:gap-5">
@@ -234,12 +237,10 @@ function StartMembershipHero({
             Grower membership
           </p>
           <p className="mt-4 text-6xl leading-none font-bold tracking-tight text-white">
-            {membershipPriceDisplay.amount}
-            {membershipPriceDisplay.interval}
+            {priceCopy.recurringPrice}
           </p>
           <p className="mt-3 max-w-lg text-lg leading-7 text-[#dfe9dc]">
-            Start your {SUBSCRIPTION_CONFIG.FREE_TRIAL_DAYS}-day trial before
-            your paid dashboard opens.
+            {SUBSCRIPTION_CONFIG.COPY.MARKETING.TRIAL_PRICE}
           </p>
 
           <div className="mt-6 grid gap-4 border-t border-white/22 pt-5">
@@ -366,7 +367,7 @@ function HowItWorksSection() {
       <div className="mx-auto max-w-[1024px]">
         <p className="text-sm font-bold text-[#f4c477]">How it works</p>
         <h2 className="mt-4 max-w-3xl text-4xl leading-tight font-semibold tracking-normal text-balance lg:text-6xl">
-          Build first. Start your trial when ready.
+          {SUBSCRIPTION_CONFIG.COPY.MARKETING.HOW_IT_WORKS_TITLE}
         </h2>
 
         <ol className="mt-10 grid list-none border-y border-white/20 lg:grid-cols-4">
@@ -543,8 +544,7 @@ function StartMembershipFinalCta() {
           Ready to create your daylily catalog?
         </p>
         <p className="mt-6 max-w-2xl text-lg leading-8 text-[#dfe9dc]">
-          Build and preview your catalog, start your trial, then open your
-          dashboard.
+          {SUBSCRIPTION_CONFIG.COPY.MARKETING.FINAL_CTA}
         </p>
 
         <div className="mt-9 flex flex-col gap-3 lg:flex-row">

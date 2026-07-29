@@ -353,7 +353,7 @@ export function CatalogImporterCatalogPreview({
     <section
       id="catalog-importer-preview"
       aria-labelledby="catalog-importer-preview-heading"
-      className="!scroll-mt-16 space-y-3 overflow-clip"
+      className="flex !scroll-mt-16 flex-col gap-6 overflow-clip"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>

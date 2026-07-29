@@ -7,7 +7,7 @@ import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 import { capturePosthogEvent } from "@/lib/analytics/posthog";
 
 const SELLER_LANDING_PATH = "/start-membership";
-const SELLER_ONBOARDING_PATH = SUBSCRIPTION_CONFIG.NEW_USER_ONBOARDING_PATH;
+const SELLER_ONBOARDING_PATH = SUBSCRIPTION_CONFIG.PATHS.NEW_USER_ONBOARDING;
 
 interface SellerLandingOnboardingCtaProps {
   ctaId: string;

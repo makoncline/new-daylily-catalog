@@ -143,7 +143,7 @@ export function CatalogImporterReviewedRows({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-10">
       {linkedRows.length > 0 ? (
         <ReviewedRowsTable
           heading="Reviewed linked"

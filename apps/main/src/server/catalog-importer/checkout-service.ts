@@ -2,7 +2,10 @@ import type { PrismaClient } from "@prisma/client";
 import type Stripe from "stripe";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
+import {
+  getDefaultSubscriptionBillingOption,
+  getStripeTrialPeriodDays,
+} from "@/config/subscription-config";
 import { env, requireEnv } from "@/env";
 import {
   CATALOG_IMPORTER_ENTRY_SOURCE,
@@ -194,18 +197,22 @@ export async function createCatalogImporterCheckout({
     entry_source: input.entrySource,
     return_to: input.returnTo,
   };
+  const billingOption = getDefaultSubscriptionBillingOption();
   const stripe = getStripeClient();
   const session = await stripe.checkout.sessions.create({
     customer_email: input.email,
     mode: "subscription",
     line_items: [
       {
-        price: requireEnv("STRIPE_PRICE_ID", env.STRIPE_PRICE_ID),
+        price: requireEnv(
+          billingOption.stripePriceEnvironmentVariable,
+          env.STRIPE_PRICE_ID,
+        ),
         quantity: 1,
       },
     ],
     subscription_data: {
-      trial_period_days: SUBSCRIPTION_CONFIG.FREE_TRIAL_DAYS,
+      trial_period_days: getStripeTrialPeriodDays(),
       metadata: {
         email: input.email,
         ...sourceMetadata,

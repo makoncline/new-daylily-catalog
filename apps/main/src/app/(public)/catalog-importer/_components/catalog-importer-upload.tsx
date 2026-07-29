@@ -96,8 +96,7 @@ export function CatalogImporterUpload({
   });
 
   if (controller.parsedSpreadsheet) {
-    const hasMultipleSheets =
-      controller.parsedSpreadsheet.sheets.length > 1;
+    const hasMultipleSheets = controller.parsedSpreadsheet.sheets.length > 1;
     const needsSheetSelection = hasMultipleSheets && !controller.selectedSheet;
     const sourceSummary = needsSheetSelection
       ? `${controller.parsedSpreadsheet.sheets.length.toLocaleString()} sheets`
@@ -111,7 +110,7 @@ export function CatalogImporterUpload({
     return (
       <section
         aria-label="Uploaded spreadsheet"
-        className="flex min-w-0 flex-wrap items-center gap-2"
+        className="flex max-w-3xl min-w-0 flex-wrap items-center gap-3"
       >
         <div className="flex min-w-48 flex-1 items-center gap-2">
           <FileSpreadsheet className="text-muted-foreground size-4 shrink-0" />

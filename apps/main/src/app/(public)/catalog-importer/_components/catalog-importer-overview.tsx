@@ -122,9 +122,9 @@ export function CatalogImporterOverview({
       aria-label={
         hasLinkedListings ? "Catalog preview ready" : "Spreadsheet processed"
       }
-      className="border-primary/40 space-y-3 border-l-2 py-1 pl-5 sm:pl-7"
+      className="flex max-w-5xl flex-col gap-3"
     >
-      <p className="text-primary text-sm font-medium">
+      <p className="text-sm font-medium text-[#b7791f]">
         {hasLinkedListings ? "Catalog preview ready" : "Spreadsheet processed"}
       </p>
       <h2

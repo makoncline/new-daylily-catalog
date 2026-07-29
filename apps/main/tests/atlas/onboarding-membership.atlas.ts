@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test";
+import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 import { captureAtlasState, expect, test } from "./atlas-test";
 
 async function mockCultivarMatches(page: Page) {
@@ -84,7 +85,7 @@ test("Download or publish", async ({ page }) => {
   await openImporterResults(page);
   await page.getByRole("button", { name: "Finish" }).click();
   await expect(
-    page.getByRole("heading", { name: "Choose what happens next" }),
+    page.getByRole("heading", { name: "Publish your catalog" }),
   ).toBeVisible();
   await captureAtlasState(page, "onboarding-importer-choice");
 });
@@ -94,7 +95,9 @@ test("Importer checkout", async ({ page }) => {
     "/catalog-importer/checkout?conversion_id=12a94b5f-3da4-4d28-b6df-76f8f4bc8392&entry=catalog_importer&return_to=%2Fcatalog-importer",
   );
   await expect(
-    page.getByRole("heading", { name: "Start your Pro trial" }),
+    page.getByRole("heading", {
+      name: SUBSCRIPTION_CONFIG.COPY.CHECKOUT.TITLE,
+    }),
   ).toBeVisible();
   await expect(page.getByLabel("Email address")).toBeVisible();
   await captureAtlasState(page, "onboarding-importer-checkout");

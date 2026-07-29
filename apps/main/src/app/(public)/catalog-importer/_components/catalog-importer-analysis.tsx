@@ -831,13 +831,13 @@ function InsightChart({
   if (data.length <= 4) {
     const total = data.reduce((sum, item) => sum + item.count, 0);
     return (
-      <ul className="max-w-xl divide-y border-y">
+      <ul className="flex max-w-xl flex-col gap-1">
         {data.map((item) => (
           <li key={item.label}>
             <Button
               type="button"
               variant="ghost"
-              className="h-auto w-full justify-between rounded-none px-1 py-2.5 font-normal"
+              className="h-auto w-full justify-between px-2 py-2.5 font-normal"
               onClick={() => onSelect(item)}
             >
               <span className="font-medium">{item.label}</span>
@@ -1050,7 +1050,7 @@ export function CatalogImporterAnalysis({
     <section
       id="catalog-importer-insights"
       aria-labelledby="catalog-importer-analysis-heading"
-      className="!scroll-mt-16"
+      className="flex !scroll-mt-16 flex-col gap-4"
     >
       <h2
         id="catalog-importer-analysis-heading"
@@ -1058,7 +1058,7 @@ export function CatalogImporterAnalysis({
       >
         Collection insights
       </h2>
-      <div className="text-muted-foreground mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+      <div className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-sm">
         <span>
           {uniqueRows.length.toLocaleString()} linked{" "}
           {uniqueRows.length === 1 ? "cultivar" : "cultivars"}
@@ -1097,7 +1097,7 @@ export function CatalogImporterAnalysis({
         ) : null}
       </div>
       {selected ? (
-        <div className="mt-4 space-y-3">
+        <div className="space-y-3">
           {availableRankings.length > 1 ? (
             <ToggleGroup
               type="single"

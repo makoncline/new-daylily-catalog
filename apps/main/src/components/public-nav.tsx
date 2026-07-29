@@ -141,7 +141,7 @@ export function PublicHeader() {
             </li>
             <li className="mt-1 border-t border-[#142118]/10 pt-1">
               <Link
-                href={SUBSCRIPTION_CONFIG.DASHBOARD_SIGN_IN_PATH}
+                href={SUBSCRIPTION_CONFIG.PATHS.DASHBOARD_SIGN_IN}
                 className="block rounded-sm px-2 py-1.5 hover:bg-[#142118]/8"
               >
                 Dashboard
@@ -198,7 +198,7 @@ export function PublicHeader() {
             For growers
           </Link>
 
-          <form action={SUBSCRIPTION_CONFIG.DASHBOARD_SIGN_IN_PATH}>
+          <form action={SUBSCRIPTION_CONFIG.PATHS.DASHBOARD_SIGN_IN}>
             <Button
               className={cn(
                 "ml-2 h-10 rounded-md border bg-transparent px-5 text-sm shadow-none disabled:opacity-100",

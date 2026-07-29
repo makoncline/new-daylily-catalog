@@ -2,6 +2,7 @@ import type { Page } from "@playwright/test";
 import { test, expect } from "./fixtures/app-fixtures";
 import { deleteClerkUserByEmail, getClerkUserIdByEmail } from "./utils/clerk";
 import { withTempE2EDb } from "../../src/lib/test-utils/e2e-db";
+import { SUBSCRIPTION_CONFIG } from "../../src/config/subscription-config";
 
 const TEST_CODE = "424242";
 
@@ -93,8 +94,6 @@ test.describe("importer-first seller onboarding @local", () => {
 
     const runId = `${Date.now()}-${testInfo.workerIndex}-${testInfo.repeatEachIndex}-${testInfo.retry}`;
     const email = `importer-onboarding+clerk_test_${runId}@example.com`;
-    const catalogName = `Importer Flow ${runId}`;
-    const catalogSlug = `importer-flow-${runId}`;
     let checkoutSessionId: string | null = null;
     let clerkUserId: string | null = null;
 
@@ -124,14 +123,20 @@ test.describe("importer-first seller onboarding @local", () => {
       ).toBeVisible();
 
       await page
-        .getByRole("button", { name: "Start 7-day Pro trial" })
+        .getByRole("button", {
+          name: SUBSCRIPTION_CONFIG.COPY.CTA.START_TRIAL,
+        })
         .first()
         .click();
       await expect(page).toHaveURL(
         /\/catalog-importer\/checkout\?.*entry=catalog_importer/,
       );
       await page.getByLabel("Email address").fill(email);
-      await page.getByRole("button", { name: "Continue to trial" }).click();
+      await page
+        .getByRole("button", {
+          name: SUBSCRIPTION_CONFIG.COPY.CTA.CONTINUE_TO_TRIAL,
+        })
+        .click();
       await expect(page).toHaveURL(
         /\/catalog-importer\/checkout\/success\?session_id=cs_test_catalog_importer_/,
         { timeout: 45_000 },
@@ -139,23 +144,8 @@ test.describe("importer-first seller onboarding @local", () => {
       checkoutSessionId = new URL(page.url()).searchParams.get("session_id");
 
       await completeClerkEmailCodeFlow(page, email);
-      await expect(page).toHaveURL(/\/dashboard\/imports\/setup/, {
-        timeout: 45_000,
-      });
-
-      await page
-        .getByRole("textbox", { name: "Catalog or nursery name" })
-        .fill(catalogName);
-      await page
-        .getByRole("textbox", { name: /Location/ })
-        .fill("Fort Collins, Colorado");
-      await expect(
-        page.getByRole("textbox", { name: "Public catalog address" }),
-      ).toHaveValue(catalogSlug);
-      await page.getByRole("button", { name: "Continue to import" }).click();
-
       await expect(page).toHaveURL(/\/dashboard\/imports$/, {
-        timeout: 20_000,
+        timeout: 45_000,
       });
       await expect(
         page.getByRole("heading", { name: "Import catalog" }),
@@ -186,7 +176,6 @@ test.describe("importer-first seller onboarding @local", () => {
                   title: true,
                 },
               },
-              profile: true,
             },
           });
           const subscriptionCache = await db.keyValue.findFirst({
@@ -196,7 +185,6 @@ test.describe("importer-first seller onboarding @local", () => {
           });
 
           return {
-            profile: user.profile,
             listings: user.listings,
             stripeCustomerId: user.stripeCustomerId,
             subscriptionCache: subscriptionCache?.value ?? null,
@@ -206,9 +194,6 @@ test.describe("importer-first seller onboarding @local", () => {
       );
 
       expect(dbState.stripeCustomerId).toMatch(/^cus_e2e_/);
-      expect(dbState.profile?.title).toBe(catalogName);
-      expect(dbState.profile?.slug).toBe(catalogSlug);
-      expect(dbState.profile?.location).toBe("Fort Collins, Colorado");
       expect(dbState.listings).toHaveLength(3);
       expect(
         dbState.listings.every((listing) => listing.cultivarReferenceId),

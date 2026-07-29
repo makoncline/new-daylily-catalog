@@ -1309,24 +1309,27 @@ describe("CatalogImporterWorkbench", () => {
     );
 
     expect(
-      results.compareDocumentPosition(membership) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-    expect(
-      membership.compareDocumentPosition(insights) &
+      results.compareDocumentPosition(insights) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(
       insights.compareDocumentPosition(preview) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
+    expect(
+      preview.compareDocumentPosition(membership) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(membership.parentElement).toHaveTextContent(
       "Give buyers one public link",
     );
     expect(
-      within(membership.closest("section")!).queryByRole("button", {
-        name: "Not now",
-      }),
+      within(membership.closest("[data-slot='pro-upgrade']")!).queryByRole(
+        "button",
+        {
+          name: "Not now",
+        },
+      ),
     ).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Continue to review" }));
@@ -1441,27 +1444,25 @@ describe("CatalogImporterWorkbench", () => {
     ).toBeVisible();
     expect(
       screen.getByRole("heading", {
-        name: /\d+ listings? ready for import/,
+        name: /\d+ listings? ready/,
       }),
     ).toBeVisible();
+    expect(screen.getByText(/\d+ matched · \d+ unlinked/)).toBeVisible();
+    expect(screen.getByText(/\d+ need review/)).toBeVisible();
     expect(
-      screen.getByText(/You started with 10 spreadsheet rows\./),
+      screen.getByRole("heading", { name: "Or download your files" }),
     ).toBeVisible();
-    expect(screen.getByText(/linked automatically/)).toBeVisible();
-    expect(screen.getByText(/linked manually/)).toBeVisible();
-    expect(screen.getByText(/unlinked/)).toBeVisible();
-    expect(screen.getByText(/excluded/)).toBeVisible();
-    expect(screen.getByText(/issues corrected/)).toBeVisible();
+    expect(screen.getByText(/Downloads contain values/)).toBeVisible();
     expect(
       screen.queryByRole("link", { name: "Continue to import" }),
     ).not.toBeInTheDocument();
     const downloadMembership = screen.getByRole("heading", {
-      name: "Publish with Daylily Catalog Pro",
+      name: "Publish your catalog",
     });
     expect(downloadMembership).toBeVisible();
     expect(
       screen.getByRole("button", {
-        name: "Already have an account? Sign in",
+        name: "Sign in instead",
       }),
     ).toBeVisible();
     expect(
@@ -1471,6 +1472,6 @@ describe("CatalogImporterWorkbench", () => {
         }),
       ) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    expect(screen.getByText("File details")).toBeVisible();
+    expect(screen.queryByText("File details")).not.toBeInTheDocument();
   }, 10_000);
 });

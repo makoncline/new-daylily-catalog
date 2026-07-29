@@ -11,6 +11,7 @@ import { logDashboardTiming } from "@/app/dashboard/_lib/dashboard-timing";
 import { listingsCollection } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
 import { DASHBOARD_DB_QUERY_KEYS } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-keys";
 import { useSeededDashboardDbQuery } from "@/app/dashboard/_lib/dashboard-db/use-seeded-dashboard-db-query";
+import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 import type { RouterOutputs } from "@/trpc/react";
 
 type Listing = RouterOutputs["dashboardDb"]["listing"]["list"][number];
@@ -55,7 +56,9 @@ export function CreateListingButton() {
       }
       upgradeDialogBody={
         <div className="space-y-4">
-          <H3 className="text-center">Upgrade to Pro</H3>
+          <H3 className="text-center">
+            {SUBSCRIPTION_CONFIG.COPY.CTA.UPGRADE_TO_PRO}
+          </H3>
           <p className="text-muted-foreground text-center text-sm">
             Upgrade to a Pro account to create unlimited listings and unlock
             other premium features.

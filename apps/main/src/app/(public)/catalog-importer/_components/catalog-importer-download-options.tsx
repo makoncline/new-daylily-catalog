@@ -50,25 +50,24 @@ export function CatalogImporterDownloadOptions({
 
   return (
     <>
-      <ItemGroup className="gap-5">
+      <ItemGroup className="gap-6">
         <Item
           className={cn(
             "flex-col items-stretch gap-3 px-0",
             !stacked && "sm:flex-row sm:items-center",
           )}
         >
-          <ItemContent>
-            <ItemTitle>Prepared import file</ItemTitle>
+          <ItemContent className="gap-1">
+            <ItemTitle>Prepared file</ItemTitle>
             <ItemDescription className="line-clamp-none">
-              One normalized listing table with corrections and Daylily Catalog
-              identity where available. Excluded rows and unrelated columns are
-              omitted. Use it in the importer or upload it to the builder again.
+              Clean data, ready to import
             </ItemDescription>
           </ItemContent>
           <ItemActions className={cn("w-full", !stacked && "sm:w-auto")}>
             <Button
               type="button"
-              className={cn("w-full", !stacked && "sm:w-auto")}
+              aria-label="Download prepared import file"
+              className={cn("w-full", !stacked && "sm:w-auto sm:min-w-40")}
               disabled={controller.downloadingResults !== null}
               onClick={() => requestDownload("clean")}
             >
@@ -77,7 +76,7 @@ export function CatalogImporterDownloadOptions({
               ) : (
                 <Download data-icon="inline-start" />
               )}
-              Download prepared import file
+              Download
             </Button>
           </ItemActions>
         </Item>
@@ -87,17 +86,17 @@ export function CatalogImporterDownloadOptions({
             !stacked && "sm:flex-row sm:items-center",
           )}
         >
-          <ItemContent>
+          <ItemContent className="gap-1">
             <ItemTitle>Enhanced original</ItemTitle>
             <ItemDescription className="line-clamp-none">
-              Every original sheet, row, and field, with corrections and
-              Daylily Catalog identity added. Excluded rows remain.
+              Your workbook with matches added
             </ItemDescription>
           </ItemContent>
           <ItemActions className={cn("w-full", !stacked && "sm:w-auto")}>
             <Button
               type="button"
-              className={cn("w-full", !stacked && "sm:w-auto")}
+              aria-label="Download enhanced original"
+              className={cn("w-full", !stacked && "sm:w-auto sm:min-w-40")}
               variant="outline"
               disabled={controller.downloadingResults !== null}
               onClick={() => requestDownload("enriched")}
@@ -107,7 +106,7 @@ export function CatalogImporterDownloadOptions({
               ) : (
                 <Download data-icon="inline-start" />
               )}
-              Download enhanced original
+              Download
             </Button>
           </ItemActions>
         </Item>

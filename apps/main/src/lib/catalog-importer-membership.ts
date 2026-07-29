@@ -2,10 +2,7 @@ import { z } from "zod";
 
 export const CATALOG_IMPORTER_ENTRY_SOURCE = "catalog_importer";
 export const CATALOG_IMPORTER_RETURN_PATH = "/catalog-importer";
-export const CATALOG_IMPORTER_MEMBERSHIP_RETURN_PATH =
-  "/dashboard/imports/setup";
-export const CATALOG_IMPORTER_PUBLISH_SETUP_COMPLETE_PATH =
-  "/dashboard/imports";
+export const CATALOG_IMPORTER_MEMBERSHIP_RETURN_PATH = "/dashboard/imports";
 
 export const catalogImporterConversionIdSchema = z.string().uuid();
 

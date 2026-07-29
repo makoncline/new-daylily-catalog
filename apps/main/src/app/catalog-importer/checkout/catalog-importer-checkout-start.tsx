@@ -7,7 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
-import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
+import {
+  getSubscriptionPriceCopy,
+  SUBSCRIPTION_CONFIG,
+} from "@/config/subscription-config";
 import { useIsHydrated } from "@/hooks/use-is-hydrated";
 import type { CatalogImporterCheckoutSource } from "@/lib/catalog-importer-membership";
 import { capturePosthogEvent } from "@/lib/analytics/posthog";
@@ -25,6 +28,7 @@ export function CatalogImporterCheckoutStart({
   const [email, setEmail] = useState("");
   const createCheckout = api.catalogImporter.createCheckout.useMutation();
   const emailIsValid = /.+@.+\..+/.test(email.trim());
+  const priceCopy = getSubscriptionPriceCopy(membershipPriceDisplay);
 
   const startCheckout = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -58,7 +62,7 @@ export function CatalogImporterCheckoutStart({
   };
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-10 sm:py-16">
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-4 py-10 sm:gap-12 sm:py-16 lg:px-8">
       <Link
         href={checkoutSource.returnTo}
         className="text-muted-foreground inline-flex items-center gap-2 text-sm hover:underline"
@@ -67,41 +71,38 @@ export function CatalogImporterCheckoutStart({
         Back to your catalog
       </Link>
 
-      <div className="mt-8 max-w-xl">
-        <form
-          className="space-y-5"
-          onSubmit={(event) => void startCheckout(event)}
-        >
-          <div>
-            <h1 className="text-3xl font-semibold tracking-tight">
-              Start your Pro trial
-            </h1>
-            <p className="text-muted-foreground mt-2 text-sm">
-              {SUBSCRIPTION_CONFIG.FREE_TRIAL_DAYS} days free, then{" "}
-              {membershipPriceDisplay.amount}
-              {membershipPriceDisplay.interval}.
-            </p>
-          </div>
+      <form
+        className="flex max-w-xl flex-col gap-8"
+        onSubmit={(event) => void startCheckout(event)}
+      >
+        <div className="flex flex-col gap-2">
+          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+            {SUBSCRIPTION_CONFIG.COPY.CHECKOUT.TITLE}
+          </h1>
+          <p className="text-muted-foreground text-sm sm:text-base">
+            {priceCopy.checkoutSummary}
+          </p>
+        </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="catalog-importer-checkout-email">
-              Email address
-            </Label>
-            <Input
-              id="catalog-importer-checkout-email"
-              name="email"
-              type="email"
-              required
-              autoComplete="email"
-              disabled={!isReady}
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-            />
-          </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="catalog-importer-checkout-email">Email address</Label>
+          <Input
+            id="catalog-importer-checkout-email"
+            name="email"
+            type="email"
+            required
+            autoComplete="email"
+            disabled={!isReady}
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+          />
+        </div>
 
+        <div className="flex flex-col gap-2">
           <Button
             type="submit"
             size="lg"
+            className="w-full"
             disabled={!isReady || !emailIsValid || createCheckout.isPending}
           >
             {createCheckout.isPending ? (
@@ -109,16 +110,19 @@ export function CatalogImporterCheckoutStart({
             ) : (
               <CreditCard className="size-4" />
             )}
-            Continue to trial
+            {SUBSCRIPTION_CONFIG.COPY.CTA.CONTINUE_TO_TRIAL}
           </Button>
+          <p className="text-muted-foreground text-center text-xs">
+            {SUBSCRIPTION_CONFIG.COPY.CHECKOUT.FOOTNOTE}
+          </p>
+        </div>
 
-          {createCheckout.error ? (
-            <p className="text-destructive text-sm">
-              Checkout did not open. Check your email and try again.
-            </p>
-          ) : null}
-        </form>
-      </div>
+        {createCheckout.error ? (
+          <p className="text-destructive text-sm">
+            Checkout did not open. Check your email and try again.
+          </p>
+        ) : null}
+      </form>
     </div>
   );
 }

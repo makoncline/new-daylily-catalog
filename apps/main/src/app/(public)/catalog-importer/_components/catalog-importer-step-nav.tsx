@@ -69,7 +69,7 @@ export function CatalogImporterStepNav({
   return (
     <nav
       aria-label="Catalog importer steps"
-      className="bg-background/95 sticky top-0 z-30 -mx-3 overflow-x-auto border-y px-3 backdrop-blur lg:-mx-8 lg:px-8"
+      className="bg-background/95 sticky top-0 z-30 -mx-3 overflow-x-auto px-3 backdrop-blur lg:-mx-8 lg:px-8"
     >
       <div className="flex min-w-max gap-5">
         {steps.map((step) => (
@@ -79,9 +79,9 @@ export function CatalogImporterStepNav({
             disabled={!step.enabled}
             aria-current={activeStep === step.id ? "step" : undefined}
             className={cn(
-              "relative flex items-center gap-1.5 py-3 text-sm font-medium whitespace-nowrap transition-colors",
+              "flex items-center gap-1.5 py-3 text-sm font-medium whitespace-nowrap transition-colors",
               activeStep === step.id
-                ? "text-foreground after:bg-primary after:absolute after:inset-x-0 after:bottom-0 after:h-0.5"
+                ? "text-foreground"
                 : "text-muted-foreground hover:text-foreground",
               !step.enabled &&
                 "hover:text-muted-foreground cursor-not-allowed opacity-35",
@@ -89,6 +89,12 @@ export function CatalogImporterStepNav({
             onClick={() => step.enabled && onStepChange(step.id)}
           >
             {step.label}
+            {activeStep === step.id ? (
+              <span
+                aria-hidden="true"
+                className="size-1.5 rounded-full bg-[#b7791f]"
+              />
+            ) : null}
             {step.complete ? (
               <>
                 <CircleCheck aria-hidden="true" className="size-4" />

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 import { parseCatalogImporterCheckoutSource } from "@/lib/catalog-importer-membership";
 import { getMembershipPriceDisplay } from "@/server/stripe/get-membership-price-display";
 import { CatalogImporterCheckoutStart } from "./catalog-importer-checkout-start";
@@ -8,7 +9,7 @@ import { CatalogImporterCheckoutStart } from "./catalog-importer-checkout-start"
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Start Your Catalog Trial | Daylily Catalog",
+  title: SUBSCRIPTION_CONFIG.COPY.CHECKOUT.METADATA_TITLE,
   robots: {
     index: false,
     follow: false,

@@ -8,8 +8,8 @@ import { TRPCReactProvider } from "@/trpc/react";
 export function AuthProviders({ children }: { children: React.ReactNode }) {
   return (
     <ClerkProvider
-      signInUrl={SUBSCRIPTION_CONFIG.DASHBOARD_SIGN_IN_PATH}
-      signUpUrl={SUBSCRIPTION_CONFIG.SELLER_SIGNUP_PATH}
+      signInUrl={SUBSCRIPTION_CONFIG.PATHS.DASHBOARD_SIGN_IN}
+      signUpUrl={SUBSCRIPTION_CONFIG.PATHS.SELLER_SIGNUP}
     >
       <TRPCReactProvider>
         {children}

@@ -134,10 +134,10 @@ export function CatalogImporterReviewQuiz({
       }
       tabIndex={0}
       onKeyDown={handleKeyDown}
-      className="focus-visible:ring-ring !scroll-mt-16 outline-none focus-visible:ring-2"
+      className="focus-visible:[&_[data-review-heading]]:ring-ring !scroll-mt-16 outline-none focus-visible:[&_[data-review-heading]]:ring-2 focus-visible:[&_[data-review-heading]]:ring-offset-4"
     >
-      <div className="flex flex-col gap-3 pb-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
+      <div className="flex flex-col gap-3 pb-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0 rounded-sm" data-review-heading>
           <h2
             id="catalog-importer-review-heading"
             className="text-xl font-semibold tracking-tight"
@@ -204,7 +204,7 @@ export function CatalogImporterReviewQuiz({
         </div>
       </div>
 
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-4">
         <CatalogImporterSourceRow
           row={activeRow}
           sourceCells={controller.activeReviewSourceCells}

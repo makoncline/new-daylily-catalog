@@ -20,5 +20,5 @@ export const metadata: Metadata = {
 };
 
 export default function SignUpPage() {
-  redirect(SUBSCRIPTION_CONFIG.NEW_USER_ONBOARDING_PATH);
+  redirect(SUBSCRIPTION_CONFIG.PATHS.NEW_USER_ONBOARDING);
 }

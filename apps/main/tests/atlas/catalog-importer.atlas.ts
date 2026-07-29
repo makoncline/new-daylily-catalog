@@ -362,7 +362,7 @@ test("Desktop importer download", async ({ page }) => {
   await uploadSpreadsheet(page);
   await page.getByRole("button", { name: "Finish" }).click();
   await expect(
-    page.getByRole("heading", { name: "Choose what happens next" }),
+    page.getByRole("heading", { name: "Or download your files" }),
   ).toBeVisible();
   await captureAtlasState(page, "catalog-importer-desktop-download");
 });

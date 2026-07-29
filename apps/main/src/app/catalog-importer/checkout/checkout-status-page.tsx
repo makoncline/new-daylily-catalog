@@ -19,21 +19,25 @@ export function CheckoutStatusPage({
 }: CheckoutStatusPageProps) {
   return (
     <div className="bg-muted/20" data-testid={testId}>
-      <section className="mx-auto w-full max-w-6xl px-4 py-14 sm:py-20 lg:px-8 lg:py-24">
-        <div className="max-w-2xl space-y-7">
-          <div className="space-y-4">
+      <section className="mx-auto w-full max-w-6xl px-4 py-10 sm:py-16 lg:px-8">
+        <div className="flex max-w-2xl flex-col gap-8">
+          <div className="flex flex-col gap-3">
             {eyebrow ? (
-              <p className="text-primary text-sm font-semibold">{eyebrow}</p>
+              <p className="text-xs font-semibold tracking-wide text-[#b7791f] uppercase">
+                {eyebrow}
+              </p>
             ) : null}
-            <h1 className="text-4xl leading-tight font-semibold tracking-tight text-balance sm:text-5xl">
+            <h1 className="text-3xl leading-tight font-semibold tracking-tight text-balance sm:text-4xl">
               {title}
             </h1>
-            <p className="text-muted-foreground max-w-xl text-lg leading-8">
+            <p className="text-muted-foreground max-w-xl text-base leading-7">
               {description}
             </p>
           </div>
 
-          {children ? <div className="space-y-3">{children}</div> : null}
+          {children ? (
+            <div className="flex flex-col gap-3">{children}</div>
+          ) : null}
 
           {actions ? (
             <div className="flex flex-col gap-3 sm:flex-row">{actions}</div>

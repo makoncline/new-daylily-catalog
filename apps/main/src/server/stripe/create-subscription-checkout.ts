@@ -1,5 +1,8 @@
 import { TRPCError } from "@trpc/server";
-import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
+import {
+  getDefaultSubscriptionBillingOption,
+  getStripeTrialPeriodDays,
+} from "@/config/subscription-config";
 import { env, requireEnv } from "@/env";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import type { TRPCInternalContext } from "@/server/api/trpc";
@@ -27,6 +30,7 @@ export async function createSubscriptionCheckout({
 }) {
   const baseUrl = getCanonicalBaseUrl();
   const stripe = getStripeClient();
+  const billingOption = getDefaultSubscriptionBillingOption();
   let stripeCustomerId = user.stripeCustomerId;
 
   if (stripeCustomerId) {
@@ -74,12 +78,15 @@ export async function createSubscriptionCheckout({
     mode: "subscription",
     line_items: [
       {
-        price: requireEnv("STRIPE_PRICE_ID", env.STRIPE_PRICE_ID),
+        price: requireEnv(
+          billingOption.stripePriceEnvironmentVariable,
+          env.STRIPE_PRICE_ID,
+        ),
         quantity: 1,
       },
     ],
     subscription_data: {
-      trial_period_days: SUBSCRIPTION_CONFIG.FREE_TRIAL_DAYS,
+      trial_period_days: getStripeTrialPeriodDays(),
       ...(hasMetadata ? { metadata } : {}),
     },
     success_url: `${baseUrl}${successPath}`,

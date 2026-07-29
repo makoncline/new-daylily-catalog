@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 import { api } from "@/trpc/react";
 import { CheckoutStatusPage } from "../checkout-status-page";
 import {
@@ -93,7 +94,7 @@ export function CheckoutSuccessPageClient({
       <CheckoutShell
         eyebrow="Checkout"
         title="Checkout still needs attention"
-        description="Your trial or membership is not active yet. You can retry checkout, or contact support if you already paid."
+        description={SUBSCRIPTION_CONFIG.COPY.STATUS.INACTIVE_DESCRIPTION}
       >
         <div className="flex flex-col gap-3 sm:flex-row">
           <Button asChild>
@@ -112,11 +113,9 @@ export function CheckoutSuccessPageClient({
   if (isLoaded && userId) {
     return (
       <CheckoutShell
-        eyebrow="Trial active"
-        title={"Opening publish setup"}
-        description={
-          "Your trial is active. Add the public catalog details buyers will use, then review the ready listings."
-        }
+        eyebrow={SUBSCRIPTION_CONFIG.COPY.STATUS.ACTIVE_EYEBROW}
+        title="Opening your import"
+        description={SUBSCRIPTION_CONFIG.COPY.STATUS.ACTIVE_DESCRIPTION}
       >
         {claimCheckout.error ? (
           <div className="space-y-3">
@@ -183,13 +182,15 @@ function CheckoutAuthShell({
       className="bg-muted/20"
       data-testid="catalog-importer-checkout-success"
     >
-      <div className="mx-auto grid w-full max-w-6xl gap-8 px-4 py-14 sm:py-20 lg:grid-cols-[minmax(0,1fr)_28rem] lg:px-8 lg:py-24">
-        <div className="max-w-2xl space-y-4">
-          <p className="text-primary text-sm font-semibold">Trial active</p>
-          <h1 className="text-2xl leading-tight font-semibold tracking-tight text-balance sm:text-3xl">
+      <div className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-10 sm:gap-12 sm:py-16 lg:grid-cols-[minmax(0,1fr)_28rem] lg:px-8">
+        <div className="flex max-w-2xl flex-col gap-3">
+          <p className="text-xs font-semibold tracking-wide text-[#b7791f] uppercase">
+            {SUBSCRIPTION_CONFIG.COPY.STATUS.ACTIVE_EYEBROW}
+          </p>
+          <h1 className="text-3xl leading-tight font-semibold tracking-tight text-balance sm:text-4xl">
             Verify your email to continue.
           </h1>
-          <p className="text-muted-foreground max-w-xl text-lg leading-8">
+          <p className="text-muted-foreground max-w-xl text-base leading-7">
             Use the email from checkout. We will send your one-time login code.
             Your spreadsheet and progress remain in this browser.
           </p>

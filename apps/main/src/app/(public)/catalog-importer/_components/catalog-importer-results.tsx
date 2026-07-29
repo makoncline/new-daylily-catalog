@@ -46,6 +46,7 @@ import {
   type CatalogImportRow,
 } from "@/lib/catalog-importer";
 import { getPublicCatalogSearchFilterDefinition } from "@/components/public-catalog-search/public-catalog-search-registry";
+import { cn } from "@/lib/utils";
 
 const CATALOG_IMPORTER_URL_CHANGE_EVENT = "catalog-importer-url-change";
 
@@ -203,13 +204,22 @@ export function CatalogImporterResults({
   const previewFilterInteractionTracked = useRef(false);
   const matchEditorRow =
     controller.includedRows.find((row) => row.id === matchEditorRowId) ?? null;
-  const remainingWork = [
-    controller.reviewRows.length > 0
-      ? `${controller.reviewRows.length.toLocaleString()} potential ${controller.reviewRows.length === 1 ? "match" : "matches"}`
+  const remainingWorkCount =
+    controller.reviewRows.length + controller.remainingIssueCount;
+  const matchedCount =
+    completionStats.automaticallyLinkedCount +
+    completionStats.manuallyLinkedCount;
+  const completionSummary = [
+    `${matchedCount.toLocaleString()} matched`,
+    completionStats.unlinkedCount > 0
+      ? `${completionStats.unlinkedCount.toLocaleString()} unlinked`
       : null,
-    controller.remainingIssueCount > 0
-      ? `${controller.remainingIssueCount.toLocaleString()} spreadsheet ${controller.remainingIssueCount === 1 ? "item" : "items"}`
+    completionStats.excludedCount > 0
+      ? `${completionStats.excludedCount.toLocaleString()} excluded`
       : null,
+    remainingWorkCount > 0
+      ? `${remainingWorkCount.toLocaleString()} need review`
+      : "Review complete",
   ].filter((value): value is string => value !== null);
   const previewNextStep: CatalogImporterStep =
     controller.reviewProgressTotal > 0
@@ -270,7 +280,13 @@ export function CatalogImporterResults({
   return (
     <div
       id={`catalog-importer-step-${activeStep}`}
-      className="min-w-0 !scroll-mt-16 space-y-6"
+      className={cn(
+        "flex min-w-0 !scroll-mt-16 flex-col",
+        activeStep === "preview" && "gap-14 sm:gap-16",
+        (activeStep === "review" || activeStep === "issues") &&
+          "gap-10 sm:gap-12",
+        activeStep === "download" && "gap-0",
+      )}
     >
       {activeStep === "preview" ? (
         <>
@@ -278,14 +294,6 @@ export function CatalogImporterResults({
             controller={controller}
             onStepChange={onStepChange}
           />
-          {!dashboardReturnPath ? (
-            <CatalogImporterPublishActions
-              controller={controller}
-              membershipPriceDisplay={membershipPriceDisplay}
-              placement="preview"
-              viewerResolution={viewerResolution}
-            />
-          ) : null}
           <CatalogImporterAnalysis
             rows={controller.includedRows}
             onApplyFilter={handleApplyInsightFilter}
@@ -300,6 +308,14 @@ export function CatalogImporterResults({
             onGlobalFilterChange={setPreviewGlobalFilter}
             onOpenReview={handleOpenReview}
           />
+          {!dashboardReturnPath ? (
+            <CatalogImporterPublishActions
+              controller={controller}
+              membershipPriceDisplay={membershipPriceDisplay}
+              placement="preview"
+              viewerResolution={viewerResolution}
+            />
+          ) : null}
           <div className="flex justify-end pt-2">
             <Button
               type="button"
@@ -402,105 +418,51 @@ export function CatalogImporterResults({
         <section
           id="catalog-importer-download"
           aria-labelledby="catalog-importer-download-heading"
-          className="space-y-6"
+          className="flex flex-col gap-14 sm:gap-16"
         >
-          <div className="max-w-3xl">
+          <div className="flex max-w-3xl flex-col gap-3">
             <h2
               id="catalog-importer-download-heading"
-              className="text-3xl font-semibold tracking-tight"
+              className="text-3xl leading-tight font-semibold tracking-tight sm:text-4xl"
             >
               {completionStats.readyForImportCount.toLocaleString()}{" "}
               {completionStats.readyForImportCount === 1
                 ? "listing"
                 : "listings"}{" "}
-              ready for import
+              ready
             </h2>
-            <p className="text-muted-foreground mt-2 text-sm leading-6">
-              You started with{" "}
-              {completionStats.spreadsheetRowCount.toLocaleString()} spreadsheet{" "}
-              {completionStats.spreadsheetRowCount === 1 ? "row" : "rows"}.
+            <p className="text-muted-foreground text-base">
+              {completionSummary.join(" · ")}
             </p>
           </div>
 
-          <ul className="text-muted-foreground flex flex-wrap gap-x-6 gap-y-2 text-sm">
-            <li>
-              <span className="text-foreground font-medium tabular-nums">
-                {completionStats.automaticallyLinkedCount.toLocaleString()}
-              </span>{" "}
-              linked automatically
-            </li>
-            <li>
-              <span className="text-foreground font-medium tabular-nums">
-                {completionStats.manuallyLinkedCount.toLocaleString()}
-              </span>{" "}
-              linked manually
-            </li>
-            <li>
-              <span className="text-foreground font-medium tabular-nums">
-                {completionStats.unlinkedCount.toLocaleString()}
-              </span>{" "}
-              unlinked
-            </li>
-            <li>
-              <span className="text-foreground font-medium tabular-nums">
-                {completionStats.excludedCount.toLocaleString()}
-              </span>{" "}
-              excluded
-            </li>
-            <li>
-              <span className="text-foreground font-medium tabular-nums">
-                {completionStats.issuesCorrectedCount.toLocaleString()}
-              </span>{" "}
-              issues corrected
-            </li>
-          </ul>
+          <CatalogImporterPublishActions
+            controller={controller}
+            dashboardReturnPath={dashboardReturnPath}
+            membershipPriceDisplay={membershipPriceDisplay}
+            placement="finish"
+            viewerResolution={viewerResolution}
+          />
 
-          {remainingWork.length > 0 ? (
-            <p className="text-muted-foreground text-sm">
-              {remainingWork.join(" and ")} remain and will not be imported.
-            </p>
-          ) : null}
-
-          <h2 className="text-2xl font-semibold tracking-tight">
-            Choose what happens next
-          </h2>
-
-          <div className="grid items-start gap-5 lg:grid-cols-2">
-            <CatalogImporterPublishActions
-              controller={controller}
-              dashboardReturnPath={dashboardReturnPath}
-              membershipPriceDisplay={membershipPriceDisplay}
-              placement="finish"
-              viewerResolution={viewerResolution}
-            />
-
-            <section className="space-y-5 rounded-lg border p-5">
-              <div>
-                <h3 className="text-xl font-semibold">
-                  Download your prepared catalog
-                </h3>
-                <p className="text-muted-foreground mt-2 text-sm leading-6">
-                  Keep a normalized import file or an enhanced copy of the
-                  original workbook. Nothing is published, and no membership is
-                  required.
-                </p>
-              </div>
-              <CatalogImporterDownloadOptions controller={controller} stacked />
-            </section>
-          </div>
-
-          {controller.downloadSummary ? (
-            <details className="mt-4 max-w-3xl">
-              <summary className="cursor-pointer text-sm font-medium">
-                File details
-              </summary>
-              <p className="text-muted-foreground mt-3 text-sm leading-relaxed">
-                Both files can be uploaded to this builder again. They contain
-                values, not spreadsheet formatting, formulas, drawings, or
-                macros. Nothing is published or imported by downloading them.
+          <section
+            aria-labelledby="catalog-importer-files-heading"
+            className="flex flex-col gap-6"
+          >
+            <div className="flex max-w-3xl flex-col gap-2">
+              <h2
+                id="catalog-importer-files-heading"
+                className="text-2xl font-semibold tracking-tight"
+              >
+                Or download your files
+              </h2>
+              <p className="text-muted-foreground text-sm leading-relaxed">
+                Both files can be uploaded again. Downloads contain values
+                without spreadsheet formatting, formulas, drawings, or macros.
+                Nothing is published.
               </p>
-            </details>
-          ) : null}
+            </div>
+            <CatalogImporterDownloadOptions controller={controller} />
+          </section>
         </section>
       ) : null}
 

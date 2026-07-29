@@ -210,7 +210,7 @@ export function DashboardImportExcludedRows({
         : `${rows.length.toLocaleString()} listings have unresolved issues`;
 
   return (
-    <section className="space-y-3" aria-label={heading}>
+    <section className="flex flex-col gap-4" aria-label={heading}>
       <div>
         <h3 className="font-medium">{heading}</h3>
         <p className="text-muted-foreground text-sm">

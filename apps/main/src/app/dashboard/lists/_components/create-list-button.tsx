@@ -4,15 +4,12 @@ import { H3 } from "@/components/typography";
 import { APP_CONFIG, PRO_FEATURES } from "@/config/constants";
 import { CheckoutButton } from "@/components/checkout-button";
 import { TierLimitedCreateAction } from "@/app/dashboard/_components/tier-limited-create-action";
+import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 import { useCreateList } from "./create-list-dialog";
 
 export function CreateListButton() {
-  const {
-    isEligibilityLoading,
-    isPro,
-    listCount,
-    openCreateList,
-  } = useCreateList();
+  const { isEligibilityLoading, isPro, listCount, openCreateList } =
+    useCreateList();
 
   return (
     <TierLimitedCreateAction
@@ -23,7 +20,7 @@ export function CreateListButton() {
       isPro={isPro}
       onCreate={openCreateList}
       upgradeDialogClassName="sm:max-w-[500px]"
-      upgradeDialogTitle="Upgrade to Pro"
+      upgradeDialogTitle={SUBSCRIPTION_CONFIG.COPY.CTA.UPGRADE_TO_PRO}
       upgradeDialogDescription={
         <>
           You&apos;ve reached the free tier limit of{" "}

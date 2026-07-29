@@ -398,28 +398,19 @@ test.describe("catalog importer", () => {
 
     await page.getByRole("button", { name: "Finish" }).click();
     const importSummary = page.getByRole("region", {
-      name: "23 listings ready for import",
+      name: "23 listings ready",
     });
-    await expect(importSummary).toContainText(
-      "You started with 25 spreadsheet rows.",
-    );
-    await expect(importSummary).toContainText("23 linked automatically");
-    await expect(importSummary).toContainText("1 linked manually");
-    await expect(importSummary).toContainText("0 unlinked");
+    await expect(importSummary).toContainText("24 matched");
     await expect(importSummary).toContainText("1 excluded");
-    await expect(importSummary).toContainText("2 issues corrected");
-    await expect(importSummary).toContainText(
-      "1 spreadsheet item remain and will not be imported.",
-    );
+    await expect(importSummary).toContainText("1 need review");
     await expect(
       importSummary.getByRole("heading", {
-        name: "Publish with Daylily Catalog Pro",
+        name: "Publish your catalog",
       }),
     ).toBeVisible();
 
-    await page.getByText("File details").click();
     await expect(
-      page.getByText("Nothing is published or imported", {
+      page.getByText("Downloads contain values", {
         exact: false,
       }),
     ).toBeVisible();

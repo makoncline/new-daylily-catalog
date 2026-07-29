@@ -252,7 +252,7 @@ describe("public surface cache safety", () => {
     expect(source).not.toContain("PublicDashboardLink");
     expect(source).not.toContain("useAuth");
     expect(source).not.toContain("SignInButton");
-    expect(source).toContain("DASHBOARD_SIGN_IN_PATH");
+    expect(source).toContain("SUBSCRIPTION_CONFIG.PATHS.DASHBOARD_SIGN_IN");
   });
 
   it("keeps public feedback URLs independent from Clerk and tRPC", () => {
@@ -284,10 +284,10 @@ describe("public surface cache safety", () => {
     expect(dashboardLayout).toContain("<DashboardProviders>");
     expect(authProviders).toContain("ClerkProvider");
     expect(authProviders).toContain(
-      "signInUrl={SUBSCRIPTION_CONFIG.DASHBOARD_SIGN_IN_PATH}",
+      "signInUrl={SUBSCRIPTION_CONFIG.PATHS.DASHBOARD_SIGN_IN}",
     );
     expect(authProviders).toContain(
-      "signUpUrl={SUBSCRIPTION_CONFIG.SELLER_SIGNUP_PATH}",
+      "signUpUrl={SUBSCRIPTION_CONFIG.PATHS.SELLER_SIGNUP}",
     );
     expect(authProviders).toContain("TRPCReactProvider");
     expect(authProviders).toContain("PosthogUserIdentification");
@@ -316,7 +316,7 @@ describe("public surface cache safety", () => {
     const signIn = readSource("src/app/sign-in/sign-in-page-client.tsx");
 
     expect(signUp).toContain(
-      "redirect(SUBSCRIPTION_CONFIG.NEW_USER_ONBOARDING_PATH)",
+      "redirect(SUBSCRIPTION_CONFIG.PATHS.NEW_USER_ONBOARDING)",
     );
     expect(signIn).toContain("returnTo === DASHBOARD_IMPORTS_PATH");
     expect(signIn).toContain("? DASHBOARD_IMPORTS_PATH");

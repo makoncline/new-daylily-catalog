@@ -2,7 +2,7 @@
 
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TRPCInternalContext } from "@/server/api/trpc";
-import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
+import { getStripeTrialPeriodDays } from "@/config/subscription-config";
 
 process.env.SKIP_ENV_VALIDATION = "1";
 process.env.DATABASE_URL ??= "file:./tests/.tmp/stripe-router.sqlite";
@@ -129,7 +129,7 @@ describe("stripe.generateCheckout", () => {
         mode: "subscription",
         line_items: [{ price: process.env.STRIPE_PRICE_ID, quantity: 1 }],
         subscription_data: {
-          trial_period_days: SUBSCRIPTION_CONFIG.FREE_TRIAL_DAYS,
+          trial_period_days: getStripeTrialPeriodDays(),
         },
         success_url: "https://daylilycatalog.com/subscribe/success",
         cancel_url: "https://daylilycatalog.com/dashboard",
@@ -167,7 +167,7 @@ describe("stripe.generateCheckout", () => {
       expect.objectContaining({
         customer: "cus_new",
         subscription_data: {
-          trial_period_days: SUBSCRIPTION_CONFIG.FREE_TRIAL_DAYS,
+          trial_period_days: getStripeTrialPeriodDays(),
         },
         success_url: "https://daylilycatalog.com/subscribe/success",
         cancel_url: "https://daylilycatalog.com/dashboard",

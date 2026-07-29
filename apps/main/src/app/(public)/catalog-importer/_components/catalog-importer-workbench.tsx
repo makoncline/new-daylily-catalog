@@ -65,7 +65,7 @@ export function CatalogImporterWorkbench({
       id="catalog-importer-workbench"
       data-workbook-active={controller.parsedSpreadsheet ? "true" : undefined}
     >
-      <div className="space-y-4">
+      <div className="flex flex-col gap-6">
         <CatalogImporterStepNav
           activeStep={activeStep}
           controller={controller}
@@ -75,7 +75,7 @@ export function CatalogImporterWorkbench({
         {activeStep === "start" ? (
           <div
             id="catalog-importer-step-start"
-            className="!scroll-mt-16 space-y-8 pt-2"
+            className="flex max-w-3xl !scroll-mt-16 flex-col gap-8 pt-4 sm:gap-10"
           >
             <CatalogImporterUpload
               controller={controller}
@@ -109,7 +109,7 @@ export function CatalogImporterWorkbench({
         {activeStep === "prepare" && controller.parsedSpreadsheet ? (
           <div
             id="catalog-importer-step-prepare"
-            className="!scroll-mt-16 space-y-6 pt-2"
+            className="flex !scroll-mt-16 flex-col gap-10 pt-4 sm:gap-12"
           >
             <CatalogImporterUpload
               controller={controller}

@@ -2,7 +2,7 @@
 
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TRPCInternalContext } from "@/server/api/trpc";
-import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
+import { getStripeTrialPeriodDays } from "@/config/subscription-config";
 import { withTempAppDb } from "@/lib/test-utils/app-test-db";
 import {
   CATALOG_IMPORTER_ENTRY_SOURCE,
@@ -115,7 +115,7 @@ describe("catalog importer checkout", () => {
       mode: "subscription",
       line_items: [{ price: "price_test_unit", quantity: 1 }],
       subscription_data: {
-        trial_period_days: SUBSCRIPTION_CONFIG.FREE_TRIAL_DAYS,
+        trial_period_days: getStripeTrialPeriodDays(),
         metadata: {
           email: "seller@example.com",
           conversion_id: checkoutInput().conversionId,
@@ -321,7 +321,7 @@ describe("catalog importer checkout", () => {
           entry_source: CATALOG_IMPORTER_ENTRY_SOURCE,
         },
         success_url:
-          "https://daylilycatalog.test/subscribe/success?redirect=%2Fdashboard%2Fimports%2Fsetup",
+          "https://daylilycatalog.test/subscribe/success?redirect=%2Fdashboard%2Fimports",
       }),
     );
   });
