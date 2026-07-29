@@ -87,7 +87,7 @@ describe("Stripe webhook route", () => {
         object: {
           customer: "cus_test",
           metadata: {
-            conversion_id: "conversion-test",
+            import_id: "import-test",
             entry_source: "catalog_importer",
           },
         },
@@ -116,7 +116,7 @@ describe("Stripe webhook route", () => {
         source_page: "/api/stripe-webhook",
         stripe_customer_id: "cus_test",
         synced_subscription_status: "active",
-        conversion_id: "conversion-test",
+        import_id: "import-test",
         entry_source: "catalog_importer",
       },
     });

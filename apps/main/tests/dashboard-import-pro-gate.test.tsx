@@ -26,21 +26,26 @@ vi.mock(
   }),
 );
 
-vi.mock("@/app/dashboard/_components/stats-card", () => ({
-  ProMembershipCard: () => <div>Dashboard Pro membership card</div>,
+vi.mock("@/components/pro-membership-action", () => ({
+  ProMembershipAction: () => <button type="button">Upgrade to Pro</button>,
 }));
 
 describe("DashboardImportProGate", () => {
   it("keeps prepared downloads available while gating listing creation", () => {
     render(<DashboardImportProGate initialDraft={null} />);
 
+    expect(screen.getByText("Pro required")).toBeVisible();
     expect(
-      screen.getByText("Catalog importing requires Pro"),
+      screen.getByRole("heading", {
+        name: "Create 3 prepared listings",
+      }),
     ).toBeVisible();
     expect(
-      screen.getByText(/3 prepared listings are still available/),
+      screen.getByRole("button", { name: "Upgrade to Pro" }),
     ).toBeVisible();
-    expect(screen.getByText("Dashboard Pro membership card")).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "Or download your files" }),
+    ).toBeVisible();
 
     fireEvent.click(
       screen.getByRole("button", {

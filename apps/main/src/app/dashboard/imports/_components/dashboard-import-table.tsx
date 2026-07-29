@@ -263,7 +263,7 @@ export function DashboardImportTable({
   });
 
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col gap-4">
       <div className="relative">
         <div
           ref={scrollAreaRef}

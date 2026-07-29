@@ -1,28 +1,56 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CatalogImporterWorkbench } from "@/app/(public)/catalog-importer/_components/catalog-importer-workbench";
 import { Spinner } from "@/components/ui/spinner";
 import {
   readCatalogImporterDraft,
   type CatalogImporterDraft,
 } from "@/lib/catalog-importer-draft";
-import type { CatalogImporterViewerState } from "@/lib/catalog-importer-membership";
+import {
+  catalogImporterViewerResponseSchema,
+  type CatalogImporterViewerResolution,
+} from "@/lib/catalog-importer-membership";
 import type { MembershipPriceDisplay } from "@/server/stripe/membership-price-display";
 
 export function CatalogImporterClient({
   membershipPriceDisplay = null,
-  membershipStarted = false,
-  viewerState = "anonymous",
 }: {
   membershipPriceDisplay?: MembershipPriceDisplay | null;
-  membershipStarted?: boolean;
-  viewerState?: CatalogImporterViewerState;
 }) {
   const startedLoading = useRef(false);
+  const [viewerResolution, setViewerResolution] =
+    useState<CatalogImporterViewerResolution>({ status: "checking" });
   const [initialDraft, setInitialDraft] = useState<
     CatalogImporterDraft | null | undefined
   >(undefined);
+  useEffect(() => {
+    const controller = new AbortController();
+    void fetch("/api/catalog-importer/viewer-state", {
+      cache: "no-store",
+      credentials: "same-origin",
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error("Viewer state request failed.");
+        }
+        const value = catalogImporterViewerResponseSchema.parse(
+          await response.json(),
+        );
+        setViewerResolution({
+          status: "ready",
+          viewerState: value.viewerState,
+        });
+      })
+      .catch((error: unknown) => {
+        if (!(error instanceof DOMException && error.name === "AbortError")) {
+          setViewerResolution({ status: "unavailable" });
+        }
+      });
+
+    return () => controller.abort();
+  }, []);
   const loadDraft = useCallback((node: HTMLDivElement | null) => {
     if (!node || startedLoading.current) {
       return;
@@ -48,8 +76,7 @@ export function CatalogImporterClient({
         <CatalogImporterWorkbench
           initialDraft={initialDraft}
           membershipPriceDisplay={membershipPriceDisplay}
-          membershipStarted={membershipStarted}
-          viewerState={viewerState}
+          viewerResolution={viewerResolution}
         />
       )}
     </div>

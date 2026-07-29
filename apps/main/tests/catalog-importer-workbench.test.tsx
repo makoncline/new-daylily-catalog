@@ -1,4 +1,5 @@
 import "fake-indexeddb/auto";
+import type { ComponentProps } from "react";
 import {
   act,
   fireEvent,
@@ -8,7 +9,7 @@ import {
   within,
 } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { CatalogImporterWorkbench } from "@/app/(public)/catalog-importer/_components/catalog-importer-workbench";
+import { CatalogImporterWorkbench as CatalogImporterWorkbenchComponent } from "@/app/(public)/catalog-importer/_components/catalog-importer-workbench";
 import {
   createCatalogImportRows,
   createCatalogImportSampleSpreadsheet,
@@ -21,10 +22,39 @@ import {
   readCatalogImporterDraft,
   type CatalogImporterDraft,
 } from "@/lib/catalog-importer-draft";
+import type {
+  CatalogImporterViewerResolution,
+  CatalogImporterViewerState,
+} from "@/lib/catalog-importer-membership";
 
 const capturePosthogEventMock = vi.hoisted(() => vi.fn());
 const downloadCatalogImportFileMock = vi.hoisted(() => vi.fn());
 const requestCultivarMatchesMock = vi.hoisted(() => vi.fn());
+
+type TestViewerState =
+  | CatalogImporterViewerState
+  | Extract<CatalogImporterViewerResolution["status"], "unavailable">;
+
+function CatalogImporterWorkbench({
+  viewerState = "anonymous",
+  ...props
+}: Omit<
+  ComponentProps<typeof CatalogImporterWorkbenchComponent>,
+  "viewerResolution"
+> & {
+  viewerState?: TestViewerState;
+}) {
+  const viewerResolution: CatalogImporterViewerResolution =
+    viewerState === "unavailable"
+      ? { status: "unavailable" }
+      : { status: "ready", viewerState };
+  return (
+    <CatalogImporterWorkbenchComponent
+      {...props}
+      viewerResolution={viewerResolution}
+    />
+  );
+}
 
 const savedIdCandidate: CultivarMatchCandidate = {
   awardNames: null,
@@ -266,8 +296,11 @@ describe("CatalogImporterWorkbench", () => {
       ).getByRole("heading", { name: "Vanguard" }),
     ).toBeVisible();
     expect(capturePosthogEventMock).toHaveBeenCalledWith(
-      "catalog_import_started",
-      { file_type: "csv", source: "manual" },
+      "catalog_import_previewed",
+      expect.objectContaining({
+        file_type: "csv",
+        source: "manual",
+      }),
     );
   });
 
@@ -530,31 +563,17 @@ describe("CatalogImporterWorkbench", () => {
 
     await waitFor(() => {
       expect(capturePosthogEventMock).toHaveBeenCalledWith(
-        "catalog_import_started",
-        {
-          file_type: "csv",
-          source: "sample",
-        },
-      );
-      expect(capturePosthogEventMock).toHaveBeenCalledWith(
-        "catalog_import_uploaded",
-        {
-          file_type: "csv",
-          row_count: 11,
-          sheet_count: 1,
-          source: "sample",
-        },
-      );
-      expect(capturePosthogEventMock).toHaveBeenCalledWith(
         "catalog_import_previewed",
-        {
+        expect.objectContaining({
           file_type: "csv",
           issue_count: 1,
           matched_count: 0,
+          ready_count: 0,
           review_count: 10,
           row_count: 10,
           sheet_count: 1,
-        },
+          source: "sample",
+        }),
       );
     });
     await openPreview();
@@ -833,11 +852,18 @@ describe("CatalogImporterWorkbench", () => {
         name: "Download before review is complete?",
       }),
     ).toHaveTextContent("10 potential matches and 2 spreadsheet items remain");
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: "Download anyway",
-      }),
+    const downloadAnyway = screen.getByRole("button", {
+      name: "Download anyway",
+    });
+    expect(downloadAnyway).toHaveAttribute(
+      "data-ph-capture-attribute-action",
+      "download",
     );
+    expect(downloadAnyway).toHaveAttribute(
+      "data-ph-capture-attribute-file_kind",
+      "enriched",
+    );
+    fireEvent.click(downloadAnyway);
     expect(
       await screen.findByRole("heading", {
         name: "Spreadsheet download did not finish",
@@ -865,18 +891,13 @@ describe("CatalogImporterWorkbench", () => {
         }),
       ).not.toBeInTheDocument(),
     );
-    expect(capturePosthogEventMock).toHaveBeenCalledWith(
-      "catalog_import_downloaded",
-      {
-        download_state: "current",
-        file_type: "csv",
-        issue_count: 1,
-        matched_count: 0,
-        review_count: 10,
-        row_count: 10,
-        sheet_count: 1,
-        download_type: "enriched",
-      },
+    expect(downloadButton).toHaveAttribute(
+      "data-ph-capture-attribute-action",
+      "download-review-warning",
+    );
+    expect(downloadButton).toHaveAttribute(
+      "data-ph-capture-attribute-file_kind",
+      "enriched",
     );
   });
 
@@ -891,7 +912,7 @@ describe("CatalogImporterWorkbench", () => {
 
     expect(
       screen.queryByRole("heading", {
-        name: "Build a public catalog with Pro",
+        name: "Publish this catalog with Pro",
       }),
     ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Finish" })).toBeVisible();
@@ -903,8 +924,46 @@ describe("CatalogImporterWorkbench", () => {
     ).toHaveAttribute("href", "/dashboard/imports");
     expect(
       screen.queryByRole("heading", {
-        name: "Ready for import!",
+        name: "Publish with Daylily Catalog Pro",
       }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("explains how to recover when account status is unavailable", async () => {
+    render(<CatalogImporterWorkbench viewerState="unavailable" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Use sample catalog" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Build catalog preview" }),
+    );
+    await openPreview();
+
+    expect(screen.getByText(/We could not check your account/)).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Reload account status" }),
+    ).toBeVisible();
+  });
+
+  it("does not reload an in-memory catalog when browser storage is unavailable", async () => {
+    vi.stubGlobal("indexedDB", undefined);
+    render(<CatalogImporterWorkbench viewerState="unavailable" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Use sample catalog" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Build catalog preview" }),
+    );
+    await openPreview();
+
+    expect(
+      await screen.findByText(
+        "Browser progress could not be saved on this device.",
+      ),
+    ).toBeVisible();
+    expect(
+      screen.getByText(/Keep this page open so you do not lose the catalog/),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Reload account status" }),
     ).not.toBeInTheDocument();
   });
 
@@ -1225,20 +1284,17 @@ describe("CatalogImporterWorkbench", () => {
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
 
     const membership = screen.getByRole("heading", {
-      name: "Build a public catalog with Pro",
+      name: "Publish this catalog with Pro",
     });
-    await waitFor(
-      () =>
-        expect(capturePosthogEventMock).toHaveBeenCalledWith(
-          "catalog_import_membership_prompt_viewed",
-          {
-            cta_id: "catalog-importer-preview-membership",
-            matched_count: 8,
-            unique_cultivar_count: 7,
-          },
-        ),
-      { timeout: 1_500 },
+    expect(
+      screen.getByRole("button", { name: /Start.*trial/i }),
+    ).toHaveAttribute(
+      "data-ph-capture-attribute-action",
+      "start-pro-checkout",
     );
+    expect(
+      screen.getByRole("link", { name: "See Pro details" }),
+    ).toHaveAttribute("data-ph-capture-attribute-action", "pro-details");
 
     expect(
       results.compareDocumentPosition(insights) &
@@ -1253,12 +1309,15 @@ describe("CatalogImporterWorkbench", () => {
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(membership.parentElement).toHaveTextContent(
-      "Your prepared workbook remains free",
+      "Give buyers one public link",
     );
     expect(
-      within(membership.closest("section")!).queryByRole("button", {
-        name: "Not now",
-      }),
+      within(membership.closest("[data-slot='pro-upgrade']")!).queryByRole(
+        "button",
+        {
+          name: "Not now",
+        },
+      ),
     ).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Continue to review" }));
@@ -1278,20 +1337,18 @@ describe("CatalogImporterWorkbench", () => {
     expect(reviewQuiz).toHaveTextContent(
       "Leave unmatched keeps this row in the workbook without a Daylily Catalog cultivar ID or link.",
     );
-    fireEvent.click(
-      await within(reviewQuiz).findByRole("button", {
-        name: "Leave unmatched",
-      }),
+    const leaveUnmatched = await within(reviewQuiz).findByRole("button", {
+      name: "Leave unmatched",
+    });
+    expect(leaveUnmatched).toHaveAttribute(
+      "data-ph-capture-attribute-action",
+      "review-decision",
     );
-    expect(capturePosthogEventMock).toHaveBeenCalledWith(
-      "catalog_import_identity_decided",
-      expect.objectContaining({
-        decision_state: "unmatched",
-        final_decision: false,
-        first_decision: true,
-        remaining_count: 1,
-      }),
+    expect(leaveUnmatched).toHaveAttribute(
+      "data-ph-capture-attribute-decision",
+      "unmatched",
     );
+    fireEvent.click(leaveUnmatched);
     expect(
       screen.getByRole("heading", { name: "Reviewed without link 1" }),
     ).toBeVisible();
@@ -1327,12 +1384,13 @@ describe("CatalogImporterWorkbench", () => {
         }),
       );
     });
-    expect(capturePosthogEventMock).toHaveBeenCalledWith(
-      "catalog_import_issue_resolved",
-      expect.objectContaining({
-        issue_type: "price",
-        resolved_count: 1,
-      }),
+    expect(priceIssues).toHaveAttribute(
+      "data-ph-capture-attribute-action",
+      "issue-correction",
+    );
+    expect(priceIssues).toHaveAttribute(
+      "data-ph-capture-attribute-issue_type",
+      "price",
     );
     expect(
       screen.getByRole("heading", { name: "Resolved issues 1" }),
@@ -1362,9 +1420,7 @@ describe("CatalogImporterWorkbench", () => {
       ],
     });
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "Continue to finish" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Continue to finish" }));
     expect(
       screen.getByRole("button", {
         name: "Download prepared import file",
@@ -1375,27 +1431,25 @@ describe("CatalogImporterWorkbench", () => {
     ).toBeVisible();
     expect(
       screen.getByRole("heading", {
-        name: /\d+ listings? ready for import/,
+        name: /\d+ listings? ready/,
       }),
     ).toBeVisible();
+    expect(screen.getByText(/\d+ matched · \d+ unlinked/)).toBeVisible();
+    expect(screen.getByText(/\d+ need review/)).toBeVisible();
     expect(
-      screen.getByText(/You started with 10 spreadsheet rows\./),
+      screen.getByRole("heading", { name: "Or download your files" }),
     ).toBeVisible();
-    expect(screen.getByText(/linked automatically/)).toBeVisible();
-    expect(screen.getByText(/linked manually/)).toBeVisible();
-    expect(screen.getByText(/unlinked/)).toBeVisible();
-    expect(screen.getByText(/excluded/)).toBeVisible();
-    expect(screen.getByText(/issues corrected/)).toBeVisible();
+    expect(screen.getByText(/Downloads contain values/)).toBeVisible();
     expect(
       screen.queryByRole("link", { name: "Continue to import" }),
     ).not.toBeInTheDocument();
     const downloadMembership = screen.getByRole("heading", {
-      name: "Ready for import!",
+      name: "Publish your catalog",
     });
     expect(downloadMembership).toBeVisible();
     expect(
       screen.getByRole("button", {
-        name: "Already have an account? Sign in",
+        name: "Sign in instead",
       }),
     ).toBeVisible();
     expect(
@@ -1405,6 +1459,6 @@ describe("CatalogImporterWorkbench", () => {
         }),
       ) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    expect(screen.getByText("File details")).toBeVisible();
+    expect(screen.queryByText("File details")).not.toBeInTheDocument();
   }, 10_000);
 });

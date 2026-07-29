@@ -96,8 +96,7 @@ export function CatalogImporterUpload({
   });
 
   if (controller.parsedSpreadsheet) {
-    const hasMultipleSheets =
-      controller.parsedSpreadsheet.sheets.length > 1;
+    const hasMultipleSheets = controller.parsedSpreadsheet.sheets.length > 1;
     const needsSheetSelection = hasMultipleSheets && !controller.selectedSheet;
     const sourceSummary = needsSheetSelection
       ? `${controller.parsedSpreadsheet.sheets.length.toLocaleString()} sheets`
@@ -111,7 +110,7 @@ export function CatalogImporterUpload({
     return (
       <section
         aria-label="Uploaded spreadsheet"
-        className="flex min-w-0 flex-wrap items-center gap-2"
+        className="flex max-w-3xl min-w-0 flex-wrap items-center gap-3"
       >
         <div className="flex min-w-48 flex-1 items-center gap-2">
           <FileSpreadsheet className="text-muted-foreground size-4 shrink-0" />
@@ -233,6 +232,8 @@ export function CatalogImporterUpload({
         <div
           {...getRootProps({
             "aria-label": "Upload spreadsheet",
+            "data-ph-capture-attribute-action": "select-file",
+            "data-ph-capture-attribute-source": "upload",
             className: cn(
               "border-muted-foreground/35 bg-muted/20 hover:bg-muted/40 focus-visible:ring-ring flex min-h-40 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed px-6 py-8 text-center transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
               isDragActive && "border-primary bg-primary/5",
@@ -241,7 +242,11 @@ export function CatalogImporterUpload({
             role: "button",
           })}
         >
-          <input {...getInputProps()} />
+          <input
+            {...getInputProps()}
+            data-ph-capture-attribute-action="select-file"
+            data-ph-capture-attribute-source="upload"
+          />
           <div className="mb-3 flex size-10 items-center justify-center">
             {controller.readingFile ? (
               <Spinner className="size-5" />
@@ -265,6 +270,8 @@ export function CatalogImporterUpload({
           <Button
             type="button"
             variant="outline"
+            data-ph-capture-attribute-action="select-file"
+            data-ph-capture-attribute-source="sample"
             onClick={() => {
               controller.loadSampleCatalog();
               onSourceReady?.();
@@ -276,6 +283,8 @@ export function CatalogImporterUpload({
           <Button
             type="button"
             variant="outline"
+            data-ph-capture-attribute-action="select-file"
+            data-ph-capture-attribute-source="manual"
             onClick={() => {
               controller.loadManualCatalog();
               onSourceReady?.();
@@ -290,6 +299,7 @@ export function CatalogImporterUpload({
           variant="link"
           size="sm"
           className="h-auto px-0 text-xs"
+          data-ph-capture-attribute-action="download-template"
           onClick={controller.downloadTemplate}
         >
           <Download className="size-3.5" />

@@ -14,19 +14,17 @@ import {
 import { CatalogImporterUpload } from "@/app/(public)/catalog-importer/_components/catalog-importer-upload";
 import { useCatalogImporterWorkbench } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
 import type { CatalogImporterDraft } from "@/lib/catalog-importer-draft";
-import type { CatalogImporterViewerState } from "@/lib/catalog-importer-membership";
+import type { CatalogImporterViewerResolution } from "@/lib/catalog-importer-membership";
 import type { MembershipPriceDisplay } from "@/server/stripe/membership-price-display";
 
 export function CatalogImporterWorkbench({
   initialDraft = null,
   membershipPriceDisplay = null,
-  membershipStarted = false,
-  viewerState = "anonymous",
+  viewerResolution,
 }: {
   initialDraft?: CatalogImporterDraft | null;
   membershipPriceDisplay?: MembershipPriceDisplay | null;
-  membershipStarted?: boolean;
-  viewerState?: CatalogImporterViewerState;
+  viewerResolution: CatalogImporterViewerResolution;
 }) {
   const controller = useCatalogImporterWorkbench(initialDraft);
   const [activeStep, setActiveStep] = useState<CatalogImporterStep>(() =>
@@ -65,11 +63,12 @@ export function CatalogImporterWorkbench({
   return (
     <div
       id="catalog-importer-workbench"
-      data-workbook-active={
-        controller.parsedSpreadsheet ? "true" : undefined
-      }
+      data-ph-capture-attribute-flow="catalog-importer"
+      data-ph-capture-attribute-import_id={controller.projectId}
+      data-ph-capture-attribute-step={activeStep}
+      data-workbook-active={controller.parsedSpreadsheet ? "true" : undefined}
     >
-      <div className="space-y-4">
+      <div className="flex flex-col gap-6">
         <CatalogImporterStepNav
           activeStep={activeStep}
           controller={controller}
@@ -79,7 +78,7 @@ export function CatalogImporterWorkbench({
         {activeStep === "start" ? (
           <div
             id="catalog-importer-step-start"
-            className="!scroll-mt-16 space-y-8 pt-2"
+            className="flex max-w-3xl !scroll-mt-16 flex-col gap-8 pt-4 sm:gap-10"
           >
             <CatalogImporterUpload
               controller={controller}
@@ -113,7 +112,7 @@ export function CatalogImporterWorkbench({
         {activeStep === "prepare" && controller.parsedSpreadsheet ? (
           <div
             id="catalog-importer-step-prepare"
-            className="!scroll-mt-16 space-y-6 pt-2"
+            className="flex !scroll-mt-16 flex-col gap-10 pt-4 sm:gap-12"
           >
             <CatalogImporterUpload
               controller={controller}
@@ -128,6 +127,7 @@ export function CatalogImporterWorkbench({
                     <Button
                       type="button"
                       className="w-full"
+                      data-ph-capture-attribute-action="build-preview"
                       disabled={
                         manualRowCount === 0 ||
                         controller.processingStage !== null
@@ -184,9 +184,8 @@ export function CatalogImporterWorkbench({
             activeStep={activeStep}
             controller={controller}
             membershipPriceDisplay={membershipPriceDisplay}
-            membershipStarted={membershipStarted}
             onStepChange={changeStep}
-            viewerState={viewerState}
+            viewerResolution={viewerResolution}
           />
         ) : null}
       </div>

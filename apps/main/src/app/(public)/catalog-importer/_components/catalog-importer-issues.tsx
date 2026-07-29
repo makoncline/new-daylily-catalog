@@ -172,7 +172,11 @@ function DuplicateGroupTable({
   const title = rows[0]?.title ?? "this cultivar";
 
   return (
-    <div className="space-y-3">
+    <div
+      className="flex flex-col gap-4"
+      data-ph-capture-attribute-action="issue-correction"
+      data-ph-capture-attribute-issue_type="duplicate"
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h4 className="font-semibold">Multiple listings for {title}</h4>
         <DuplicateGroupActions
@@ -276,7 +280,11 @@ function PriceIssuesTable({
   const canSaveAll = parsedRows.every(({ canSave }) => canSave);
 
   return (
-    <section aria-labelledby="catalog-importer-price-issues-heading">
+    <section
+      aria-labelledby="catalog-importer-price-issues-heading"
+      data-ph-capture-attribute-action="issue-correction"
+      data-ph-capture-attribute-issue_type="price"
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3
           id="catalog-importer-price-issues-heading"
@@ -503,7 +511,11 @@ function SavedIdIssuesTable({
   }
 
   return (
-    <section aria-labelledby="catalog-importer-saved-id-issues-heading">
+    <section
+      aria-labelledby="catalog-importer-saved-id-issues-heading"
+      data-ph-capture-attribute-action="issue-correction"
+      data-ph-capture-attribute-issue_type="saved-id"
+    >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h3
@@ -634,7 +646,7 @@ export function CatalogImporterIssues({
       id="catalog-importer-issues"
       role="region"
       aria-labelledby="catalog-importer-issues-heading"
-      className="!scroll-mt-16"
+      className="flex !scroll-mt-16 flex-col gap-10"
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -668,6 +680,8 @@ export function CatalogImporterIssues({
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
+                data-ph-capture-attribute-action="issue-correction"
+                data-ph-capture-attribute-issue_type="excluded"
                 onClick={() =>
                   controller.excludeIssueRows(issueRows.map((row) => row.id))
                 }
@@ -679,13 +693,16 @@ export function CatalogImporterIssues({
         </AlertDialog>
       </div>
 
-      <div className="mt-5 space-y-6">
+      <div className="flex flex-col gap-10">
         {duplicateGroups.length > 0 ? (
-          <section aria-labelledby="duplicate-issues-heading">
+          <section
+            aria-labelledby="duplicate-issues-heading"
+            className="flex flex-col gap-4"
+          >
             <h3 id="duplicate-issues-heading" className="font-semibold">
               Possible duplicate listings
             </h3>
-            <div className="mt-3 space-y-6">
+            <div className="flex flex-col gap-8">
               {duplicateGroups.map((group) => (
                 <DuplicateGroupTable
                   key={group.id}

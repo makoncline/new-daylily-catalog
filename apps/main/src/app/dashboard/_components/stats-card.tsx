@@ -2,16 +2,26 @@
 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CreditCard, Plus, Package, ListChecks, ImageIcon } from "lucide-react";
+import { Plus, Package, ListChecks, ImageIcon } from "lucide-react";
 import Link from "next/link";
-import { H2, H3, P, Muted } from "@/components/typography";
+import { H3, P, Muted } from "@/components/typography";
 import { PRO_FEATURES } from "@/config/constants";
 import { usePro } from "@/hooks/use-pro";
-import { CheckoutButton } from "@/components/checkout-button";
 import type { DashboardStats } from "@/types/dashboard-stats-types";
-import { needsBillingAttention } from "@/server/stripe/subscription-utils";
-import { useStripePortal } from "@/hooks/use-stripe-portal";
-import { normalizeError, reportError } from "@/lib/error-utils";
+import { ProMembershipAction } from "@/components/pro-membership-action";
+import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
+import {
+  ProUpgrade,
+  ProUpgradeActions,
+  ProUpgradeContent,
+  ProUpgradeDescription,
+  ProUpgradeDetails,
+  ProUpgradeFeature,
+  ProUpgradeFeatures,
+  ProUpgradeHeader,
+  ProUpgradeSubtitle,
+  ProUpgradeTitle,
+} from "@/components/pro-upgrade";
 
 interface StatsCardProps {
   stats: DashboardStats;
@@ -128,82 +138,50 @@ export function ImagesCard({ stats }: StatsCardProps) {
 }
 
 export function ProMembershipCard() {
-  const { isPro, isLoading, subscriptionStatus } = usePro();
-  const { isPending: isPortalPending, openStripePortal } = useStripePortal();
+  const { isPro, isLoading } = usePro();
 
   // Don't show if loading or if user is already a pro member
   if (isLoading || isPro) {
     return null;
   }
 
-  const showBillingAttention = needsBillingAttention(subscriptionStatus);
-  const handleUpdateBilling = async () => {
-    try {
-      await openStripePortal();
-    } catch (error) {
-      reportError({
-        error: normalizeError(error),
-        context: { action: "proMembershipCardOpenPortal" },
-      });
-    }
-  };
-
   return (
-    <Card
-      className="mb-4 overflow-hidden"
+    <ProUpgrade
+      className="mb-4 py-6"
       data-testid="dashboard-pro-membership-card"
     >
-      <div className="border-border bg-card border-b p-6">
-        <div className="space-y-1">
-          <H2 className="pb-2 text-3xl">Become a Daylily Catalog Pro</H2>
-          <P className="text-muted-foreground text-base">
-            Take your daylily business to the next level with advanced features
-            and premium support.
+      <ProUpgradeHeader>
+        <ProUpgradeTitle>
+          Become a {SUBSCRIPTION_CONFIG.OFFER.PRODUCT_NAME}
+        </ProUpgradeTitle>
+        <ProUpgradeDescription>
+          Take your daylily business to the next level with advanced features
+          and premium support.
+        </ProUpgradeDescription>
+      </ProUpgradeHeader>
+      <ProUpgradeContent>
+        <ProUpgradeDetails>
+          <ProUpgradeSubtitle>Why upgrade to Pro?</ProUpgradeSubtitle>
+          <P className="text-muted-foreground text-sm leading-7">
+            Get access to premium features that help you grow your daylily
+            business.
           </P>
-        </div>
-      </div>
-      <div className="bg-card/50 p-6">
-        <div className="flex flex-col gap-6 lg:flex-row">
-          <div className="flex flex-1 flex-col gap-4">
-            <H3 className="text-2xl">Why upgrade to Pro?</H3>
-            <P className="text-muted-foreground text-sm leading-7">
-              Get access to premium features that help you grow your daylily
-              business.
-            </P>
-            <ul className="space-y-2 text-sm">
-              {PRO_FEATURES.map((feature) => {
-                const Icon = feature.icon;
-                return (
-                  <li key={feature.id} className="flex items-center">
-                    <Icon className="mr-2 size-4" />
-                    {feature.text}
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-          <div className="flex flex-1 flex-col justify-end gap-6">
-            {showBillingAttention ? (
-              <Button
-                size="lg"
-                variant="destructive"
-                type="button"
-                onClick={() => void handleUpdateBilling()}
-                disabled={isPortalPending}
-                data-testid="dashboard-update-billing"
-              >
-                <CreditCard className="mr-2 size-4" />
-                {isPortalPending ? "Loading…" : "Update billing"}
-              </Button>
-            ) : (
-              <CheckoutButton
-                size="lg"
-                data-testid="dashboard-upgrade-to-pro"
-              />
-            )}
-          </div>
-        </div>
-      </div>
-    </Card>
+          <ProUpgradeFeatures>
+            {PRO_FEATURES.map((feature) => {
+              const Icon = feature.icon;
+              return (
+                <ProUpgradeFeature key={feature.id}>
+                  <Icon className="text-muted-foreground size-4 shrink-0" />
+                  {feature.text}
+                </ProUpgradeFeature>
+              );
+            })}
+          </ProUpgradeFeatures>
+        </ProUpgradeDetails>
+        <ProUpgradeActions>
+          <ProMembershipAction className="w-full" />
+        </ProUpgradeActions>
+      </ProUpgradeContent>
+    </ProUpgrade>
   );
 }

@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { getDefaultSubscriptionBillingOption } from "@/config/subscription-config";
 import { env, requireEnv } from "@/env";
 import { getStripeClient } from "@/server/stripe/client";
 import { formatMembershipPriceDisplay } from "@/server/stripe/membership-price-display";
@@ -7,19 +8,21 @@ import type { MembershipPriceDisplay } from "@/server/stripe/membership-price-di
 export type { MembershipPriceDisplay } from "@/server/stripe/membership-price-display";
 
 const MEMBERSHIP_PRICE_CACHE_MS = 60 * 60 * 1000;
-let cachedMembershipPriceDisplay:
-  | {
-      value: MembershipPriceDisplay;
-      expiresAt: number;
-    }
-  | null = null;
+let cachedMembershipPriceDisplay: {
+  value: MembershipPriceDisplay;
+  expiresAt: number;
+} | null = null;
 let pendingMembershipPriceDisplay: Promise<MembershipPriceDisplay> | null =
   null;
 
 async function loadMembershipPriceDisplay(): Promise<MembershipPriceDisplay> {
   const stripe = getStripeClient();
+  const billingOption = getDefaultSubscriptionBillingOption();
   const price = await stripe.prices.retrieve(
-    requireEnv("STRIPE_PRICE_ID", env.STRIPE_PRICE_ID),
+    requireEnv(
+      billingOption.stripePriceEnvironmentVariable,
+      env.STRIPE_PRICE_ID,
+    ),
   );
   const display = formatMembershipPriceDisplay({
     unit_amount: price.unit_amount,

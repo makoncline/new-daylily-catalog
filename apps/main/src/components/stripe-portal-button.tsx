@@ -12,13 +12,14 @@ import { logDashboardTiming } from "@/app/dashboard/_lib/dashboard-timing";
 import { usePersistedSubscriptionQuery } from "@/hooks/use-persisted-subscription-query";
 import { useStripePortal } from "@/hooks/use-stripe-portal";
 import { normalizeError, reportError } from "@/lib/error-utils";
+import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 
 function StripeCheckoutButton() {
   const { sendToCheckout, isPending } = usePro();
   return (
     <DropdownMenuItem onClick={sendToCheckout} disabled={isPending}>
       <Sparkles className="mr-2 size-4" />
-      {isPending ? "Loading…" : "Upgrade to Pro"}
+      {isPending ? "Loading…" : SUBSCRIPTION_CONFIG.COPY.CTA.UPGRADE_TO_PRO}
     </DropdownMenuItem>
   );
 }

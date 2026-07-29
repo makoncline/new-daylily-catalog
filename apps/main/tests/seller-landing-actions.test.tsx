@@ -42,7 +42,7 @@ describe("seller landing actions", () => {
     vi.clearAllMocks();
   });
 
-  it("links the seller CTA directly to anonymous onboarding", () => {
+  it("links the seller CTA directly to the catalog importer", () => {
     render(
       <SellerLandingOnboardingCta
         ctaId="seller-landing-hero-primary"
@@ -52,10 +52,10 @@ describe("seller landing actions", () => {
 
     expect(
       screen.getByRole("link", { name: "Create your catalog" }),
-    ).toHaveAttribute("data-href", "/onboarding");
+    ).toHaveAttribute("data-href", "/catalog-importer");
   });
 
-  it("captures seller CTA clicks with the onboarding target", () => {
+  it("captures seller CTA clicks with the importer target", () => {
     render(
       <SellerLandingOnboardingCta
         ctaId="seller-landing-hero-primary"
@@ -65,17 +65,14 @@ describe("seller landing actions", () => {
 
     fireEvent.click(screen.getByRole("link", { name: "Create your catalog" }));
 
-    expect(capturePosthogEventMock).toHaveBeenCalledWith(
-      "seller_cta_clicked",
-      {
-        source_page_type: "seller_landing",
-        source_path: "/start-membership",
-        cta_id: "seller-landing-hero-primary",
-        cta_label: "Create your catalog",
-        target_path: "/onboarding",
-        next_path: "/onboarding",
-      },
-    );
+    expect(capturePosthogEventMock).toHaveBeenCalledWith("seller_cta_clicked", {
+      source_page_type: "seller_landing",
+      source_path: "/start-membership",
+      cta_id: "seller-landing-hero-primary",
+      cta_label: "Create your catalog",
+      target_path: "/catalog-importer",
+      next_path: "/catalog-importer",
+    });
   });
 
   it("tracks example-link clicks", () => {

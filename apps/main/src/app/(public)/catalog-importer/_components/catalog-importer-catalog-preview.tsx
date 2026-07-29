@@ -353,7 +353,7 @@ export function CatalogImporterCatalogPreview({
     <section
       id="catalog-importer-preview"
       aria-labelledby="catalog-importer-preview-heading"
-      className="!scroll-mt-16 space-y-3 overflow-clip"
+      className="flex !scroll-mt-16 flex-col gap-6 overflow-clip"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -363,6 +363,16 @@ export function CatalogImporterCatalogPreview({
           >
             Your catalog preview
           </h2>
+          <p className="text-muted-foreground mt-1 max-w-3xl text-sm leading-6">
+            Buyers could search by name, price, hybridizer, bloom season, and
+            other registered details before they contact you.
+          </p>
+          <p className="mt-2 font-mono text-sm">
+            daylilycatalog.com/your-catalog
+            <span className="text-muted-foreground ml-2 font-sans text-xs">
+              private preview
+            </span>
+          </p>
           {linkedRows.length < controller.includedRows.length ? (
             <p className="text-muted-foreground mt-1 text-sm">
               {linkedRows.length.toLocaleString()} of{" "}

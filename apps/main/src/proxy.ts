@@ -97,9 +97,7 @@ function hasRequestCredentials(req: NextRequest) {
     req.headers.has("authorization") ||
     req.cookies
       .getAll()
-      .some(
-        ({ name }) => name === "__session" || name.startsWith("__session_"),
-      )
+      .some(({ name }) => name === "__session" || name.startsWith("__session_"))
   );
 }
 
@@ -200,7 +198,9 @@ export function proxy(req: NextRequest, event: NextFetchEvent) {
     req.nextUrl.pathname === "/" &&
     req.headers.get("accept")?.includes("text/markdown")
   ) {
-    const markdown = getHomeMarkdown(getRequestBaseUrl(req) ?? req.nextUrl.origin);
+    const markdown = getHomeMarkdown(
+      getRequestBaseUrl(req) ?? req.nextUrl.origin,
+    );
 
     return new NextResponse(markdown, {
       headers: {
@@ -219,7 +219,7 @@ export function proxy(req: NextRequest, event: NextFetchEvent) {
   }
 
   // Do not guard this call with isProtectedRoute(). Public routes such as
-  // /onboarding and /api/trpc still need Clerk's request context for auth().
+  // Catalog importer checkout and /api/trpc need Clerk's request context.
   // Keep the protected-route check inside the clerkMiddleware callback above.
   // https://clerk.com/docs/reference/nextjs/app-router/auth
   return protectedRouteProxy(req, event);

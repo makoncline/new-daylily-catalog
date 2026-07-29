@@ -5,15 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 import { api } from "@/trpc/react";
-import { OnboardingStatusPage } from "../../onboarding-status-page";
+import { CheckoutStatusPage } from "../checkout-status-page";
 import {
-  clearAnonymousOnboardingDraft,
-  readAnonymousOnboardingDraft,
-} from "../../anonymous-onboarding-draft";
-import {
-  CATALOG_IMPORTER_ENTRY_SOURCE,
   CATALOG_IMPORTER_MEMBERSHIP_RETURN_PATH,
+  CATALOG_IMPORTER_RETURN_PATH,
 } from "@/lib/catalog-importer-membership";
 
 interface CheckoutStatus {
@@ -21,8 +18,6 @@ interface CheckoutStatus {
   email: string;
   status: string | null;
   isActive: boolean;
-  entrySource: string | null;
-  returnTo: string | null;
 }
 
 interface CheckoutSuccessPageClientProps {
@@ -34,48 +29,36 @@ export function CheckoutSuccessPageClient({
 }: CheckoutSuccessPageClientProps) {
   const router = useRouter();
   const { isLoaded, userId } = useAuth();
-  const claimCheckout = api.onboarding.claimCheckout.useMutation();
+  const claimCheckout = api.catalogImporter.claimCheckout.useMutation();
   const hasStartedClaim = useRef(false);
   const autoClaimedSessionId = useRef<string | null>(null);
   const activeSessionId = status?.isActive ? status.sessionId : null;
   const returnTo = status
-    ? `/onboarding/checkout/success?session_id=${encodeURIComponent(
+    ? `/catalog-importer/checkout/success?session_id=${encodeURIComponent(
         status.sessionId,
       )}`
-    : "/onboarding";
+    : CATALOG_IMPORTER_RETURN_PATH;
 
   const claimCheckoutAndContinue = useCallback(() => {
     if (!activeSessionId || hasStartedClaim.current) {
       return;
     }
 
-    const draft = readAnonymousOnboardingDraft();
     hasStartedClaim.current = true;
     claimCheckout.mutate(
       {
         sessionId: activeSessionId,
-        profile: {
-          gardenName: draft.profile.gardenName,
-          location: draft.profile.location,
-          description: draft.profile.description,
-          profileImageDataUrl: draft.profile.profileImageDataUrl,
-        },
       },
       {
         onSuccess: () => {
-          if (status?.entrySource === CATALOG_IMPORTER_ENTRY_SOURCE) {
-            router.replace(CATALOG_IMPORTER_MEMBERSHIP_RETURN_PATH);
-            return;
-          }
-          clearAnonymousOnboardingDraft();
-          router.replace("/dashboard?subscriptionSynced=1");
+          router.replace(CATALOG_IMPORTER_MEMBERSHIP_RETURN_PATH);
         },
         onError: () => {
           hasStartedClaim.current = false;
         },
       },
     );
-  }, [activeSessionId, claimCheckout, router, status?.entrySource]);
+  }, [activeSessionId, claimCheckout, router]);
 
   useEffect(() => {
     if (!isLoaded || !userId || !activeSessionId) {
@@ -98,7 +81,9 @@ export function CheckoutSuccessPageClient({
         description="We could not find the checkout details for this page."
       >
         <Button asChild>
-          <Link href="/onboarding">Return to onboarding</Link>
+          <Link href={CATALOG_IMPORTER_RETURN_PATH}>
+            Return to catalog importer
+          </Link>
         </Button>
       </CheckoutShell>
     );
@@ -109,11 +94,11 @@ export function CheckoutSuccessPageClient({
       <CheckoutShell
         eyebrow="Checkout"
         title="Checkout still needs attention"
-        description="Your trial or membership is not active yet. You can retry checkout, or contact support if you already paid."
+        description={SUBSCRIPTION_CONFIG.COPY.STATUS.INACTIVE_DESCRIPTION}
       >
         <div className="flex flex-col gap-3 sm:flex-row">
           <Button asChild>
-            <Link href="/onboarding">Retry checkout</Link>
+            <Link href={CATALOG_IMPORTER_RETURN_PATH}>Retry checkout</Link>
           </Button>
           <Button asChild variant="outline">
             <Link href="mailto:support@daylilycatalog.com">
@@ -128,17 +113,9 @@ export function CheckoutSuccessPageClient({
   if (isLoaded && userId) {
     return (
       <CheckoutShell
-        eyebrow="Trial active"
-        title={
-          status.entrySource === CATALOG_IMPORTER_ENTRY_SOURCE
-            ? "Opening your catalog import"
-            : "Opening your dashboard"
-        }
-        description={
-          status.entrySource === CATALOG_IMPORTER_ENTRY_SOURCE
-            ? "Your trial is active. Your browser-local catalog project will continue in the dashboard."
-            : "Your trial is active. We are setting up your dashboard and adding the profile you built."
-        }
+        eyebrow={SUBSCRIPTION_CONFIG.COPY.STATUS.ACTIVE_EYEBROW}
+        title="Opening your import"
+        description={SUBSCRIPTION_CONFIG.COPY.STATUS.ACTIVE_DESCRIPTION}
       >
         {claimCheckout.error ? (
           <div className="space-y-3">
@@ -157,10 +134,7 @@ export function CheckoutSuccessPageClient({
   }
 
   return (
-    <CheckoutAuthShell
-      data-testid="checkout-clerk-sign-in"
-      returningToImporter={status.entrySource === CATALOG_IMPORTER_ENTRY_SOURCE}
-    >
+    <CheckoutAuthShell data-testid="checkout-clerk-sign-in">
       <SignIn
         routing="virtual"
         forceRedirectUrl={returnTo}
@@ -186,11 +160,11 @@ function CheckoutShell({
   title: string;
 }) {
   return (
-    <OnboardingStatusPage
+    <CheckoutStatusPage
       eyebrow={eyebrow}
       title={title}
       description={description}
-      testId="onboarding-checkout-success"
+      testId="catalog-importer-checkout-success"
       actions={children}
     />
   );
@@ -199,27 +173,26 @@ function CheckoutShell({
 function CheckoutAuthShell({
   children,
   "data-testid": testId,
-  returningToImporter = false,
 }: {
   children: React.ReactNode;
   "data-testid"?: string;
-  returningToImporter?: boolean;
 }) {
   return (
-    <div className="bg-muted/20" data-testid="onboarding-checkout-success">
-      <div className="mx-auto grid w-full max-w-6xl gap-8 px-4 py-14 sm:py-20 lg:grid-cols-[minmax(0,1fr)_28rem] lg:px-8 lg:py-24">
-        <div className="max-w-2xl space-y-4">
-          <p className="text-primary text-sm font-semibold">Trial active</p>
-          <h1 className="text-2xl leading-tight font-semibold tracking-tight text-balance sm:text-3xl">
-            {returningToImporter
-              ? "Verify your email to continue."
-              : "Sign in to open your dashboard."}
+    <div
+      className="bg-muted/20"
+      data-testid="catalog-importer-checkout-success"
+    >
+      <div className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-10 sm:gap-12 sm:py-16 lg:grid-cols-[minmax(0,1fr)_28rem] lg:px-8">
+        <div className="flex max-w-2xl flex-col gap-3">
+          <p className="text-xs font-semibold tracking-wide text-[#b7791f] uppercase">
+            {SUBSCRIPTION_CONFIG.COPY.STATUS.ACTIVE_EYEBROW}
+          </p>
+          <h1 className="text-3xl leading-tight font-semibold tracking-tight text-balance sm:text-4xl">
+            Verify your email to continue.
           </h1>
-          <p className="text-muted-foreground max-w-xl text-lg leading-8">
+          <p className="text-muted-foreground max-w-xl text-base leading-7">
             Use the email from checkout. We will send your one-time login code.
-            {returningToImporter
-              ? " Your spreadsheet and progress remain in this browser."
-              : null}
+            Your spreadsheet and progress remain in this browser.
           </p>
         </div>
 

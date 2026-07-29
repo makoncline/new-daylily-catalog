@@ -23,21 +23,23 @@ import {
 } from "@/components/ui/item";
 import { Spinner } from "@/components/ui/spinner";
 import type { CatalogImporterWorkbenchController } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
+import { cn } from "@/lib/utils";
 
 export function CatalogImporterDownloadOptions({
   controller,
+  stacked = false,
 }: {
   controller: CatalogImporterWorkbenchController;
+  stacked?: boolean;
 }) {
   const [pendingDownload, setPendingDownload] = useState<
     "clean" | "enriched" | null
   >(null);
+  const reviewIncomplete =
+    controller.reviewRows.length > 0 || controller.remainingIssueCount > 0;
 
   const requestDownload = (kind: "clean" | "enriched") => {
-    if (
-      controller.reviewRows.length > 0 ||
-      controller.remainingIssueCount > 0
-    ) {
+    if (reviewIncomplete) {
       setPendingDownload(kind);
       return;
     }
@@ -47,20 +49,28 @@ export function CatalogImporterDownloadOptions({
 
   return (
     <>
-      <ItemGroup className="gap-5">
-        <Item className="flex-col items-stretch gap-3 px-0 sm:flex-row sm:items-center">
-          <ItemContent>
-            <ItemTitle>Prepared import file</ItemTitle>
+      <ItemGroup className="gap-6">
+        <Item
+          className={cn(
+            "flex-col items-stretch gap-3 px-0",
+            !stacked && "sm:flex-row sm:items-center",
+          )}
+        >
+          <ItemContent className="gap-1">
+            <ItemTitle>Prepared file</ItemTitle>
             <ItemDescription className="line-clamp-none">
-              One normalized listing table with corrections and Daylily Catalog
-              identity where available. Excluded rows and unrelated columns are
-              omitted. Use it in the importer or upload it to the builder again.
+              Clean data, ready to import
             </ItemDescription>
           </ItemContent>
-          <ItemActions className="w-full sm:w-auto">
+          <ItemActions className={cn("w-full", !stacked && "sm:w-auto")}>
             <Button
               type="button"
-              className="w-full sm:w-auto"
+              aria-label="Download prepared import file"
+              className={cn("w-full", !stacked && "sm:w-auto sm:min-w-40")}
+              data-ph-capture-attribute-action={
+                reviewIncomplete ? "download-review-warning" : "download"
+              }
+              data-ph-capture-attribute-file_kind="clean"
               disabled={controller.downloadingResults !== null}
               onClick={() => requestDownload("clean")}
             >
@@ -69,22 +79,31 @@ export function CatalogImporterDownloadOptions({
               ) : (
                 <Download data-icon="inline-start" />
               )}
-              Download prepared import file
+              Download
             </Button>
           </ItemActions>
         </Item>
-        <Item className="flex-col items-stretch gap-3 px-0 sm:flex-row sm:items-center">
-          <ItemContent>
+        <Item
+          className={cn(
+            "flex-col items-stretch gap-3 px-0",
+            !stacked && "sm:flex-row sm:items-center",
+          )}
+        >
+          <ItemContent className="gap-1">
             <ItemTitle>Enhanced original</ItemTitle>
             <ItemDescription className="line-clamp-none">
-              Every original sheet, row, and field, with corrections and
-              Daylily Catalog identity added. Excluded rows remain.
+              Your workbook with matches added
             </ItemDescription>
           </ItemContent>
-          <ItemActions className="w-full sm:w-auto">
+          <ItemActions className={cn("w-full", !stacked && "sm:w-auto")}>
             <Button
               type="button"
-              className="w-full sm:w-auto"
+              aria-label="Download enhanced original"
+              className={cn("w-full", !stacked && "sm:w-auto sm:min-w-40")}
+              data-ph-capture-attribute-action={
+                reviewIncomplete ? "download-review-warning" : "download"
+              }
+              data-ph-capture-attribute-file_kind="enriched"
               variant="outline"
               disabled={controller.downloadingResults !== null}
               onClick={() => requestDownload("enriched")}
@@ -94,7 +113,7 @@ export function CatalogImporterDownloadOptions({
               ) : (
                 <Download data-icon="inline-start" />
               )}
-              Download enhanced original
+              Download
             </Button>
           </ItemActions>
         </Item>
@@ -126,6 +145,8 @@ export function CatalogImporterDownloadOptions({
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
+              data-ph-capture-attribute-action="download"
+              data-ph-capture-attribute-file_kind={pendingDownload ?? undefined}
               onClick={() => {
                 const kind = pendingDownload;
                 setPendingDownload(null);

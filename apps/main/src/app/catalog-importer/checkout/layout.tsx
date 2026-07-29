@@ -1,7 +1,7 @@
 import { AuthProviders } from "@/components/auth-providers";
 import { PublicShell } from "@/components/public-shell";
 
-export default function OnboardingLayout({
+export default function CatalogImporterCheckoutLayout({
   children,
 }: {
   children: React.ReactNode;

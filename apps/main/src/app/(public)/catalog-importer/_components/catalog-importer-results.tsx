@@ -1,16 +1,8 @@
 "use client";
 
-import Link from "next/link";
-import {
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import type { ColumnFiltersState, OnChangeFn } from "@tanstack/react-table";
-import { ArrowRight, CheckCircle2, CircleAlert, Sparkles } from "lucide-react";
-import { SellerIntentLink } from "@/components/seller-intent-link";
+import { ArrowRight, CheckCircle2, CircleAlert } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,15 +12,8 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Spinner } from "@/components/ui/spinner";
-import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
-import {
-  CATALOG_IMPORTER_ENTRY_SOURCE,
-  CATALOG_IMPORTER_RETURN_PATH,
-  type CatalogImporterViewerState,
-} from "@/lib/catalog-importer-membership";
+import type { CatalogImporterViewerResolution } from "@/lib/catalog-importer-membership";
 import type { MembershipPriceDisplay } from "@/server/stripe/membership-price-display";
-import { api, TRPCReactProvider } from "@/trpc/react";
 import {
   CatalogImporterAnalysis,
   type CatalogImporterInsightFilter,
@@ -43,17 +28,18 @@ import {
 import { CatalogImporterDownloadOptions } from "@/app/(public)/catalog-importer/_components/catalog-importer-download-options";
 import { CatalogImporterMatchSheet } from "@/app/(public)/catalog-importer/_components/catalog-importer-match-sheet";
 import { CatalogImporterOverview } from "@/app/(public)/catalog-importer/_components/catalog-importer-overview";
+import { CatalogImporterPublishActions } from "@/app/(public)/catalog-importer/_components/catalog-importer-publish-actions";
 import { CatalogImporterReviewQuiz } from "@/app/(public)/catalog-importer/_components/catalog-importer-review-quiz";
 import { CatalogImporterReviewedIssues } from "@/app/(public)/catalog-importer/_components/catalog-importer-reviewed-issues";
 import { CatalogImporterReviewedRows } from "@/app/(public)/catalog-importer/_components/catalog-importer-reviewed-rows";
 import type { CatalogImporterStep } from "@/app/(public)/catalog-importer/_components/catalog-importer-step-nav";
 import type { CatalogImporterWorkbenchController } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
-import { capturePosthogEvent } from "@/lib/analytics/posthog";
 import {
   getCatalogImportRowDisposition,
   type CatalogImportRow,
 } from "@/lib/catalog-importer";
 import { getPublicCatalogSearchFilterDefinition } from "@/components/public-catalog-search/public-catalog-search-registry";
+import { cn } from "@/lib/utils";
 
 const CATALOG_IMPORTER_URL_CHANGE_EVENT = "catalog-importer-url-change";
 
@@ -138,329 +124,17 @@ interface CatalogImporterResultsProps {
   controller: CatalogImporterWorkbenchController;
 }
 
-function CatalogImporterMembershipPrompt({
-  ctaId,
-  controller,
-  placement = "preview",
-  membershipPriceDisplay,
-  viewerState,
-}: {
-  ctaId: string;
-  controller: CatalogImporterWorkbenchController;
-  placement?: "preview" | "download";
-  membershipPriceDisplay: MembershipPriceDisplay | null;
-  viewerState: Extract<
-    CatalogImporterViewerState,
-    "anonymous" | "signed_in_nonpro"
-  >;
-}) {
-  const observerRef = useRef<IntersectionObserver | null>(null);
-  const impressionTimerRef = useRef<number | null>(null);
-  const impressionTrackedRef = useRef(false);
-  const trackPromptImpression = useCallback(
-    (node: HTMLElement | null) => {
-      observerRef.current?.disconnect();
-      observerRef.current = null;
-      if (impressionTimerRef.current !== null) {
-        window.clearTimeout(impressionTimerRef.current);
-        impressionTimerRef.current = null;
-      }
-      if (!node) {
-        return;
-      }
-
-      const impressionKey = `catalog-importer-membership-prompt-viewed:${ctaId}`;
-      try {
-        if (globalThis.sessionStorage?.getItem(impressionKey) === "1") {
-          impressionTrackedRef.current = true;
-          return;
-        }
-      } catch {
-        // Visibility tracking still works when storage is unavailable.
-      }
-
-      if (typeof IntersectionObserver === "undefined") {
-        return;
-      }
-
-      observerRef.current = new IntersectionObserver((entries) => {
-        const visible = entries.some(
-          (entry) => entry.isIntersecting && entry.intersectionRatio >= 0.5,
-        );
-        if (!visible) {
-          if (impressionTimerRef.current !== null) {
-            window.clearTimeout(impressionTimerRef.current);
-            impressionTimerRef.current = null;
-          }
-          return;
-        }
-        if (
-          impressionTrackedRef.current ||
-          impressionTimerRef.current !== null
-        ) {
-          return;
-        }
-
-        impressionTimerRef.current = window.setTimeout(() => {
-          impressionTrackedRef.current = true;
-          impressionTimerRef.current = null;
-          try {
-            globalThis.sessionStorage?.setItem(impressionKey, "1");
-          } catch {
-            // The event remains useful without session deduplication.
-          }
-          capturePosthogEvent("catalog_import_membership_prompt_viewed", {
-            cta_id: ctaId,
-            matched_count: controller.counts.linkedListingCount,
-            unique_cultivar_count: controller.counts.uniqueCultivarCount,
-          });
-          observerRef.current?.disconnect();
-          observerRef.current = null;
-        }, 1_000);
-      });
-
-      observerRef.current.observe(node);
-    },
-    [
-      controller.counts.linkedListingCount,
-      controller.counts.uniqueCultivarCount,
-      ctaId,
-    ],
-  );
-
-  return (
-    <section
-      aria-labelledby={`${ctaId}-heading`}
-      className="bg-muted/25 grid gap-5 rounded-lg px-4 py-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center"
-      ref={trackPromptImpression}
-    >
-      <div className="max-w-3xl">
-        <h2
-          id={`${ctaId}-heading`}
-          className="text-xl font-semibold tracking-tight sm:text-2xl"
-        >
-          {placement === "download"
-            ? "Ready for import!"
-            : "Build a public catalog with Pro"}
-        </h2>
-        <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
-          {placement === "download"
-            ? "Sign up for Daylily Catalog to start."
-            : "Publish and manage this collection with a hosted catalog and seller dashboard. Your prepared workbook remains free."}
-        </p>
-      </div>
-      <div className="flex min-w-56 flex-col gap-2 lg:items-stretch">
-        {viewerState === "anonymous" ? (
-          <AnonymousCatalogImporterMembershipButton
-            controller={controller}
-            ctaId={ctaId}
-          />
-        ) : (
-          <TRPCReactProvider>
-            <SignedInCatalogImporterMembershipButton
-              controller={controller}
-              ctaId={ctaId}
-            />
-          </TRPCReactProvider>
-        )}
-        {placement === "download" && viewerState === "anonymous" ? (
-          <CatalogImporterLoginButton controller={controller} />
-        ) : null}
-        {membershipPriceDisplay ? (
-          <p className="text-muted-foreground text-center text-xs">
-            Then {membershipPriceDisplay.amount}
-            {membershipPriceDisplay.interval}. Progress stays in this browser.
-          </p>
-        ) : (
-          <p className="text-muted-foreground text-center text-xs">
-            Progress stays in this browser.
-          </p>
-        )}
-        <SellerIntentLink
-          href="/start-membership"
-          className="text-muted-foreground text-center text-xs underline-offset-4 hover:underline"
-          ctaId={`${ctaId}-details`}
-          ctaLabel="See Pro details"
-          entrySurface="catalog_importer_preview"
-          sourcePageType="catalog_importer"
-          sourcePath={CATALOG_IMPORTER_RETURN_PATH}
-        >
-          See Pro details
-        </SellerIntentLink>
-      </div>
-    </section>
-  );
-}
-
-function CatalogImporterLoginButton({
-  controller,
-}: {
-  controller: CatalogImporterWorkbenchController;
-}) {
-  const [leaving, setLeaving] = useState(false);
-
-  const openLogin = async () => {
-    setLeaving(true);
-    await controller.flushDraft();
-    const returnTo = encodeURIComponent("/dashboard/imports");
-    window.location.assign(`/sign-in?returnTo=${returnTo}`);
-  };
-
-  return (
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      className="w-full"
-      disabled={leaving}
-      onClick={() => void openLogin()}
-    >
-      {leaving ? <Spinner /> : null}
-      Already have an account? Sign in
-    </Button>
-  );
-}
-
-function getCatalogImporterConversionId() {
-  const storageKey = "catalog-importer-pro-conversion-id";
-  try {
-    const existing = globalThis.sessionStorage?.getItem(storageKey);
-    if (existing) {
-      return existing;
-    }
-    const created = globalThis.crypto.randomUUID();
-    globalThis.sessionStorage?.setItem(storageKey, created);
-    return created;
-  } catch {
-    return globalThis.crypto.randomUUID();
-  }
-}
-
-function trackTrialCta(
-  ctaId: string,
-  targetPath: string,
-  conversionId: string,
-) {
-  capturePosthogEvent("seller_cta_clicked", {
-    conversion_id: conversionId,
-    cta_id: ctaId,
-    cta_label: `Start ${SUBSCRIPTION_CONFIG.FREE_TRIAL_DAYS}-day Pro trial`,
-    entry_source: CATALOG_IMPORTER_ENTRY_SOURCE,
-    entry_surface: "catalog_importer_preview",
-    source_page_type: "catalog_importer",
-    source_path: CATALOG_IMPORTER_RETURN_PATH,
-    target_path: targetPath,
-  });
-}
-
-function AnonymousCatalogImporterMembershipButton({
-  controller,
-  ctaId,
-}: {
-  controller: CatalogImporterWorkbenchController;
-  ctaId: string;
-}) {
-  const [leaving, setLeaving] = useState(false);
-
-  const startTrial = async () => {
-    const conversionId = getCatalogImporterConversionId();
-    const params = new URLSearchParams({
-      conversion_id: conversionId,
-      entry: CATALOG_IMPORTER_ENTRY_SOURCE,
-      return_to: CATALOG_IMPORTER_RETURN_PATH,
-    });
-    const targetPath = `/onboarding?${params.toString()}`;
-    setLeaving(true);
-    trackTrialCta(ctaId, targetPath, conversionId);
-    await controller.flushDraft();
-    window.location.assign(targetPath);
-  };
-
-  return (
-    <Button
-      type="button"
-      size="lg"
-      disabled={leaving}
-      onClick={() => void startTrial()}
-    >
-      {leaving ? <Spinner /> : <Sparkles className="size-4" />}
-      Start {SUBSCRIPTION_CONFIG.FREE_TRIAL_DAYS}-day Pro trial
-    </Button>
-  );
-}
-
-function SignedInCatalogImporterMembershipButton({
-  controller,
-  ctaId,
-}: {
-  controller: CatalogImporterWorkbenchController;
-  ctaId: string;
-}) {
-  const checkout = api.stripe.generateCheckout.useMutation();
-
-  const startTrial = async () => {
-    const conversionId = getCatalogImporterConversionId();
-    trackTrialCta(ctaId, "stripe_checkout", conversionId);
-    capturePosthogEvent("checkout_started", {
-      conversion_id: conversionId,
-      entry_source: CATALOG_IMPORTER_ENTRY_SOURCE,
-      source: "catalog_importer",
-    });
-    await controller.flushDraft();
-    try {
-      const { url } = await checkout.mutateAsync({
-        conversionId,
-        entrySource: CATALOG_IMPORTER_ENTRY_SOURCE,
-        returnTo: CATALOG_IMPORTER_RETURN_PATH,
-      });
-      capturePosthogEvent("checkout_redirect_ready", {
-        conversion_id: conversionId,
-        entry_source: CATALOG_IMPORTER_ENTRY_SOURCE,
-        source: "catalog_importer",
-      });
-      window.location.assign(url);
-    } catch {
-      capturePosthogEvent("checkout_failed", {
-        conversion_id: conversionId,
-        entry_source: CATALOG_IMPORTER_ENTRY_SOURCE,
-        source: "catalog_importer",
-      });
-    }
-  };
-
-  return (
-    <>
-      <Button
-        type="button"
-        size="lg"
-        disabled={checkout.isPending}
-        onClick={() => void startTrial()}
-      >
-        {checkout.isPending ? <Spinner /> : <Sparkles className="size-4" />}
-        Start {SUBSCRIPTION_CONFIG.FREE_TRIAL_DAYS}-day Pro trial
-      </Button>
-      {checkout.error ? (
-        <p className="text-destructive text-center text-xs">
-          Checkout did not open. Try again.
-        </p>
-      ) : null}
-    </>
-  );
-}
-
 export function CatalogImporterResults({
   activeStep,
   controller,
   membershipPriceDisplay,
-  membershipStarted,
   onStepChange,
-  viewerState,
+  viewerResolution,
 }: CatalogImporterResultsProps & {
   activeStep: CatalogImporterStep;
   membershipPriceDisplay: MembershipPriceDisplay | null;
-  membershipStarted: boolean;
   onStepChange: (step: CatalogImporterStep) => void;
-  viewerState: CatalogImporterViewerState;
+  viewerResolution: CatalogImporterViewerResolution;
 }) {
   const [matchEditorRowId, setMatchEditorRowId] = useState<string | null>(null);
   const [previewGlobalFilter, setPreviewGlobalFilter] = useState("");
@@ -520,16 +194,24 @@ export function CatalogImporterResults({
   const insightView: AnalysisView = isCatalogImporterAnalysisView(insightParam)
     ? insightParam
     : "hybridizer";
-  const previewFilterInteractionTracked = useRef(false);
   const matchEditorRow =
     controller.includedRows.find((row) => row.id === matchEditorRowId) ?? null;
-  const remainingWork = [
-    controller.reviewRows.length > 0
-      ? `${controller.reviewRows.length.toLocaleString()} potential ${controller.reviewRows.length === 1 ? "match" : "matches"}`
+  const remainingWorkCount =
+    controller.reviewRows.length + controller.remainingIssueCount;
+  const matchedCount =
+    completionStats.automaticallyLinkedCount +
+    completionStats.manuallyLinkedCount;
+  const completionSummary = [
+    `${matchedCount.toLocaleString()} matched`,
+    completionStats.unlinkedCount > 0
+      ? `${completionStats.unlinkedCount.toLocaleString()} unlinked`
       : null,
-    controller.remainingIssueCount > 0
-      ? `${controller.remainingIssueCount.toLocaleString()} spreadsheet ${controller.remainingIssueCount === 1 ? "item" : "items"}`
+    completionStats.excludedCount > 0
+      ? `${completionStats.excludedCount.toLocaleString()} excluded`
       : null,
+    remainingWorkCount > 0
+      ? `${remainingWorkCount.toLocaleString()} need review`
+      : "Review complete",
   ].filter((value): value is string => value !== null);
   const previewNextStep: CatalogImporterStep =
     controller.reviewProgressTotal > 0
@@ -547,10 +229,6 @@ export function CatalogImporterResults({
   }, []);
   const handleApplyInsightFilter = useCallback(
     (insightFilter: CatalogImporterInsightFilter) => {
-      capturePosthogEvent("catalog_import_preview_interacted", {
-        filter_type: insightFilter.id,
-        interaction_type: "insight",
-      });
       setPreviewGlobalFilter("");
       const nextFilters = [
         { id: insightFilter.id, value: insightFilter.value },
@@ -566,12 +244,6 @@ export function CatalogImporterResults({
     OnChangeFn<ColumnFiltersState>
   >(
     (nextFilters) => {
-      if (!previewFilterInteractionTracked.current) {
-        previewFilterInteractionTracked.current = true;
-        capturePosthogEvent("catalog_import_preview_interacted", {
-          interaction_type: "search_or_filter",
-        });
-      }
       const resolvedFilters =
         typeof nextFilters === "function"
           ? nextFilters(previewColumnFilters)
@@ -590,23 +262,14 @@ export function CatalogImporterResults({
   return (
     <div
       id={`catalog-importer-step-${activeStep}`}
-      className="min-w-0 !scroll-mt-16 space-y-6"
+      className={cn(
+        "flex min-w-0 !scroll-mt-16 flex-col",
+        activeStep === "preview" && "gap-14 sm:gap-16",
+        (activeStep === "review" || activeStep === "issues") &&
+          "gap-10 sm:gap-12",
+        activeStep === "download" && "gap-0",
+      )}
     >
-      {membershipStarted && activeStep === "preview" ? (
-        <Alert>
-          <CheckCircle2 className="size-4" />
-          <AlertTitle>Your Pro trial is active</AlertTitle>
-          <AlertDescription className="space-y-3">
-            <p>
-              Your browser-local catalog project is still here. Nothing was
-              imported automatically.
-            </p>
-            <Button asChild size="sm" variant="outline">
-              <Link href="/dashboard">Open seller dashboard</Link>
-            </Button>
-          </AlertDescription>
-        </Alert>
-      ) : null}
       {activeStep === "preview" ? (
         <>
           <CatalogImporterOverview
@@ -627,15 +290,12 @@ export function CatalogImporterResults({
             onGlobalFilterChange={setPreviewGlobalFilter}
             onOpenReview={handleOpenReview}
           />
-          {!dashboardReturnPath &&
-          !membershipStarted &&
-          (viewerState === "anonymous" ||
-            viewerState === "signed_in_nonpro") ? (
-            <CatalogImporterMembershipPrompt
-              ctaId="catalog-importer-preview-membership"
+          {!dashboardReturnPath ? (
+            <CatalogImporterPublishActions
               controller={controller}
               membershipPriceDisplay={membershipPriceDisplay}
-              viewerState={viewerState}
+              placement="preview"
+              viewerResolution={viewerResolution}
             />
           ) : null}
           <div className="flex justify-end pt-2">
@@ -740,103 +400,51 @@ export function CatalogImporterResults({
         <section
           id="catalog-importer-download"
           aria-labelledby="catalog-importer-download-heading"
-          className="space-y-6"
+          className="flex flex-col gap-14 sm:gap-16"
         >
-          <div className="max-w-3xl">
+          <div className="flex max-w-3xl flex-col gap-3">
             <h2
               id="catalog-importer-download-heading"
-              className="text-3xl font-semibold tracking-tight"
+              className="text-3xl leading-tight font-semibold tracking-tight sm:text-4xl"
             >
               {completionStats.readyForImportCount.toLocaleString()}{" "}
               {completionStats.readyForImportCount === 1
                 ? "listing"
                 : "listings"}{" "}
-              ready for import
+              ready
             </h2>
-            <p className="text-muted-foreground mt-2 text-sm leading-6">
-              You started with{" "}
-              {completionStats.spreadsheetRowCount.toLocaleString()} spreadsheet{" "}
-              {completionStats.spreadsheetRowCount === 1 ? "row" : "rows"}.
+            <p className="text-muted-foreground text-base">
+              {completionSummary.join(" · ")}
             </p>
           </div>
 
-          <ul className="text-muted-foreground flex flex-wrap gap-x-6 gap-y-2 text-sm">
-            <li>
-              <span className="text-foreground font-medium tabular-nums">
-                {completionStats.automaticallyLinkedCount.toLocaleString()}
-              </span>{" "}
-              linked automatically
-            </li>
-            <li>
-              <span className="text-foreground font-medium tabular-nums">
-                {completionStats.manuallyLinkedCount.toLocaleString()}
-              </span>{" "}
-              linked manually
-            </li>
-            <li>
-              <span className="text-foreground font-medium tabular-nums">
-                {completionStats.unlinkedCount.toLocaleString()}
-              </span>{" "}
-              unlinked
-            </li>
-            <li>
-              <span className="text-foreground font-medium tabular-nums">
-                {completionStats.excludedCount.toLocaleString()}
-              </span>{" "}
-              excluded
-            </li>
-            <li>
-              <span className="text-foreground font-medium tabular-nums">
-                {completionStats.issuesCorrectedCount.toLocaleString()}
-              </span>{" "}
-              issues corrected
-            </li>
-          </ul>
+          <CatalogImporterPublishActions
+            controller={controller}
+            dashboardReturnPath={dashboardReturnPath}
+            membershipPriceDisplay={membershipPriceDisplay}
+            placement="finish"
+            viewerResolution={viewerResolution}
+          />
 
-          {remainingWork.length > 0 ? (
-            <p className="text-muted-foreground text-sm">
-              {remainingWork.join(" and ")} remain and will not be imported.
-            </p>
-          ) : null}
-
-          {viewerState === "pro" ? (
-            <div className="flex justify-end">
-              <Button asChild>
-                <Link href={dashboardReturnPath ?? "/dashboard/imports"}>
-                  Continue to import
-                  <ArrowRight />
-                </Link>
-              </Button>
-            </div>
-          ) : null}
-
-          {viewerState !== "pro" &&
-          !membershipStarted &&
-          (viewerState === "anonymous" ||
-            viewerState === "signed_in_nonpro") ? (
-            <CatalogImporterMembershipPrompt
-              ctaId="catalog-importer-download-membership"
-              controller={controller}
-              placement="download"
-              membershipPriceDisplay={membershipPriceDisplay}
-              viewerState={viewerState}
-            />
-          ) : null}
-
-          <CatalogImporterDownloadOptions controller={controller} />
-
-          {controller.downloadSummary ? (
-            <details className="mt-4 max-w-3xl">
-              <summary className="cursor-pointer text-sm font-medium">
-                File details
-              </summary>
-              <p className="text-muted-foreground mt-3 text-sm leading-relaxed">
-                Both files can be uploaded to this builder again. They contain
-                values, not spreadsheet formatting, formulas, drawings, or
-                macros. Nothing is published or imported by downloading them.
+          <section
+            aria-labelledby="catalog-importer-files-heading"
+            className="flex flex-col gap-6"
+          >
+            <div className="flex max-w-3xl flex-col gap-2">
+              <h2
+                id="catalog-importer-files-heading"
+                className="text-2xl font-semibold tracking-tight"
+              >
+                Or download your files
+              </h2>
+              <p className="text-muted-foreground text-sm leading-relaxed">
+                Both files can be uploaded again. Downloads contain values
+                without spreadsheet formatting, formulas, drawings, or macros.
+                Nothing is published.
               </p>
-            </details>
-          ) : null}
+            </div>
+            <CatalogImporterDownloadOptions controller={controller} />
+          </section>
         </section>
       ) : null}
 

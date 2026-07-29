@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
-import OnboardingLayout from "@/app/onboarding/layout";
+import CatalogImporterCheckoutLayout from "@/app/catalog-importer/checkout/layout";
 
 vi.mock("@/components/public-shell", () => ({
   PublicShell: ({ children }: { children: ReactNode }) => (
@@ -15,16 +15,16 @@ vi.mock("@/components/auth-providers", () => ({
   ),
 }));
 
-describe("OnboardingLayout", () => {
-  it("wraps onboarding and checkout interstitial pages with the shared public shell", () => {
+describe("CatalogImporterCheckoutLayout", () => {
+  it("provides auth and API state to checkout pages", () => {
     render(
-      <OnboardingLayout>
-        <div>Onboarding content</div>
-      </OnboardingLayout>,
+      <CatalogImporterCheckoutLayout>
+        <div>Checkout content</div>
+      </CatalogImporterCheckoutLayout>,
     );
 
     expect(screen.getByTestId("auth-providers")).toBeVisible();
-    expect(screen.getByTestId("public-shell")).toBeInTheDocument();
-    expect(screen.getByText("Onboarding content")).toBeVisible();
+    expect(screen.getByTestId("public-shell")).toBeVisible();
+    expect(screen.getByText("Checkout content")).toBeVisible();
   });
 });

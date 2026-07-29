@@ -1,26 +1,24 @@
 import { randomUUID } from "node:crypto";
 import type { PrismaClient } from "@prisma/client";
 
-const PENDING_SESSION_KEY_PREFIX = "anonymous-onboarding-checkout:";
+const PENDING_SESSION_KEY_PREFIX = "catalog-importer-checkout:";
 
-interface PendingAnonymousCheckoutSession {
+interface PendingCatalogImporterCheckout {
   sessionId: string;
   customerId: string;
   email: string;
+  importId: string;
   status: string;
   created: number;
-  entrySource: string | null;
-  returnTo: string | null;
 }
 
-export interface LocalAnonymousCheckoutDetails {
+export interface LocalCatalogImporterCheckoutDetails {
   sessionId: string;
   customerId: string;
   email: string;
+  importId: string;
   status: string | null;
   created: number;
-  entrySource: string | null;
-  returnTo: string | null;
 }
 
 function getPendingSessionKey(sessionId: string) {
@@ -41,25 +39,22 @@ export function isLocalE2ECheckoutEnabled() {
 export async function createLocalE2ECheckoutSession({
   db,
   email,
-  entrySource = null,
-  returnTo = null,
+  importId,
 }: {
   db: PrismaClient;
   email: string;
-  entrySource?: string | null;
-  returnTo?: string | null;
+  importId: string;
 }) {
-  const sessionId = `cs_test_onboarding_${randomUUID()}`;
+  const sessionId = `cs_test_catalog_importer_${randomUUID()}`;
   const customerId = `cus_e2e_${randomUUID().replace(/-/g, "").slice(0, 24)}`;
   const created = Math.floor(Date.now() / 1000);
-  const pendingSession: PendingAnonymousCheckoutSession = {
+  const pendingSession: PendingCatalogImporterCheckout = {
     sessionId,
     customerId,
     email,
+    importId,
     status: "trialing",
     created,
-    entrySource,
-    returnTo,
   };
   const subscriptionSnapshot = {
     subscriptionId: `sub_e2e_${sessionId}`,
@@ -96,7 +91,7 @@ export async function createLocalE2ECheckoutSession({
 export async function getLocalE2ECheckoutDetails(
   db: PrismaClient,
   sessionId: string,
-): Promise<LocalAnonymousCheckoutDetails | null> {
+): Promise<LocalCatalogImporterCheckoutDetails | null> {
   const row = await db.keyValue.findUnique({
     where: { key: getPendingSessionKey(sessionId) },
   });
@@ -106,16 +101,15 @@ export async function getLocalE2ECheckoutDetails(
   }
 
   try {
-    const parsed = JSON.parse(row.value) as PendingAnonymousCheckoutSession;
+    const parsed = JSON.parse(row.value) as PendingCatalogImporterCheckout;
 
     return {
       sessionId: parsed.sessionId,
       customerId: parsed.customerId,
       email: parsed.email.toLowerCase(),
+      importId: parsed.importId,
       status: parsed.status,
       created: parsed.created,
-      entrySource: parsed.entrySource ?? null,
-      returnTo: parsed.returnTo ?? null,
     };
   } catch {
     return null;

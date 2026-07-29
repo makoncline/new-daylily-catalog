@@ -30,13 +30,12 @@ describe("Atlas flow contract", () => {
 
     expect(onboarding.steps.map(({ title }) => title)).toEqual([
       "Understand the offer",
-      "Start setup",
-      "Build a profile",
-      "Build an example listing",
-      "Review the catalog",
+      "Bring a catalog",
+      "See the transformation",
+      "Choose the outcome",
       "Start the trial",
     ]);
-    expect(getAtlasState("onboarding-email-empty").captureSpec).toBe(
+    expect(getAtlasState("onboarding-importer-results").captureSpec).toBe(
       "tests/atlas/onboarding-membership.atlas.ts",
     );
   });

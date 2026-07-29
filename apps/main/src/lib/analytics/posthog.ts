@@ -27,15 +27,9 @@ export type PosthogEventName =
   | "public_catalog_contact_clicked"
   | "public_cultivar_search_results_viewed"
   | "public_cultivar_search_result_opened"
-  | "catalog_import_started"
-  | "catalog_import_uploaded"
   | "catalog_import_previewed"
-  | "catalog_import_preview_interacted"
-  | "catalog_import_identity_decided"
-  | "catalog_import_issue_resolved"
-  | "catalog_import_downloaded"
-  | "catalog_import_membership_prompt_viewed"
-  | "catalog_import_membership_prompt_dismissed"
+  | "catalog_import_failed"
+  | "catalog_import_completed"
   | "seller_order_method_clicked"
   | "first_listing_created"
   | "first_image_uploaded"
@@ -47,8 +41,7 @@ export type PosthogEventName =
   | "seller_cta_clicked"
   | "seller_example_clicked"
   | "onboarding_entry_viewed"
-  | "membership_skipped"
-  | "catalog_published";
+  | "membership_skipped";
 
 export type PosthogEventProperties = Record<
   string,
@@ -163,6 +156,10 @@ export function identifyPosthogUser(identity: PosthogUserIdentity) {
   });
 }
 
-export function resetPosthogUser() {
-  runWithPosthog(() => posthog.reset());
+export function resetPosthogUserIfIdentified() {
+  runWithPosthog(() => {
+    if (posthog.get_property("$user_id")) {
+      posthog.reset();
+    }
+  });
 }

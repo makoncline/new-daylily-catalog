@@ -209,9 +209,7 @@ function SpreadsheetPreview({
       left: [
         "row",
         ...(controller.mapping.title !== null &&
-        controller.sourcePreviewColumnIndexes.includes(
-          controller.mapping.title,
-        )
+        controller.sourcePreviewColumnIndexes.includes(controller.mapping.title)
           ? [`column-${controller.mapping.title}`]
           : []),
       ],
@@ -230,8 +228,10 @@ function SpreadsheetPreview({
   });
 
   return (
-    <section className="min-w-0">
-      <h2 className="pb-2 font-semibold">Spreadsheet preview</h2>
+    <section className="flex min-w-0 flex-col gap-3">
+      <h2 className="text-xl font-semibold tracking-tight">
+        Spreadsheet preview
+      </h2>
       <div
         aria-label={`First ${controller.sourcePreviewRows.length.toLocaleString()} rows of ${controller.selectedSheet?.name ?? "the selected sheet"}`}
         className="max-w-full min-w-0 [&_[data-slot=data-table-pinned-left]_td:first-child]:w-px [&_[data-slot=data-table-pinned-left]_td:first-child]:min-w-0 [&_[data-slot=data-table-pinned-left]_th:first-child]:w-px"
@@ -268,12 +268,12 @@ export function CatalogImporterMapping({
   return (
     <section
       aria-labelledby="catalog-importer-mapping-heading"
-      className="space-y-6"
+      className="flex flex-col gap-10 sm:gap-12"
     >
       <SpreadsheetPreview controller={controller} />
 
       <section className="max-w-xl">
-        <div className="mb-4 flex flex-col items-start justify-between gap-3 sm:flex-row">
+        <div className="mb-6 flex flex-col items-start justify-between gap-3 sm:flex-row">
           <h2
             id="catalog-importer-mapping-heading"
             className="text-xl font-semibold tracking-tight"
@@ -402,6 +402,7 @@ export function CatalogImporterMapping({
           <Button
             type="button"
             className="w-full"
+            data-ph-capture-attribute-action="build-preview"
             disabled={
               controller.mapping.title === null ||
               controller.processingStage !== null

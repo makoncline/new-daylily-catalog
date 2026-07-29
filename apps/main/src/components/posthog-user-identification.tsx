@@ -5,7 +5,7 @@ import { useEffect } from "react";
 import {
   identifyPosthogUser,
   preloadPosthog,
-  resetPosthogUser,
+  resetPosthogUserIfIdentified,
 } from "@/lib/analytics/posthog";
 
 export function PosthogUserIdentification() {
@@ -23,7 +23,7 @@ export function PosthogUserIdentification() {
     }
 
     if (!isSignedIn || !userId) {
-      resetPosthogUser();
+      resetPosthogUserIfIdentified();
       return;
     }
 

@@ -23,6 +23,7 @@ const reservedProfileSlugs = new Set([
   "_next",
   "auth-error",
   "catalog",
+  "catalog-importer",
   "catalogs",
   "cultivar",
   "dashboard",

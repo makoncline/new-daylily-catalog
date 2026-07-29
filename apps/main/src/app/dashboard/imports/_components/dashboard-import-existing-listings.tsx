@@ -35,7 +35,7 @@ export function DashboardImportAlreadyExistingRows({
   if (total === 0) return null;
 
   return (
-    <section className="space-y-3">
+    <section className="flex flex-col gap-4">
       <h3 className="text-sm font-medium">
         {total.toLocaleString()} {total === 1 ? "listing is" : "listings are"}{" "}
         in your catalog

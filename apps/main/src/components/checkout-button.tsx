@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Sparkles } from "lucide-react";
+import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 import { usePro } from "@/hooks/use-pro";
 
 interface CheckoutButtonProps
@@ -25,7 +26,10 @@ export function CheckoutButton({
       {...props}
     >
       <Sparkles className="mr-2 size-4" />
-      {children ?? (isPending ? "Loading..." : "Upgrade to Pro")}
+      {children ??
+        (isPending
+          ? "Loading..."
+          : SUBSCRIPTION_CONFIG.COPY.CTA.UPGRADE_TO_PRO)}
     </Button>
   );
 }

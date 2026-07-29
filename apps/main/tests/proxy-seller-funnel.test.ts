@@ -50,9 +50,7 @@ describe("seller funnel proxy protection", () => {
     vi.clearAllMocks();
     vi.resetModules();
 
-    redirectToSignInMock.mockReturnValue(
-      NextResponse.redirect(signInUrl),
-    );
+    redirectToSignInMock.mockReturnValue(NextResponse.redirect(signInUrl));
 
     authMock.mockResolvedValue({
       isAuthenticated: true,
@@ -149,9 +147,7 @@ describe("seller funnel proxy protection", () => {
     const rscResponse = await proxy(rscRequest, middlewareEvent);
 
     expect(rscResponse?.headers.get("cache-control")).toBe("no-store");
-    expect(
-      rscResponse?.headers.get("cloudflare-cdn-cache-control"),
-    ).toBeNull();
+    expect(rscResponse?.headers.get("cloudflare-cdn-cache-control")).toBeNull();
 
     const prefetchRequest = new NextRequest(
       "http://localhost:3000/plantfancygardens",
@@ -210,12 +206,15 @@ describe("seller funnel proxy protection", () => {
       redirectToSignIn: redirectToSignInMock,
     });
 
-    const request = new NextRequest("http://localhost:3000/dashboard/listings", {
-      headers: {
-        accept: "text/html",
-        "sec-fetch-dest": "document",
+    const request = new NextRequest(
+      "http://localhost:3000/dashboard/listings",
+      {
+        headers: {
+          accept: "text/html",
+          "sec-fetch-dest": "document",
+        },
       },
-    });
+    );
     const middlewareEvent = {} as Parameters<NextMiddleware>[1];
 
     const response = await proxy(request, middlewareEvent);
@@ -248,7 +247,7 @@ describe("seller funnel proxy protection", () => {
     expect(redirectToSignInMock).not.toHaveBeenCalled();
   });
 
-  it("keeps /onboarding publicly accessible for anonymous setup", async () => {
+  it("keeps the legacy onboarding redirect public", async () => {
     const routeMatcherArg = createRouteMatcherMock.mock.calls[0]?.[0];
 
     expect(routeMatcherArg).toBeDefined();
@@ -285,12 +284,15 @@ describe("seller funnel proxy protection", () => {
       redirectToSignIn: redirectToSignInMock,
     });
 
-    const request = new NextRequest("http://localhost:3000/dashboard/listings", {
-      headers: {
-        accept: "text/html",
-        "sec-fetch-dest": "document",
+    const request = new NextRequest(
+      "http://localhost:3000/dashboard/listings",
+      {
+        headers: {
+          accept: "text/html",
+          "sec-fetch-dest": "document",
+        },
       },
-    });
+    );
     const middlewareEvent = {} as Parameters<NextMiddleware>[1];
 
     const response = await proxy(request, middlewareEvent);
@@ -312,17 +314,14 @@ describe("seller funnel proxy protection", () => {
       redirectToSignIn: redirectToSignInMock,
     });
 
-    const request = new NextRequest(
-      "http://0.0.0.0:3000/dashboard/listings",
-      {
-        headers: {
-          accept: "text/html",
-          "sec-fetch-dest": "document",
-          "x-forwarded-host": "dev.daylilycatalog.com",
-          "x-forwarded-proto": "https",
-        },
+    const request = new NextRequest("http://0.0.0.0:3000/dashboard/listings", {
+      headers: {
+        accept: "text/html",
+        "sec-fetch-dest": "document",
+        "x-forwarded-host": "dev.daylilycatalog.com",
+        "x-forwarded-proto": "https",
       },
-    );
+    });
     const middlewareEvent = {} as Parameters<NextMiddleware>[1];
 
     const response = await proxy(request, middlewareEvent);
