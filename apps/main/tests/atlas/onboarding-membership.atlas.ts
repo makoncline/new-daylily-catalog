@@ -92,7 +92,7 @@ test("Download or publish", async ({ page }) => {
 
 test("Importer checkout", async ({ page }) => {
   await page.goto(
-    "/catalog-importer/checkout?conversion_id=12a94b5f-3da4-4d28-b6df-76f8f4bc8392&entry=catalog_importer&return_to=%2Fcatalog-importer",
+    "/catalog-importer/checkout?import_id=12a94b5f-3da4-4d28-b6df-76f8f4bc8392&entry=catalog_importer&return_to=%2Fcatalog-importer",
   );
   await expect(
     page.getByRole("heading", {

@@ -30,6 +30,9 @@ export function DashboardCatalogImporterClient() {
       id="dashboard-catalog-import-workflow"
       ref={loadDraft}
       className="scroll-mt-4"
+      data-ph-capture-attribute-flow="catalog-importer"
+      data-ph-capture-attribute-import_id={initialDraft?.projectId}
+      data-ph-capture-attribute-step="dashboard-import"
     >
       {initialDraft === undefined || isSubscriptionLoading ? (
         <p

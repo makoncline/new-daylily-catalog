@@ -26,7 +26,7 @@ export default async function CatalogImporterCheckoutPage({
   searchParams,
 }: {
   searchParams?: Promise<{
-    conversion_id?: string | string[];
+    import_id?: string | string[];
     entry?: string | string[];
     return_to?: string | string[];
   }>;
@@ -35,7 +35,7 @@ export default async function CatalogImporterCheckoutPage({
     auth(),
     searchParams ??
       Promise.resolve<{
-        conversion_id?: string | string[];
+        import_id?: string | string[];
         entry?: string | string[];
         return_to?: string | string[];
       }>({}),

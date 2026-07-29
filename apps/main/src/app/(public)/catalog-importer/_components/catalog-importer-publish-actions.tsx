@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { ArrowRight, Check, Sparkles } from "lucide-react";
 import {
   ProUpgrade,
@@ -15,7 +15,6 @@ import {
   ProUpgradeSubtitle,
   ProUpgradeTitle,
 } from "@/components/pro-upgrade";
-import { SellerIntentLink } from "@/components/seller-intent-link";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -25,8 +24,6 @@ import {
 import { capturePosthogEvent } from "@/lib/analytics/posthog";
 import {
   CATALOG_IMPORTER_ENTRY_SOURCE,
-  CATALOG_IMPORTER_RETURN_PATH,
-  catalogImporterConversionIdSchema,
   createCatalogImporterCheckoutPath,
   createCatalogImporterCheckoutSource,
   type CatalogImporterViewerResolution,
@@ -134,85 +131,10 @@ function CatalogImporterMembershipPrompt({
   const priceCopy = membershipPriceDisplay
     ? getSubscriptionPriceCopy(membershipPriceDisplay)
     : null;
-  const observerRef = useRef<IntersectionObserver | null>(null);
-  const impressionTimerRef = useRef<number | null>(null);
-  const impressionTrackedRef = useRef(false);
-  const trackPromptImpression = useCallback(
-    (node: HTMLElement | null) => {
-      observerRef.current?.disconnect();
-      observerRef.current = null;
-      if (impressionTimerRef.current !== null) {
-        window.clearTimeout(impressionTimerRef.current);
-        impressionTimerRef.current = null;
-      }
-      if (!node) {
-        return;
-      }
-
-      const impressionKey = `catalog-importer-membership-prompt-viewed:${ctaId}`;
-      try {
-        if (globalThis.sessionStorage?.getItem(impressionKey) === "1") {
-          impressionTrackedRef.current = true;
-          return;
-        }
-      } catch {
-        // Visibility tracking still works when storage is unavailable.
-      }
-
-      if (typeof IntersectionObserver === "undefined") {
-        return;
-      }
-
-      observerRef.current = new IntersectionObserver((entries) => {
-        const visible = entries.some(
-          (entry) => entry.isIntersecting && entry.intersectionRatio >= 0.5,
-        );
-        if (!visible) {
-          if (impressionTimerRef.current !== null) {
-            window.clearTimeout(impressionTimerRef.current);
-            impressionTimerRef.current = null;
-          }
-          return;
-        }
-        if (
-          impressionTrackedRef.current ||
-          impressionTimerRef.current !== null
-        ) {
-          return;
-        }
-
-        impressionTimerRef.current = window.setTimeout(() => {
-          impressionTrackedRef.current = true;
-          impressionTimerRef.current = null;
-          try {
-            globalThis.sessionStorage?.setItem(impressionKey, "1");
-          } catch {
-            // The event remains useful without session deduplication.
-          }
-          capturePosthogEvent("catalog_import_membership_prompt_viewed", {
-            cta_id: ctaId,
-            matched_count: controller.counts.linkedListingCount,
-            unique_cultivar_count: controller.counts.uniqueCultivarCount,
-          });
-          observerRef.current?.disconnect();
-          observerRef.current = null;
-        }, 1_000);
-      });
-
-      observerRef.current.observe(node);
-    },
-    [
-      controller.counts.linkedListingCount,
-      controller.counts.uniqueCultivarCount,
-      ctaId,
-    ],
-  );
-
   return (
     <ProUpgrade
       aria-labelledby={`${ctaId}-heading`}
       className={placement === "preview" ? "py-4 sm:py-6" : undefined}
-      ref={trackPromptImpression}
     >
       <ProUpgradeHeader>
         {placement === "finish" ? (
@@ -275,17 +197,14 @@ function CatalogImporterMembershipPrompt({
             </p>
           )}
           {placement === "preview" ? (
-            <SellerIntentLink
+            <Link
               href="/start-membership"
               className="text-muted-foreground text-center text-xs underline-offset-4 hover:underline"
-              ctaId={`${ctaId}-details`}
-              ctaLabel="See Pro details"
-              entrySurface="catalog_importer_preview"
-              sourcePageType="catalog_importer"
-              sourcePath={CATALOG_IMPORTER_RETURN_PATH}
+              data-ph-capture-attribute-action="pro-details"
+              data-ph-capture-attribute-cta_id={`${ctaId}-details`}
             >
               See Pro details
-            </SellerIntentLink>
+            </Link>
           ) : null}
         </ProUpgradeActions>
       </ProUpgradeContent>
@@ -322,40 +241,6 @@ function CatalogImporterLoginButton({
   );
 }
 
-function getCatalogImporterConversionId() {
-  const storageKey = "catalog-importer-pro-conversion-id";
-  try {
-    const existing = globalThis.sessionStorage?.getItem(storageKey);
-    const parsed = catalogImporterConversionIdSchema.safeParse(existing);
-    if (parsed.success) {
-      return parsed.data;
-    }
-
-    const created = globalThis.crypto.randomUUID();
-    globalThis.sessionStorage?.setItem(storageKey, created);
-    return created;
-  } catch {
-    return globalThis.crypto.randomUUID();
-  }
-}
-
-function trackTrialCta(
-  ctaId: string,
-  targetPath: string,
-  conversionId: string,
-) {
-  capturePosthogEvent("seller_cta_clicked", {
-    conversion_id: conversionId,
-    cta_id: ctaId,
-    cta_label: SUBSCRIPTION_CONFIG.COPY.CTA.START_TRIAL,
-    entry_source: CATALOG_IMPORTER_ENTRY_SOURCE,
-    entry_surface: "catalog_importer_preview",
-    source_page_type: "catalog_importer",
-    source_path: CATALOG_IMPORTER_RETURN_PATH,
-    target_path: targetPath,
-  });
-}
-
 function AnonymousCatalogImporterMembershipButton({
   controller,
   ctaId,
@@ -376,9 +261,9 @@ function AnonymousCatalogImporterMembershipButton({
     setLeaving(true);
     setStartError(false);
     try {
-      const conversionId = getCatalogImporterConversionId();
-      const targetPath = createCatalogImporterCheckoutPath(conversionId);
-      trackTrialCta(ctaId, targetPath, conversionId);
+      const targetPath = createCatalogImporterCheckoutPath(
+        controller.projectId,
+      );
       await controller.flushDraft();
       window.location.assign(targetPath);
     } catch {
@@ -393,6 +278,8 @@ function AnonymousCatalogImporterMembershipButton({
       <Button
         type="button"
         size="lg"
+        data-ph-capture-attribute-action="start-pro-checkout"
+        data-ph-capture-attribute-cta_id={ctaId}
         disabled={leaving}
         onClick={() => void startTrial()}
       >
@@ -434,23 +321,10 @@ function SignedInCatalogImporterMembershipButton({
     startInProgressRef.current = true;
     setLeaving(true);
     setStartError(false);
-    let conversionId: string | null = null;
     try {
-      conversionId = getCatalogImporterConversionId();
-      trackTrialCta(ctaId, "stripe_checkout", conversionId);
-      capturePosthogEvent("checkout_started", {
-        conversion_id: conversionId,
-        entry_source: CATALOG_IMPORTER_ENTRY_SOURCE,
-        source: "catalog_importer",
-      });
       await controller.flushDraft();
       const { url } = await checkout.mutateAsync({
-        ...createCatalogImporterCheckoutSource(conversionId),
-      });
-      capturePosthogEvent("checkout_redirect_ready", {
-        conversion_id: conversionId,
-        entry_source: CATALOG_IMPORTER_ENTRY_SOURCE,
-        source: "catalog_importer",
+        ...createCatalogImporterCheckoutSource(controller.projectId),
       });
       window.location.assign(url);
     } catch {
@@ -458,7 +332,7 @@ function SignedInCatalogImporterMembershipButton({
       setLeaving(false);
       setStartError(true);
       capturePosthogEvent("checkout_failed", {
-        conversion_id: conversionId,
+        import_id: controller.projectId,
         entry_source: CATALOG_IMPORTER_ENTRY_SOURCE,
         source: "catalog_importer",
       });
@@ -470,6 +344,8 @@ function SignedInCatalogImporterMembershipButton({
       <Button
         type="button"
         size="lg"
+        data-ph-capture-attribute-action="start-pro-checkout"
+        data-ph-capture-attribute-cta_id={ctaId}
         disabled={leaving}
         onClick={() => void startTrial()}
       >

@@ -5,9 +5,14 @@ import type { CatalogImporterWorkbenchController } from "@/app/(public)/catalog-
 import type { CatalogImportRow } from "@/lib/catalog-importer";
 
 const mocks = vi.hoisted(() => ({
+  capturePosthogEvent: vi.fn(),
   importRows: vi.fn(),
   revalidate: vi.fn(async () => undefined),
   workbench: null as unknown as CatalogImporterWorkbenchController,
+}));
+
+vi.mock("@/lib/analytics/posthog", () => ({
+  capturePosthogEvent: mocks.capturePosthogEvent,
 }));
 
 vi.mock(
@@ -21,12 +26,9 @@ vi.mock("@/app/dashboard/_components/dashboard-db-provider", () => ({
   useDashboardDb: () => ({ userId: "user-1" }),
 }));
 
-vi.mock(
-  "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence",
-  () => ({
-    revalidateDashboardDbInBackground: mocks.revalidate,
-  }),
-);
+vi.mock("@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence", () => ({
+  revalidateDashboardDbInBackground: mocks.revalidate,
+}));
 
 vi.mock("@/trpc/react", () => ({
   api: {
@@ -51,12 +53,9 @@ vi.mock("@/trpc/react", () => ({
   },
 }));
 
-vi.mock(
-  "@/app/dashboard/imports/_components/dashboard-import-table",
-  () => ({
-    DashboardImportTable: () => <div>Import selection table</div>,
-  }),
-);
+vi.mock("@/app/dashboard/imports/_components/dashboard-import-table", () => ({
+  DashboardImportTable: () => <div>Import selection table</div>,
+}));
 
 vi.mock(
   "@/app/dashboard/imports/_components/dashboard-import-excluded-rows",
@@ -125,6 +124,7 @@ function createReadyRow(index: number): CatalogImportRow {
 describe("DashboardCatalogImporter", () => {
   beforeEach(() => {
     mocks.importRows.mockReset();
+    mocks.capturePosthogEvent.mockReset();
     mocks.revalidate.mockClear();
     mocks.workbench = {
       liveAnnouncement: "",
@@ -164,9 +164,7 @@ describe("DashboardCatalogImporter", () => {
         "These listings will be added to your catalog. 101 listings will remain.",
       ),
     ).toBeVisible();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Import listings" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Import listings" }));
 
     await waitFor(() => {
       expect(mocks.importRows).toHaveBeenCalledTimes(1);
@@ -184,5 +182,40 @@ describe("DashboardCatalogImporter", () => {
     expect(
       screen.getByRole("button", { name: "Import 100 listings" }),
     ).toBeVisible();
+  });
+
+  it("records the completed catalog after the final database write", async () => {
+    mocks.workbench = {
+      ...mocks.workbench,
+      matchedRows: [createReadyRow(1)],
+    } as unknown as CatalogImporterWorkbenchController;
+    mocks.importRows.mockResolvedValue({
+      createdCount: 1,
+      existingCount: 0,
+      skippedExactCount: 0,
+    });
+
+    render(<DashboardCatalogImporter initialDraft={null} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Import 1 listing" }));
+    const confirm = screen.getByRole("button", { name: "Import listings" });
+    expect(confirm).toHaveAttribute(
+      "data-ph-capture-attribute-action",
+      "import-catalog",
+    );
+    fireEvent.click(confirm);
+
+    await waitFor(() => {
+      expect(mocks.capturePosthogEvent).toHaveBeenCalledWith(
+        "catalog_import_completed",
+        {
+          created_count: 1,
+          existing_count: 0,
+          import_id: "project-1",
+          imported_count: 1,
+          skipped_count: 0,
+        },
+      );
+    });
   });
 });

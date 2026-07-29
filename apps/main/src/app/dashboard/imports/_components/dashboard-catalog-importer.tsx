@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { useCatalogImporterWorkbench } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
@@ -25,6 +25,7 @@ import {
 } from "@/lib/catalog-importer";
 import type { CatalogImporterDraft } from "@/lib/catalog-importer-draft";
 import { getCatalogImportExistingListingMatch } from "@/lib/catalog-import-existing-listings";
+import { capturePosthogEvent } from "@/lib/analytics/posthog";
 import { api } from "@/trpc/react";
 import { DashboardImportExcludedRows } from "./dashboard-import-excluded-rows";
 import { DashboardImportAlreadyExistingRows } from "./dashboard-import-existing-listings";
@@ -88,6 +89,12 @@ export function DashboardCatalogImporter({
     remainingCount: number;
   } | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const importCompleted = useRef(false);
+  const importTotals = useRef({
+    createdCount: 0,
+    existingCount: 0,
+    importedCount: 0,
+  });
   const importRows = api.dashboardDb.listing.importRows.useMutation();
   const { userId: dashboardUserId } = useDashboardDb();
   const existingListings = api.dashboardDb.listing.list.useQuery(undefined, {
@@ -212,6 +219,12 @@ export function DashboardCatalogImporter({
     setImportError(null);
     setBatchResult(null);
     setConfirmOpen(false);
+    importCompleted.current = false;
+    importTotals.current = {
+      createdCount: 0,
+      existingCount: 0,
+      importedCount: 0,
+    };
   };
 
   const runImport = async () => {
@@ -235,18 +248,44 @@ export function DashboardCatalogImporter({
     try {
       const result = await importRows.mutateAsync({ rows });
       const importedIds = selectedReadyRows.map((row) => row.id);
+      const remainingCount = Math.max(0, readyRows.length - rows.length);
+      const nextTotals = {
+        createdCount: importTotals.current.createdCount + result.createdCount,
+        existingCount:
+          importTotals.current.existingCount +
+          result.existingCount +
+          result.skippedExactCount,
+        importedCount: importTotals.current.importedCount + rows.length,
+      };
+      importTotals.current = nextTotals;
       setImportedRowIds((current) => new Set([...current, ...importedIds]));
       setSelectedRowIds(null);
       setBatchResult({
         alreadyExistedCount: result.existingCount + result.skippedExactCount,
         createdCount: result.createdCount,
-        remainingCount: Math.max(0, readyRows.length - rows.length),
+        remainingCount,
       });
+      if (remainingCount === 0 && !importCompleted.current) {
+        importCompleted.current = true;
+        capturePosthogEvent("catalog_import_completed", {
+          created_count: nextTotals.createdCount,
+          existing_count: existingMatchRows.length + nextTotals.existingCount,
+          import_id: controller.projectId,
+          imported_count: nextTotals.importedCount,
+          skipped_count:
+            reviewRows.length + issueRows.length + builderExcludedCount,
+        });
+      }
       if (dashboardUserId) {
         await revalidateDashboardDbInBackground(dashboardUserId);
       }
     } catch (error) {
       setImportError(getImportErrorMessage(error));
+      capturePosthogEvent("catalog_import_failed", {
+        error_code: "catalog_write_failed",
+        import_id: controller.projectId,
+        stage: "dashboard-import",
+      });
     }
   };
 
@@ -315,7 +354,12 @@ export function DashboardCatalogImporter({
   }
 
   return (
-    <div className="flex flex-col gap-10 sm:gap-12">
+    <div
+      className="flex flex-col gap-10 sm:gap-12"
+      data-ph-capture-attribute-flow="catalog-importer"
+      data-ph-capture-attribute-import_id={controller.projectId}
+      data-ph-capture-attribute-step="dashboard-import"
+    >
       <div className="absolute top-0 right-0">
         <DashboardImportStartOver
           disabled={importRows.isPending}
@@ -477,7 +521,10 @@ export function DashboardCatalogImporter({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => void runImport()}>
+            <AlertDialogAction
+              data-ph-capture-attribute-action="import-catalog"
+              onClick={() => void runImport()}
+            >
               Import listings
             </AlertDialogAction>
           </AlertDialogFooter>

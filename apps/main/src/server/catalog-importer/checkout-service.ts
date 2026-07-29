@@ -14,6 +14,7 @@ import {
   catalogImporterCheckoutSourceSchema,
 } from "@/lib/catalog-importer-membership";
 import { getCanonicalBaseUrl, getRequestBaseUrl } from "@/lib/utils/getBaseUrl";
+import { captureServerPosthogEvent } from "@/server/analytics/posthog-server";
 import type { TRPCInternalContext } from "@/server/api/trpc";
 import { getStripeClient } from "@/server/stripe/client";
 import { createSubscriptionCheckout } from "@/server/stripe/create-subscription-checkout";
@@ -42,6 +43,7 @@ interface CatalogImporterCheckoutDetails {
   sessionId: string;
   customerId: string;
   email: string;
+  importId: string;
   status: string | null;
 }
 
@@ -102,7 +104,8 @@ async function getStripeCheckoutDetails(
 
   if (
     session.metadata?.entry_source !== CATALOG_IMPORTER_ENTRY_SOURCE ||
-    session.metadata?.return_to !== CATALOG_IMPORTER_RETURN_PATH
+    session.metadata?.return_to !== CATALOG_IMPORTER_RETURN_PATH ||
+    !session.metadata.import_id
   ) {
     throw new TRPCError({
       code: "BAD_REQUEST",
@@ -124,6 +127,7 @@ async function getStripeCheckoutDetails(
     sessionId: session.id,
     customerId,
     email,
+    importId: session.metadata.import_id,
     status: await getSubscriptionStatus(stripe, session),
   };
 }
@@ -183,6 +187,7 @@ export async function createCatalogImporterCheckout({
     const session = await createLocalE2ECheckoutSession({
       db,
       email: input.email,
+      importId: input.importId,
     });
 
     return {
@@ -193,7 +198,7 @@ export async function createCatalogImporterCheckout({
   }
 
   const sourceMetadata = {
-    conversion_id: input.conversionId,
+    import_id: input.importId,
     entry_source: input.entrySource,
     return_to: input.returnTo,
   };
@@ -224,7 +229,7 @@ export async function createCatalogImporterCheckout({
       email: input.email,
       ...sourceMetadata,
     },
-    client_reference_id: input.conversionId,
+    client_reference_id: input.importId,
   });
 
   if (!session.url) {
@@ -247,7 +252,7 @@ export async function createSignedInCatalogImporterCheckout({
   user: AuthenticatedUser;
 }) {
   const metadata = {
-    conversion_id: input.conversionId,
+    import_id: input.importId,
     entry_source: input.entrySource,
   };
 
@@ -271,6 +276,7 @@ export async function getCatalogImporterCheckoutStatus(
   return {
     sessionId: details.sessionId,
     email: details.email,
+    importId: details.importId,
     status: details.status,
     isActive: hasActiveSubscription(details.status),
   };
@@ -324,6 +330,28 @@ export async function claimCatalogImporterCheckout({
     await db.user.update({
       where: { id: user.id },
       data: { stripeCustomerId: details.customerId },
+    });
+  }
+
+  const activationEvent =
+    details.status === "trialing"
+      ? "trial_started"
+      : details.status === "active"
+        ? "paid_activated"
+        : null;
+  const clerkUserId = user.clerkUserId;
+  if (activationEvent && clerkUserId) {
+    await captureServerPosthogEvent({
+      distinctId: clerkUserId,
+      event: activationEvent,
+      properties: {
+        $insert_id: `catalog-importer:${activationEvent}:${details.sessionId}`,
+        import_id: details.importId,
+        source: "catalog-importer-checkout-claim",
+        source_page: "/catalog-importer/checkout/success",
+        stripe_customer_id: details.customerId,
+        subscription_status: details.status ?? "unknown",
+      },
     });
   }
 

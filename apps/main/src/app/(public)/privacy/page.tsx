@@ -6,7 +6,7 @@ export const metadata: Metadata = {
     "How Daylily Catalog collects, uses, shares, retains, and lets users control data.",
 };
 
-const updatedAt = "July 19, 2026";
+const updatedAt = "July 29, 2026";
 
 function Section({
   children,
@@ -78,6 +78,13 @@ export default function PrivacyPage() {
             Catalog, it sends only the values needed for that request, such as
             names or saved identifiers used for matching. We do not send file
             contents through product analytics.
+          </p>
+          <p>
+            When you build a catalog preview, we can retain a limited diagnostic
+            sample of the first six nonempty spreadsheet rows, the detected
+            column mapping, and aggregate import results in server logs. We use
+            this sample to troubleshoot and improve the importer. We do not
+            retain the complete workbook through this logging.
           </p>
         </Section>
 

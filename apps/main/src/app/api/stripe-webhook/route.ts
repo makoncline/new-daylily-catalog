@@ -101,11 +101,11 @@ function getSourceAttributionFromEvent(event: Stripe.Event) {
   const object = event.data.object as {
     metadata?: Record<string, string> | null;
   };
-  const conversionId = object.metadata?.conversion_id;
+  const importId = object.metadata?.import_id;
   const entrySource = object.metadata?.entry_source;
 
   return {
-    ...(conversionId ? { conversion_id: conversionId } : {}),
+    ...(importId ? { import_id: importId } : {}),
     ...(entrySource ? { entry_source: entrySource } : {}),
   };
 }

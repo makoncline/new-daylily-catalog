@@ -35,7 +35,12 @@ export function DashboardImportProGate({
     ).length ?? 0;
 
   return (
-    <div className="flex flex-col gap-12">
+    <div
+      className="flex flex-col gap-12"
+      data-ph-capture-attribute-flow="catalog-importer"
+      data-ph-capture-attribute-import_id={initialDraft?.projectId}
+      data-ph-capture-attribute-step="dashboard-pro-gate"
+    >
       <ProUpgrade aria-labelledby="dashboard-import-pro-heading">
         <ProUpgradeHeader>
           <p className="text-xs font-semibold tracking-wide text-[#b7791f] uppercase">
@@ -70,7 +75,10 @@ export function DashboardImportProGate({
               ))}
             </ProUpgradeFeatures>
           </ProUpgradeDetails>
-          <ProUpgradeActions className="gap-2">
+          <ProUpgradeActions
+            className="gap-2"
+            data-ph-capture-attribute-action="start-pro-checkout"
+          >
             <ProMembershipAction className="w-full" />
           </ProUpgradeActions>
         </ProUpgradeContent>

@@ -76,9 +76,10 @@ describe("catalog importer normalization", () => {
     ).toEqual([3, 1, 0, 5, 2, 4]);
   });
 
-  it("limits quiet-launch logging to the header and first five nonempty rows", () => {
+  it("limits quiet-launch logging to the first six nonempty rows", () => {
     const sample = getCatalogImporterSubmissionSample({
       headerRowIndex: 0,
+      importId: "123e4567-e89b-42d3-a456-426614174000",
       mapping: {
         cultivarReferenceId: null,
         description: 2,
@@ -102,17 +103,43 @@ describe("catalog importer normalization", () => {
           },
         ],
       },
+      resultCounts: {
+        issueCount: 1,
+        matchedCount: 4,
+        readyCount: 3,
+        reviewCount: 2,
+        rowCount: 7,
+        warningCount: 1,
+      },
       selectedSheetIndex: 0,
     });
 
     expect(sample).toMatchObject({
-      header: ["name", "price", "description"],
       rows: [
-        ["Daylily 1", "10", "Description 1"],
-        ["Daylily 2", "11", "Description 2"],
-        ["Daylily 3", "12", "Description 3"],
-        ["Daylily 4", "13", "Description 4"],
-        ["Daylily 5", "14", "Description 5"],
+        {
+          cells: ["name", "price", "description"],
+          rowNumber: 1,
+        },
+        {
+          cells: ["Daylily 1", "10", "Description 1"],
+          rowNumber: 2,
+        },
+        {
+          cells: ["Daylily 2", "11", "Description 2"],
+          rowNumber: 3,
+        },
+        {
+          cells: ["Daylily 3", "12", "Description 3"],
+          rowNumber: 4,
+        },
+        {
+          cells: ["Daylily 4", "13", "Description 4"],
+          rowNumber: 5,
+        },
+        {
+          cells: ["Daylily 5", "14", "Description 5"],
+          rowNumber: 6,
+        },
       ],
       source: "upload",
     });

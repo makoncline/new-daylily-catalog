@@ -63,6 +63,9 @@ export function CatalogImporterWorkbench({
   return (
     <div
       id="catalog-importer-workbench"
+      data-ph-capture-attribute-flow="catalog-importer"
+      data-ph-capture-attribute-import_id={controller.projectId}
+      data-ph-capture-attribute-step={activeStep}
       data-workbook-active={controller.parsedSpreadsheet ? "true" : undefined}
     >
       <div className="flex flex-col gap-6">
@@ -124,6 +127,7 @@ export function CatalogImporterWorkbench({
                     <Button
                       type="button"
                       className="w-full"
+                      data-ph-capture-attribute-action="build-preview"
                       disabled={
                         manualRowCount === 0 ||
                         controller.processingStage !== null

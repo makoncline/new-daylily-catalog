@@ -7,6 +7,7 @@ interface PendingCatalogImporterCheckout {
   sessionId: string;
   customerId: string;
   email: string;
+  importId: string;
   status: string;
   created: number;
 }
@@ -15,6 +16,7 @@ export interface LocalCatalogImporterCheckoutDetails {
   sessionId: string;
   customerId: string;
   email: string;
+  importId: string;
   status: string | null;
   created: number;
 }
@@ -37,9 +39,11 @@ export function isLocalE2ECheckoutEnabled() {
 export async function createLocalE2ECheckoutSession({
   db,
   email,
+  importId,
 }: {
   db: PrismaClient;
   email: string;
+  importId: string;
 }) {
   const sessionId = `cs_test_catalog_importer_${randomUUID()}`;
   const customerId = `cus_e2e_${randomUUID().replace(/-/g, "").slice(0, 24)}`;
@@ -48,6 +52,7 @@ export async function createLocalE2ECheckoutSession({
     sessionId,
     customerId,
     email,
+    importId,
     status: "trialing",
     created,
   };
@@ -102,6 +107,7 @@ export async function getLocalE2ECheckoutDetails(
       sessionId: parsed.sessionId,
       customerId: parsed.customerId,
       email: parsed.email.toLowerCase(),
+      importId: parsed.importId,
       status: parsed.status,
       created: parsed.created,
     };

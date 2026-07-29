@@ -22,6 +22,7 @@ import {
   getCatalogImportDownloadSummary,
   getCatalogImportMappedColumnLabel,
   getCatalogImportOrderedColumnIndexes,
+  getCatalogImportRowDisposition,
   getCatalogImportState,
   getSourceColumns,
   suggestColumnMapping,
@@ -86,25 +87,24 @@ function getCatalogImportTelemetryCounts(rows: CatalogImportRow[]) {
   return {
     issue_count: state.counts.issueCount,
     matched_count: state.counts.linkedListingCount,
+    ready_count: rows.filter(
+      (row) => getCatalogImportRowDisposition(row) === "ready",
+    ).length,
     review_count: state.counts.pendingCultivarDecisionCount,
     row_count: state.counts.includedListingCount,
+    warning_count: state.counts.warningCount,
   };
 }
 
-function captureIssueResolution({
-  issueType,
-  resolvedCount,
-  rows,
-}: {
-  issueType: "duplicate" | "excluded" | "price" | "saved_id";
-  resolvedCount: number;
-  rows: CatalogImportRow[];
-}) {
-  capturePosthogEvent("catalog_import_issue_resolved", {
-    issue_type: issueType,
-    resolved_count: resolvedCount,
-    ...getCatalogImportTelemetryCounts(rows),
-  });
+function mappingsAreEqual(
+  left: CatalogColumnMapping,
+  right: CatalogColumnMapping,
+) {
+  return Object.keys(left).every(
+    (key) =>
+      left[key as keyof CatalogColumnMapping] ===
+      right[key as keyof CatalogColumnMapping],
+  );
 }
 
 function getCatalogMatchKey({
@@ -343,7 +343,6 @@ export function useCatalogImporterWorkbench(
   const savedIdRematchRequestId = useRef(0);
   const savedIdRematchAbortController = useRef<AbortController | null>(null);
   const draftWriteChain = useRef(Promise.resolve());
-  const identityDecisionTracked = useRef(false);
   const previewTracked = useRef(initialDraft?.matchedRows != null);
 
   const selectedSheet = parsedSpreadsheet?.sheets[selectedSheetIndex] ?? null;
@@ -775,10 +774,38 @@ export function useCatalogImporterWorkbench(
         });
         if (!previewTracked.current) {
           previewTracked.current = true;
+          const telemetry = getCatalogImportTelemetryCounts(nextRows);
+          const suggestedMapping = suggestColumnMapping(
+            sheet.rows,
+            nextHeaderRowIndex,
+            getSourceColumns(sheet.rows, nextHeaderRowIndex),
+          );
+          logCatalogImporterSubmissionSample({
+            headerRowIndex: nextHeaderRowIndex,
+            importId: sessionRef.current.projectId,
+            mapping: nextMapping,
+            parsedSpreadsheet: spreadsheet,
+            resultCounts: {
+              issueCount: telemetry.issue_count,
+              matchedCount: telemetry.matched_count,
+              readyCount: telemetry.ready_count,
+              reviewCount: telemetry.review_count,
+              rowCount: telemetry.row_count,
+              warningCount: telemetry.warning_count,
+            },
+            selectedSheetIndex: nextSheetIndex,
+          });
           capturePosthogEvent("catalog_import_previewed", {
             file_type: getCatalogImportFileType(spreadsheet.fileName),
+            import_id: sessionRef.current.projectId,
+            mapped_field_count: Object.values(nextMapping).filter(
+              (columnIndex) => columnIndex !== null,
+            ).length,
+            mapping_changed: !mappingsAreEqual(nextMapping, suggestedMapping),
             sheet_count: spreadsheet.sheets.length,
-            ...getCatalogImportTelemetryCounts(nextRows),
+            source: spreadsheet.source ?? "upload",
+            source_row_count: sheet.rows.length,
+            ...telemetry,
           });
         }
         if (nextReviewRow) {
@@ -796,6 +823,12 @@ export function useCatalogImporterWorkbench(
         setMatchError(getErrorMessage(error));
         setProcessingStage(null);
         setMatchingProgress(null);
+        capturePosthogEvent("catalog_import_failed", {
+          error_code: "preview_generation_failed",
+          file_type: getCatalogImportFileType(spreadsheet.fileName),
+          import_id: sessionRef.current.projectId,
+          stage: "preview",
+        });
         return false;
       }
     },
@@ -807,12 +840,6 @@ export function useCatalogImporterWorkbench(
       return false;
     }
 
-    logCatalogImporterSubmissionSample({
-      headerRowIndex,
-      mapping,
-      parsedSpreadsheet,
-      selectedSheetIndex,
-    });
     return matchSpreadsheet({
       headerRowIndex,
       mapping,
@@ -1001,24 +1028,10 @@ export function useCatalogImporterWorkbench(
     async (file: File) => {
       setReadingFile(true);
       setFileError(null);
-      identityDecisionTracked.current = false;
-      capturePosthogEvent("catalog_import_started", {
-        file_type: getCatalogImportFileType(file.name),
-        source: "upload",
-      });
 
       try {
         const spreadsheet = await parseCatalogImportFile(file);
         previewTracked.current = false;
-        capturePosthogEvent("catalog_import_uploaded", {
-          file_type: getCatalogImportFileType(spreadsheet.fileName),
-          row_count: spreadsheet.sheets.reduce(
-            (total, sheet) => total + sheet.rows.length,
-            0,
-          ),
-          sheet_count: spreadsheet.sheets.length,
-          source: "upload",
-        });
         if (spreadsheet.sheets.length === 1) {
           configureSheet(spreadsheet, 0);
         } else {
@@ -1042,6 +1055,12 @@ export function useCatalogImporterWorkbench(
         return true;
       } catch (error) {
         setFileError(getErrorMessage(error));
+        capturePosthogEvent("catalog_import_failed", {
+          error_code: "file_parse_failed",
+          file_type: getCatalogImportFileType(file.name),
+          import_id: sessionRef.current.projectId,
+          stage: "file",
+        });
         return false;
       } finally {
         setReadingFile(false);
@@ -1061,12 +1080,7 @@ export function useCatalogImporterWorkbench(
         },
       ],
     };
-    identityDecisionTracked.current = false;
     previewTracked.current = false;
-    capturePosthogEvent("catalog_import_started", {
-      file_type: "csv",
-      source: "manual",
-    });
     setFileError(null);
     configureSheet(spreadsheet, 0);
     setLiveAnnouncement("Manual catalog started.");
@@ -1129,21 +1143,7 @@ export function useCatalogImporterWorkbench(
 
   const loadSampleCatalog = useCallback(() => {
     const spreadsheet = createCatalogImportSampleSpreadsheet();
-    identityDecisionTracked.current = false;
     previewTracked.current = false;
-    capturePosthogEvent("catalog_import_started", {
-      file_type: getCatalogImportFileType(spreadsheet.fileName),
-      source: "sample",
-    });
-    capturePosthogEvent("catalog_import_uploaded", {
-      file_type: getCatalogImportFileType(spreadsheet.fileName),
-      row_count: spreadsheet.sheets.reduce(
-        (total, sheet) => total + sheet.rows.length,
-        0,
-      ),
-      sheet_count: spreadsheet.sheets.length,
-      source: "sample",
-    });
     setFileError(null);
     configureSheet(spreadsheet, 0);
     setLiveAnnouncement("Sample daylily catalog loaded.");
@@ -1366,19 +1366,6 @@ export function useCatalogImporterWorkbench(
       const nextReviewRow =
         nextReviewRows[reviewedIndex % Math.max(nextReviewRows.length, 1)] ??
         null;
-      capturePosthogEvent("catalog_import_identity_decided", {
-        decision_state: excluded
-          ? "excluded"
-          : normalizedUpdate.match
-            ? "linked"
-            : "unmatched",
-        first_decision: !identityDecisionTracked.current,
-        final_decision: nextReviewRows.length === 0,
-        remaining_count: nextReviewRows.length,
-        ...getCatalogImportTelemetryCounts(nextRows),
-      });
-      identityDecisionTracked.current = true;
-
       searchCandidateRequestId.current += 1;
       setSearchCandidateResult(null);
 
@@ -1638,11 +1625,6 @@ export function useCatalogImporterWorkbench(
       saveMatchedRows(nextRows, undefined, {
         reviewedIssueActions: nextReviewedIssueActions,
       });
-      captureIssueResolution({
-        issueType: "duplicate",
-        resolvedCount: 1,
-        rows: nextRows,
-      });
       setLiveAnnouncement(`Source row ${removedRow.sourceRow} removed.`);
     },
     [createReviewedIssueActions, matchedRows, saveMatchedRows],
@@ -1671,11 +1653,6 @@ export function useCatalogImporterWorkbench(
       );
       saveMatchedRows(nextRows, undefined, {
         reviewedIssueActions: nextReviewedIssueActions,
-      });
-      captureIssueResolution({
-        issueType: "duplicate",
-        resolvedCount: retainedIds.size,
-        rows: nextRows,
       });
       setLiveAnnouncement(
         `${retainedIds.size.toLocaleString()} duplicate listings kept.`,
@@ -1710,11 +1687,6 @@ export function useCatalogImporterWorkbench(
       saveMatchedRows(nextRows, undefined, {
         reviewedIssueActions: nextReviewedIssueActions,
       });
-      captureIssueResolution({
-        issueType: "duplicate",
-        resolvedCount: excludedIds.size,
-        rows: nextRows,
-      });
       setLiveAnnouncement(
         `${excludedIds.size.toLocaleString()} duplicate listings excluded.`,
       );
@@ -1747,11 +1719,6 @@ export function useCatalogImporterWorkbench(
       );
       saveMatchedRows(nextRows, undefined, {
         reviewedIssueActions: nextReviewedIssueActions,
-      });
-      captureIssueResolution({
-        issueType: "excluded",
-        resolvedCount: excludedIds.size,
-        rows: nextRows,
       });
       setLiveAnnouncement(
         `${excludedIds.size.toLocaleString()} listings excluded.`,
@@ -1798,11 +1765,6 @@ export function useCatalogImporterWorkbench(
       );
       saveMatchedRows(nextRows, undefined, {
         reviewedIssueActions: nextReviewedIssueActions,
-      });
-      captureIssueResolution({
-        issueType: "price",
-        resolvedCount: prices.size,
-        rows: nextRows,
       });
       setLiveAnnouncement(
         `${prices.size.toLocaleString()} price ${prices.size === 1 ? "issue" : "issues"} resolved.`,
@@ -1959,11 +1921,6 @@ export function useCatalogImporterWorkbench(
       saveMatchedRows(nextRows, nextReviewRow?.id, {
         reviewedIssueActions: nextReviewedIssueActions,
       });
-      captureIssueResolution({
-        issueType: "saved_id",
-        resolvedCount: currentTargetIds.size,
-        rows: nextRows,
-      });
       setLiveAnnouncement(actionSummary);
     },
     [createReviewedIssueActions, loadCandidates, saveMatchedRows],
@@ -2041,19 +1998,6 @@ export function useCatalogImporterWorkbench(
                 selectedSheetIndex,
               });
         await downloadCatalogImportFile({ fileName, spreadsheet });
-        const counts = getCatalogImportState(matchedRows).counts;
-        capturePosthogEvent("catalog_import_downloaded", {
-          download_state:
-            counts.issueCount === 0 &&
-            counts.warningCount === 0 &&
-            counts.pendingCultivarDecisionCount === 0
-              ? "prepared"
-              : "current",
-          download_type: kind,
-          file_type: getCatalogImportFileType(parsedSpreadsheet.fileName),
-          sheet_count: parsedSpreadsheet.sheets.length,
-          ...getCatalogImportTelemetryCounts(matchedRows),
-        });
         setLiveAnnouncement(`${fileName} downloaded.`);
       } catch (error) {
         setDownloadError(getErrorMessage(error));

@@ -170,7 +170,11 @@ export function CatalogImporterReviewQuiz({
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={controller.excludeAllReviewRows}>
+                  <AlertDialogAction
+                    data-ph-capture-attribute-action="review-decision"
+                    data-ph-capture-attribute-decision="excluded-all"
+                    onClick={controller.excludeAllReviewRows}
+                  >
                     Exclude all
                   </AlertDialogAction>
                 </AlertDialogFooter>

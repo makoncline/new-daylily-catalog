@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import type { ColumnFiltersState, OnChangeFn } from "@tanstack/react-table";
 import { ArrowRight, CheckCircle2, CircleAlert } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -40,7 +34,6 @@ import { CatalogImporterReviewedIssues } from "@/app/(public)/catalog-importer/_
 import { CatalogImporterReviewedRows } from "@/app/(public)/catalog-importer/_components/catalog-importer-reviewed-rows";
 import type { CatalogImporterStep } from "@/app/(public)/catalog-importer/_components/catalog-importer-step-nav";
 import type { CatalogImporterWorkbenchController } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
-import { capturePosthogEvent } from "@/lib/analytics/posthog";
 import {
   getCatalogImportRowDisposition,
   type CatalogImportRow,
@@ -201,7 +194,6 @@ export function CatalogImporterResults({
   const insightView: AnalysisView = isCatalogImporterAnalysisView(insightParam)
     ? insightParam
     : "hybridizer";
-  const previewFilterInteractionTracked = useRef(false);
   const matchEditorRow =
     controller.includedRows.find((row) => row.id === matchEditorRowId) ?? null;
   const remainingWorkCount =
@@ -237,10 +229,6 @@ export function CatalogImporterResults({
   }, []);
   const handleApplyInsightFilter = useCallback(
     (insightFilter: CatalogImporterInsightFilter) => {
-      capturePosthogEvent("catalog_import_preview_interacted", {
-        filter_type: insightFilter.id,
-        interaction_type: "insight",
-      });
       setPreviewGlobalFilter("");
       const nextFilters = [
         { id: insightFilter.id, value: insightFilter.value },
@@ -256,12 +244,6 @@ export function CatalogImporterResults({
     OnChangeFn<ColumnFiltersState>
   >(
     (nextFilters) => {
-      if (!previewFilterInteractionTracked.current) {
-        previewFilterInteractionTracked.current = true;
-        capturePosthogEvent("catalog_import_preview_interacted", {
-          interaction_type: "search_or_filter",
-        });
-      }
       const resolvedFilters =
         typeof nextFilters === "function"
           ? nextFilters(previewColumnFilters)

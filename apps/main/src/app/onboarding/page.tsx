@@ -10,7 +10,7 @@ export default async function OnboardingPage({
   searchParams,
 }: {
   searchParams?: Promise<{
-    conversion_id?: string | string[];
+    import_id?: string | string[];
     entry?: string | string[];
     return_to?: string | string[];
   }>;
@@ -18,14 +18,14 @@ export default async function OnboardingPage({
   const params =
     (await searchParams) ??
     ({} satisfies {
-      conversion_id?: string | string[];
+      import_id?: string | string[];
       entry?: string | string[];
       return_to?: string | string[];
     });
 
   const checkoutSource = parseCatalogImporterCheckoutSource(params);
   if (checkoutSource) {
-    redirect(createCatalogImporterCheckoutPath(checkoutSource.conversionId));
+    redirect(createCatalogImporterCheckoutPath(checkoutSource.importId));
   }
 
   redirect("/catalog-importer");

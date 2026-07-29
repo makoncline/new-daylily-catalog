@@ -27,6 +27,10 @@ const subscriptionMocks = vi.hoisted(() => ({
   getStripeSubscription: vi.fn(),
 }));
 
+const posthogMocks = vi.hoisted(() => ({
+  captureEvent: vi.fn(),
+}));
+
 const baseUrlMocks = vi.hoisted(() => ({
   canonicalBaseUrl: "https://daylilycatalog.test",
 }));
@@ -47,6 +51,10 @@ vi.mock("@/server/stripe/client", () => ({
 
 vi.mock("@/server/stripe/sync-subscription", () => ({
   getStripeSubscription: subscriptionMocks.getStripeSubscription,
+}));
+
+vi.mock("@/server/analytics/posthog-server", () => ({
+  captureServerPosthogEvent: posthogMocks.captureEvent,
 }));
 
 vi.mock("@/lib/utils/getBaseUrl", () => ({
@@ -81,7 +89,7 @@ function createPublicCaller(db: unknown, headers = new Headers()) {
 
 function checkoutInput(email = "seller@example.com") {
   return {
-    conversionId: "123e4567-e89b-42d3-a456-426614174000",
+    importId: "123e4567-e89b-42d3-a456-426614174000",
     email,
     entrySource: CATALOG_IMPORTER_ENTRY_SOURCE,
     returnTo: CATALOG_IMPORTER_RETURN_PATH,
@@ -118,7 +126,7 @@ describe("catalog importer checkout", () => {
         trial_period_days: getStripeTrialPeriodDays(),
         metadata: {
           email: "seller@example.com",
-          conversion_id: checkoutInput().conversionId,
+          import_id: checkoutInput().importId,
           entry_source: CATALOG_IMPORTER_ENTRY_SOURCE,
           return_to: CATALOG_IMPORTER_RETURN_PATH,
         },
@@ -128,11 +136,11 @@ describe("catalog importer checkout", () => {
       cancel_url: "https://daylilycatalog.test/catalog-importer",
       metadata: {
         email: "seller@example.com",
-        conversion_id: checkoutInput().conversionId,
+        import_id: checkoutInput().importId,
         entry_source: CATALOG_IMPORTER_ENTRY_SOURCE,
         return_to: CATALOG_IMPORTER_RETURN_PATH,
       },
-      client_reference_id: checkoutInput().conversionId,
+      client_reference_id: checkoutInput().importId,
     });
   });
 
@@ -243,6 +251,7 @@ describe("catalog importer checkout", () => {
         id: "cs_test_claim",
         metadata: {
           entry_source: CATALOG_IMPORTER_ENTRY_SOURCE,
+          import_id: checkoutInput().importId,
           return_to: CATALOG_IMPORTER_RETURN_PATH,
         },
         customer: "cus_claimed",
@@ -254,6 +263,7 @@ describe("catalog importer checkout", () => {
         getCatalogImporterCheckoutStatus(db, "cs_test_claim"),
       ).resolves.toMatchObject({
         email: "paid@example.com",
+        importId: checkoutInput().importId,
         isActive: true,
       });
 
@@ -272,6 +282,18 @@ describe("catalog importer checkout", () => {
       await expect(
         caller.catalogImporter.claimCheckout({ sessionId: "cs_test_claim" }),
       ).resolves.toEqual({ ok: true });
+      expect(posthogMocks.captureEvent).toHaveBeenCalledWith({
+        distinctId: "clerk_claim_stripe_checkout",
+        event: "trial_started",
+        properties: {
+          $insert_id: "catalog-importer:trial_started:cs_test_claim",
+          import_id: checkoutInput().importId,
+          source: "catalog-importer-checkout-claim",
+          source_page: "/catalog-importer/checkout/success",
+          stripe_customer_id: "cus_claimed",
+          subscription_status: "trialing",
+        },
+      });
 
       await expect(
         db.user.findUniqueOrThrow({
@@ -305,7 +327,7 @@ describe("catalog importer checkout", () => {
       } as unknown as TRPCInternalContext["_authUser"],
     });
     const input = {
-      conversionId: "123e4567-e89b-42d3-a456-426614174000",
+      importId: "123e4567-e89b-42d3-a456-426614174000",
       entrySource: CATALOG_IMPORTER_ENTRY_SOURCE,
       returnTo: CATALOG_IMPORTER_RETURN_PATH,
     } as const;
@@ -317,7 +339,7 @@ describe("catalog importer checkout", () => {
         cancel_url: "https://daylilycatalog.test/catalog-importer",
         metadata: {
           userId: "user-importer",
-          conversion_id: input.conversionId,
+          import_id: input.importId,
           entry_source: CATALOG_IMPORTER_ENTRY_SOURCE,
         },
         success_url:

@@ -33,8 +33,8 @@ vi.mock(
     CatalogImporterCheckoutStart: ({
       checkoutSource,
     }: {
-      checkoutSource: { conversionId: string };
-    }) => <div>Importer checkout {checkoutSource.conversionId}</div>,
+      checkoutSource: { importId: string };
+    }) => <div>Importer checkout {checkoutSource.importId}</div>,
   }),
 );
 
@@ -50,35 +50,35 @@ describe("catalog importer checkout routing", () => {
     );
   });
 
-  it("redirects a verified legacy handoff to the importer checkout", async () => {
-    const conversionId = "12a94b5f-3da4-4d28-b6df-76f8f4bc8392";
+  it("redirects a verified handoff to the importer checkout", async () => {
+    const importId = "12a94b5f-3da4-4d28-b6df-76f8f4bc8392";
 
     await expect(
       OnboardingPage({
         searchParams: Promise.resolve({
-          conversion_id: conversionId,
+          import_id: importId,
           entry: "catalog_importer",
           return_to: "/catalog-importer",
         }),
       }),
     ).rejects.toThrow(
-      `redirect:/catalog-importer/checkout?conversion_id=${conversionId}&entry=catalog_importer&return_to=%2Fcatalog-importer`,
+      `redirect:/catalog-importer/checkout?import_id=${importId}&entry=catalog_importer&return_to=%2Fcatalog-importer`,
     );
   });
 
   it("renders the verified importer checkout for signed-out sellers", async () => {
-    const conversionId = "12a94b5f-3da4-4d28-b6df-76f8f4bc8392";
+    const importId = "12a94b5f-3da4-4d28-b6df-76f8f4bc8392";
 
     render(
       await CatalogImporterCheckoutPage({
         searchParams: Promise.resolve({
-          conversion_id: conversionId,
+          import_id: importId,
           entry: "catalog_importer",
           return_to: "/catalog-importer",
         }),
       }),
     );
-    expect(screen.getByText(`Importer checkout ${conversionId}`)).toBeVisible();
+    expect(screen.getByText(`Importer checkout ${importId}`)).toBeVisible();
     expect(mocks.redirect).not.toHaveBeenCalled();
   });
 });

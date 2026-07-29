@@ -52,6 +52,8 @@ function CandidateChoice({
             type="button"
             aria-label={`Use match ${choiceNumber}: ${candidate.displayName}`}
             aria-keyshortcuts={String(choiceNumber)}
+            data-ph-capture-attribute-action="review-decision"
+            data-ph-capture-attribute-decision="linked"
             onClick={() => onChoose(candidate)}
           >
             {choiceNumber}
@@ -107,6 +109,8 @@ export function CatalogImporterCandidateList({
             type="button"
             aria-label="Leave unmatched"
             aria-keyshortcuts={LEAVE_UNMATCHED_SHORTCUT}
+            data-ph-capture-attribute-action="review-decision"
+            data-ph-capture-attribute-decision="unmatched"
             title={`Keep this row in the ${destination} without a Daylily Catalog cultivar ID or link`}
             onClick={onLeaveUnmatched}
           >
@@ -126,6 +130,8 @@ export function CatalogImporterCandidateList({
               type="button"
               aria-label="Exclude from catalog"
               aria-keyshortcuts={EXCLUDE_FROM_CATALOG_SHORTCUT}
+              data-ph-capture-attribute-action="review-decision"
+              data-ph-capture-attribute-decision="excluded"
               title={`Exclude this row from the ${destination}`}
               onClick={onExclude}
             >

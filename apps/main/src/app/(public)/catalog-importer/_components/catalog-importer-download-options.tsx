@@ -35,12 +35,11 @@ export function CatalogImporterDownloadOptions({
   const [pendingDownload, setPendingDownload] = useState<
     "clean" | "enriched" | null
   >(null);
+  const reviewIncomplete =
+    controller.reviewRows.length > 0 || controller.remainingIssueCount > 0;
 
   const requestDownload = (kind: "clean" | "enriched") => {
-    if (
-      controller.reviewRows.length > 0 ||
-      controller.remainingIssueCount > 0
-    ) {
+    if (reviewIncomplete) {
       setPendingDownload(kind);
       return;
     }
@@ -68,6 +67,10 @@ export function CatalogImporterDownloadOptions({
               type="button"
               aria-label="Download prepared import file"
               className={cn("w-full", !stacked && "sm:w-auto sm:min-w-40")}
+              data-ph-capture-attribute-action={
+                reviewIncomplete ? "download-review-warning" : "download"
+              }
+              data-ph-capture-attribute-file_kind="clean"
               disabled={controller.downloadingResults !== null}
               onClick={() => requestDownload("clean")}
             >
@@ -97,6 +100,10 @@ export function CatalogImporterDownloadOptions({
               type="button"
               aria-label="Download enhanced original"
               className={cn("w-full", !stacked && "sm:w-auto sm:min-w-40")}
+              data-ph-capture-attribute-action={
+                reviewIncomplete ? "download-review-warning" : "download"
+              }
+              data-ph-capture-attribute-file_kind="enriched"
               variant="outline"
               disabled={controller.downloadingResults !== null}
               onClick={() => requestDownload("enriched")}
@@ -138,6 +145,8 @@ export function CatalogImporterDownloadOptions({
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
+              data-ph-capture-attribute-action="download"
+              data-ph-capture-attribute-file_kind={pendingDownload ?? undefined}
               onClick={() => {
                 const kind = pendingDownload;
                 setPendingDownload(null);

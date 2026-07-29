@@ -16,7 +16,7 @@ interface MockUseUserResult {
 const useUserMock = vi.hoisted(() => vi.fn<() => MockUseUserResult>());
 const identifyPosthogUserMock = vi.hoisted(() => vi.fn());
 const preloadPosthogMock = vi.hoisted(() => vi.fn());
-const resetPosthogUserMock = vi.hoisted(() => vi.fn());
+const resetPosthogUserIfIdentifiedMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@clerk/nextjs", () => ({
   useUser: () => useUserMock(),
@@ -25,14 +25,14 @@ vi.mock("@clerk/nextjs", () => ({
 vi.mock("@/lib/analytics/posthog", () => ({
   identifyPosthogUser: identifyPosthogUserMock,
   preloadPosthog: preloadPosthogMock,
-  resetPosthogUser: resetPosthogUserMock,
+  resetPosthogUserIfIdentified: resetPosthogUserIfIdentifiedMock,
 }));
 
 describe("PosthogUserIdentification", () => {
   beforeEach(() => {
     identifyPosthogUserMock.mockClear();
     preloadPosthogMock.mockClear();
-    resetPosthogUserMock.mockClear();
+    resetPosthogUserIfIdentifiedMock.mockClear();
   });
 
   afterEach(() => {
@@ -61,7 +61,7 @@ describe("PosthogUserIdentification", () => {
       id: "user_123",
       email: "user@example.com",
     });
-    expect(resetPosthogUserMock).not.toHaveBeenCalled();
+    expect(resetPosthogUserIfIdentifiedMock).not.toHaveBeenCalled();
   });
 
   it("resets identity when user signs out", async () => {
@@ -91,8 +91,25 @@ describe("PosthogUserIdentification", () => {
     rerender(<PosthogUserIdentification />);
 
     await waitFor(() => {
-      expect(resetPosthogUserMock).toHaveBeenCalledTimes(1);
+      expect(resetPosthogUserIfIdentifiedMock).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it("checks for an identified user on an initial signed-out load", async () => {
+    useUserMock.mockReturnValue({
+      isLoaded: true,
+      isSignedIn: false,
+      user: null,
+    });
+
+    render(<PosthogUserIdentification />);
+
+    await waitFor(() => {
+      expect(preloadPosthogMock).toHaveBeenCalledTimes(1);
+    });
+
+    expect(resetPosthogUserIfIdentifiedMock).toHaveBeenCalledTimes(1);
+    expect(identifyPosthogUserMock).not.toHaveBeenCalled();
   });
 
   it("does not reset while user remains signed in", async () => {
@@ -113,7 +130,7 @@ describe("PosthogUserIdentification", () => {
       expect(identifyPosthogUserMock).toHaveBeenCalledTimes(1);
     });
 
-    expect(resetPosthogUserMock).not.toHaveBeenCalled();
+    expect(resetPosthogUserIfIdentifiedMock).not.toHaveBeenCalled();
     expect(identifyPosthogUserMock).toHaveBeenCalledWith({
       id: "user_123",
       email: "user@example.com",

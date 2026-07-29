@@ -36,25 +36,15 @@ export function CatalogImporterCheckoutStart({
       return;
     }
 
-    capturePosthogEvent("checkout_started", {
-      conversion_id: checkoutSource.conversionId,
-      entry_source: checkoutSource.entrySource,
-      source: "catalog_importer",
-    });
     try {
       const result = await createCheckout.mutateAsync({
         email,
         ...checkoutSource,
       });
-      capturePosthogEvent("checkout_redirect_ready", {
-        conversion_id: checkoutSource.conversionId,
-        entry_source: checkoutSource.entrySource,
-        source: "catalog_importer",
-      });
       window.location.assign(result.url);
     } catch {
       capturePosthogEvent("checkout_failed", {
-        conversion_id: checkoutSource.conversionId,
+        import_id: checkoutSource.importId,
         entry_source: checkoutSource.entrySource,
         source: "catalog_importer",
       });
@@ -62,7 +52,12 @@ export function CatalogImporterCheckoutStart({
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-4 py-10 sm:gap-12 sm:py-16 lg:px-8">
+    <div
+      className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-4 py-10 sm:gap-12 sm:py-16 lg:px-8"
+      data-ph-capture-attribute-flow="catalog-importer"
+      data-ph-capture-attribute-import_id={checkoutSource.importId}
+      data-ph-capture-attribute-step="checkout"
+    >
       <Link
         href={checkoutSource.returnTo}
         className="text-muted-foreground inline-flex items-center gap-2 text-sm hover:underline"
@@ -103,6 +98,7 @@ export function CatalogImporterCheckoutStart({
             type="submit"
             size="lg"
             className="w-full"
+            data-ph-capture-attribute-action="checkout-submit"
             disabled={!isReady || !emailIsValid || createCheckout.isPending}
           >
             {createCheckout.isPending ? (

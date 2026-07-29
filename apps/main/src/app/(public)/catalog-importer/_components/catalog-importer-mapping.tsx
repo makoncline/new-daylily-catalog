@@ -402,6 +402,7 @@ export function CatalogImporterMapping({
           <Button
             type="button"
             className="w-full"
+            data-ph-capture-attribute-action="build-preview"
             disabled={
               controller.mapping.title === null ||
               controller.processingStage !== null
