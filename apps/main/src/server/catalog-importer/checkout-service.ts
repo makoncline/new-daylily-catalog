@@ -259,7 +259,9 @@ export async function createSignedInCatalogImporterCheckout({
   };
 
   return createSubscriptionCheckout({
-    cancelPath: input.returnTo,
+    cancelPath: `${input.returnTo}?checkout=canceled&import_id=${encodeURIComponent(
+      input.importId,
+    )}`,
     db,
     metadata,
     successPath: `/subscribe/success?redirect=${encodeURIComponent(
