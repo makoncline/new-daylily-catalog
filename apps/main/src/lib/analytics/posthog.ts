@@ -15,6 +15,7 @@ export type PosthogEventName =
   | "onboarding_membership_screen_viewed"
   | "onboarding_membership_continue_for_now_clicked"
   | "checkout_started"
+  | "checkout_canceled"
   | "checkout_redirect_ready"
   | "checkout_failed"
   | "trial_started"
