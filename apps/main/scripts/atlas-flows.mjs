@@ -634,7 +634,7 @@ export const ATLAS_FLOWS = [
             "onboarding-importer-checkout",
             "Importer checkout",
             "The account email and exact trial terms immediately before Stripe.",
-            "/catalog-importer/checkout?conversion_id=12a94b5f-3da4-4d28-b6df-76f8f4bc8392&entry=catalog_importer&return_to=%2Fcatalog-importer",
+            "/catalog-importer/checkout?import_id=12a94b5f-3da4-4d28-b6df-76f8f4bc8392&entry=catalog_importer&return_to=%2Fcatalog-importer",
             false,
           ),
         ],

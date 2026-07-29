@@ -1,6 +1,7 @@
 import { http, HttpResponse } from "msw";
 
 const capturedEmails = [];
+let catalogImporterImportId = "integration-catalog-import";
 
 function queryValues(params, prefix) {
   return [...params.entries()]
@@ -92,6 +93,11 @@ export const integrationNetworkHandlers = [
       );
     }
 
+    const importId = body.get("metadata[import_id]");
+    if (typeof importId === "string" && importId.length > 0) {
+      catalogImporterImportId = importId;
+    }
+
     return HttpResponse.json({
       id: "cs_test_integration_catalog_importer",
       object: "checkout.session",
@@ -110,6 +116,7 @@ export const integrationNetworkHandlers = [
       },
       metadata: {
         entry_source: "catalog_importer",
+        import_id: catalogImporterImportId,
         return_to: "/catalog-importer",
       },
       subscription: {
