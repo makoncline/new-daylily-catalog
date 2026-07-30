@@ -10,7 +10,6 @@ import { env, isLibsqlDatabaseUrl } from "@/env";
 const execFileAsync = promisify(execFile);
 
 const DEFAULT_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS = 60 * 60;
-const SEARCH_INDEX_MAX_STALE_SECONDS = 24 * 60 * 60;
 const SEARCH_INDEX_REFRESH_LOCK_STALE_MS = 10 * 60 * 1000;
 const EXPECTED_SEARCH_INDEX_SCHEMA_VERSION = "13";
 const PUBLIC_SEARCH_BUILD_SOURCE_REPLICA_PATH =
@@ -178,11 +177,7 @@ function getStatusFromAge(
     return "fresh" satisfies PublicSearchIndexStatus["status"];
   }
 
-  if (ageSeconds < SEARCH_INDEX_MAX_STALE_SECONDS) {
-    return "stale" satisfies PublicSearchIndexStatus["status"];
-  }
-
-  return "expired" satisfies PublicSearchIndexStatus["status"];
+  return "stale" satisfies PublicSearchIndexStatus["status"];
 }
 
 function toStringOrNull(value: unknown) {
@@ -349,8 +344,10 @@ async function refreshPublicSearchIndex(): Promise<PublicSearchIndexStatus> {
       return getPublicSearchIndexStatus();
     }
 
+    let stage = "source_sync";
     try {
       const sourcePath = await preparePublicSearchBuildSource();
+      stage = "index_build";
       const buildArgs = [getBuildScriptPath()];
 
       if (sourcePath) {
@@ -397,6 +394,7 @@ async function refreshPublicSearchIndex(): Promise<PublicSearchIndexStatus> {
     } catch (error) {
       logSearchIndex("public_search_index_build_failed", {
         error: error instanceof Error ? error.message : String(error),
+        stage,
       });
       throw error;
     } finally {

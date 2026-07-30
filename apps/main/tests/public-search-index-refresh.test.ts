@@ -26,6 +26,7 @@ const mocks = vi.hoisted(() => {
     closeStatusClient: vi.fn(),
     createClient: vi.fn(),
     createClientConfigs: [] as LibSqlClientConfigSnapshot[],
+    indexBuiltAt: new Date().toISOString(),
     execFile,
     execFilePromisified,
     indexExists: false,
@@ -97,6 +98,7 @@ describe("public search index refresh", () => {
     mocks.createClient.mockReset();
     mocks.createClientConfigs.length = 0;
     mocks.execFilePromisified.mockReset();
+    mocks.indexBuiltAt = new Date().toISOString();
     mocks.indexExists = false;
     mocks.lockClose.mockReset();
     mocks.lockWriteFile.mockReset();
@@ -145,7 +147,7 @@ describe("public search index refresh", () => {
       if (sql.includes("SearchIndexMeta")) {
         return {
           rows: [
-            { key: "builtAt", value: new Date().toISOString() },
+            { key: "builtAt", value: mocks.indexBuiltAt },
             {
               key: "sourcePath",
               value: "/data/search/public-search-source-replica.sqlite",
@@ -183,6 +185,7 @@ describe("public search index refresh", () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.unstubAllEnvs();
     vi.resetModules();
   });
@@ -238,6 +241,28 @@ describe("public search index refresh", () => {
     );
     expect(mocks.sourceSync).not.toHaveBeenCalled();
     expect(mocks.execFilePromisified).not.toHaveBeenCalled();
+  });
+
+  it("keeps an old index usable when its background refresh fails", async () => {
+    mocks.indexBuiltAt = new Date(0).toISOString();
+    mocks.indexExists = true;
+    mocks.sourceSync.mockRejectedValue(
+      new Error("database disk image is malformed"),
+    );
+    const log = vi.spyOn(console, "log");
+
+    const { ensurePublicSearchIndex, isPublicSearchIndexUsable } = await import(
+      "@/server/search/public-search-index"
+    );
+
+    const status = await ensurePublicSearchIndex();
+
+    expect(status.status).toBe("stale");
+    expect(isPublicSearchIndexUsable(status)).toBe(true);
+    await vi.waitFor(() => expect(mocks.sourceSync).toHaveBeenCalledOnce());
+    expect(log).toHaveBeenCalledWith(
+      expect.stringContaining('"stage":"source_sync"'),
+    );
   });
 
   it("prepares a search source replica without requiring the live app replica env", async () => {
