@@ -1,7 +1,7 @@
 // @vitest-environment node
 
-import { execFile } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { execFile, execFileSync } from "node:child_process";
+import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -137,6 +137,27 @@ function createAuthoritativeFlowerShowSource(sourcePath: string) {
   db.close();
 }
 
+function createFailingSourceCheckSqlite(binDirectory: string) {
+  const sqlitePath = execFileSync("which", ["sqlite3"], {
+    encoding: "utf8",
+  }).trim();
+  const wrapperPath = path.join(binDirectory, "sqlite3");
+
+  writeFileSync(
+    wrapperPath,
+    [
+      "#!/bin/sh",
+      'if [ "$1" = "$FAIL_SOURCE_PATH" ] && [ "$2" = "PRAGMA quick_check;" ]; then',
+      '  echo "database disk image is malformed" >&2',
+      "  exit 11",
+      "fi",
+      `exec "${sqlitePath}" "$@"`,
+      "",
+    ].join("\n"),
+  );
+  chmodSync(wrapperPath, 0o755);
+}
+
 describe("build-public-search-index source selection", () => {
   it("requires an explicit source in production", async () => {
     const error = await runBuildScript([], {
@@ -213,6 +234,47 @@ describe("build-public-search-index source selection", () => {
         { value: "Pleated", count: 1 },
       ]);
       targetDb.close();
+    } finally {
+      rmSync(tempDirectory, { force: true, recursive: true });
+    }
+  });
+
+  it("does not promote an index when the final source check fails", async () => {
+    const tempDirectory = mkdtempSync(
+      path.join(tmpdir(), "public-search-source-check-"),
+    );
+    const sourcePath = path.join(tempDirectory, "source.sqlite");
+    const targetPath = path.join(tempDirectory, "target.sqlite");
+
+    try {
+      createAuthoritativeFlowerShowSource(sourcePath);
+      const targetDb = new DatabaseSync(targetPath);
+      targetDb.exec(
+        "CREATE TABLE Marker (value TEXT); INSERT INTO Marker VALUES ('old');",
+      );
+      targetDb.close();
+      createFailingSourceCheckSqlite(tempDirectory);
+
+      const error = await runBuildScript(
+        ["--source", sourcePath, "--target", targetPath],
+        {
+          FAIL_SOURCE_PATH: sourcePath,
+          PATH: `${tempDirectory}:${process.env.PATH}`,
+        },
+      );
+
+      expect(error).toMatchObject({
+        stderr: expect.stringContaining(
+          "Source replica post_build quick_check failed",
+        ),
+      });
+      const preservedTarget = new DatabaseSync(targetPath, { readOnly: true });
+      expect(preservedTarget.prepare("SELECT value FROM Marker").get()).toEqual(
+        {
+          value: "old",
+        },
+      );
+      preservedTarget.close();
     } finally {
       rmSync(tempDirectory, { force: true, recursive: true });
     }

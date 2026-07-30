@@ -119,10 +119,20 @@ async function checkPublicSearchBuildSource(
     );
     result = stdout.trim();
   } catch (error) {
-    throw new SourceReplicaIntegrityError(
-      phase,
-      error instanceof Error ? error.message : String(error),
-    );
+    const detail =
+      error instanceof Error && "stderr" in error
+        ? `${error.message}\n${String(error.stderr)}`
+        : error instanceof Error
+          ? error.message
+          : String(error);
+    if (
+      !/database disk image is malformed|file is not a database|malformed database schema/i.test(
+        detail,
+      )
+    ) {
+      throw error;
+    }
+    throw new SourceReplicaIntegrityError(phase, detail);
   }
 
   logSearchIndex("public_search_source_integrity_checked", { phase, result });

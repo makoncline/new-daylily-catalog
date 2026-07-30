@@ -298,6 +298,54 @@ describe("public search index refresh", () => {
     }
   });
 
+  it("repairs a source replica that fails its post-sync integrity check", async () => {
+    mocks.execFilePromisified
+      .mockResolvedValueOnce({ stderr: "", stdout: "ok\n" })
+      .mockRejectedValueOnce(
+        Object.assign(new Error("sqlite3 quick_check failed"), {
+          code: 11,
+          stderr: "database disk image is malformed",
+        }),
+      );
+    const log = vi.spyOn(console, "log");
+
+    const { ensurePublicSearchIndex } = await import(
+      "@/server/search/public-search-index"
+    );
+
+    await ensurePublicSearchIndex();
+
+    expect(mocks.sourceSync).toHaveBeenCalledTimes(2);
+    expect(
+      mocks.execFilePromisified.mock.calls.filter(
+        ([file]) => file === process.execPath,
+      ),
+    ).toHaveLength(1);
+    expect(log).toHaveBeenCalledWith(
+      expect.stringContaining('"phase":"post_sync"'),
+    );
+    expect(log).toHaveBeenCalledWith(
+      expect.stringContaining("public_search_source_recovery_succeeded"),
+    );
+  });
+
+  it("does not quarantine the source when sqlite3 cannot start", async () => {
+    mocks.execFilePromisified.mockRejectedValueOnce(
+      Object.assign(new Error("spawn sqlite3 ENOENT"), { code: "ENOENT" }),
+    );
+
+    const { ensurePublicSearchIndex } = await import(
+      "@/server/search/public-search-index"
+    );
+
+    await expect(ensurePublicSearchIndex()).rejects.toThrow(
+      "spawn sqlite3 ENOENT",
+    );
+    expect(mocks.sourceSync).not.toHaveBeenCalled();
+    expect(mocks.rm).not.toHaveBeenCalled();
+    expect(mocks.rename).not.toHaveBeenCalled();
+  });
+
   it("prepares a search source replica without requiring the live app replica env", async () => {
     mockEnv.TURSO_EMBEDDED_REPLICA_URL = undefined;
 
