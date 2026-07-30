@@ -34,6 +34,8 @@ const mocks = vi.hoisted(() => {
     lockWriteFile: vi.fn(),
     mkdir: vi.fn(),
     open: vi.fn(),
+    rename: vi.fn(),
+    rm: vi.fn(),
     sourceSync: vi.fn(),
     stat: vi.fn(),
     statusExecute: vi.fn(),
@@ -78,6 +80,8 @@ vi.mock("node:child_process", () => ({
 vi.mock("node:fs/promises", () => ({
   mkdir: mocks.mkdir,
   open: mocks.open,
+  rename: mocks.rename,
+  rm: mocks.rm,
   stat: mocks.stat,
   unlink: mocks.unlink,
 }));
@@ -104,6 +108,8 @@ describe("public search index refresh", () => {
     mocks.lockWriteFile.mockReset();
     mocks.mkdir.mockReset();
     mocks.open.mockReset();
+    mocks.rename.mockReset();
+    mocks.rm.mockReset();
     mocks.sourceSync.mockReset();
     mocks.stat.mockReset();
     mocks.statusExecute.mockReset();
@@ -116,6 +122,8 @@ describe("public search index refresh", () => {
     } satisfies MockFileHandle);
     mocks.lockClose.mockResolvedValue(undefined);
     mocks.lockWriteFile.mockResolvedValue(undefined);
+    mocks.rename.mockResolvedValue(undefined);
+    mocks.rm.mockResolvedValue(undefined);
     mocks.unlink.mockResolvedValue(undefined);
 
     mocks.stat.mockImplementation(async (filePath: string) => {
@@ -134,7 +142,11 @@ describe("public search index refresh", () => {
       return { mtimeMs: Date.now() };
     });
 
-    mocks.execFilePromisified.mockImplementation(async () => {
+    mocks.execFilePromisified.mockImplementation(async (file: string) => {
+      if (file === "sqlite3") {
+        return { stderr: "", stdout: "ok\n" };
+      }
+
       mocks.indexExists = true;
 
       return {
@@ -204,7 +216,9 @@ describe("public search index refresh", () => {
     });
     expect(mocks.sourceSync).toHaveBeenCalledTimes(1);
     expect(mocks.closeSourceClient).toHaveBeenCalledTimes(1);
-    const execArgs = mocks.execFilePromisified.mock.calls[0]?.[1];
+    const execArgs = mocks.execFilePromisified.mock.calls.find(
+      ([file]) => file === process.execPath,
+    )?.[1];
 
     expect(execArgs).not.toContain("/data/turso-replica.db");
     expect(execArgs).toContain(
@@ -243,12 +257,10 @@ describe("public search index refresh", () => {
     expect(mocks.execFilePromisified).not.toHaveBeenCalled();
   });
 
-  it("keeps an old index usable when its background refresh fails", async () => {
+  it("keeps an old index usable while repairing its source replica", async () => {
     mocks.indexBuiltAt = new Date(0).toISOString();
     mocks.indexExists = true;
-    mocks.sourceSync.mockRejectedValue(
-      new Error("database disk image is malformed"),
-    );
+    mocks.sourceSync.mockRejectedValueOnce(new Error("InvalidLocalState"));
     const log = vi.spyOn(console, "log");
 
     const { ensurePublicSearchIndex, isPublicSearchIndexUsable } = await import(
@@ -259,10 +271,79 @@ describe("public search index refresh", () => {
 
     expect(status.status).toBe("stale");
     expect(isPublicSearchIndexUsable(status)).toBe(true);
-    await vi.waitFor(() => expect(mocks.sourceSync).toHaveBeenCalledOnce());
-    expect(log).toHaveBeenCalledWith(
-      expect.stringContaining('"stage":"source_sync"'),
+    await vi.waitFor(() =>
+      expect(mocks.execFilePromisified).toHaveBeenCalledWith(
+        process.execPath,
+        expect.anything(),
+        expect.anything(),
+      ),
     );
+    expect(mocks.sourceSync).toHaveBeenCalledTimes(2);
+    expect(mocks.rename.mock.calls.map(([source]) => source)).toEqual(
+      ["", "-info", "-wal", "-shm", "-journal"].map(
+        (suffix) => `/data/search/public-search-source-replica.sqlite${suffix}`,
+      ),
+    );
+    expect(mocks.rm).toHaveBeenCalledWith(
+      "/data/search/public-search-source-replica.sqlite.quarantine",
+      { force: true, recursive: true },
+    );
+    expect(log).toHaveBeenCalledWith(
+      expect.stringContaining("public_search_source_recovery_succeeded"),
+    );
+    for (const phase of ["pre_sync", "post_sync", "post_build"]) {
+      expect(log).toHaveBeenCalledWith(
+        expect.stringContaining(`"phase":"${phase}"`),
+      );
+    }
+  });
+
+  it("repairs a source replica that fails its post-sync integrity check", async () => {
+    mocks.execFilePromisified
+      .mockResolvedValueOnce({ stderr: "", stdout: "ok\n" })
+      .mockRejectedValueOnce(
+        Object.assign(new Error("sqlite3 quick_check failed"), {
+          code: 11,
+          stderr: "database disk image is malformed",
+        }),
+      );
+    const log = vi.spyOn(console, "log");
+
+    const { ensurePublicSearchIndex } = await import(
+      "@/server/search/public-search-index"
+    );
+
+    await ensurePublicSearchIndex();
+
+    expect(mocks.sourceSync).toHaveBeenCalledTimes(2);
+    expect(
+      mocks.execFilePromisified.mock.calls.filter(
+        ([file]) => file === process.execPath,
+      ),
+    ).toHaveLength(1);
+    expect(log).toHaveBeenCalledWith(
+      expect.stringContaining('"phase":"post_sync"'),
+    );
+    expect(log).toHaveBeenCalledWith(
+      expect.stringContaining("public_search_source_recovery_succeeded"),
+    );
+  });
+
+  it("does not quarantine the source when sqlite3 cannot start", async () => {
+    mocks.execFilePromisified.mockRejectedValueOnce(
+      Object.assign(new Error("spawn sqlite3 ENOENT"), { code: "ENOENT" }),
+    );
+
+    const { ensurePublicSearchIndex } = await import(
+      "@/server/search/public-search-index"
+    );
+
+    await expect(ensurePublicSearchIndex()).rejects.toThrow(
+      "spawn sqlite3 ENOENT",
+    );
+    expect(mocks.sourceSync).not.toHaveBeenCalled();
+    expect(mocks.rm).not.toHaveBeenCalled();
+    expect(mocks.rename).not.toHaveBeenCalled();
   });
 
   it("prepares a search source replica without requiring the live app replica env", async () => {

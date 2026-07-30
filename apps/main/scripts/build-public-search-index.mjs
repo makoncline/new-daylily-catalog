@@ -724,6 +724,27 @@ SELECT 'quickCheck', quick_check FROM pragma_quick_check;
   return output.trim();
 }
 
+function validateSource(sourcePath) {
+  let output;
+  try {
+    output = execFileSync("sqlite3", [sourcePath, "PRAGMA quick_check;"], {
+      encoding: "utf8",
+    }).trim();
+  } catch (error) {
+    throw new Error(
+      `Source replica post_build quick_check failed:\n${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
+
+  if (output !== "ok") {
+    throw new Error(`Source replica post_build quick_check failed:\n${output}`);
+  }
+
+  return output;
+}
+
 function main() {
   const startedAt = performance.now();
   const args = parseArgs();
@@ -752,7 +773,9 @@ function main() {
   });
 
   const validation = validateIndex(nextPath);
+  const sourceValidation = validateSource(sourcePath);
 
+  console.log(`Source quick_check: ${sourceValidation}`);
   replaceSqliteDatabase({ nextPath, previousPath, targetPath });
 
   const elapsedMs = Math.round(performance.now() - startedAt);

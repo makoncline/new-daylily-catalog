@@ -1,7 +1,7 @@
 import "server-only";
 
 import { execFile } from "node:child_process";
-import { mkdir, open, stat, unlink } from "node:fs/promises";
+import { mkdir, open, rename, rm, stat, unlink } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { createClient } from "@libsql/client";
@@ -14,6 +14,13 @@ const SEARCH_INDEX_REFRESH_LOCK_STALE_MS = 10 * 60 * 1000;
 const EXPECTED_SEARCH_INDEX_SCHEMA_VERSION = "13";
 const PUBLIC_SEARCH_BUILD_SOURCE_REPLICA_PATH =
   "/data/search/public-search-source-replica.sqlite";
+const PUBLIC_SEARCH_BUILD_SOURCE_SUFFIXES = [
+  "",
+  "-info",
+  "-wal",
+  "-shm",
+  "-journal",
+];
 
 interface SearchIndexMeta {
   builtAt: string | null;
@@ -50,6 +57,15 @@ const globalForPublicSearchIndex = globalThis as unknown as {
   publicSearchIndexRefreshPromise: Promise<PublicSearchIndexStatus> | undefined;
 };
 
+class SourceReplicaIntegrityError extends Error {
+  constructor(
+    readonly phase: string,
+    detail: string,
+  ) {
+    super(`Source replica ${phase} quick_check failed: ${detail}`);
+  }
+}
+
 function getAppRoot() {
   const cwd = process.cwd();
 
@@ -76,6 +92,55 @@ function getRefreshLockPath() {
   return `${getPublicSearchIndexPath()}.refresh.lock`;
 }
 
+async function checkPublicSearchBuildSource(
+  phase: "pre_sync" | "post_sync",
+  allowMissing = false,
+) {
+  try {
+    await stat(PUBLIC_SEARCH_BUILD_SOURCE_REPLICA_PATH);
+  } catch (error) {
+    if (allowMissing && isMissingFileError(error)) {
+      logSearchIndex("public_search_source_integrity_checked", {
+        phase,
+        result: "missing",
+      });
+      return;
+    }
+
+    throw error;
+  }
+
+  let result: string;
+  try {
+    const { stdout } = await execFileAsync(
+      "sqlite3",
+      [PUBLIC_SEARCH_BUILD_SOURCE_REPLICA_PATH, "PRAGMA quick_check;"],
+      { maxBuffer: 1024 * 1024 },
+    );
+    result = stdout.trim();
+  } catch (error) {
+    const detail =
+      error instanceof Error && "stderr" in error
+        ? `${error.message}\n${String(error.stderr)}`
+        : error instanceof Error
+          ? error.message
+          : String(error);
+    if (
+      !/database disk image is malformed|file is not a database|malformed database schema/i.test(
+        detail,
+      )
+    ) {
+      throw error;
+    }
+    throw new SourceReplicaIntegrityError(phase, detail);
+  }
+
+  logSearchIndex("public_search_source_integrity_checked", { phase, result });
+  if (result !== "ok") {
+    throw new SourceReplicaIntegrityError(phase, result);
+  }
+}
+
 async function preparePublicSearchBuildSource() {
   const databaseUrl = env.DATABASE_URL;
 
@@ -91,6 +156,7 @@ async function preparePublicSearchBuildSource() {
   await mkdir(path.dirname(PUBLIC_SEARCH_BUILD_SOURCE_REPLICA_PATH), {
     recursive: true,
   });
+  await checkPublicSearchBuildSource("pre_sync", true);
 
   const client = createClient({
     authToken: env.TURSO_DATABASE_AUTH_TOKEN,
@@ -104,6 +170,7 @@ async function preparePublicSearchBuildSource() {
     client.close();
   }
 
+  await checkPublicSearchBuildSource("post_sync");
   return PUBLIC_SEARCH_BUILD_SOURCE_REPLICA_PATH;
 }
 
@@ -335,6 +402,106 @@ function logSearchIndex(event: string, payload: Record<string, unknown> = {}) {
   );
 }
 
+function getRecoverableSourcePhase(error: unknown, stage: string) {
+  if (error instanceof SourceReplicaIntegrityError) {
+    return error.phase;
+  }
+
+  const message = error instanceof Error ? error.message : String(error);
+  if (/post_build/i.test(message)) {
+    return "post_build";
+  }
+
+  return /InvalidLocalState|database disk image is malformed/i.test(message)
+    ? stage
+    : null;
+}
+
+async function quarantinePublicSearchBuildSource(
+  phase: string,
+  sourceError: unknown,
+) {
+  const quarantineDirectory = `${PUBLIC_SEARCH_BUILD_SOURCE_REPLICA_PATH}.quarantine`;
+  await rm(quarantineDirectory, { force: true, recursive: true });
+  await mkdir(quarantineDirectory, { recursive: true });
+  const files: string[] = [];
+
+  for (const suffix of PUBLIC_SEARCH_BUILD_SOURCE_SUFFIXES) {
+    const sourcePath = `${PUBLIC_SEARCH_BUILD_SOURCE_REPLICA_PATH}${suffix}`;
+    try {
+      await rename(
+        sourcePath,
+        path.join(quarantineDirectory, path.basename(sourcePath)),
+      );
+      files.push(path.basename(sourcePath));
+    } catch (error) {
+      if (!isMissingFileError(error)) {
+        throw error;
+      }
+    }
+  }
+
+  logSearchIndex("public_search_source_quarantined", {
+    error:
+      sourceError instanceof Error ? sourceError.message : String(sourceError),
+    files,
+    phase,
+    quarantineDirectory,
+  });
+}
+
+async function runPublicSearchIndexRefreshAttempt(state: { stage: string }) {
+  state.stage = "source_sync";
+  const sourcePath = await preparePublicSearchBuildSource();
+  state.stage = "index_build";
+  const buildArgs = [getBuildScriptPath()];
+
+  if (sourcePath) {
+    buildArgs.push("--source", sourcePath);
+  }
+
+  buildArgs.push("--target", getPublicSearchIndexPath());
+
+  logSearchIndex("public_search_index_build_started", {
+    path: getPublicSearchIndexPath(),
+    sourcePath,
+  });
+
+  const { stdout, stderr } = await execFileAsync(process.execPath, buildArgs, {
+    cwd: getAppRoot(),
+    env: process.env,
+    maxBuffer: 1024 * 1024,
+  });
+
+  if (sourcePath) {
+    logSearchIndex("public_search_source_integrity_checked", {
+      phase: "post_build",
+      result: "ok",
+    });
+  }
+
+  if (stdout.trim().length > 0) {
+    logSearchIndex("public_search_index_build_stdout", {
+      output: stdout.trim(),
+    });
+  }
+
+  if (stderr.trim().length > 0) {
+    logSearchIndex("public_search_index_build_stderr", {
+      output: stderr.trim(),
+    });
+  }
+
+  const status = await getPublicSearchIndexStatus();
+  logSearchIndex("public_search_index_build_succeeded", {
+    ageSeconds: status.ageSeconds,
+    counts: status.counts,
+    path: status.path,
+  });
+
+  return status;
+}
+
 async function refreshPublicSearchIndex(): Promise<PublicSearchIndexStatus> {
   globalForPublicSearchIndex.publicSearchIndexRefreshPromise ??= (async () => {
     const releaseLock = await acquireRefreshLock();
@@ -344,57 +511,36 @@ async function refreshPublicSearchIndex(): Promise<PublicSearchIndexStatus> {
       return getPublicSearchIndexStatus();
     }
 
-    let stage = "source_sync";
+    const state = { stage: "source_sync" };
+    let recoveryPhase: string | null = null;
     try {
-      const sourcePath = await preparePublicSearchBuildSource();
-      stage = "index_build";
-      const buildArgs = [getBuildScriptPath()];
-
-      if (sourcePath) {
-        buildArgs.push("--source", sourcePath);
+      try {
+        return await runPublicSearchIndexRefreshAttempt(state);
+      } catch (error) {
+        recoveryPhase = getRecoverableSourcePhase(error, state.stage);
+        if (!recoveryPhase) {
+          throw error;
+        }
+        await quarantinePublicSearchBuildSource(recoveryPhase, error);
       }
 
-      buildArgs.push("--target", getPublicSearchIndexPath());
-
-      logSearchIndex("public_search_index_build_started", {
-        path: getPublicSearchIndexPath(),
-        sourcePath,
-      });
-
-      const { stdout, stderr } = await execFileAsync(
-        process.execPath,
-        buildArgs,
-        {
-          cwd: getAppRoot(),
-          env: process.env,
-          maxBuffer: 1024 * 1024,
-        },
-      );
-
-      if (stdout.trim().length > 0) {
-        logSearchIndex("public_search_index_build_stdout", {
-          output: stdout.trim(),
+      try {
+        const status = await runPublicSearchIndexRefreshAttempt(state);
+        logSearchIndex("public_search_source_recovery_succeeded", {
+          phase: recoveryPhase,
         });
-      }
-
-      if (stderr.trim().length > 0) {
-        logSearchIndex("public_search_index_build_stderr", {
-          output: stderr.trim(),
+        return status;
+      } catch (error) {
+        logSearchIndex("public_search_source_recovery_failed", {
+          error: error instanceof Error ? error.message : String(error),
+          phase: recoveryPhase,
         });
+        throw error;
       }
-
-      const status = await getPublicSearchIndexStatus();
-      logSearchIndex("public_search_index_build_succeeded", {
-        ageSeconds: status.ageSeconds,
-        counts: status.counts,
-        path: status.path,
-      });
-
-      return status;
     } catch (error) {
       logSearchIndex("public_search_index_build_failed", {
         error: error instanceof Error ? error.message : String(error),
-        stage,
+        stage: state.stage,
       });
       throw error;
     } finally {
