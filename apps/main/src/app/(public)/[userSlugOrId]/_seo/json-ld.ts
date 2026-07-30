@@ -118,19 +118,6 @@ async function createProfilePageJsonLd(
       mainEntity: mainEntity,
     };
 
-    // Add statistics if available and the property exists
-    if (
-      "listingCount" in profile &&
-      typeof profile.listingCount === "number" &&
-      profile.listingCount > 0
-    ) {
-      profileSchema.interactionStatistic = {
-        "@type": "InteractionCounter",
-        interactionType: "https://schema.org/ItemPage",
-        userInteractionCount: profile.listingCount,
-      };
-    }
-
     return profileSchema;
   } catch (error) {
     reportError({

@@ -71,11 +71,5 @@ export function generateCultivarJsonLd(
       value: spec.value,
     })),
     offers: productOffers,
-    isRelatedTo: cultivarPage.relatedByHybridizer.map((cultivar) => ({
-      "@type": "Product",
-      name: cultivar.name,
-      url: `${baseUrl}/cultivar/${cultivar.segment}`,
-      image: cultivar.imageUrl,
-    })),
   };
 }

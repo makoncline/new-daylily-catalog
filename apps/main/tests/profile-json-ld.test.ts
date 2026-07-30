@@ -11,6 +11,7 @@ describe("profile page json-ld", () => {
       id: "user-1",
       title: "Rolling Oaks Daylilies",
       lists: [],
+      listingCount: 1,
     } as unknown as ProfileInput;
 
     const listings = [
@@ -31,7 +32,7 @@ describe("profile page json-ld", () => {
     } as MetadataInput;
 
     const jsonLd = await generateProfilePageJsonLd(profile, listings, metadata);
-    const makesOffer = (jsonLd as Record<string, unknown>).mainEntity as {
+    const makesOffer = jsonLd.mainEntity as {
       makesOffer?: Array<{
         itemOffered?: {
           offers?: { price?: string };
@@ -42,6 +43,7 @@ describe("profile page json-ld", () => {
     expect(makesOffer.makesOffer?.[0]?.itemOffered?.offers?.price).toBe(
       "125.00",
     );
+    expect(jsonLd.interactionStatistic).toBeUndefined();
   });
 
   it("omits makesOffer for listings without sellable product data", async () => {
@@ -76,7 +78,7 @@ describe("profile page json-ld", () => {
     } as MetadataInput;
 
     const jsonLd = await generateProfilePageJsonLd(profile, listings, metadata);
-    const mainEntity = (jsonLd as Record<string, unknown>).mainEntity as {
+    const mainEntity = jsonLd.mainEntity as {
       makesOffer?: unknown[];
     };
 
