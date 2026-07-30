@@ -172,11 +172,12 @@ describe("build-public-search-index source selection", () => {
 
     try {
       createAuthoritativeFlowerShowSource(sourcePath);
-      await execFileAsync(
+      const { stdout } = await execFileAsync(
         process.execPath,
         [buildScriptPath, "--source", sourcePath, "--target", targetPath],
         { env: process.env },
       );
+      expect(stdout).toContain("Source quick_check: ok");
 
       const targetDb = new DatabaseSync(targetPath, { readOnly: true });
       const rows = targetDb
