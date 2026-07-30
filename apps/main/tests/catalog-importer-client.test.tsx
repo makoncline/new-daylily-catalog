@@ -3,9 +3,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { CatalogImporterClient } from "@/app/(public)/catalog-importer/_components/catalog-importer-client";
 
 const readCatalogImporterDraftMock = vi.hoisted(() => vi.fn());
+const capturePosthogEventMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/catalog-importer-draft", () => ({
   readCatalogImporterDraft: readCatalogImporterDraftMock,
+}));
+
+vi.mock("@/lib/analytics/posthog", () => ({
+  capturePosthogEvent: capturePosthogEventMock,
 }));
 
 vi.mock(
@@ -34,6 +39,8 @@ vi.mock(
 describe("CatalogImporterClient", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    capturePosthogEventMock.mockClear();
+    window.history.replaceState(null, "", "/catalog-importer");
   });
 
   it("reads the current browser draft on every mount", async () => {
@@ -77,5 +84,32 @@ describe("CatalogImporterClient", () => {
     expect(
       await screen.findByText(/No restored spreadsheet · unavailable/),
     ).toBeVisible();
+  });
+
+  it("records a cached return from Stripe checkout once", async () => {
+    readCatalogImporterDraftMock.mockResolvedValueOnce(null);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ viewerState: "anonymous" }), {
+          status: 200,
+        }),
+      ),
+    );
+    render(<CatalogImporterClient />);
+    await screen.findByText(/No restored spreadsheet · anonymous/);
+
+    window.history.replaceState(
+      null,
+      "",
+      "/catalog-importer?checkout=canceled&import_id=import-123",
+    );
+    window.dispatchEvent(new PageTransitionEvent("pageshow"));
+
+    expect(capturePosthogEventMock).toHaveBeenCalledOnce();
+    expect(capturePosthogEventMock).toHaveBeenCalledWith("checkout_canceled", {
+      import_id: "import-123",
+    });
+    expect(window.location.href).toBe("http://localhost:3000/catalog-importer");
   });
 });

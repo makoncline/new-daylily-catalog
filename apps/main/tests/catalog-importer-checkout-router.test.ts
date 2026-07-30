@@ -337,7 +337,8 @@ describe("catalog importer checkout", () => {
 
     expect(stripeMocks.checkoutCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        cancel_url: "https://daylilycatalog.test/catalog-importer",
+        cancel_url:
+          "https://daylilycatalog.test/catalog-importer?checkout=canceled&import_id=123e4567-e89b-42d3-a456-426614174000",
         metadata: {
           userId: "user-importer",
           import_id: input.importId,

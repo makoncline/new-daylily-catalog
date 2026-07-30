@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CatalogImporterWorkbench } from "@/app/(public)/catalog-importer/_components/catalog-importer-workbench";
 import { Spinner } from "@/components/ui/spinner";
+import { capturePosthogEvent } from "@/lib/analytics/posthog";
 import {
   readCatalogImporterDraft,
   type CatalogImporterDraft,
@@ -24,6 +25,30 @@ export function CatalogImporterClient({
   const [initialDraft, setInitialDraft] = useState<
     CatalogImporterDraft | null | undefined
   >(undefined);
+  useEffect(() => {
+    const captureCheckoutCancellation = () => {
+      const url = new URL(window.location.href);
+      if (url.searchParams.get("checkout") !== "canceled") {
+        return;
+      }
+
+      capturePosthogEvent("checkout_canceled", {
+        import_id: url.searchParams.get("import_id") ?? undefined,
+      });
+      url.searchParams.delete("checkout");
+      url.searchParams.delete("import_id");
+      window.history.replaceState(
+        window.history.state,
+        "",
+        `${url.pathname}${url.search}${url.hash}`,
+      );
+    };
+
+    captureCheckoutCancellation();
+    window.addEventListener("pageshow", captureCheckoutCancellation);
+    return () =>
+      window.removeEventListener("pageshow", captureCheckoutCancellation);
+  }, []);
   useEffect(() => {
     const controller = new AbortController();
     void fetch("/api/catalog-importer/viewer-state", {
