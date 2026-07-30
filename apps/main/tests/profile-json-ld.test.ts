@@ -40,6 +40,7 @@ describe("profile page json-ld", () => {
     const jsonLd = await generateProfilePageJsonLd(profile, listings, metadata);
     const mainEntity = jsonLd.mainEntity as {
       makesOffer?: Array<{
+        availability?: string;
         itemOffered?: {
           offers?: { price?: string };
         };
@@ -55,6 +56,9 @@ describe("profile page json-ld", () => {
 
     expect(mainEntity.makesOffer?.[0]?.itemOffered?.offers?.price).toBe(
       "125.00",
+    );
+    expect(mainEntity.makesOffer?.[0]?.availability).toBe(
+      "https://schema.org/InStock",
     );
     expect(
       mainEntity.hasOfferCatalog?.[0]?.itemListElement?.[0]?.item?.offers

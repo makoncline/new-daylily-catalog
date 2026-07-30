@@ -38,6 +38,7 @@ async function createProfilePageJsonLd(
             "@type": "Offer",
             price,
             priceCurrency: "USD",
+            availability: "https://schema.org/InStock",
             url: listingUrl,
             itemOffered: {
               "@type": "Product",
