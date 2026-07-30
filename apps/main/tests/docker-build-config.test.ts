@@ -28,8 +28,13 @@ describe("Docker build cache and observability boundaries", () => {
     expect(workflow).toContain("docker/build-push-action@v7");
     expect(workflow).toContain('CACHE_TO=""');
     expect(workflow).toContain('CACHE_TO="type=gha,mode=max"');
-    expect(workflow).toContain(
-      "cache-to: ${{ steps.meta.outputs.cache_to }}",
+    expect(workflow).toContain("cache-to: ${{ steps.meta.outputs.cache_to }}");
+    expect(dockerfile).toContain("ENV NEXT_DEPLOYMENT_ID=$GIT_COMMIT_SHA");
+    expect(workflow).toContain("CLOUDFLARE_CACHE_PURGE_TOKEN");
+    expect(workflow).toContain("vars.CLOUDFLARE_ZONE_ID");
+    expect(workflow).toContain(`--data '{"tags":["daylily-public-html"]}'`);
+    expect(workflow.indexOf("deploy/daylilycatalog")).toBeLessThan(
+      workflow.indexOf("/purge_cache"),
     );
     expect(
       readFileSync(path.join(repoRoot, ".dockerignore"), "utf8"),
