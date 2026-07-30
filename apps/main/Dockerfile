@@ -45,6 +45,7 @@ ARG GIT_COMMIT_SHA
 
 ENV NODE_ENV=production
 ENV SENTRY_RELEASE=$GIT_COMMIT_SHA
+ENV NEXT_DEPLOYMENT_ID=$GIT_COMMIT_SHA
 
 RUN --mount=type=secret,id=app_env \
     : "${BUILD_ENV_FINGERPRINT:?BUILD_ENV_FINGERPRINT is required for Docker builds}" \

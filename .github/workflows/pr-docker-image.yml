@@ -225,12 +225,19 @@ jobs:
     environment: production
 
     steps:
-      - name: Trigger VPS deploy webhook
+      - name: Deploy server image and purge public HTML
         env:
           DEPLOY_WEBHOOK_TOKEN: ${{ secrets.DEPLOY_WEBHOOK_TOKEN }}
+          CLOUDFLARE_ZONE_ID: ${{ vars.CLOUDFLARE_ZONE_ID }}
+          CLOUDFLARE_CACHE_PURGE_TOKEN: ${{ secrets.CLOUDFLARE_CACHE_PURGE_TOKEN }}
         run: |
           if [ -z "$DEPLOY_WEBHOOK_TOKEN" ]; then
             echo "DEPLOY_WEBHOOK_TOKEN secret is required to trigger the VPS deploy webhook." >&2
+            exit 1
+          fi
+
+          if [ -z "$CLOUDFLARE_ZONE_ID" ] || [ -z "$CLOUDFLARE_CACHE_PURGE_TOKEN" ]; then
+            echo "Cloudflare zone ID and cache purge token are required before deployment." >&2
             exit 1
           fi
 
@@ -243,10 +250,21 @@ jobs:
               --data "{\"image_tag\":\"${{ needs.build-and-push.outputs.immutable_tag }}\",\"clear_cache\":false}"
           )"
 
+          purge_response="$(
+            curl --fail-with-body --show-error --silent \
+              --request POST \
+              --url "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/purge_cache" \
+              --header "Authorization: Bearer $CLOUDFLARE_CACHE_PURGE_TOKEN" \
+              --header "Content-Type: application/json" \
+              --data '{"tags":["daylily-public-html"]}'
+          )"
+          echo "$purge_response" | jq -e '.success == true' >/dev/null
+
           {
             echo "## Deploy Webhook"
             echo
             echo "- target: \`daylilycatalog\`"
             echo "- image tag: \`${{ needs.build-and-push.outputs.immutable_tag }}\`"
+            echo "- purged cache tag: \`daylily-public-html\`"
             echo "- response: \`${response}\`"
           } >> "$GITHUB_STEP_SUMMARY"

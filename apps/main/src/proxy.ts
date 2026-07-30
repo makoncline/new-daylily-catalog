@@ -146,6 +146,7 @@ function cloudflareCachedPublicHtmlResponse() {
     PUBLIC_CLOUDFLARE_CACHE_CONTROL_HEADER,
     PUBLIC_CLOUDFLARE_CACHE_CONTROL,
   );
+  response.headers.set("Cache-Tag", "daylily-public-html");
 
   return response;
 }

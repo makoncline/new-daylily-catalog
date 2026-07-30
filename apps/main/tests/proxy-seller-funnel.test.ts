@@ -91,6 +91,7 @@ describe("seller funnel proxy protection", () => {
       expect(response?.headers.get("cloudflare-cdn-cache-control")).toBe(
         "public, max-age=43200, stale-while-revalidate=604800, stale-if-error=86400",
       );
+      expect(response?.headers.get("cache-tag")).toBe("daylily-public-html");
     }
 
     expect(authMock).not.toHaveBeenCalled();
@@ -133,6 +134,7 @@ describe("seller funnel proxy protection", () => {
       expect(
         response?.headers.get("cloudflare-cdn-cache-control") ?? null,
       ).toBeNull();
+      expect(response?.headers.get("cache-tag") ?? null).toBeNull();
     }
 
     const rscRequest = new NextRequest(
