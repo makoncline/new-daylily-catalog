@@ -1,7 +1,7 @@
 import "server-only";
 
 import { execFile } from "node:child_process";
-import { mkdir, open, rename, stat, unlink } from "node:fs/promises";
+import { mkdir, open, rename, rm, stat, unlink } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { createClient } from "@libsql/client";
@@ -411,7 +411,8 @@ async function quarantinePublicSearchBuildSource(
   phase: string,
   sourceError: unknown,
 ) {
-  const quarantineDirectory = `${PUBLIC_SEARCH_BUILD_SOURCE_REPLICA_PATH}.quarantine-${Date.now()}`;
+  const quarantineDirectory = `${PUBLIC_SEARCH_BUILD_SOURCE_REPLICA_PATH}.quarantine`;
+  await rm(quarantineDirectory, { force: true, recursive: true });
   await mkdir(quarantineDirectory, { recursive: true });
   const files: string[] = [];
 

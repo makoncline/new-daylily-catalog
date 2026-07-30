@@ -35,6 +35,7 @@ const mocks = vi.hoisted(() => {
     mkdir: vi.fn(),
     open: vi.fn(),
     rename: vi.fn(),
+    rm: vi.fn(),
     sourceSync: vi.fn(),
     stat: vi.fn(),
     statusExecute: vi.fn(),
@@ -80,6 +81,7 @@ vi.mock("node:fs/promises", () => ({
   mkdir: mocks.mkdir,
   open: mocks.open,
   rename: mocks.rename,
+  rm: mocks.rm,
   stat: mocks.stat,
   unlink: mocks.unlink,
 }));
@@ -107,6 +109,7 @@ describe("public search index refresh", () => {
     mocks.mkdir.mockReset();
     mocks.open.mockReset();
     mocks.rename.mockReset();
+    mocks.rm.mockReset();
     mocks.sourceSync.mockReset();
     mocks.stat.mockReset();
     mocks.statusExecute.mockReset();
@@ -120,6 +123,7 @@ describe("public search index refresh", () => {
     mocks.lockClose.mockResolvedValue(undefined);
     mocks.lockWriteFile.mockResolvedValue(undefined);
     mocks.rename.mockResolvedValue(undefined);
+    mocks.rm.mockResolvedValue(undefined);
     mocks.unlink.mockResolvedValue(undefined);
 
     mocks.stat.mockImplementation(async (filePath: string) => {
@@ -279,6 +283,10 @@ describe("public search index refresh", () => {
       ["", "-info", "-wal", "-shm", "-journal"].map(
         (suffix) => `/data/search/public-search-source-replica.sqlite${suffix}`,
       ),
+    );
+    expect(mocks.rm).toHaveBeenCalledWith(
+      "/data/search/public-search-source-replica.sqlite.quarantine",
+      { force: true, recursive: true },
     );
     expect(log).toHaveBeenCalledWith(
       expect.stringContaining("public_search_source_recovery_succeeded"),
