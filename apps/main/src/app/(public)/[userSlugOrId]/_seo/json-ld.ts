@@ -89,6 +89,7 @@ async function createProfilePageJsonLd(
                       "@type": "Offer",
                       price: listing.price!.toFixed(2),
                       priceCurrency: "USD",
+                      availability: "https://schema.org/InStock",
                     },
                   },
                 })),
