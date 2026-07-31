@@ -13,8 +13,20 @@ interface MockFileHandle {
   writeFile: (data: string, encoding: BufferEncoding) => Promise<void>;
 }
 
+interface MockExecFileResult {
+  stderr: string;
+  stdout: string;
+}
+
 const mocks = vi.hoisted(() => {
-  const execFilePromisified = vi.fn();
+  const execFilePromisified =
+    vi.fn<
+      (
+        file: string,
+        args?: readonly string[],
+        options?: unknown,
+      ) => Promise<MockExecFileResult>
+    >();
   const execFile = vi.fn();
   const promisifyCustom = Symbol.for("nodejs.util.promisify.custom");
   Object.defineProperty(execFile, promisifyCustom, {
@@ -22,7 +34,6 @@ const mocks = vi.hoisted(() => {
   });
 
   return {
-    closeSourceClient: vi.fn(),
     closeStatusClient: vi.fn(),
     createClient: vi.fn(),
     createClientConfigs: [] as LibSqlClientConfigSnapshot[],
@@ -34,11 +45,11 @@ const mocks = vi.hoisted(() => {
     lockWriteFile: vi.fn(),
     mkdir: vi.fn(),
     open: vi.fn(),
-    rename: vi.fn(),
+    rename: vi.fn<(oldPath: string, newPath: string) => Promise<void>>(),
     rm: vi.fn(),
-    sourceSync: vi.fn(),
     stat: vi.fn(),
     statusExecute: vi.fn(),
+    syncWorker: vi.fn<() => Promise<MockExecFileResult>>(),
     unlink: vi.fn(),
   };
 });
@@ -97,7 +108,6 @@ describe("public search index refresh", () => {
     mockEnv.PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS = undefined;
     mockEnv.TURSO_EMBEDDED_REPLICA_URL = "file:/data/turso-replica.db";
 
-    mocks.closeSourceClient.mockReset();
     mocks.closeStatusClient.mockReset();
     mocks.createClient.mockReset();
     mocks.createClientConfigs.length = 0;
@@ -110,9 +120,9 @@ describe("public search index refresh", () => {
     mocks.open.mockReset();
     mocks.rename.mockReset();
     mocks.rm.mockReset();
-    mocks.sourceSync.mockReset();
     mocks.stat.mockReset();
     mocks.statusExecute.mockReset();
+    mocks.syncWorker.mockReset();
     mocks.unlink.mockReset();
 
     mocks.mkdir.mockResolvedValue(undefined);
@@ -142,18 +152,36 @@ describe("public search index refresh", () => {
       return { mtimeMs: Date.now() };
     });
 
-    mocks.execFilePromisified.mockImplementation(async (file: string) => {
-      if (file === "sqlite3") {
-        return { stderr: "", stdout: "ok\n" };
-      }
-
-      mocks.indexExists = true;
-
-      return {
-        stderr: "",
-        stdout: "Source DB: /data/search/public-search-source-replica.sqlite\n",
-      };
+    mocks.syncWorker.mockResolvedValue({
+      stderr: "",
+      stdout: JSON.stringify({
+        ok: true,
+        durationMs: 20,
+        frameNumber: 123,
+        framesSynced: 2,
+        pid: 456,
+      }),
     });
+
+    mocks.execFilePromisified.mockImplementation(
+      async (file: string, args?: readonly string[]) => {
+        if (file === "sqlite3") {
+          return { stderr: "", stdout: "ok\n" };
+        }
+
+        if (args?.[0]?.endsWith("sync-public-search-source-replica.mjs")) {
+          return mocks.syncWorker();
+        }
+
+        mocks.indexExists = true;
+
+        return {
+          stderr: "",
+          stdout:
+            "Source DB: /data/search/public-search-source-replica.sqlite\n",
+        };
+      },
+    );
 
     mocks.statusExecute.mockImplementation(async (sql: string) => {
       if (sql.includes("SearchIndexMeta")) {
@@ -172,21 +200,10 @@ describe("public search index refresh", () => {
       return { rows: [{ count: 1 }] };
     });
 
-    mocks.sourceSync.mockResolvedValue(undefined);
-    mocks.closeSourceClient.mockReturnValue(undefined);
     mocks.closeStatusClient.mockReturnValue(undefined);
     mocks.createClient.mockImplementation(
       (config: LibSqlClientConfigSnapshot) => {
         mocks.createClientConfigs.push({ ...config });
-
-        if (
-          config.url === "file:/data/search/public-search-source-replica.sqlite"
-        ) {
-          return {
-            close: mocks.closeSourceClient,
-            sync: mocks.sourceSync,
-          };
-        }
 
         return {
           close: mocks.closeStatusClient,
@@ -209,21 +226,41 @@ describe("public search index refresh", () => {
 
     await ensurePublicSearchIndex();
 
-    expect(mocks.createClientConfigs[0]).toEqual({
-      authToken: "test-token",
-      syncUrl: "libsql://primary-db",
-      url: "file:/data/search/public-search-source-replica.sqlite",
-    });
-    expect(mocks.sourceSync).toHaveBeenCalledTimes(1);
-    expect(mocks.closeSourceClient).toHaveBeenCalledTimes(1);
-    const execArgs = mocks.execFilePromisified.mock.calls.find(
-      ([file]) => file === process.execPath,
-    )?.[1];
+    expect(mocks.createClientConfigs).not.toContainEqual(
+      expect.objectContaining({
+        url: "file:/data/search/public-search-source-replica.sqlite",
+      }),
+    );
+    expect(mocks.syncWorker).toHaveBeenCalledTimes(1);
+    const syncCall = mocks.execFilePromisified.mock.calls.find(([, args]) =>
+      args?.[0]?.endsWith("sync-public-search-source-replica.mjs"),
+    );
+    expect(syncCall).toBeDefined();
+    const syncArgs = syncCall?.[1] ?? [];
 
-    expect(execArgs).not.toContain("/data/turso-replica.db");
-    expect(execArgs).toContain(
+    expect(syncArgs).not.toContain("/data/turso-replica.db");
+    expect(syncArgs).toContain(
       "/data/search/public-search-source-replica.sqlite",
     );
+    const syncOptions = syncCall?.[2] as
+      | { env?: NodeJS.ProcessEnv }
+      | undefined;
+    expect(syncOptions?.env).toMatchObject({
+      DATABASE_URL: "libsql://primary-db",
+      TURSO_DATABASE_AUTH_TOKEN: "test-token",
+    });
+    const calls = mocks.execFilePromisified.mock.calls;
+    const syncCallIndex = calls.findIndex(([, args]) =>
+      args?.[0]?.endsWith("sync-public-search-source-replica.mjs"),
+    );
+    const postSyncCheckIndex = calls.findIndex(
+      ([file], index) => file === "sqlite3" && index > syncCallIndex,
+    );
+    const buildCallIndex = calls.findIndex(([, args]) =>
+      args?.[0]?.endsWith("build-public-search-index.mjs"),
+    );
+    expect(syncCallIndex).toBeLessThan(postSyncCheckIndex);
+    expect(postSyncCheckIndex).toBeLessThan(buildCallIndex);
     expect(mocks.execFilePromisified).toHaveBeenCalledWith(
       process.execPath,
       [
@@ -253,14 +290,23 @@ describe("public search index refresh", () => {
     expect(status.sourcePath).toBe(
       "/data/search/public-search-source-replica.sqlite",
     );
-    expect(mocks.sourceSync).not.toHaveBeenCalled();
+    expect(mocks.syncWorker).not.toHaveBeenCalled();
     expect(mocks.execFilePromisified).not.toHaveBeenCalled();
   });
 
   it("keeps an old index usable while repairing its source replica", async () => {
     mocks.indexBuiltAt = new Date(0).toISOString();
     mocks.indexExists = true;
-    mocks.sourceSync.mockRejectedValueOnce(new Error("InvalidLocalState"));
+    mocks.syncWorker.mockRejectedValueOnce(
+      Object.assign(new Error("sync worker failed"), {
+        stderr: "InvalidLocalState",
+        stdout: JSON.stringify({
+          ok: false,
+          error: "InvalidLocalState",
+          phase: "source_sync",
+        }),
+      }),
+    );
     const log = vi.spyOn(console, "log");
 
     const { ensurePublicSearchIndex, isPublicSearchIndexUsable } = await import(
@@ -271,25 +317,20 @@ describe("public search index refresh", () => {
 
     expect(status.status).toBe("stale");
     expect(isPublicSearchIndexUsable(status)).toBe(true);
-    await vi.waitFor(() =>
-      expect(mocks.execFilePromisified).toHaveBeenCalledWith(
-        process.execPath,
-        expect.anything(),
-        expect.anything(),
-      ),
-    );
-    expect(mocks.sourceSync).toHaveBeenCalledTimes(2);
+    await vi.waitFor(() => {
+      expect(mocks.syncWorker).toHaveBeenCalledTimes(2);
+      expect(log).toHaveBeenCalledWith(
+        expect.stringContaining("public_search_source_recovery_succeeded"),
+      );
+    });
     expect(mocks.rename.mock.calls.map(([source]) => source)).toEqual(
-      ["", "-info", "-wal", "-shm", "-journal"].map(
+      ["", "-info", "-wal", "-shm", "-journal", "-client_wal_index"].map(
         (suffix) => `/data/search/public-search-source-replica.sqlite${suffix}`,
       ),
     );
     expect(mocks.rm).toHaveBeenCalledWith(
       "/data/search/public-search-source-replica.sqlite.quarantine",
       { force: true, recursive: true },
-    );
-    expect(log).toHaveBeenCalledWith(
-      expect.stringContaining("public_search_source_recovery_succeeded"),
     );
     for (const phase of ["pre_sync", "post_sync", "post_build"]) {
       expect(log).toHaveBeenCalledWith(
@@ -301,6 +342,7 @@ describe("public search index refresh", () => {
   it("repairs a source replica that fails its post-sync integrity check", async () => {
     mocks.execFilePromisified
       .mockResolvedValueOnce({ stderr: "", stdout: "ok\n" })
+      .mockImplementationOnce(async () => mocks.syncWorker())
       .mockRejectedValueOnce(
         Object.assign(new Error("sqlite3 quick_check failed"), {
           code: 11,
@@ -315,10 +357,10 @@ describe("public search index refresh", () => {
 
     await ensurePublicSearchIndex();
 
-    expect(mocks.sourceSync).toHaveBeenCalledTimes(2);
+    expect(mocks.syncWorker).toHaveBeenCalledTimes(2);
     expect(
-      mocks.execFilePromisified.mock.calls.filter(
-        ([file]) => file === process.execPath,
+      mocks.execFilePromisified.mock.calls.filter(([, args]) =>
+        args?.[0]?.endsWith("build-public-search-index.mjs"),
       ),
     ).toHaveLength(1);
     expect(log).toHaveBeenCalledWith(
@@ -326,6 +368,36 @@ describe("public search index refresh", () => {
     );
     expect(log).toHaveBeenCalledWith(
       expect.stringContaining("public_search_source_recovery_succeeded"),
+    );
+  });
+
+  it("repairs corruption visible to the open libSQL client after sync", async () => {
+    mocks.syncWorker.mockRejectedValueOnce(
+      Object.assign(new Error("sync worker failed"), {
+        stderr: "database disk image is malformed",
+        stdout: JSON.stringify({
+          ok: false,
+          error: "database disk image is malformed",
+          phase: "post_sync_client",
+        }),
+      }),
+    );
+    const log = vi.spyOn(console, "log");
+
+    const { ensurePublicSearchIndex } = await import(
+      "@/server/search/public-search-index"
+    );
+
+    await ensurePublicSearchIndex();
+
+    expect(mocks.syncWorker).toHaveBeenCalledTimes(2);
+    expect(
+      mocks.execFilePromisified.mock.calls.filter(([, args]) =>
+        args?.[0]?.endsWith("build-public-search-index.mjs"),
+      ),
+    ).toHaveLength(1);
+    expect(log).toHaveBeenCalledWith(
+      expect.stringContaining('"phase":"post_sync_client"'),
     );
   });
 
@@ -341,7 +413,7 @@ describe("public search index refresh", () => {
     await expect(ensurePublicSearchIndex()).rejects.toThrow(
       "spawn sqlite3 ENOENT",
     );
-    expect(mocks.sourceSync).not.toHaveBeenCalled();
+    expect(mocks.syncWorker).not.toHaveBeenCalled();
     expect(mocks.rm).not.toHaveBeenCalled();
     expect(mocks.rename).not.toHaveBeenCalled();
   });
@@ -355,18 +427,14 @@ describe("public search index refresh", () => {
 
     await ensurePublicSearchIndex();
 
-    expect(mocks.createClientConfigs[0]).toEqual({
-      authToken: "test-token",
-      syncUrl: "libsql://primary-db",
-      url: "file:/data/search/public-search-source-replica.sqlite",
-    });
-    expect(mocks.execFilePromisified).toHaveBeenCalledWith(
-      process.execPath,
-      expect.arrayContaining([
-        "--source",
-        "/data/search/public-search-source-replica.sqlite",
-      ]),
-      expect.anything(),
+    expect(mocks.syncWorker).toHaveBeenCalledTimes(1);
+    const syncCall = mocks.execFilePromisified.mock.calls.find(([, args]) =>
+      args?.[0]?.endsWith("sync-public-search-source-replica.mjs"),
     );
+    expect(syncCall?.[1]).toEqual([
+      expect.stringContaining("scripts/sync-public-search-source-replica.mjs"),
+      "--source",
+      "/data/search/public-search-source-replica.sqlite",
+    ]);
   });
 });

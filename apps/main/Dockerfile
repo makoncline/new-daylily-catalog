@@ -77,6 +77,7 @@ RUN groupadd --system --gid 1001 nodejs \
 
 COPY --from=builder --chown=nextjs:nodejs /app/apps/main/public ./apps/main/public
 COPY --from=builder --chown=nextjs:nodejs /app/apps/main/scripts/build-public-search-index.mjs ./apps/main/scripts/build-public-search-index.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/apps/main/scripts/sync-public-search-source-replica.mjs ./apps/main/scripts/sync-public-search-source-replica.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/apps/main/scripts/build-public-parentage-index.mjs ./apps/main/scripts/build-public-parentage-index.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/apps/main/scripts/set-feature-flag.mjs ./apps/main/scripts/set-feature-flag.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/apps/main/.next/standalone ./
