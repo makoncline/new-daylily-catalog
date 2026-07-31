@@ -1,10 +1,22 @@
 import Link from "next/link";
-import type { Metadata } from "next";
+import { buildPublicPageMetadata } from "@/app/(public)/_seo/public-seo";
+import { IMAGES } from "@/lib/constants/images";
+import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 
-export const metadata: Metadata = {
-  title: "Terms | Daylily Catalog",
-  description: "Simple terms for using Daylily Catalog.",
-};
+const PAGE_PATH = "/terms";
+const PAGE_TITLE = "Terms | Daylily Catalog";
+const PAGE_DESCRIPTION =
+  "Read the terms for using Daylily Catalog, including rules for accounts, catalog content, uploads, buyer inquiries, subscriptions, and automated tools.";
+const BASE_URL = getCanonicalBaseUrl();
+
+export const metadata = buildPublicPageMetadata({
+  canonicalPath: PAGE_PATH,
+  description: PAGE_DESCRIPTION,
+  imageAlt: "Daylily Catalog terms",
+  imageUrl: IMAGES.DEFAULT_META,
+  pageUrl: `${BASE_URL}${PAGE_PATH}`,
+  title: PAGE_TITLE,
+});
 
 const updatedAt = "July 20, 2026";
 

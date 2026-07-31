@@ -1,10 +1,21 @@
-import type { Metadata } from "next";
+import { buildPublicPageMetadata } from "@/app/(public)/_seo/public-seo";
+import { IMAGES } from "@/lib/constants/images";
+import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 
-export const metadata: Metadata = {
-  title: "Privacy Policy | Daylily Catalog",
-  description:
-    "How Daylily Catalog collects, uses, shares, retains, and lets users control data.",
-};
+const PAGE_PATH = "/privacy";
+const PAGE_TITLE = "Privacy Policy | Daylily Catalog";
+const PAGE_DESCRIPTION =
+  "Read how Daylily Catalog collects, uses, shares, stores, and protects account, catalog, inquiry, billing, importer, and analytics data.";
+const BASE_URL = getCanonicalBaseUrl();
+
+export const metadata = buildPublicPageMetadata({
+  canonicalPath: PAGE_PATH,
+  description: PAGE_DESCRIPTION,
+  imageAlt: "Daylily Catalog privacy policy",
+  imageUrl: IMAGES.DEFAULT_META,
+  pageUrl: `${BASE_URL}${PAGE_PATH}`,
+  title: PAGE_TITLE,
+});
 
 const updatedAt = "July 29, 2026";
 

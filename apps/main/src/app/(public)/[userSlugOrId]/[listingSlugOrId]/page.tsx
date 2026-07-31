@@ -110,8 +110,14 @@ function getListingDescription(listing: PublicListingPageData) {
     buyerDescription,
     `From ${listing.sellerTitle ?? "a Daylily Catalog grower"}.`,
   ].filter(Boolean);
+  let description = parts.join(" ").trim().replace(/\s+/g, " ");
 
-  return truncateDescription(parts.join(" "));
+  if (description.length < 110) {
+    description +=
+      " View photos and contact the grower for current availability and catalog details.";
+  }
+
+  return truncateDescription(description);
 }
 
 function getListingTitle(listing: PublicListingPageData) {

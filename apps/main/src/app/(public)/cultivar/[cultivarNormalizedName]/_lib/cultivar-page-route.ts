@@ -15,6 +15,41 @@ export type CultivarPageData = NonNullable<
   Awaited<ReturnType<typeof getPublicCultivarPage>>
 >;
 
+interface CultivarMetaDescriptionInput {
+  gardensCount: number;
+  hybridizer: string | null;
+  name: string;
+  offersCount: number;
+  year: string | null;
+}
+
+export function buildCultivarMetaDescription({
+  gardensCount,
+  hybridizer,
+  name,
+  offersCount,
+  year,
+}: CultivarMetaDescriptionInput) {
+  const identity = hybridizer
+    ? `${name} (${hybridizer}${year ? `, ${year}` : ""})`
+    : `${name} daylily`;
+  const availability =
+    offersCount > 0
+      ? `${offersCount.toLocaleString()} public ${offersCount === 1 ? "offer" : "offers"} from ${gardensCount.toLocaleString()} grower ${gardensCount === 1 ? "catalog" : "catalogs"}`
+      : "availability from public grower catalogs";
+  const description = `Explore ${identity}. View cultivar specifications, photos, related daylilies, and ${availability}.`;
+
+  if (description.length <= 155) {
+    return description;
+  }
+
+  const candidate = description.slice(0, 152);
+  const lastSpace = candidate.lastIndexOf(" ");
+  const truncated = lastSpace > 110 ? candidate.slice(0, lastSpace) : candidate;
+
+  return `${truncated.trim()}...`;
+}
+
 export const getCultivarPageRouteArtifacts = cache(
   async function getCultivarPageRouteArtifacts(
     cultivarNormalizedName: string,
@@ -43,7 +78,13 @@ export async function getCultivarPageMetadata(
 
   const baseUrl = getCanonicalBaseUrl();
   const title = `${cultivarPage.summary.name} | ${METADATA_CONFIG.SITE_NAME}`;
-  const description = `${cultivarPage.summary.name} with ${cultivarPage.offers.summary.offersCount} public offers across ${cultivarPage.offers.summary.gardensCount} catalogs.`;
+  const description = buildCultivarMetaDescription({
+    gardensCount: cultivarPage.offers.summary.gardensCount,
+    hybridizer: cultivarPage.summary.hybridizer,
+    name: cultivarPage.summary.name,
+    offersCount: cultivarPage.offers.summary.offersCount,
+    year: cultivarPage.summary.year,
+  });
   const pageUrl = `${baseUrl}/cultivar/${cultivarNormalizedName}`;
   const rawImageUrl = cultivarPage.heroImages[0]?.url ?? IMAGES.DEFAULT_META;
   const imageUrl = getOptimizedMetaImageUrl(rawImageUrl);

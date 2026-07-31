@@ -10,6 +10,12 @@ import {
   generateProfileMetadata,
 } from "@/app/(public)/[userSlugOrId]/_seo/metadata";
 import { getSocialCardImageUrl } from "@/lib/social-card";
+import {
+  buildCultivarMetaDescription,
+} from "@/app/(public)/cultivar/[cultivarNormalizedName]/_lib/cultivar-page-route";
+import { metadata as privacyMetadata } from "@/app/(public)/privacy/page";
+import { metadata as supportMetadata } from "@/app/(public)/support/page";
+import { metadata as termsMetadata } from "@/app/(public)/terms/page";
 
 vi.mock("@/config/feature-flags", () => ({
   isPublicCultivarSearchEnabled: () => true,
@@ -76,6 +82,15 @@ describe("social sharing metadata", () => {
     expect(getOpenGraphImageUrl(metadata)).not.toBeNull();
   });
 
+  it("keeps fixed public pages social-complete", () => {
+    [privacyMetadata, supportMetadata, termsMetadata].forEach((metadata) => {
+      expect(metadata.openGraph?.description).toBe(metadata.description);
+      expect(metadata.openGraph?.url).toBe(metadata.url);
+      expect(getOpenGraphImageUrl(metadata)).not.toBeNull();
+      expect(metadata.twitter?.description).toBe(metadata.description);
+    });
+  });
+
   it("uses a catalog card without replacing the structured-data image", async () => {
     const metadata = await generateProfileMetadata(
       profile,
@@ -86,6 +101,24 @@ describe("social sharing metadata", () => {
     expect(getOpenGraphImageUrl(metadata)).toBe(
       "https://daylilycatalog.com/api/og/catalog/seller-1?v=2",
     );
+    expect(metadata.description?.length).toBeGreaterThanOrEqual(110);
+    expect(metadata.description?.length).toBeLessThanOrEqual(160);
+    expect(metadata.openGraph?.description).toBe(metadata.description);
+  });
+
+  it("builds useful cultivar descriptions within the search snippet limit", () => {
+    const description = buildCultivarMetaDescription({
+      gardensCount: 2,
+      hybridizer: "Pierce G.",
+      name: "Coffee Frenzy",
+      offersCount: 4,
+      year: "2013",
+    });
+
+    expect(description).toContain("Coffee Frenzy (Pierce G., 2013)");
+    expect(description).toContain("4 public offers from 2 grower catalogs");
+    expect(description.length).toBeGreaterThanOrEqual(110);
+    expect(description.length).toBeLessThanOrEqual(155);
   });
 
   it("builds distinct list and for-sale previews", () => {

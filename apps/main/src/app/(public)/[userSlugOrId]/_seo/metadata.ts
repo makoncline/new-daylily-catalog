@@ -11,7 +11,7 @@ import type { PublicCatalogSearchParamRecord } from "@/lib/public-catalog-url-st
 import { parseTableUrlColumnFilterValue } from "@/lib/table-url-filters";
 
 // Optimal meta description length
-const MIN_DESCRIPTION_LENGTH = 70;
+const MIN_DESCRIPTION_LENGTH = 110;
 const MAX_DESCRIPTION_LENGTH = 160;
 
 // Define a type for the profile data structure
@@ -86,11 +86,11 @@ async function createProfileMetadata(
     const title = profile.title ?? "Daylily Catalog";
 
     // Generate description with proper length
-    let description = profile.description ?? "";
+    let description = profile.description?.trim().replace(/\s+/g, " ") ?? "";
 
     // If no description, create one with available information
     if (!description) {
-      description = `Browse our collection of beautiful daylilies.${
+      description = `Browse the public daylily catalog from ${title}, with listings, photos, prices, and collection details.${
         profile.location ? ` Located in ${profile.location}.` : ""
       }`;
     }
@@ -100,8 +100,8 @@ async function createProfileMetadata(
       description =
         description.substring(0, MAX_DESCRIPTION_LENGTH - 3) + "...";
     } else if (description.length < MIN_DESCRIPTION_LENGTH) {
-      // Add generic text if too short
-      description += " Find unique daylilies for your garden from our catalog.";
+      description +=
+        " Browse public daylily listings, photos, prices, and collection details.";
 
       // Truncate if it became too long
       if (description.length > MAX_DESCRIPTION_LENGTH) {
