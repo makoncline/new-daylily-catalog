@@ -14,8 +14,8 @@ const temporaryRoots: string[] = [];
 
 function createWorkerEnv(
   temporaryRoot: string,
-  overrides: NodeJS.ProcessEnv = {},
-) {
+  overrides: Partial<NodeJS.ProcessEnv> = {},
+): NodeJS.ProcessEnv {
   const authPath = path.join(temporaryRoot, "codex-auth.json");
   fs.writeFileSync(authPath, "{}");
 
@@ -23,7 +23,7 @@ function createWorkerEnv(
     ...process.env,
     CODEX_AUTH_PATH: authPath,
     ...overrides,
-  };
+  } as NodeJS.ProcessEnv;
 }
 
 afterEach(() => {

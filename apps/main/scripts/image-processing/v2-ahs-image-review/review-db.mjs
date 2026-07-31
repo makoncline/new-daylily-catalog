@@ -97,7 +97,6 @@ export function ensureSchema(database) {
       ON "v2_image_review_queue"("status", "updatedAt");
   `);
 
-  /** @type {Array<{ name: string }>} */
   const columns = database
     .prepare(`PRAGMA table_info("v2_image_review_queue")`)
     .all();
@@ -435,6 +434,7 @@ export function getCounts() {
   }
 }
 
+/** @param {string | null} [preferredId] */
 export function getItem(preferredId = null) {
   const database = openQueueDb();
 
@@ -565,7 +565,7 @@ export function getEditedItems() {
 /**
  * @param {string} id
  * @param {string} status
- * @param {{ lastError?: unknown, editedPath?: unknown, promptVersion?: unknown, incrementAttempts?: boolean }} [options]
+ * @param {{ lastError?: string | null, editedPath?: string | null, promptVersion?: string | null, incrementAttempts?: boolean }} [options]
  */
 export function updateStatus(id, status, options = {}) {
   const database = openQueueDb();
@@ -596,13 +596,13 @@ export function updateStatus(id, status, options = {}) {
       .run(
         status,
         Object.hasOwn(options, "lastError")
-          ? options.lastError
+          ? (options.lastError ?? null)
           : item.lastError,
         Object.hasOwn(options, "editedPath")
-          ? options.editedPath
+          ? (options.editedPath ?? null)
           : item.editedPath,
         Object.hasOwn(options, "promptVersion")
-          ? options.promptVersion
+          ? (options.promptVersion ?? null)
           : item.promptVersion,
         ["pending", "failed", "rejected"].includes(status)
           ? null
@@ -677,6 +677,10 @@ export function approveAllReviewItems() {
   }
 }
 
+/**
+ * @param {string} id
+ * @param {string} agentId
+ */
 export function assignCodexNativeAgent(id, agentId) {
   const database = openQueueDb();
 
@@ -822,6 +826,10 @@ export function claimNextPendingItem(preferredId = null) {
   }
 }
 
+/**
+ * @param {string} id
+ * @param {string} variant
+ */
 export function getFilePath(id, variant) {
   const item = getItem(id);
 
