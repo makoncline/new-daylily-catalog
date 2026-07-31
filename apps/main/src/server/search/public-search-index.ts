@@ -20,6 +20,7 @@ const PUBLIC_SEARCH_BUILD_SOURCE_SUFFIXES = [
   "-wal",
   "-shm",
   "-journal",
+  "-client_wal_index",
 ];
 
 interface SearchIndexMeta {
@@ -86,6 +87,13 @@ export function getPublicSearchIndexPath() {
 
 function getBuildScriptPath() {
   return path.join(getAppRoot(), "scripts/build-public-search-index.mjs");
+}
+
+function getSourceSyncScriptPath() {
+  return path.join(
+    getAppRoot(),
+    "scripts/sync-public-search-source-replica.mjs",
+  );
 }
 
 function getRefreshLockPath() {
@@ -158,16 +166,55 @@ async function preparePublicSearchBuildSource() {
   });
   await checkPublicSearchBuildSource("pre_sync", true);
 
-  const client = createClient({
-    authToken: env.TURSO_DATABASE_AUTH_TOKEN,
-    syncUrl: databaseUrl,
-    url: `file:${PUBLIC_SEARCH_BUILD_SOURCE_REPLICA_PATH}`,
-  });
+  const syncOutput = await execFileAsync(
+    process.execPath,
+    [
+      getSourceSyncScriptPath(),
+      "--source",
+      PUBLIC_SEARCH_BUILD_SOURCE_REPLICA_PATH,
+    ],
+    {
+      cwd: getAppRoot(),
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        DATABASE_URL: databaseUrl,
+        TURSO_DATABASE_AUTH_TOKEN: env.TURSO_DATABASE_AUTH_TOKEN,
+      },
+      maxBuffer: 1024 * 1024,
+    },
+  );
 
-  try {
-    await client.sync();
-  } finally {
-    client.close();
+  const syncResult = JSON.parse(syncOutput.stdout.trim()) as {
+    clientQuickCheck?: unknown;
+    durationMs?: unknown;
+    frameNumber?: unknown;
+    framesSynced?: unknown;
+    pid?: unknown;
+  };
+  if (typeof syncResult.clientQuickCheck !== "string") {
+    throw new Error("Source sync worker returned an invalid result.");
+  }
+  const clientQuickCheck = syncResult.clientQuickCheck;
+
+  logSearchIndex("public_search_source_sync_completed", {
+    durationMs: syncResult.durationMs ?? null,
+    frameNumber: syncResult.frameNumber ?? null,
+    framesSynced: syncResult.framesSynced ?? null,
+    workerPid: syncResult.pid ?? null,
+  });
+  logSearchIndex("public_search_source_integrity_checked", {
+    phase: "post_sync_client",
+    result: clientQuickCheck,
+  });
+  if (clientQuickCheck !== "ok") {
+    throw new SourceReplicaIntegrityError("post_sync_client", clientQuickCheck);
+  }
+
+  if (syncOutput.stderr.trim().length > 0) {
+    logSearchIndex("public_search_source_sync_stderr", {
+      output: syncOutput.stderr.trim(),
+    });
   }
 
   await checkPublicSearchBuildSource("post_sync");
@@ -407,7 +454,19 @@ function getRecoverableSourcePhase(error: unknown, stage: string) {
     return error.phase;
   }
 
-  const message = error instanceof Error ? error.message : String(error);
+  const message =
+    error instanceof Error && "stderr" in error
+      ? `${error.message}\n${String(error.stderr)}`
+      : error instanceof Error
+        ? error.message
+        : String(error);
+  const integrityPhase = /Source replica ([a-z_]+) quick_check failed/i.exec(
+    message,
+  )?.[1];
+  if (integrityPhase) {
+    return integrityPhase;
+  }
+
   if (/post_build/i.test(message)) {
     return "post_build";
   }
