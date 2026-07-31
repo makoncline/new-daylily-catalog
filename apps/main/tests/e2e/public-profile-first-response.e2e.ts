@@ -34,7 +34,10 @@ test.describe("public profile first-response content @local", () => {
             userId: user.id,
             title: `${LISTING_TITLE_PREFIX} ${suffix}`,
             slug: `static-first-listing-${suffix}`,
-            description: `Fixture listing ${suffix}`,
+            description:
+              i === 1
+                ? "cultivar ".repeat(30).trim()
+                : `Fixture listing ${suffix}`,
             price: i,
           },
         });
@@ -98,6 +101,7 @@ test.describe("public profile first-response content @local", () => {
     )?.[1];
 
     expect(description?.length).toBeGreaterThanOrEqual(110);
+    expect(description?.endsWith("cultivar...")).toBe(true);
     expect(html).toContain('<link rel="canonical"');
     expect(html).toContain('<meta property="og:title"');
     expect(html).toContain('<meta property="og:description"');

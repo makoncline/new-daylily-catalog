@@ -96,7 +96,11 @@ function truncateDescription(value: string, maxLength = 155) {
     return trimmed;
   }
 
-  return `${trimmed.slice(0, maxLength - 3).trim()}...`;
+  const candidate = trimmed.slice(0, maxLength - 3);
+  const lastSpace = candidate.lastIndexOf(" ");
+  const truncated = lastSpace > 0 ? candidate.slice(0, lastSpace) : candidate;
+
+  return `${truncated.trim().replace(/[,;:]$/, "")}...`;
 }
 
 function getListingDescription(listing: PublicListingPageData) {

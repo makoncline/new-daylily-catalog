@@ -106,19 +106,65 @@ describe("social sharing metadata", () => {
     expect(metadata.openGraph?.description).toBe(metadata.description);
   });
 
+  it("completes short profile descriptions and truncates at word boundaries", async () => {
+    const shortMetadata = await generateProfileMetadata(
+      { ...profile, description: "Where nature grows with you." },
+      "https://daylilycatalog.com",
+    );
+    const longMetadata = await generateProfileMetadata(
+      { ...profile, description: "cultivar ".repeat(30).trim() },
+      "https://daylilycatalog.com",
+    );
+    const blankMetadata = await generateProfileMetadata(
+      { ...profile, description: null, location: null, title: "X" },
+      "https://daylilycatalog.com",
+    );
+
+    expect(shortMetadata.description).toContain(
+      "Where nature grows with you.",
+    );
+    expect(shortMetadata.description?.length).toBeGreaterThanOrEqual(110);
+    expect(shortMetadata.description?.length).toBeLessThanOrEqual(160);
+    expect(longMetadata.description?.endsWith("cultivar...")).toBe(true);
+    expect(blankMetadata.description?.length).toBeGreaterThanOrEqual(110);
+    expect(blankMetadata.description?.length).toBeLessThanOrEqual(160);
+  });
+
   it("builds useful cultivar descriptions within the search snippet limit", () => {
     const description = buildCultivarMetaDescription({
+      ahsListing: {
+        bloomSeason: "Midseason",
+        bloomSize: "4 in",
+        foliageType: "Semi-Evergreen",
+        hybridizer: "Cline",
+        name: "Coffee Frenzy",
+        ploidy: "Diploid",
+        scapeHeight: "42 in",
+        year: "2014",
+      },
       gardensCount: 2,
-      hybridizer: "Pierce G.",
+      hybridizer: "Cline",
       name: "Coffee Frenzy",
       offersCount: 4,
-      year: "2013",
+      year: "2014",
     });
 
-    expect(description).toContain("Coffee Frenzy (Pierce G., 2013)");
+    expect(description).toContain("Coffee Frenzy (Cline, 2014)");
+    expect(description).toContain("height 42 in");
     expect(description).toContain("4 public offers from 2 grower catalogs");
     expect(description.length).toBeGreaterThanOrEqual(110);
     expect(description.length).toBeLessThanOrEqual(155);
+
+    const fallbackDescription = buildCultivarMetaDescription({
+      ahsListing: null,
+      gardensCount: 0,
+      hybridizer: null,
+      name: "Unknown Cultivar",
+      offersCount: 0,
+      year: null,
+    });
+    expect(fallbackDescription.length).toBeGreaterThanOrEqual(110);
+    expect(fallbackDescription.length).toBeLessThanOrEqual(155);
   });
 
   it("builds distinct list and for-sale previews", () => {

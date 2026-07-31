@@ -2,6 +2,7 @@ import { cache } from "react";
 import type { Metadata } from "next";
 import { METADATA_CONFIG } from "@/config/constants";
 import { IMAGES } from "@/lib/constants/images";
+import { formatAhsListingSummary } from "@/lib/utils";
 import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 import { fromCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
@@ -16,6 +17,7 @@ export type CultivarPageData = NonNullable<
 >;
 
 interface CultivarMetaDescriptionInput {
+  ahsListing: Parameters<typeof formatAhsListingSummary>[0];
   gardensCount: number;
   hybridizer: string | null;
   name: string;
@@ -24,6 +26,7 @@ interface CultivarMetaDescriptionInput {
 }
 
 export function buildCultivarMetaDescription({
+  ahsListing,
   gardensCount,
   hybridizer,
   name,
@@ -37,6 +40,36 @@ export function buildCultivarMetaDescription({
     offersCount > 0
       ? `${offersCount.toLocaleString()} public ${offersCount === 1 ? "offer" : "offers"} from ${gardensCount.toLocaleString()} grower ${gardensCount === 1 ? "catalog" : "catalogs"}`
       : "availability from public grower catalogs";
+  const generatedSummary = formatAhsListingSummary(ahsListing);
+
+  if (generatedSummary) {
+    const availabilitySentence =
+      offersCount > 0
+        ? `See photos and ${offersCount.toLocaleString()} public ${offersCount === 1 ? "offer" : "offers"} from ${gardensCount.toLocaleString()} grower ${gardensCount === 1 ? "catalog" : "catalogs"}.`
+        : "See photos and check public grower catalogs for availability.";
+    const normalizedSummary = generatedSummary
+      .trim()
+      .replace(/\s+/g, " ")
+      .replace(/[.;:]+$/, "");
+    const summaryLimit = 155 - availabilitySentence.length - 1;
+    let fittedSummary = normalizedSummary;
+
+    if (fittedSummary.length + 1 > summaryLimit) {
+      const candidate = fittedSummary.slice(0, summaryLimit - 3);
+      const lastSpace = candidate.lastIndexOf(" ");
+      fittedSummary = `${(lastSpace > 0 ? candidate.slice(0, lastSpace) : candidate)
+        .trim()
+        .replace(/[,;:]$/, "")}...`;
+    } else {
+      fittedSummary += ".";
+    }
+
+    const generatedDescription = `${fittedSummary} ${availabilitySentence}`;
+    if (generatedDescription.length >= 110) {
+      return generatedDescription;
+    }
+  }
+
   const description = `Explore ${identity}. View cultivar specifications, photos, related daylilies, and ${availability}.`;
 
   if (description.length <= 155) {
@@ -79,6 +112,7 @@ export async function getCultivarPageMetadata(
   const baseUrl = getCanonicalBaseUrl();
   const title = `${cultivarPage.summary.name} | ${METADATA_CONFIG.SITE_NAME}`;
   const description = buildCultivarMetaDescription({
+    ahsListing: cultivarPage.cultivar.ahsListing,
     gardensCount: cultivarPage.offers.summary.gardensCount,
     hybridizer: cultivarPage.summary.hybridizer,
     name: cultivarPage.summary.name,

@@ -14,6 +14,20 @@ import { parseTableUrlColumnFilterValue } from "@/lib/table-url-filters";
 const MIN_DESCRIPTION_LENGTH = 110;
 const MAX_DESCRIPTION_LENGTH = 160;
 
+function truncateProfileDescription(value: string) {
+  const normalized = value.trim().replace(/\s+/g, " ");
+
+  if (normalized.length <= MAX_DESCRIPTION_LENGTH) {
+    return normalized;
+  }
+
+  const candidate = normalized.slice(0, MAX_DESCRIPTION_LENGTH - 3);
+  const lastSpace = candidate.lastIndexOf(" ");
+  const truncated = lastSpace > 0 ? candidate.slice(0, lastSpace) : candidate;
+
+  return `${truncated.replace(/[,;:]$/, "")}...`;
+}
+
 // Define a type for the profile data structure
 interface PublicProfile {
   id: string;
@@ -90,25 +104,16 @@ async function createProfileMetadata(
 
     // If no description, create one with available information
     if (!description) {
-      description = `Browse the public daylily catalog from ${title}, with listings, photos, prices, and collection details.${
+      description = `Browse the public daylily catalog from ${title}, with listings, photos, prices, availability, garden details, and collection information.${
         profile.location ? ` Located in ${profile.location}.` : ""
       }`;
     }
 
-    // Ensure description is within length limits
-    if (description.length > MAX_DESCRIPTION_LENGTH) {
-      description =
-        description.substring(0, MAX_DESCRIPTION_LENGTH - 3) + "...";
-    } else if (description.length < MIN_DESCRIPTION_LENGTH) {
+    if (description.length < MIN_DESCRIPTION_LENGTH) {
       description +=
-        " Browse public daylily listings, photos, prices, and collection details.";
-
-      // Truncate if it became too long
-      if (description.length > MAX_DESCRIPTION_LENGTH) {
-        description =
-          description.substring(0, MAX_DESCRIPTION_LENGTH - 3) + "...";
-      }
+        " Explore this grower's public daylily catalog with listings, photos, prices, availability, garden details, and collection information.";
     }
+    description = truncateProfileDescription(description);
 
     const rawImageUrl = profile.images?.[0]?.url ?? IMAGES.DEFAULT_CATALOG;
     const imageUrl = getOptimizedMetaImageUrl(rawImageUrl);
