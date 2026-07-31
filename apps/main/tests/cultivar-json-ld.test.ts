@@ -8,7 +8,7 @@ describe("cultivar json-ld", () => {
     process.env.NEXT_PUBLIC_CLOUDFLARE_URL = "https://cf.daylilycatalog.com";
   });
 
-  it("returns Product schema when priced offers exist", () => {
+  it("returns one complete Product schema when priced offers exist", () => {
     const cultivarPage = {
       summary: {
         name: "Starman",
@@ -50,12 +50,8 @@ describe("cultivar json-ld", () => {
     expect(jsonLd.offers?.[0]?.url).toBe(
       "https://daylily-catalog.com/rolling-oaks/starman-fan",
     );
-    expect(jsonLd.isRelatedTo).toEqual([
-      expect.objectContaining({
-        name: "Isle of Wight",
-        url: "https://daylily-catalog.com/cultivar/isle-of-wight",
-      }),
-    ]);
+    expect(jsonLd.isRelatedTo).toBeUndefined();
+    expect(JSON.stringify(jsonLd).match(/"@type":"Product"/g)).toHaveLength(1);
   });
 
   it("returns WebPage schema when no priced offers exist", () => {
@@ -72,7 +68,11 @@ describe("cultivar json-ld", () => {
           {
             title: "Rolling Oaks",
             slug: "rolling-oaks",
-            offers: [{ id: "offer-1", slug: "starman-fan", price: null }],
+            offers: [
+              { id: "offer-1", slug: "starman-fan", price: null },
+              { id: "offer-2", slug: "starman-zero", price: 0 },
+              { id: "offer-3", slug: "starman-negative", price: -10 },
+            ],
           },
         ],
       },

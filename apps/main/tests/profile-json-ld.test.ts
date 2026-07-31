@@ -6,11 +6,18 @@ type ListingsInput = Parameters<typeof generateProfilePageJsonLd>[1];
 type MetadataInput = Parameters<typeof generateProfilePageJsonLd>[2];
 
 describe("profile page json-ld", () => {
-  it("adds offers to nested Product nodes in makesOffer", async () => {
+  it("adds complete offers to nested Product nodes", async () => {
     const profile = {
       id: "user-1",
       title: "Rolling Oaks Daylilies",
-      lists: [],
+      lists: [
+        {
+          id: "list-1",
+          title: "For Sale",
+          description: null,
+        },
+      ],
+      listingCount: 1,
     } as unknown as ProfileInput;
 
     const listings = [
@@ -19,7 +26,7 @@ describe("profile page json-ld", () => {
         title: "Starman",
         price: 125,
         images: [{ url: "https://example.com/starman.jpg" }],
-        lists: [],
+        lists: [{ id: "list-1" }],
       },
     ] as unknown as ListingsInput;
 
@@ -31,17 +38,33 @@ describe("profile page json-ld", () => {
     } as MetadataInput;
 
     const jsonLd = await generateProfilePageJsonLd(profile, listings, metadata);
-    const makesOffer = (jsonLd as Record<string, unknown>).mainEntity as {
+    const mainEntity = jsonLd.mainEntity as {
       makesOffer?: Array<{
+        availability?: string;
         itemOffered?: {
           offers?: { price?: string };
         };
       }>;
+      hasOfferCatalog?: Array<{
+        itemListElement?: Array<{
+          item?: {
+            offers?: { availability?: string };
+          };
+        }>;
+      }>;
     };
 
-    expect(makesOffer.makesOffer?.[0]?.itemOffered?.offers?.price).toBe(
+    expect(mainEntity.makesOffer?.[0]?.itemOffered?.offers?.price).toBe(
       "125.00",
     );
+    expect(mainEntity.makesOffer?.[0]?.availability).toBe(
+      "https://schema.org/InStock",
+    );
+    expect(
+      mainEntity.hasOfferCatalog?.[0]?.itemListElement?.[0]?.item?.offers
+        ?.availability,
+    ).toBe("https://schema.org/InStock");
+    expect(jsonLd.interactionStatistic).toBeUndefined();
   });
 
   it("omits makesOffer for listings without sellable product data", async () => {
@@ -57,6 +80,20 @@ describe("profile page json-ld", () => {
         title: "No Price Listing",
         price: null,
         images: [{ url: "https://example.com/no-price.jpg" }],
+        lists: [],
+      },
+      {
+        id: "listing-zero-price",
+        title: "Zero Price Listing",
+        price: 0,
+        images: [{ url: "https://example.com/zero-price.jpg" }],
+        lists: [],
+      },
+      {
+        id: "listing-negative-price",
+        title: "Negative Price Listing",
+        price: -10,
+        images: [{ url: "https://example.com/negative-price.jpg" }],
         lists: [],
       },
       {
@@ -76,7 +113,7 @@ describe("profile page json-ld", () => {
     } as MetadataInput;
 
     const jsonLd = await generateProfilePageJsonLd(profile, listings, metadata);
-    const mainEntity = (jsonLd as Record<string, unknown>).mainEntity as {
+    const mainEntity = jsonLd.mainEntity as {
       makesOffer?: unknown[];
     };
 

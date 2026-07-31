@@ -18,7 +18,10 @@ async function createProfilePageJsonLd(
     // Filter to only include listings with both prices AND images (required for valid Product schema)
     const validListings = listings.filter(
       (listing) =>
-        listing.price !== null && listing.images && listing.images.length > 0,
+        listing.price !== null &&
+        listing.price > 0 &&
+        listing.images &&
+        listing.images.length > 0,
     );
 
     // The main entity (Person or Organization) that the profile is about
@@ -38,6 +41,7 @@ async function createProfilePageJsonLd(
             "@type": "Offer",
             price,
             priceCurrency: "USD",
+            availability: "https://schema.org/InStock",
             url: listingUrl,
             itemOffered: {
               "@type": "Product",
@@ -89,6 +93,7 @@ async function createProfilePageJsonLd(
                       "@type": "Offer",
                       price: listing.price!.toFixed(2),
                       priceCurrency: "USD",
+                      availability: "https://schema.org/InStock",
                     },
                   },
                 })),
@@ -117,19 +122,6 @@ async function createProfilePageJsonLd(
       image: metadata.imageUrl,
       mainEntity: mainEntity,
     };
-
-    // Add statistics if available and the property exists
-    if (
-      "listingCount" in profile &&
-      typeof profile.listingCount === "number" &&
-      profile.listingCount > 0
-    ) {
-      profileSchema.interactionStatistic = {
-        "@type": "InteractionCounter",
-        interactionType: "https://schema.org/ItemPage",
-        userInteractionCount: profile.listingCount,
-      };
-    }
 
     return profileSchema;
   } catch (error) {

@@ -11,7 +11,7 @@ export function generateCultivarJsonLd(
   const pageUrl = `${baseUrl}/cultivar/${canonicalSegment}`;
   const productOffers = cultivarPage.offers.gardenCards.flatMap((garden) =>
     garden.offers
-      .filter((offer) => offer.price !== null)
+      .filter((offer) => offer.price !== null && offer.price > 0)
       .map((offer) => ({
         "@type": "Offer",
         price: offer.price!.toFixed(2),
@@ -71,11 +71,5 @@ export function generateCultivarJsonLd(
       value: spec.value,
     })),
     offers: productOffers,
-    isRelatedTo: cultivarPage.relatedByHybridizer.map((cultivar) => ({
-      "@type": "Product",
-      name: cultivar.name,
-      url: `${baseUrl}/cultivar/${cultivar.segment}`,
-      image: cultivar.imageUrl,
-    })),
   };
 }

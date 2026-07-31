@@ -7,6 +7,9 @@ describe("paginated profile metadata", () => {
     const metadata = generatePaginatedProfileMetadata({
       baseMetadata: {
         title: "Alpha Garden | Daylily Catalog",
+        openGraph: {
+          url: "https://daylilycatalog.com/alpha-garden",
+        },
       } as Metadata,
       profileSlug: "alpha-garden",
       page: 1,
@@ -36,6 +39,9 @@ describe("paginated profile metadata", () => {
     const metadata = generatePaginatedProfileMetadata({
       baseMetadata: {
         title: "Alpha Garden | Daylily Catalog",
+        openGraph: {
+          url: "https://daylilycatalog.com/alpha-garden",
+        },
       } as Metadata,
       profileSlug: "alpha-garden",
       page: 4,
@@ -44,6 +50,9 @@ describe("paginated profile metadata", () => {
     });
 
     expect(metadata.alternates?.canonical).toBe("/alpha-garden/page/4");
+    expect(metadata.openGraph?.url?.toString()).toBe(
+      "https://daylilycatalog.com/alpha-garden/page/4",
+    );
     expect(metadata.robots).toBe("noindex, nofollow");
     expect(metadata.title).toContain("Page 4");
   });

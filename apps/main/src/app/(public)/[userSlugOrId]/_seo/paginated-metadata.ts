@@ -29,6 +29,16 @@ export function generatePaginatedProfileMetadata<T extends Metadata>({
     robots = "noindex, follow";
   }
 
+  const baseOpenGraphUrl = baseMetadata.openGraph?.url;
+  let openGraphUrl: string | URL = canonicalPath;
+  if (baseOpenGraphUrl) {
+    try {
+      openGraphUrl = new URL(canonicalPath, baseOpenGraphUrl);
+    } catch {
+      openGraphUrl = canonicalPath;
+    }
+  }
+
   return {
     ...baseMetadata,
     title: page > 1 ? `${baseTitle} - Page ${page}` : baseTitle,
@@ -37,5 +47,11 @@ export function generatePaginatedProfileMetadata<T extends Metadata>({
       ...(baseMetadata.alternates ?? {}),
       canonical: canonicalPath,
     },
+    ...(baseMetadata.openGraph && {
+      openGraph: {
+        ...baseMetadata.openGraph,
+        url: openGraphUrl,
+      },
+    }),
   } as T;
 }
