@@ -3,6 +3,7 @@ import path from "node:path";
 import http from "node:http";
 import { fileURLToPath } from "node:url";
 import {
+  approveAllReviewItems,
   approveReviewItems,
   getCounts,
   getEditedItems,
@@ -134,18 +135,32 @@ const server = http.createServer(async (request, response) => {
   }
 
   if (request.method === "POST" && requestUrl.pathname === "/api/approve-all") {
+    const updated = approveAllReviewItems();
+    console.log(`[v2-image-review] approved all review items count=${updated}`);
+    sendJson(response, {
+      ok: true,
+      updated,
+      counts: getCounts(),
+    });
+    return;
+  }
+
+  if (
+    request.method === "POST" &&
+    requestUrl.pathname === "/api/approve-page"
+  ) {
     const body = await readJsonBody(request);
     const ids = Array.isArray(body.ids)
       ? body.ids.filter((id) => typeof id === "string")
       : [];
 
     if (ids.length === 0) {
-      sendJson(response, { error: "Missing review ids" }, 400);
+      sendJson(response, { error: "Missing review item ids" }, 400);
       return;
     }
 
     const updated = approveReviewItems(ids);
-    console.log(`[v2-image-review] approved all review items count=${updated}`);
+    console.log(`[v2-image-review] approved review page count=${updated}`);
     sendJson(response, {
       ok: true,
       updated,

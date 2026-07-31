@@ -25,6 +25,9 @@ create worktree-local artifacts.
 
 - review server: `pnpm main exec node scripts/image-processing/v2-ahs-image-review/server.mjs`
 - Codex-native generation: `pnpm images:generate --limit 20 --concurrency 10`
+- Worker status: `pnpm images:control status`
+- Live concurrency: `pnpm images:control concurrency 20`
+- Graceful stop: `pnpm images:control drain`
 - Legacy ChatGPT worker fallback: `pnpm main exec node scripts/image-processing/v2-ahs-image-review/chatgpt-worker-agent-browser.mjs --limit 50`
 
 ## Generation Flow
@@ -52,8 +55,6 @@ Run:
 pnpm env:dev bash scripts/db-backup.sh
 pnpm images:generate --limit 20 --concurrency 10
 ```
-
-From a linked worktree, perform the [exceptional full-snapshot copy](../../../docs/db-backup-readme.md#linked-worktrees) before running generation.
 
 Spot-check generated images in the local UI, then run the generated cultivar
 ImageAsset/R2 backfill. Rows marked `review` are generated and importable; use

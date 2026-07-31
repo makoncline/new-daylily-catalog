@@ -35,31 +35,18 @@
         display: grid;
         gap: 0;
       }
-      .masthead {
-        display: grid;
-        gap: 8px;
-        padding: 10px 12px;
-        border-bottom: 1px solid var(--line);
-      }
-      .topbar {
+      .utility-bar {
+        position: sticky;
+        top: 0;
+        z-index: 2;
         display: flex;
+        align-items: center;
         justify-content: space-between;
-        align-items: flex-end;
-        gap: 20px;
-        flex-wrap: wrap;
-      }
-      .eyebrow {
-        font-family: "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
-        font-size: 11px;
-        letter-spacing: 0.22em;
-        text-transform: uppercase;
-        color: var(--muted);
-      }
-      h1 {
-        margin: 2px 0 0;
-        font-size: 20px;
-        font-weight: 700;
-        letter-spacing: 0;
+        gap: 8px;
+        min-height: 40px;
+        padding: 4px 6px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.96);
       }
       p {
         margin: 0;
@@ -75,40 +62,35 @@
         font-size: 12px;
       }
       .status-strip {
-        display: grid;
-        gap: 4px;
-        grid-template-columns: repeat(6, minmax(0, 1fr));
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+        white-space: nowrap;
       }
       .status-cell {
-        display: grid;
-        gap: 2px;
-        padding: 10px 0;
-        border-top: 1px solid var(--line);
-      }
-      .toolbar {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 12px;
-        flex-wrap: wrap;
-        padding: 0;
-      }
-      .toolbar-group {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        flex-wrap: wrap;
+        display: inline-flex;
+        align-items: baseline;
+        gap: 4px;
       }
       .count-label {
         font-family: "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
         font-size: 11px;
         color: var(--muted);
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
       }
       .count-value {
-        font-size: 22px;
+        font-size: 13px;
         font-weight: 700;
+      }
+      .page-label {
+        font:
+          600 11px/1 "SFMono-Regular",
+          Menlo,
+          Monaco,
+          Consolas,
+          monospace;
+        color: var(--muted);
+        white-space: nowrap;
       }
       .actions {
         display: flex;
@@ -117,15 +99,17 @@
       }
       .stream {
         display: grid;
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
+        gap: 1px;
+        background: var(--line);
       }
       button {
         border: 1px solid var(--line-strong);
         border-radius: 0;
-        min-height: 44px;
-        padding: 0 14px;
+        min-height: 32px;
+        padding: 0 10px;
         font:
-          600 13px/1 "SFMono-Regular",
+          600 11px/1 "SFMono-Regular",
           Menlo,
           Monaco,
           Consolas,
@@ -183,34 +167,20 @@
         display: grid;
         gap: 0;
         padding: 0;
+        min-height: 0;
+        border: 0;
+        background: var(--bg);
+        text-align: left;
+        font: inherit;
       }
-      .queue-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 8px;
-        flex-wrap: wrap;
-        padding: 8px 12px;
+      .queue-item:hover {
+        background: #f4f2ed;
       }
-      .queue-title {
-        font:
-          600 13px/1.2 "SFMono-Regular",
-          Menlo,
-          Monaco,
-          Consolas,
-          monospace;
-        letter-spacing: 0;
-      }
-      .queue-meta {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-        align-items: center;
-        color: var(--muted);
-      }
-      .queue-meta code,
-      .page-meta code {
-        font-size: 13px;
+      .queue-item:focus-visible {
+        position: relative;
+        z-index: 1;
+        outline: 3px solid var(--accent);
+        outline-offset: -3px;
       }
       .compare-strip {
         display: grid;
@@ -221,23 +191,41 @@
       .compare-strip img {
         width: 100%;
         min-width: 0;
-        aspect-ratio: 1 / 1;
-        height: auto;
-        object-fit: cover;
+        height: 160px;
+        object-fit: contain;
         display: block;
+      }
+      .detail-dialog {
+        width: min(1100px, calc(100vw - 32px));
+      }
+      .detail-dialog .dialog-body {
+        gap: 12px;
+      }
+      .detail-compare img {
+        width: 100%;
+        min-width: 0;
+        height: min(70vh, 720px);
+        object-fit: contain;
+        display: block;
+        background: #f4f2ed;
+      }
+      .shortcut-hint {
+        font:
+          600 11px/1.4 "SFMono-Regular",
+          Menlo,
+          Monaco,
+          Consolas,
+          monospace;
+        color: var(--muted);
       }
       .empty {
         width: 100%;
-        min-height: 280px;
+        min-height: 160px;
         display: grid;
         place-items: center;
         border: 1px dashed var(--line-strong);
         color: var(--muted);
         background: rgba(255, 255, 255, 0.4);
-      }
-      .meta {
-        display: grid;
-        gap: 4px;
       }
       .error {
         color: var(--danger-ink);
@@ -245,52 +233,17 @@
       .footer {
         display: none;
       }
-      .pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 4px 8px;
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.5);
-        border: 1px solid var(--line);
-        font:
-          600 12px/1 "SFMono-Regular",
-          Menlo,
-          Monaco,
-          Consolas,
-          monospace;
-        color: var(--muted);
-      }
-      label,
-      select {
-        font:
-          600 12px/1 "SFMono-Regular",
-          Menlo,
-          Monaco,
-          Consolas,
-          monospace;
-        color: var(--muted);
-      }
-      select {
-        height: 36px;
-        border-radius: 0;
-        border: 1px solid var(--line-strong);
-        background: rgba(255, 255, 255, 0.6);
-        padding: 0 10px;
-      }
-      .page-meta {
-        display: grid;
-        gap: 4px;
-      }
       .action-message {
-        min-height: 18px;
         font:
-          600 12px/1.4 "SFMono-Regular",
+          600 11px/1.4 "SFMono-Regular",
           Menlo,
           Monaco,
           Consolas,
           monospace;
         color: var(--muted);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
       .action-message.error {
         color: var(--danger-ink);
@@ -298,52 +251,31 @@
       .action-message.ok {
         color: var(--accent);
       }
-      @media (max-width: 900px) {
-        .status-strip {
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-        }
-      }
     </style>
   </head>
   <body>
     <div class="page">
-      <div class="masthead">
-        <div class="topbar">
-          <div>
-            <div class="eyebrow">Local Tool</div>
-            <h1>V2 Image Review</h1>
-            <p id="paths"></p>
-          </div>
-          <div class="actions">
-            <button class="approve" id="approve-all-button" type="button">
-              Approve All
-            </button>
-            <button
-              class="neutral"
-              type="button"
-              onclick="location.href='/gallery'"
-            >
-              Gallery
-            </button>
-            <button class="primary" id="sync-button" type="button">
-              Sync Queue
-            </button>
-            <button class="neutral" id="refresh-button" type="button">
-              Refresh
-            </button>
-          </div>
-        </div>
-
+      <header class="utility-bar">
         <div class="status-strip" id="counts"></div>
-
-        <div class="toolbar">
-          <div class="page-meta">
-            <span class="eyebrow">Visible For Review</span>
-            <span class="pill" id="page-label">Loading…</span>
-            <span class="action-message" id="action-message"></span>
-          </div>
+        <span class="page-label" id="page-label"></span>
+        <span class="action-message" id="action-message"></span>
+        <div class="actions">
+          <button class="approve" id="approve-all-button" type="button">
+            Approve All
+          </button>
+          <button
+            class="neutral"
+            type="button"
+            onclick="location.href='/gallery'"
+          >
+            Gallery
+          </button>
+          <button class="primary" id="sync-button" type="button">Sync</button>
+          <button class="neutral" id="refresh-button" type="button">
+            Refresh
+          </button>
         </div>
-      </div>
+      </header>
 
       <div class="stream" id="items-grid">
         <div class="empty">Loading…</div>
@@ -372,7 +304,7 @@
         <p>
           Approve all
           <strong id="approve-all-count">0</strong>
-          images currently awaiting review?
+          images awaiting review?
         </p>
         <div class="dialog-actions">
           <button class="neutral" id="approve-all-cancel" type="button">
@@ -380,6 +312,30 @@
           </button>
           <button class="approve" id="approve-all-confirm" type="button">
             Confirm
+          </button>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog
+      class="detail-dialog"
+      id="detail-dialog"
+      aria-labelledby="detail-title"
+    >
+      <div class="dialog-body">
+        <div>
+          <h2 id="detail-title">Image comparison</h2>
+          <p id="detail-id"></p>
+        </div>
+        <div class="compare-strip detail-compare">
+          <img id="detail-original" alt="Original image" />
+          <img id="detail-edited" alt="Edited image" />
+        </div>
+        <div class="dialog-actions">
+          <span class="shortcut-hint">Esc close</span>
+          <button class="neutral" id="detail-close" type="button">Close</button>
+          <button class="neutral" id="detail-reject" type="button">
+            Reject
           </button>
         </div>
       </div>

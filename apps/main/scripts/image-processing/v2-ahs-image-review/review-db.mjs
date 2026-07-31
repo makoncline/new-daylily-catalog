@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -590,11 +588,9 @@ export function updateStatus(id, status, options = {}) {
         Object.hasOwn(options, "promptVersion")
           ? options.promptVersion
           : item.promptVersion,
-        Object.hasOwn(options, "codexNativeAgentId")
-          ? options.codexNativeAgentId
-          : ["pending", "failed", "rejected"].includes(status)
-            ? null
-            : item.codexNativeAgentId,
+        ["pending", "failed", "rejected"].includes(status)
+          ? null
+          : item.codexNativeAgentId,
         options.incrementAttempts ? item.attempts + 1 : item.attempts,
         nowIso(),
         id,
@@ -607,41 +603,58 @@ export function updateStatus(id, status, options = {}) {
 }
 
 export function approveReviewItems(ids) {
-  const uniqueIds = [...new Set(ids)];
-  if (uniqueIds.length === 0) return 0;
+  const uniqueIds = [
+    ...new Set(ids.filter((id) => typeof id === "string" && id.length > 0)),
+  ];
+
+  if (uniqueIds.length === 0) {
+    return 0;
+  }
 
   const database = openQueueDb();
 
   try {
     ensureSchema(database);
-    database.exec("BEGIN IMMEDIATE TRANSACTION");
-    let approved = 0;
-
-    for (let offset = 0; offset < uniqueIds.length; offset += 1_000) {
-      const chunk = uniqueIds.slice(offset, offset + 1_000);
-      const placeholders = chunk.map(() => "?").join(", ");
-      const result = database
-        .prepare(
-          `
+    const result = database
+      .prepare(
+        `
           UPDATE "v2_image_review_queue"
           SET
             "status" = 'approved',
             "updatedAt" = ?
           WHERE "status" = 'review'
-            AND "id" IN (${placeholders})
+            AND "id" IN (
+              SELECT CAST("value" AS TEXT)
+              FROM json_each(?)
+            )
         `,
-        )
-        .run(nowIso(), ...chunk);
-      approved += Number(result.changes);
-    }
+      )
+      .run(nowIso(), JSON.stringify(uniqueIds));
 
-    database.exec("COMMIT");
-    return approved;
-  } catch (error) {
-    try {
-      database.exec("ROLLBACK");
-    } catch {}
-    throw error;
+    return Number(result.changes);
+  } finally {
+    database.close();
+  }
+}
+
+export function approveAllReviewItems() {
+  const database = openQueueDb();
+
+  try {
+    ensureSchema(database);
+    const result = database
+      .prepare(
+        `
+          UPDATE "v2_image_review_queue"
+          SET
+            "status" = 'approved',
+            "updatedAt" = ?
+          WHERE "status" = 'review'
+        `,
+      )
+      .run(nowIso());
+
+    return Number(result.changes);
   } finally {
     database.close();
   }

@@ -1,6 +1,5 @@
 const countsEl = document.getElementById("counts");
 const itemsGridEl = document.getElementById("items-grid");
-const pathsEl = document.getElementById("paths");
 const syncButtonEl = document.getElementById("sync-button");
 const refreshButtonEl = document.getElementById("refresh-button");
 const approveAllButtonEl = document.getElementById("approve-all-button");
@@ -8,12 +7,24 @@ const approveAllDialogEl = document.getElementById("approve-all-dialog");
 const approveAllCountEl = document.getElementById("approve-all-count");
 const approveAllCancelEl = document.getElementById("approve-all-cancel");
 const approveAllConfirmEl = document.getElementById("approve-all-confirm");
+const detailDialogEl = document.getElementById("detail-dialog");
+const detailTitleEl = document.getElementById("detail-title");
+const detailIdEl = document.getElementById("detail-id");
+const detailOriginalEl = document.getElementById("detail-original");
+const detailEditedEl = document.getElementById("detail-edited");
+const detailCloseEl = document.getElementById("detail-close");
+const detailRejectEl = document.getElementById("detail-reject");
 const pageLabelEl = document.getElementById("page-label");
 const actionMessageEl = document.getElementById("action-message");
 
 let approvingAll = false;
-let approveAllIds = [];
-let reviewCount = 0;
+let approvingPage = false;
+let totalReviewCount = 0;
+let allReviewItems = [];
+let currentPage = 0;
+let pageSize = 1;
+let activeItemId = null;
+let reviewItemsById = new Map();
 
 function escapeHtml(value) {
   return String(value)
@@ -25,14 +36,10 @@ function escapeHtml(value) {
 
 function renderCounts(counts) {
   const entries = [
-    ["Total", counts.total],
-    ["Pending", counts.pending],
-    ["Processing", counts.processing],
     ["Review", counts.review],
-    ["Approved", counts.approved],
-    ["Imported", counts.imported],
-    ["Legacy", counts.legacy],
+    ["Processing", counts.processing],
     ["Failed", counts.failed],
+    ["Approved", counts.approved],
   ];
 
   if (!countsEl) {
@@ -46,9 +53,13 @@ function renderCounts(counts) {
     )
     .join("");
 
-  reviewCount = Number(counts.review ?? 0);
+  totalReviewCount = Number(counts.review ?? 0);
+  updateApproveAllButton();
+}
+
+function updateApproveAllButton() {
   if (approveAllButtonEl instanceof HTMLButtonElement) {
-    approveAllButtonEl.disabled = approvingAll || reviewCount === 0;
+    approveAllButtonEl.disabled = approvingAll || totalReviewCount === 0;
   }
 }
 
@@ -62,30 +73,10 @@ function setActionMessage(message, kind = "") {
   actionMessageEl.classList.toggle("error", kind === "error");
 }
 
-function updatePageLabel(totalReviewCount) {
-  if (!pageLabelEl || !itemsGridEl) {
-    return;
-  }
-
-  const visibleCount = itemsGridEl.querySelectorAll(".queue-item").length;
-  pageLabelEl.textContent = visibleCount
-    ? `${visibleCount} of ${totalReviewCount}`
-    : "No items";
-}
-
-function removeQueueItem(button, counts) {
-  const queueItem = button.closest(".queue-item");
-
-  if (queueItem) {
-    queueItem.remove();
-  }
-
-  updatePageLabel(counts?.review ?? 0);
-
-  if (itemsGridEl && !itemsGridEl.querySelector(".queue-item")) {
-    itemsGridEl.innerHTML =
-      '<div class="empty">No images available for review.</div>';
-  }
+function removeQueueItem(id) {
+  reviewItemsById.delete(id);
+  allReviewItems = allReviewItems.filter((item) => item.id !== id);
+  renderPage();
 }
 
 function renderQueueItem(item) {
@@ -95,71 +86,104 @@ function renderQueueItem(item) {
   const editedSrc = `/image?id=${encodeURIComponent(item.id)}&variant=edited&v=${imageVersion}`;
 
   return `
-    <section class="queue-item">
-      <div class="queue-header">
-        <div class="meta">
-          <div class="queue-title">${escapeHtml(item.id)} · ${escapeHtml(title)}</div>
-          <div class="queue-meta">
-            <span>status <code>${escapeHtml(item.status)}</code></span>
-          </div>
-        </div>
-        <div class="actions">
-          <button class="approve" data-id="${escapeHtml(item.id)}" data-status="approved" type="button">Approve</button>
-          <button class="neutral" data-id="${escapeHtml(item.id)}" data-status="requeue" type="button">Requeue</button>
-        </div>
-      </div>
+    <button class="queue-item" data-open-id="${escapeHtml(item.id)}" type="button" aria-label="Inspect ${escapeHtml(title)}">
       <div class="compare-strip">
         <img alt="Original ${escapeHtml(title)}" src="${originalSrc}" loading="lazy" decoding="async" />
         <img alt="Edited ${escapeHtml(title)}" src="${editedSrc}" loading="lazy" decoding="async" />
       </div>
-    </section>
+    </button>
   `;
 }
 
-function renderItems(items, total) {
+function getPageSize() {
+  const barHeight =
+    document.querySelector(".utility-bar")?.getBoundingClientRect().height ??
+    41;
+  const columns = Math.max(1, Math.floor(window.innerWidth / 281));
+  const rows = Math.max(1, Math.floor((window.innerHeight - barHeight) / 161));
+
+  return columns * rows;
+}
+
+function getPageCount() {
+  return Math.max(1, Math.ceil(allReviewItems.length / pageSize));
+}
+
+function getCurrentPageItems() {
+  const start = currentPage * pageSize;
+  return allReviewItems.slice(start, start + pageSize);
+}
+
+function renderPage() {
   if (!itemsGridEl) {
     return;
   }
 
-  if (!items.length) {
+  pageSize = getPageSize();
+  currentPage = Math.min(currentPage, getPageCount() - 1);
+  const pageItems = getCurrentPageItems();
+
+  if (!pageItems.length) {
     itemsGridEl.innerHTML =
       '<div class="empty">Queue is empty. Run the sync command, then start the worker.</div>';
-
     if (pageLabelEl) {
-      pageLabelEl.textContent = "No items";
+      pageLabelEl.textContent = "";
     }
-
     return;
   }
 
-  itemsGridEl.innerHTML = items.map((item) => renderQueueItem(item)).join("");
+  itemsGridEl.innerHTML = pageItems
+    .map((item) => renderQueueItem(item))
+    .join("");
 
   if (pageLabelEl) {
-    pageLabelEl.textContent = `${items.length} of ${total}`;
+    pageLabelEl.textContent = `${currentPage + 1}/${getPageCount()} · ${pageItems.length} items · A approve page`;
   }
 }
 
-itemsGridEl?.addEventListener("click", async (event) => {
-  const target = event.target;
+function renderItems(items) {
+  allReviewItems = items;
+  reviewItemsById = new Map(items.map((item) => [item.id, item]));
+  renderPage();
+}
 
-  if (!(target instanceof Element)) {
+function navigatePage(offset) {
+  const pageCount = getPageCount();
+  currentPage = (currentPage + offset + pageCount) % pageCount;
+  renderPage();
+}
+
+function openDetail(id) {
+  const item = reviewItemsById.get(id);
+
+  if (
+    !item ||
+    !(detailDialogEl instanceof HTMLDialogElement) ||
+    !(detailOriginalEl instanceof HTMLImageElement) ||
+    !(detailEditedEl instanceof HTMLImageElement)
+  ) {
     return;
   }
 
-  const button = target.closest("[data-status][data-id]");
-
-  if (!(button instanceof HTMLButtonElement)) {
-    return;
+  const title = item.postTitle ?? item.id;
+  const imageVersion = encodeURIComponent(item.updatedAt ?? "");
+  activeItemId = item.id;
+  detailTitleEl.textContent = title;
+  detailIdEl.textContent = item.id;
+  detailOriginalEl.src = `/image?id=${encodeURIComponent(item.id)}&variant=original&v=${imageVersion}`;
+  detailEditedEl.src = `/image?id=${encodeURIComponent(item.id)}&variant=edited&v=${imageVersion}`;
+  if (detailRejectEl instanceof HTMLButtonElement) {
+    detailRejectEl.disabled = false;
   }
-
-  const id = button.getAttribute("data-id");
-  const status = button.getAttribute("data-status");
-
-  if (!id || !status) {
-    return;
+  if (!detailDialogEl.open) {
+    detailDialogEl.showModal();
   }
+}
 
-  button.disabled = true;
+async function updateItemStatus(id, status, button) {
+  if (button instanceof HTMLButtonElement) {
+    button.disabled = true;
+  }
   setActionMessage(`${status} ${id}...`);
 
   try {
@@ -185,15 +209,36 @@ itemsGridEl?.addEventListener("click", async (event) => {
       renderCounts(payload.counts);
     }
 
-    if (status === "approved" || status === "requeue") {
-      removeQueueItem(button, payload.counts);
-    } else {
-      button.disabled = false;
+    removeQueueItem(id);
+    if (detailDialogEl instanceof HTMLDialogElement) {
+      detailDialogEl.close();
     }
+    activeItemId = null;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     setActionMessage(`${id}: ${message}`, "error");
-    button.disabled = false;
+    if (button instanceof HTMLButtonElement) {
+      button.disabled = false;
+    }
+  }
+}
+
+itemsGridEl?.addEventListener("click", (event) => {
+  const target = event.target;
+
+  if (!(target instanceof Element)) {
+    return;
+  }
+
+  const button = target.closest("[data-open-id]");
+
+  if (!(button instanceof HTMLButtonElement)) {
+    return;
+  }
+
+  const id = button.getAttribute("data-open-id");
+  if (id) {
+    openDetail(id);
   }
 });
 
@@ -202,11 +247,7 @@ async function loadState() {
   const state = await response.json();
   renderCounts(state.counts);
 
-  if (pathsEl) {
-    pathsEl.innerHTML = `Originals: <code>${escapeHtml(state.paths.originals)}</code><br />Edited: <code>${escapeHtml(state.paths.edited)}</code><br />Queue DB: <code>${escapeHtml(state.paths.db)}</code>`;
-  }
-
-  renderItems(state.items ?? [], state.counts.review);
+  renderItems(state.items ?? []);
 }
 
 syncButtonEl?.addEventListener("click", async () => {
@@ -228,23 +269,56 @@ refreshButtonEl?.addEventListener("click", async () => {
   await loadState();
 });
 
-approveAllButtonEl?.addEventListener("click", () => {
-  if (!(approveAllDialogEl instanceof HTMLDialogElement) || reviewCount === 0) {
+async function approveCurrentPage() {
+  if (approvingPage) {
     return;
   }
 
-  approveAllIds = Array.from(
-    itemsGridEl?.querySelectorAll(".queue-item [data-id]") ?? [],
-  )
-    .map((element) => element.getAttribute("data-id"))
-    .filter((id, index, ids) => id && ids.indexOf(id) === index);
+  const ids = getCurrentPageItems().map((item) => item.id);
+  if (ids.length === 0) {
+    return;
+  }
 
-  if (approveAllIds.length === 0) {
+  approvingPage = true;
+  setActionMessage(`Approving page ${currentPage + 1}...`);
+
+  try {
+    const response = await fetch("/api/approve-page", {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ ids }),
+      cache: "no-store",
+      credentials: "same-origin",
+    });
+    const payload = await response.json().catch(() => ({}));
+
+    if (!response.ok || payload.ok !== true) {
+      throw new Error(payload.error || `HTTP ${response.status}`);
+    }
+
+    await loadState();
+    setActionMessage(`Approved ${payload.updated} images`, "ok");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    setActionMessage(`Approve page failed: ${message}`, "error");
+  } finally {
+    approvingPage = false;
+  }
+}
+
+approveAllButtonEl?.addEventListener("click", () => {
+  if (
+    !(approveAllDialogEl instanceof HTMLDialogElement) ||
+    totalReviewCount === 0
+  ) {
     return;
   }
 
   if (approveAllCountEl) {
-    approveAllCountEl.textContent = String(approveAllIds.length);
+    approveAllCountEl.textContent = String(totalReviewCount);
   }
   approveAllDialogEl.showModal();
 });
@@ -265,16 +339,12 @@ approveAllConfirmEl?.addEventListener("click", async () => {
   if (approveAllButtonEl instanceof HTMLButtonElement) {
     approveAllButtonEl.disabled = true;
   }
-  setActionMessage(`Approving ${approveAllIds.length} images...`);
+  setActionMessage(`Approving all ${totalReviewCount} images...`);
 
   try {
     const response = await fetch("/api/approve-all", {
       method: "POST",
-      headers: {
-        accept: "application/json",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({ ids: approveAllIds }),
+      headers: { accept: "application/json" },
       cache: "no-store",
       credentials: "same-origin",
     });
@@ -290,12 +360,62 @@ approveAllConfirmEl?.addEventListener("click", async () => {
     const message = error instanceof Error ? error.message : String(error);
     setActionMessage(`Approve all failed: ${message}`, "error");
   } finally {
-    approveAllIds = [];
     approvingAll = false;
-    if (approveAllButtonEl instanceof HTMLButtonElement) {
-      approveAllButtonEl.disabled = reviewCount === 0;
-    }
+    updateApproveAllButton();
   }
+});
+
+detailCloseEl?.addEventListener("click", () => {
+  if (detailDialogEl instanceof HTMLDialogElement) {
+    detailDialogEl.close();
+  }
+  activeItemId = null;
+});
+
+detailDialogEl?.addEventListener("close", () => {
+  activeItemId = null;
+});
+
+detailRejectEl?.addEventListener("click", () => {
+  if (activeItemId) {
+    void updateItemStatus(activeItemId, "rejected", detailRejectEl);
+  }
+});
+
+window.addEventListener("keydown", (event) => {
+  if (event.metaKey || event.ctrlKey || event.altKey || event.repeat) {
+    return;
+  }
+
+  if (
+    approveAllDialogEl instanceof HTMLDialogElement &&
+    approveAllDialogEl.open
+  ) {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      approveAllConfirmEl?.click();
+    }
+    return;
+  }
+
+  if (detailDialogEl instanceof HTMLDialogElement && detailDialogEl.open) {
+    return;
+  }
+
+  if (event.key === "ArrowLeft") {
+    event.preventDefault();
+    navigatePage(-1);
+  } else if (event.key === "ArrowRight") {
+    event.preventDefault();
+    navigatePage(1);
+  } else if (!event.shiftKey && event.key.toLowerCase() === "a") {
+    event.preventDefault();
+    void approveCurrentPage();
+  }
+});
+
+window.addEventListener("resize", () => {
+  renderPage();
 });
 
 window.setInterval(() => {

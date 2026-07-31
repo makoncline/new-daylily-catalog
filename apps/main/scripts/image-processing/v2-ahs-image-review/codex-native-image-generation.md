@@ -68,11 +68,29 @@ pnpm images:generate \
   --concurrency 10
 ```
 
+The worker keeps the requested concurrency full while work remains. It
+prefetches source images before the pending queue empties. Control a running
+worker from another terminal:
+
+```bash
+pnpm images:control status
+pnpm images:control concurrency 20
+pnpm images:control drain
+```
+
+Increasing concurrency fills the additional slots immediately. Decreasing it
+lets the current work finish and stops replacements until the active count
+reaches the new target. `drain` stops source refills and replacements, lets all
+active generations finish and promote, then exits. The first `Ctrl-C` also
+drains; a second `Ctrl-C` force-stops active generations.
+
 Each bounded run drains the existing queue first, performs one linked-listing
 catch-up check against the local prod copy, drains newly queued catch-up rows,
 then adds alphabetical non-linked work until it reaches `--limit`.
 The startup log reports the local prod copy's path, modification time, and
 human-readable age so stale snapshots are visible before generation proceeds.
+Normal runs skip rows already marked `failed` or `rejected`. Retry one of those
+rows explicitly with `--id` after fixing or replacing its source image.
 
 For one specific row:
 
@@ -127,8 +145,14 @@ image generation. The isolated home links only the existing Codex
 authentication file; personal configuration, MCP servers, skills, memory,
 napkin, and repo instructions are not loaded.
 
-`--limit` bounds the total attempted rows. `--concurrency` defaults to 10 and
-`--timeout-minutes` defaults to 15. Generation agents default to
+`--limit` bounds generation attempts for the current invocation. Existing
+`review`, `approved`, and `imported` rows do not count; retryable `pending` and
+`failed` rows do because they still require generation. Source selection adds
+only enough linked catch-up and alphabetical backlog rows to reach that run
+limit. Backlog sources are selected in rolling chunks of twice the worker
+concurrency by default; override that with `--backlog-refill-size`.
+`--concurrency` defaults to 10 and `--timeout-minutes` defaults to 15.
+Generation agents default to
 `gpt-5.6-luna` with high reasoning; override them with `--model` and `--effort`
 or `CODEX_IMAGE_AGENT_MODEL` and `CODEX_IMAGE_AGENT_EFFORT`. Interrupting the
 worker returns active rows to `pending`; other failures are recorded as
@@ -160,7 +184,7 @@ The generation request should look like this in structured form:
   "items": [
     {
       "type": "local_image",
-      "path": "/Users/makon/daylily-catalog-image-processing/v2-ahs-images/{id}.jpg"
+      "path": "/absolute/path/to/daylily-catalog-image-processing/v2-ahs-images/{id}.jpg"
     },
     {
       "type": "text",
@@ -477,7 +501,7 @@ There should be no `pending` or `processing` rows for the drained batch.
 Use this exact final audit when draining the whole queue:
 
 ```bash
-sqlite3 /Users/makon/daylily-catalog-image-processing/v2-ahs-image-review/review.sqlite \
+sqlite3 ~/daylily-catalog-image-processing/v2-ahs-image-review/review.sqlite \
   "select status,count(*) from v2_image_review_queue group by status order by status;
    select '---remaining';
    select id,status,attempts,lastError

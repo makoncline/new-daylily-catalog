@@ -50,6 +50,7 @@ function findNewestPng(agentId) {
     .readdirSync(agentDir, { withFileTypes: true })
     .filter((entry) => entry.isFile() && entry.name.endsWith(".png"))
     .map((entry) => path.join(agentDir, entry.name))
+    .filter((filePath) => fs.statSync(filePath).size > 0)
     .sort((left, right) => {
       const leftStat = fs.statSync(left);
       const rightStat = fs.statSync(right);
@@ -57,7 +58,7 @@ function findNewestPng(agentId) {
     });
 
   if (!pngPaths[0]) {
-    throw new Error(`No generated PNG found in: ${agentDir}`);
+    throw new Error(`No non-empty generated PNG found in: ${agentDir}`);
   }
 
   return pngPaths[0];
@@ -115,6 +116,9 @@ const sourcePath = explicitSource ?? findNewestPng(agentId);
 
 if (!fs.existsSync(sourcePath)) {
   throw new Error(`Generated PNG does not exist: ${sourcePath}`);
+}
+if (fs.statSync(sourcePath).size === 0) {
+  throw new Error(`Generated PNG is empty: ${sourcePath}`);
 }
 
 const currentRow = readRow(id);
