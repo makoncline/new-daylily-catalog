@@ -58,12 +58,13 @@ function findNewestPng(agentId) {
     .readdirSync(agentDir, { withFileTypes: true })
     .filter((entry) => entry.isFile() && entry.name.endsWith(".png"))
     .map((entry) => path.join(agentDir, entry.name))
+    .filter((filePath) => fs.statSync(filePath).size > 0)
     .sort(
       (left, right) => fs.statSync(right).mtimeMs - fs.statSync(left).mtimeMs,
     );
 
   if (!pngPaths[0]) {
-    return { error: `No generated PNG found in: ${agentDir}` };
+    return { error: `No non-empty generated PNG found in: ${agentDir}` };
   }
 
   return { path: pngPaths[0] };

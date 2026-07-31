@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -30,6 +28,10 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+/**
+ * @param {string} dirPath
+ * @returns {Map<string, string>}
+ */
 function mapFilesByStem(dirPath) {
   const fileMap = new Map();
 
@@ -75,6 +77,7 @@ export function prepareQueueDbForConcurrentWrites() {
   }
 }
 
+/** @param {DatabaseSync} database */
 export function ensureSchema(database) {
   database.exec(`
     CREATE TABLE IF NOT EXISTS "v2_image_review_queue" (
@@ -105,7 +108,12 @@ export function ensureSchema(database) {
   }
 }
 
+/**
+ * @param {DatabaseSync} database
+ * @param {string} id
+ */
 function readQueueItem(database, id) {
+  /** @type {Record<string, unknown> | undefined} */
   const row = database
     .prepare(
       `
@@ -426,6 +434,7 @@ export function getCounts() {
   }
 }
 
+/** @param {string | null} [preferredId] */
 export function getItem(preferredId = null) {
   const database = openQueueDb();
 
@@ -553,6 +562,11 @@ export function getEditedItems() {
   }
 }
 
+/**
+ * @param {string} id
+ * @param {string} status
+ * @param {{ lastError?: string | null, editedPath?: string | null, promptVersion?: string | null, incrementAttempts?: boolean }} [options]
+ */
 export function updateStatus(id, status, options = {}) {
   const database = openQueueDb();
 
@@ -582,19 +596,17 @@ export function updateStatus(id, status, options = {}) {
       .run(
         status,
         Object.hasOwn(options, "lastError")
-          ? options.lastError
+          ? (options.lastError ?? null)
           : item.lastError,
         Object.hasOwn(options, "editedPath")
-          ? options.editedPath
+          ? (options.editedPath ?? null)
           : item.editedPath,
         Object.hasOwn(options, "promptVersion")
-          ? options.promptVersion
+          ? (options.promptVersion ?? null)
           : item.promptVersion,
-        Object.hasOwn(options, "codexNativeAgentId")
-          ? options.codexNativeAgentId
-          : ["pending", "failed", "rejected"].includes(status)
-            ? null
-            : item.codexNativeAgentId,
+        ["pending", "failed", "rejected"].includes(status)
+          ? null
+          : item.codexNativeAgentId,
         options.incrementAttempts ? item.attempts + 1 : item.attempts,
         nowIso(),
         id,
@@ -606,47 +618,69 @@ export function updateStatus(id, status, options = {}) {
   }
 }
 
+/** @param {string[]} ids */
 export function approveReviewItems(ids) {
-  const uniqueIds = [...new Set(ids)];
-  if (uniqueIds.length === 0) return 0;
+  const uniqueIds = [
+    ...new Set(ids.filter((id) => typeof id === "string" && id.length > 0)),
+  ];
+
+  if (uniqueIds.length === 0) {
+    return 0;
+  }
 
   const database = openQueueDb();
 
   try {
     ensureSchema(database);
-    database.exec("BEGIN IMMEDIATE TRANSACTION");
-    let approved = 0;
-
-    for (let offset = 0; offset < uniqueIds.length; offset += 1_000) {
-      const chunk = uniqueIds.slice(offset, offset + 1_000);
-      const placeholders = chunk.map(() => "?").join(", ");
-      const result = database
-        .prepare(
-          `
+    const result = database
+      .prepare(
+        `
           UPDATE "v2_image_review_queue"
           SET
             "status" = 'approved',
             "updatedAt" = ?
           WHERE "status" = 'review'
-            AND "id" IN (${placeholders})
+            AND "id" IN (
+              SELECT CAST("value" AS TEXT)
+              FROM json_each(?)
+            )
         `,
-        )
-        .run(nowIso(), ...chunk);
-      approved += Number(result.changes);
-    }
+      )
+      .run(nowIso(), JSON.stringify(uniqueIds));
 
-    database.exec("COMMIT");
-    return approved;
-  } catch (error) {
-    try {
-      database.exec("ROLLBACK");
-    } catch {}
-    throw error;
+    return Number(result.changes);
   } finally {
     database.close();
   }
 }
 
+export function approveAllReviewItems() {
+  const database = openQueueDb();
+
+  try {
+    ensureSchema(database);
+    const result = database
+      .prepare(
+        `
+          UPDATE "v2_image_review_queue"
+          SET
+            "status" = 'approved',
+            "updatedAt" = ?
+          WHERE "status" = 'review'
+        `,
+      )
+      .run(nowIso());
+
+    return Number(result.changes);
+  } finally {
+    database.close();
+  }
+}
+
+/**
+ * @param {string} id
+ * @param {string} agentId
+ */
 export function assignCodexNativeAgent(id, agentId) {
   const database = openQueueDb();
 
@@ -792,6 +826,10 @@ export function claimNextPendingItem(preferredId = null) {
   }
 }
 
+/**
+ * @param {string} id
+ * @param {string} variant
+ */
 export function getFilePath(id, variant) {
   const item = getItem(id);
 

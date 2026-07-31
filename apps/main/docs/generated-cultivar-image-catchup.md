@@ -105,10 +105,6 @@ require formal approval. Only change rows manually when something is wrong:
 requeue obvious bad generations, reject known-bad outputs, and leave
 `source_invalid` rows out of blind retries.
 
-Source downloads use delayed retries. Exhausted downloads are recorded as
-`source_invalid` so one unavailable URL cannot block later alphabetical backlog
-work.
-
 Queue sync marks rows `imported` when the local prod copy already has a ready
 generated cultivar `ImageAsset`. Older pre-`CultivarReference.id` review rows
 that are not safely importable by the current workflow are marked `legacy`.
@@ -235,10 +231,14 @@ Run a bounded generation batch:
 pnpm main exec node scripts/image-processing/v2-ahs-image-review/run-codex-native-worker.mjs --limit 20 --concurrency 10
 ```
 
-The worker drains the existing queue, performs one linked-listing catch-up check,
-drains newly queued catch-up rows, then selects alphabetical non-linked rows
-until it reaches `--limit`. The SQLite queue remains the durable recovery and
-review layer; it no longer requires separate catch-up or backlog queue commands.
+The worker attempts at most `--limit` retryable, linked catch-up, and
+alphabetical backlog rows per invocation. Already generated `review`,
+`approved`, and `imported` rows do not count against that run limit, so each run
+adds its successful results to the existing approval queue. New source rows are
+queued only as needed and backlog downloads happen in rolling chunks so
+generation resumes without waiting for the entire run's source set. The SQLite
+queue remains the durable recovery and review layer; it no longer requires
+separate catch-up or backlog queue commands.
 
 ## Related V2 Data Refresh
 

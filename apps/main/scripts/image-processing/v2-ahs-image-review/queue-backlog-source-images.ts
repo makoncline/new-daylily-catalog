@@ -30,23 +30,6 @@ interface ParsedArgs {
 const CLAIMABLE_STATUSES = ["pending", "processing", "failed", "rejected"];
 const RETRIES = 3;
 const REQUEST_TIMEOUT_MS = 30_000;
-const RETRY_DELAY_MS = Number(
-  process.env.V2_AHS_IMAGE_RETRY_DELAY_MS ?? "2000",
-);
-const RATE_LIMIT_DELAY_MS = Number(
-  process.env.V2_AHS_IMAGE_RATE_LIMIT_DELAY_MS ?? "10000",
-);
-
-class HttpError extends Error {
-  readonly status: number;
-  readonly retryAfterMs: number | null;
-
-  constructor(status: number, retryAfterMs: number | null) {
-    super(`HTTP ${status}`);
-    this.status = status;
-    this.retryAfterMs = retryAfterMs;
-  }
-}
 
 function parseArgs(): ParsedArgs {
   const args = process.argv.slice(2).filter((arg) => arg !== "--");
@@ -319,25 +302,6 @@ function mapOriginalsById(): Map<string, string> {
   return originals;
 }
 
-function sleep(milliseconds: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds));
-}
-
-function retryAfterMs(response: Response): number | null {
-  const value = response.headers.get("retry-after");
-  if (!value) return null;
-
-  const seconds = Number(value);
-  if (Number.isFinite(seconds)) {
-    return Math.min(60_000, Math.max(0, seconds * 1_000));
-  }
-
-  const date = Date.parse(value);
-  return Number.isNaN(date)
-    ? null
-    : Math.min(60_000, Math.max(0, date - Date.now()));
-}
-
 async function downloadImage(url: string, outputPath: string): Promise<void> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -353,12 +317,8 @@ async function downloadImage(url: string, outputPath: string): Promise<void> {
       },
     });
 
-    if (!response.ok) {
-      throw new HttpError(response.status, retryAfterMs(response));
-    }
-
-    if (!response.body) {
-      throw new Error("Empty response body");
+    if (!response.ok || !response.body) {
+      throw new Error(`HTTP ${response.status}`);
     }
 
     await pipeline(
@@ -385,16 +345,9 @@ async function downloadWithRetries(
 
       if (attempt === RETRIES) return message;
 
-      const delayMs =
-        error instanceof HttpError && error.retryAfterMs !== null
-          ? error.retryAfterMs
-          : error instanceof HttpError && error.status === 429
-            ? RATE_LIMIT_DELAY_MS * attempt
-            : RETRY_DELAY_MS * attempt;
       console.warn(
-        `[v2-image-queue] retry=${attempt}/${RETRIES} delay=${delayMs}ms id=${row.id} error=${message}`,
+        `[v2-image-queue] retry=${attempt}/${RETRIES} id=${row.id} error=${message}`,
       );
-      await sleep(delayMs);
     }
   }
 

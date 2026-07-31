@@ -15,6 +15,7 @@ import {
   prepareQueueDbForConcurrentWrites,
   updateStatus,
 } from "./review-db.mjs";
+import { runRollingWorkerPool } from "./rolling-worker-pool.mjs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const PROMOTE_SCRIPT = path.join(SCRIPT_DIR, "promote-codex-native-result.mjs");
@@ -29,6 +30,14 @@ const RUN_LOG_DIR = path.join(REVIEW_ROOT, "codex-native-runs");
 const RUN_LOG_PATH = path.join(RUN_LOG_DIR, `${RUN_ID}.log`);
 const RUN_EVENTS_PATH = path.join(RUN_LOG_DIR, `${RUN_ID}.events.jsonl`);
 const WORKER_LOCK_PATH = path.join(REVIEW_ROOT, "codex-native-worker.lock");
+const WORKER_COMMAND_PATH = path.join(
+  REVIEW_ROOT,
+  "codex-native-worker-command.json",
+);
+const WORKER_STATE_PATH = path.join(
+  REVIEW_ROOT,
+  "codex-native-worker-state.json",
+);
 const CODEX_IMAGE_HOME = path.resolve(
   process.env.CODEX_IMAGE_HOME || path.join(REVIEW_ROOT, "codex-image-home"),
 );
@@ -36,14 +45,15 @@ const GENERATED_IMAGES_ROOT = path.resolve(
   process.env.CODEX_GENERATED_IMAGES_ROOT ||
     path.join(CODEX_IMAGE_HOME, "generated_images"),
 );
-const CODEX_AUTH_PATH = path.join(os.homedir(), ".codex", "auth.json");
+const CODEX_AUTH_PATH = path.resolve(
+  process.env.CODEX_AUTH_PATH || path.join(os.homedir(), ".codex", "auth.json"),
+);
 const CODEX_BIN = process.env.CODEX_BIN || "codex";
 const DEFAULT_MODEL = process.env.CODEX_IMAGE_AGENT_MODEL || "gpt-5.6-luna";
 const DEFAULT_EFFORT = process.env.CODEX_IMAGE_AGENT_EFFORT || "high";
 const NODE_SQLITE_ARGS = ["--disable-warning=ExperimentalWarning"];
 const USAGE_CHECK_DISABLED = process.env.CODEX_USAGE_CHECK_DISABLED === "1";
 const CLEAN_CODEX_FLAGS = [
-  "--ephemeral",
   "--ignore-user-config",
   "--ignore-rules",
   "-c",
@@ -107,13 +117,18 @@ function readPositiveInteger(name, fallback = null) {
 function parseArgs() {
   const id = readOption("--id");
   const limit = readPositiveInteger("--limit", id ? 1 : null);
+  const concurrency = readPositiveInteger("--concurrency", 10);
 
   if (!limit) {
     throw new Error("Pass --limit <count> or --id <queue-id>");
   }
 
   return {
-    concurrency: readPositiveInteger("--concurrency", 10),
+    backlogRefillSize: readPositiveInteger(
+      "--backlog-refill-size",
+      concurrency * 2,
+    ),
+    concurrency,
     effort: readOption("--effort") || DEFAULT_EFFORT,
     id,
     limit,
@@ -516,21 +531,6 @@ function findGeneratedPng(sessionId) {
   );
 }
 
-function removeGeneratedSession(sessionId) {
-  const sessionPath = path.resolve(GENERATED_IMAGES_ROOT, sessionId);
-  if (path.dirname(sessionPath) !== GENERATED_IMAGES_ROOT) {
-    log(`generated cleanup skipped invalid session=${sessionId}`);
-    return;
-  }
-
-  try {
-    fs.rmSync(sessionPath, { recursive: true, force: true });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    log(`generated cleanup failed session=${sessionId} error=${message}`);
-  }
-}
-
 function createGenerationError(
   message,
   response,
@@ -577,7 +577,7 @@ function logProdCopyAge() {
   }
 }
 
-function getClaimableIds({ id, limit }, excludedIds = new Set()) {
+function getClaimableIds({ id, limit }) {
   const database = openQueueDb();
 
   try {
@@ -595,54 +595,94 @@ function getClaimableIds({ id, limit }, excludedIds = new Set()) {
         )
         .get(id);
 
-      return row && !excludedIds.has(String(row.id)) ? [String(row.id)] : [];
+      return row ? [String(row.id)] : [];
     }
 
     const rows = database
       .prepare(
         `
-          SELECT "id", "status", "updatedAt"
+          SELECT "id"
           FROM "v2_image_review_queue"
-          WHERE "status" IN ('pending', 'failed', 'rejected')
-          ORDER BY
-            CASE "status"
-              WHEN 'failed' THEN 0
-              WHEN 'rejected' THEN 1
-              ELSE 2
-            END,
-            "updatedAt" ASC,
-            "id" ASC
+          WHERE "status" = 'pending'
+          ORDER BY "updatedAt" ASC, "id" ASC
+          LIMIT ?
         `,
       )
-      .all();
+      .all(limit);
 
-    return rows
-      .filter((row) => !excludedIds.has(String(row.id)))
-      .slice(0, limit)
-      .map((row) => String(row.id));
+    return rows.map((row) => String(row.id));
   } finally {
     database.close();
   }
 }
 
-function queueSourceRows(mode, limit = null) {
+function getPendingCount() {
+  const database = openQueueDb();
+
+  try {
+    ensureSchema(database);
+    return Number(
+      database
+        .prepare(
+          `SELECT COUNT(*) AS "count" FROM "v2_image_review_queue" WHERE "status" = 'pending'`,
+        )
+        .get().count,
+    );
+  } finally {
+    database.close();
+  }
+}
+
+function queueSourceRows(mode, limit = null, onSpawn = () => {}) {
   log(`queue refill mode=${mode} requested=${limit ?? "all"}`);
   const scriptArgs = [BACKLOG_SCRIPT, "--mode", mode];
   if (limit !== null) scriptArgs.push("--limit", String(limit));
 
-  const output = execFileSync(
-    process.execPath,
-    [...NODE_SQLITE_ARGS, ...scriptArgs],
-    {
-      encoding: "utf8",
-      env: process.env,
-      maxBuffer: 10 * 1024 * 1024,
-    },
-  );
-  if (output.trim()) logLines(`queue ${mode}`, output);
+  return new Promise((resolve, reject) => {
+    const child = spawn(
+      process.execPath,
+      [...NODE_SQLITE_ARGS, ...scriptArgs],
+      {
+        detached: process.platform !== "win32",
+        env: process.env,
+        stdio: ["ignore", "pipe", "pipe"],
+      },
+    );
+    let stdout = "";
+    let stderr = "";
 
-  const selected = Number(output.match(/\bselected=(\d+)/)?.[1] ?? Number.NaN);
-  return { selected: Number.isFinite(selected) ? selected : 0 };
+    onSpawn(child);
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk) => {
+      stdout = `${stdout}${chunk}`.slice(-10 * 1024 * 1024);
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr = `${stderr}${chunk}`.slice(-1 * 1024 * 1024);
+    });
+    child.once("error", reject);
+    child.once("close", (code, signal) => {
+      if (stdout.trim()) logLines(`queue ${mode}`, stdout);
+      if (code === 0) {
+        resolve(stdout);
+        return;
+      }
+
+      reject(
+        new Error(
+          `Queue ${mode} exited code=${code ?? "none"} signal=${signal ?? "none"}${
+            stderr.trim() ? ` stderr=${stderr.trim()}` : ""
+          }`,
+        ),
+      );
+    });
+  });
+}
+
+function writeJsonAtomic(filePath, value) {
+  const temporaryPath = `${filePath}.${process.pid}.tmp`;
+  fs.writeFileSync(temporaryPath, `${JSON.stringify(value, null, 2)}\n`);
+  fs.renameSync(temporaryPath, filePath);
 }
 
 function getQueueStatusSummary() {
@@ -705,7 +745,6 @@ function recoverMappedOutputs(staleAfterMs) {
       } else {
         try {
           promote(id, sessionId);
-          removeGeneratedSession(sessionId);
           recovered += 1;
           log(
             `recovered id=${id} session=${sessionId} image=yes source=${imagePath}`,
@@ -717,6 +756,7 @@ function recoverMappedOutputs(staleAfterMs) {
           log(
             `recovery promotion failed id=${id} session=${sessionId} error=${message}`,
           );
+          preserved += 1;
           continue;
         }
       }
@@ -893,40 +933,19 @@ function generate(item, args, activeChildren) {
       activeChildren.delete(item.id);
       if (stdoutBuffer) consumeLine(stdoutBuffer);
 
-      if (pendingError) {
-        pendingError.codexResponse = responses.join("\n\n");
-        pendingError.codexDiagnostics = diagnostics.join("\n\n");
-        pendingError.imageCreated = Boolean(
-          sessionId && findGeneratedPng(sessionId),
-        );
-        pendingError.sessionId = sessionId;
-        rejectGeneration(pendingError);
-        return;
-      }
-
-      if (code !== 0) {
-        const imageCreated = Boolean(sessionId && findGeneratedPng(sessionId));
-        const error = createGenerationError(
-          `Codex exited code=${code} signal=${signal ?? "none"}${
-            stderr.trim() ? ` stderr=${stderr.trim()}` : ""
-          }`,
-          responses.join("\n\n"),
-          {
-            diagnostics: diagnostics.join("\n\n"),
-            noImage: !imageCreated,
-            sessionId,
-          },
-        );
-        error.imageCreated = imageCreated;
-        error.recoverableImage = imageCreated && signal === null;
-        rejectGeneration(error);
-        return;
-      }
-
       if (sessionId) {
         const imagePath = findGeneratedPng(sessionId);
 
         if (!imagePath) {
+          if (pendingError) {
+            pendingError.codexResponse = responses.join("\n\n");
+            pendingError.codexDiagnostics = diagnostics.join("\n\n");
+            pendingError.noImage = true;
+            pendingError.sessionId = sessionId;
+            rejectGeneration(pendingError);
+            return;
+          }
+
           rejectGeneration(
             createGenerationError(
               `Codex session ${sessionId} completed without a generated PNG (exit=${code ?? "none"} signal=${signal ?? "none"})`,
@@ -943,23 +962,17 @@ function generate(item, args, activeChildren) {
 
         try {
           promote(item.id, sessionId);
-          const promotedImagePath = path.join(
-            REVIEW_ROOT,
-            "edited",
-            `${item.id}.png`,
-          );
-          removeGeneratedSession(sessionId);
           resolve({
             durationMs: Date.now() - startedAt,
             id: item.id,
-            imagePath: promotedImagePath,
+            imagePath,
             response: responses.join("\n\n"),
             sessionId,
             usage,
           });
           return;
         } catch (error) {
-          if (!pendingError && code === 0) {
+          if (!pendingError) {
             error.codexResponse = responses.join("\n\n");
             error.codexDiagnostics = diagnostics.join("\n\n");
             error.imageCreated = true;
@@ -969,6 +982,31 @@ function generate(item, args, activeChildren) {
             return;
           }
         }
+      }
+
+      if (pendingError) {
+        pendingError.codexResponse = responses.join("\n\n");
+        pendingError.codexDiagnostics = diagnostics.join("\n\n");
+        pendingError.sessionId = sessionId;
+        rejectGeneration(pendingError);
+        return;
+      }
+
+      if (code !== 0) {
+        rejectGeneration(
+          createGenerationError(
+            `Codex exited code=${code} signal=${signal ?? "none"}${
+              stderr.trim() ? ` stderr=${stderr.trim()}` : ""
+            }`,
+            responses.join("\n\n"),
+            {
+              diagnostics: diagnostics.join("\n\n"),
+              noImage: true,
+              sessionId,
+            },
+          ),
+        );
+        return;
       }
 
       if (!sessionId) {
@@ -992,6 +1030,7 @@ async function main() {
   prepareCodexImageHome();
   const releaseWorkerLock = acquireWorkerLock();
   process.once("exit", releaseWorkerLock);
+  fs.rmSync(WORKER_COMMAND_PATH, { force: true });
   log(`run=${RUN_ID} log=${RUN_LOG_PATH} events=${RUN_EVENTS_PATH}`);
   log(
     `paths reviewRoot=${REVIEW_ROOT} queueDb=${REVIEW_DB_PATH} originals=${ORIGINALS_DIR} codexHome=${CODEX_IMAGE_HOME} generated=${GENERATED_IMAGES_ROOT}`,
@@ -1002,7 +1041,6 @@ async function main() {
   const recovery = recoverMappedOutputs(args.timeoutMs);
   log(`queue afterRecovery ${getQueueStatusSummary()}`);
   const activeChildren = new Map();
-  const attemptedIds = new Set();
   const runStartedAt = Date.now();
   const durationsMs = [];
   const usageTotals = {
@@ -1012,13 +1050,36 @@ async function main() {
     reasoningOutputTokens: 0,
   };
   let usageSamples = 0;
-  let catchupChecked = false;
-  let stopping = false;
-  let stopSignal = null;
   let completed = 0;
   let promoted = 0;
   let failed = 0;
   let interrupted = 0;
+
+  const writeWorkerState = (schedulerState) => {
+    writeJsonAtomic(WORKER_STATE_PATH, {
+      active: schedulerState.active,
+      attempted: schedulerState.attempted,
+      completed,
+      desiredConcurrency: schedulerState.desiredConcurrency,
+      draining: schedulerState.draining,
+      failed,
+      limit: args.limit,
+      pid: process.pid,
+      promoted,
+      refillMode: schedulerState.refillMode,
+      runId: RUN_ID,
+      status: schedulerState.draining ? "draining" : "running",
+      updatedAt: new Date().toISOString(),
+    });
+  };
+
+  const removeWorkerState = () => {
+    try {
+      const state = JSON.parse(fs.readFileSync(WORKER_STATE_PATH, "utf8"));
+      if (state.runId === RUN_ID) fs.rmSync(WORKER_STATE_PATH, { force: true });
+    } catch {}
+  };
+  process.once("exit", removeWorkerState);
 
   const recordMetrics = (durationMs, usage) => {
     if (Number.isFinite(durationMs)) durationsMs.push(durationMs);
@@ -1030,171 +1091,130 @@ async function main() {
     }
   };
 
-  const logProgress = () => {
+  const logProgress = (schedulerState) => {
     const completionPercent = ((completed / args.limit) * 100).toFixed(1);
     const successPercent =
       completed === 0 ? "0.0" : ((promoted / completed) * 100).toFixed(1);
     log(
-      `progress completed=${completed}/${args.limit} (${completionPercent}%) success=${promoted}/${completed} (${successPercent}%) failed=${failed} active=${activeChildren.size}`,
+      `progress completed=${completed}/${args.limit} (${completionPercent}%) success=${promoted}/${completed} (${successPercent}%) failed=${failed} active=${schedulerState.active} target=${schedulerState.desiredConcurrency}`,
     );
   };
 
-  const stop = (signal) => {
-    if (stopping) return;
-    stopping = true;
-    stopSignal = signal;
-    log(`stopping signal=${signal} active=${activeChildren.size}`);
-    for (const child of activeChildren.values()) terminate(child);
-  };
-
-  process.once("SIGINT", () => stop("SIGINT"));
-  process.once("SIGTERM", () => stop("SIGTERM"));
-
   log(
-    `worker started limit=${args.limit} concurrency=${args.concurrency} model=${args.model} effort=${args.effort} timeoutMinutes=${Math.round(args.timeoutMs / 60_000)} usageIntervalMinutes=${args.usageIntervalMs / 60_000} sessionMode=isolated-image-only`,
+    `worker started limit=${args.limit} backlogRefillSize=${args.backlogRefillSize} concurrency=${args.concurrency} model=${args.model} effort=${args.effort} timeoutMinutes=${Math.round(args.timeoutMs / 60_000)} usageIntervalMinutes=${args.usageIntervalMs / 60_000} scheduler=rolling sessionMode=isolated-image-only`,
   );
   const usageMonitor = createUsageMonitor(args.usageIntervalMs);
   await usageMonitor.sample("start");
   usageMonitor.start();
 
-  const runBatch = async (ids) => {
-    let nextIndex = 0;
+  const processItem = async (item, getSchedulerState) => {
+    try {
+      const result = await generate(item, args, activeChildren);
+      promoted += 1;
+      completed += 1;
+      recordMetrics(result.durationMs, result.usage);
+      log(
+        `thread finished id=${item.id} session=${result.sessionId} image=yes promoted=yes status=review durationSeconds=${(result.durationMs / 1_000).toFixed(1)} ${formatUsage(result.usage)} output=${result.imagePath}`,
+      );
+      logProgress(getSchedulerState());
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const schedulerState = getSchedulerState();
 
-    const runSlot = async () => {
-      while (!stopping) {
-        const id = ids[nextIndex];
-        nextIndex += 1;
-        if (!id) return;
-
-        const item = claimNextPendingItem(id);
-        if (!item) {
-          log(`skipped id=${id} reason=not-claimable`);
-          continue;
-        }
-
+      if (schedulerState.forceStopping) {
+        interrupted += 1;
+        const interruption = `Worker interrupted by ${schedulerState.stopSignal ?? "signal"}`;
         try {
-          const result = await generate(item, args, activeChildren);
-          promoted += 1;
-          completed += 1;
-          recordMetrics(result.durationMs, result.usage);
+          updateStatus(item.id, "pending", { lastError: interruption });
+        } catch (databaseError) {
+          const databaseMessage =
+            databaseError instanceof Error
+              ? databaseError.message
+              : String(databaseError);
           log(
-            `thread finished id=${item.id} session=${result.sessionId} image=yes promoted=yes status=review durationSeconds=${(result.durationMs / 1_000).toFixed(1)} ${formatUsage(result.usage)} output=${result.imagePath}`,
+            `status update failed id=${item.id} intendedStatus=pending error=${databaseMessage}`,
           );
-          logProgress();
-        } catch (error) {
-          const message =
-            error instanceof Error ? error.message : String(error);
+        }
+        log(
+          `thread interrupted id=${item.id} session=${error?.sessionId ?? "unknown"} signal=${schedulerState.stopSignal ?? "unknown"} status=pending`,
+        );
+        return;
+      }
 
-          if (stopping) {
-            interrupted += 1;
-            const interruption = `Worker interrupted by ${stopSignal ?? "signal"}`;
-            try {
-              updateStatus(item.id, "pending", { lastError: interruption });
-            } catch (databaseError) {
-              const databaseMessage =
-                databaseError instanceof Error
-                  ? databaseError.message
-                  : String(databaseError);
-              log(
-                `status update failed id=${item.id} intendedStatus=pending error=${databaseMessage}`,
-              );
-            }
-            log(
-              `thread interrupted id=${item.id} session=${error?.sessionId ?? "unknown"} signal=${stopSignal ?? "unknown"} status=pending`,
-            );
-            continue;
-          }
+      failed += 1;
+      completed += 1;
+      recordMetrics(error?.durationMs, error?.codexUsage);
 
-          const status = error?.recoverableImage ? "processing" : "failed";
-          failed += 1;
-          completed += 1;
-          recordMetrics(error?.durationMs, error?.codexUsage);
+      const status = error?.recoverableImage ? "processing" : "failed";
+      try {
+        updateStatus(item.id, status, { lastError: message });
+      } catch (databaseError) {
+        const databaseMessage =
+          databaseError instanceof Error
+            ? databaseError.message
+            : String(databaseError);
+        log(
+          `status update failed id=${item.id} intendedStatus=${status} error=${databaseMessage}`,
+        );
+      }
 
-          try {
-            const statusOptions = { lastError: message };
-            if (error?.imageCreated) {
-              statusOptions.codexNativeAgentId = error.sessionId;
-            }
-            updateStatus(item.id, status, statusOptions);
-          } catch (databaseError) {
-            const databaseMessage =
-              databaseError instanceof Error
-                ? databaseError.message
-                : String(databaseError);
-            log(
-              `status update failed id=${item.id} intendedStatus=${status} error=${databaseMessage}`,
-            );
-          }
-
-          log(
-            `thread finished id=${item.id} session=${error?.sessionId ?? "unknown"} image=${error?.noImage ? "no" : error?.imageCreated ? "yes" : "unknown"} promoted=no status=${status} durationSeconds=${Number.isFinite(error?.durationMs) ? (error.durationMs / 1_000).toFixed(1) : "unknown"} ${formatUsage(error?.codexUsage)} error=${message}`,
-          );
-          if (error?.noImage) {
-            logLines(
-              `no-image response id=${item.id}`,
-              error.codexResponse || "(no textual response captured)",
-            );
-            if (error.codexDiagnostics) {
-              logLines(
-                `no-image diagnostic id=${item.id}`,
-                error.codexDiagnostics,
-              );
-            }
-          }
-          logProgress();
+      log(
+        `thread finished id=${item.id} session=${error?.sessionId ?? "unknown"} image=${error?.noImage ? "no" : error?.imageCreated ? "yes" : "unknown"} promoted=no status=${status} durationSeconds=${Number.isFinite(error?.durationMs) ? (error.durationMs / 1_000).toFixed(1) : "unknown"} ${formatUsage(error?.codexUsage)} error=${message}`,
+      );
+      if (error?.noImage) {
+        logLines(
+          `no-image response id=${item.id}`,
+          error.codexResponse || "(no textual response captured)",
+        );
+        if (error.codexDiagnostics) {
+          logLines(`no-image diagnostic id=${item.id}`, error.codexDiagnostics);
         }
       }
-    };
-
-    await Promise.all(
-      Array.from({ length: Math.min(args.concurrency, ids.length) }, runSlot),
-    );
+      logProgress(schedulerState);
+    }
   };
 
-  while (!stopping && attemptedIds.size < args.limit) {
-    const remaining = args.limit - attemptedIds.size;
-    let ids = getClaimableIds({ ...args, limit: remaining }, attemptedIds);
+  const takeControlCommand = () => {
+    if (!fs.existsSync(WORKER_COMMAND_PATH)) return null;
 
-    if (ids.length === 0 && !args.id && !catchupChecked) {
-      catchupChecked = true;
-      try {
-        queueSourceRows("catchup");
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        log(`catchup check stopped error=${message}`);
-        process.exitCode = 1;
-        break;
-      }
-      ids = getClaimableIds({ ...args, limit: remaining }, attemptedIds);
+    let command;
+    try {
+      command = JSON.parse(fs.readFileSync(WORKER_COMMAND_PATH, "utf8"));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      log(`control command ignored error=${message}`);
+      return null;
+    } finally {
+      fs.rmSync(WORKER_COMMAND_PATH, { force: true });
     }
 
-    if (ids.length === 0 && !args.id && catchupChecked) {
-      let refillSelected = 0;
-      do {
-        try {
-          ({ selected: refillSelected } = queueSourceRows(
-            "backlog",
-            remaining,
-          ));
-        } catch (error) {
-          const message =
-            error instanceof Error ? error.message : String(error);
-          log(`backlog refill stopped error=${message}`);
-          process.exitCode = 1;
-          break;
-        }
-        ids = getClaimableIds({ ...args, limit: remaining }, attemptedIds);
-      } while (ids.length === 0 && refillSelected > 0);
+    if (command.runId !== RUN_ID) {
+      log(
+        `control command ignored reason=run-mismatch command=${command.runId}`,
+      );
+      return null;
     }
+    return command;
+  };
 
-    if (ids.length === 0) {
-      log("no claimable queue rows");
-      break;
-    }
-
-    for (const id of ids) attemptedIds.add(id);
-    await runBatch(ids);
-  }
+  const schedulerResult = await runRollingWorkerPool({
+    backlogRefillSize: args.backlogRefillSize,
+    claimItem: claimNextPendingItem,
+    getClaimableIds: (limit) => getClaimableIds({ ...args, limit }),
+    getPendingCount,
+    initialConcurrency: args.concurrency,
+    limit: args.limit,
+    log,
+    onStateChange: writeWorkerState,
+    processItem,
+    queueSourceRows,
+    specificId: args.id,
+    takeControlCommand,
+    terminateChild: terminate,
+    terminateRunningChildren: () => {
+      for (const child of activeChildren.values()) terminate(child);
+    },
+  });
 
   await usageMonitor.finish();
   const wallSeconds = (Date.now() - runStartedAt) / 1_000;
@@ -1220,11 +1240,12 @@ async function main() {
   }
   log(`queue finish ${getQueueStatusSummary()}`);
   log(
-    `worker finished attempted=${attemptedIds.size} completed=${completed} promoted=${promoted} recovered=${recovery.recovered} recoveryPreserved=${recovery.preserved} recoveryReset=${recovery.reset} failed=${failed} interrupted=${interrupted} successRate=${completed === 0 ? "0.0" : ((promoted / completed) * 100).toFixed(1)}% runLog=${RUN_LOG_PATH} eventsLog=${RUN_EVENTS_PATH}`,
+    `worker finished attempted=${schedulerResult.attempted} completed=${completed} promoted=${promoted} recovered=${recovery.recovered} recoveryPreserved=${recovery.preserved} recoveryReset=${recovery.reset} failed=${failed} interrupted=${interrupted} stopReason=${schedulerResult.stopReason ?? "complete"} successRate=${completed === 0 ? "0.0" : ((promoted / completed) * 100).toFixed(1)}% runLog=${RUN_LOG_PATH} eventsLog=${RUN_EVENTS_PATH}`,
   );
+  removeWorkerState();
+  process.removeListener("exit", removeWorkerState);
   releaseWorkerLock();
   process.removeListener("exit", releaseWorkerLock);
-  if (failed > 0 && !stopping) process.exitCode = 1;
 }
 
 await main();
