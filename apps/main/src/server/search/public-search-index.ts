@@ -5,6 +5,7 @@ import { mkdir, open, rename, rm, stat, unlink } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { createClient } from "@libsql/client";
+import { z } from "zod";
 import { env, isLibsqlDatabaseUrl } from "@/env";
 
 const execFileAsync = promisify(execFile);
@@ -64,6 +65,42 @@ class SourceReplicaIntegrityError extends Error {
     detail: string,
   ) {
     super(`Source replica ${phase} quick_check failed: ${detail}`);
+  }
+}
+
+const sourceSyncWorkerResultSchema = z.discriminatedUnion("ok", [
+  z.object({
+    ok: z.literal(true),
+    durationMs: z.number(),
+    frameNumber: z.number().nullable(),
+    framesSynced: z.number().nullable(),
+    pid: z.number(),
+  }),
+  z.object({
+    ok: z.literal(false),
+    error: z.string(),
+    phase: z.enum(["source_sync", "post_sync_client"]).nullable(),
+  }),
+]);
+
+type SourceSyncWorkerResult = z.infer<typeof sourceSyncWorkerResultSchema>;
+
+function parseSourceSyncWorkerResult(output: string): SourceSyncWorkerResult {
+  return sourceSyncWorkerResultSchema.parse(JSON.parse(output.trim()));
+}
+
+function getFailedSourceSyncWorkerResult(
+  error: unknown,
+): Extract<SourceSyncWorkerResult, { ok: false }> | null {
+  if (!(error instanceof Error) || !("stdout" in error)) {
+    return null;
+  }
+
+  try {
+    const result = parseSourceSyncWorkerResult(String(error.stdout));
+    return result.ok ? null : result;
+  } catch {
+    return null;
   }
 }
 
@@ -149,6 +186,56 @@ async function checkPublicSearchBuildSource(
   }
 }
 
+async function runSourceSyncWorker(
+  databaseUrl: string,
+  authToken: string,
+): Promise<Extract<SourceSyncWorkerResult, { ok: true }>> {
+  let output: Awaited<ReturnType<typeof execFileAsync>>;
+  try {
+    output = await execFileAsync(
+      process.execPath,
+      [
+        getSourceSyncScriptPath(),
+        "--source",
+        PUBLIC_SEARCH_BUILD_SOURCE_REPLICA_PATH,
+      ],
+      {
+        cwd: getAppRoot(),
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          DATABASE_URL: databaseUrl,
+          TURSO_DATABASE_AUTH_TOKEN: authToken,
+        },
+        maxBuffer: 1024 * 1024,
+      },
+    );
+  } catch (error) {
+    const result = getFailedSourceSyncWorkerResult(error);
+    if (!result) {
+      throw error;
+    }
+    if (result.phase) {
+      throw new SourceReplicaIntegrityError(result.phase, result.error);
+    }
+    throw new Error(`Source sync worker failed: ${result.error}`, {
+      cause: error,
+    });
+  }
+
+  const result = parseSourceSyncWorkerResult(String(output.stdout));
+  if (!result.ok) {
+    throw new Error("Source sync worker exited successfully with an error.");
+  }
+
+  const stderr = String(output.stderr).trim();
+  if (stderr.length > 0) {
+    logSearchIndex("public_search_source_sync_stderr", { output: stderr });
+  }
+
+  return result;
+}
+
 async function preparePublicSearchBuildSource() {
   const databaseUrl = env.DATABASE_URL;
 
@@ -165,57 +252,21 @@ async function preparePublicSearchBuildSource() {
     recursive: true,
   });
   await checkPublicSearchBuildSource("pre_sync", true);
-
-  const syncOutput = await execFileAsync(
-    process.execPath,
-    [
-      getSourceSyncScriptPath(),
-      "--source",
-      PUBLIC_SEARCH_BUILD_SOURCE_REPLICA_PATH,
-    ],
-    {
-      cwd: getAppRoot(),
-      encoding: "utf8",
-      env: {
-        ...process.env,
-        DATABASE_URL: databaseUrl,
-        TURSO_DATABASE_AUTH_TOKEN: env.TURSO_DATABASE_AUTH_TOKEN,
-      },
-      maxBuffer: 1024 * 1024,
-    },
+  const syncResult = await runSourceSyncWorker(
+    databaseUrl,
+    env.TURSO_DATABASE_AUTH_TOKEN,
   );
 
-  const syncResult = JSON.parse(syncOutput.stdout.trim()) as {
-    clientQuickCheck?: unknown;
-    durationMs?: unknown;
-    frameNumber?: unknown;
-    framesSynced?: unknown;
-    pid?: unknown;
-  };
-  if (typeof syncResult.clientQuickCheck !== "string") {
-    throw new Error("Source sync worker returned an invalid result.");
-  }
-  const clientQuickCheck = syncResult.clientQuickCheck;
-
   logSearchIndex("public_search_source_sync_completed", {
-    durationMs: syncResult.durationMs ?? null,
-    frameNumber: syncResult.frameNumber ?? null,
-    framesSynced: syncResult.framesSynced ?? null,
-    workerPid: syncResult.pid ?? null,
+    durationMs: syncResult.durationMs,
+    frameNumber: syncResult.frameNumber,
+    framesSynced: syncResult.framesSynced,
+    workerPid: syncResult.pid,
   });
   logSearchIndex("public_search_source_integrity_checked", {
     phase: "post_sync_client",
-    result: clientQuickCheck,
+    result: "ok",
   });
-  if (clientQuickCheck !== "ok") {
-    throw new SourceReplicaIntegrityError("post_sync_client", clientQuickCheck);
-  }
-
-  if (syncOutput.stderr.trim().length > 0) {
-    logSearchIndex("public_search_source_sync_stderr", {
-      output: syncOutput.stderr.trim(),
-    });
-  }
 
   await checkPublicSearchBuildSource("post_sync");
   return PUBLIC_SEARCH_BUILD_SOURCE_REPLICA_PATH;
@@ -460,13 +511,6 @@ function getRecoverableSourcePhase(error: unknown, stage: string) {
       : error instanceof Error
         ? error.message
         : String(error);
-  const integrityPhase = /Source replica ([a-z_]+) quick_check failed/i.exec(
-    message,
-  )?.[1];
-  if (integrityPhase) {
-    return integrityPhase;
-  }
-
   if (/post_build/i.test(message)) {
     return "post_build";
   }

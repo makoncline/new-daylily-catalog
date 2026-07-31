@@ -155,7 +155,7 @@ describe("public search index refresh", () => {
     mocks.syncWorker.mockResolvedValue({
       stderr: "",
       stdout: JSON.stringify({
-        clientQuickCheck: "ok",
+        ok: true,
         durationMs: 20,
         frameNumber: 123,
         framesSynced: 2,
@@ -297,7 +297,16 @@ describe("public search index refresh", () => {
   it("keeps an old index usable while repairing its source replica", async () => {
     mocks.indexBuiltAt = new Date(0).toISOString();
     mocks.indexExists = true;
-    mocks.syncWorker.mockRejectedValueOnce(new Error("InvalidLocalState"));
+    mocks.syncWorker.mockRejectedValueOnce(
+      Object.assign(new Error("sync worker failed"), {
+        stderr: "InvalidLocalState",
+        stdout: JSON.stringify({
+          ok: false,
+          error: "InvalidLocalState",
+          phase: "source_sync",
+        }),
+      }),
+    );
     const log = vi.spyOn(console, "log");
 
     const { ensurePublicSearchIndex, isPublicSearchIndexUsable } = await import(
@@ -308,14 +317,12 @@ describe("public search index refresh", () => {
 
     expect(status.status).toBe("stale");
     expect(isPublicSearchIndexUsable(status)).toBe(true);
-    await vi.waitFor(() =>
-      expect(mocks.execFilePromisified).toHaveBeenCalledWith(
-        process.execPath,
-        expect.anything(),
-        expect.anything(),
-      ),
-    );
-    expect(mocks.syncWorker).toHaveBeenCalledTimes(2);
+    await vi.waitFor(() => {
+      expect(mocks.syncWorker).toHaveBeenCalledTimes(2);
+      expect(log).toHaveBeenCalledWith(
+        expect.stringContaining("public_search_source_recovery_succeeded"),
+      );
+    });
     expect(mocks.rename.mock.calls.map(([source]) => source)).toEqual(
       ["", "-info", "-wal", "-shm", "-journal", "-client_wal_index"].map(
         (suffix) => `/data/search/public-search-source-replica.sqlite${suffix}`,
@@ -324,9 +331,6 @@ describe("public search index refresh", () => {
     expect(mocks.rm).toHaveBeenCalledWith(
       "/data/search/public-search-source-replica.sqlite.quarantine",
       { force: true, recursive: true },
-    );
-    expect(log).toHaveBeenCalledWith(
-      expect.stringContaining("public_search_source_recovery_succeeded"),
     );
     for (const phase of ["pre_sync", "post_sync", "post_build"]) {
       expect(log).toHaveBeenCalledWith(
@@ -370,8 +374,12 @@ describe("public search index refresh", () => {
   it("repairs corruption visible to the open libSQL client after sync", async () => {
     mocks.syncWorker.mockRejectedValueOnce(
       Object.assign(new Error("sync worker failed"), {
-        stderr:
-          "Source replica post_sync_client quick_check failed: database disk image is malformed",
+        stderr: "database disk image is malformed",
+        stdout: JSON.stringify({
+          ok: false,
+          error: "database disk image is malformed",
+          phase: "post_sync_client",
+        }),
       }),
     );
     const log = vi.spyOn(console, "log");
