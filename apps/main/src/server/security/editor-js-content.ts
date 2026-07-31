@@ -41,17 +41,36 @@ function escapeAttribute(value: string) {
   return escapeHtml(value).replace(/"/g, "&quot;");
 }
 
-function isSafeHref(href: string) {
+const CANONICAL_PUBLIC_HOST = "daylilycatalog.com";
+
+function normalizeSafeHref(href: string) {
   const trimmed = href.trim();
   if (trimmed.startsWith("/")) {
-    return !trimmed.startsWith("//");
+    return trimmed.startsWith("//")
+      ? null
+      : { href: trimmed, isInternal: true };
   }
 
   try {
     const parsed = new URL(trimmed);
-    return ["http:", "https:", "mailto:", "tel:"].includes(parsed.protocol);
+    if (!["http:", "https:", "mailto:", "tel:"].includes(parsed.protocol)) {
+      return null;
+    }
+
+    if (
+      [CANONICAL_PUBLIC_HOST, `www.${CANONICAL_PUBLIC_HOST}`].includes(
+        parsed.hostname.toLowerCase(),
+      )
+    ) {
+      return {
+        href: `${parsed.pathname}${parsed.search}${parsed.hash}`,
+        isInternal: true,
+      };
+    }
+
+    return { href: parsed.toString(), isInternal: false };
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -80,11 +99,15 @@ function serializeSanitizedNode(node: Node): string {
 
   if (tagName === "a") {
     const href = node.getAttribute("href");
-    if (!href || !isSafeHref(href)) {
+    const safeHref = href ? normalizeSafeHref(href) : null;
+    if (!safeHref) {
       return `<a>${children}</a>`;
     }
 
-    return `<a href="${escapeAttribute(href)}" rel="noopener noreferrer nofollow" target="_blank">${children}</a>`;
+    const externalAttributes = safeHref.isInternal
+      ? ""
+      : ' rel="noopener noreferrer nofollow" target="_blank"';
+    return `<a href="${escapeAttribute(safeHref.href)}"${externalAttributes}>${children}</a>`;
   }
 
   return `<${tagName}>${children}</${tagName}>`;

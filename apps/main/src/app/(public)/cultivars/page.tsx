@@ -2,8 +2,10 @@
 import { type Metadata } from "next";
 import { notFound } from "next/navigation";
 import { MainContent } from "@/app/(public)/_components/main-content";
+import { buildPublicPageMetadata } from "@/app/(public)/_seo/public-seo";
 import { METADATA_CONFIG } from "@/config/constants";
 import { isPublicCultivarSearchEnabled } from "@/config/feature-flags";
+import { IMAGES } from "@/lib/constants/images";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import { serializeJsonLd } from "@/lib/utils/json-ld";
 import { CultivarSearchPageClient } from "./_components/cultivar-search-page-client";
@@ -37,14 +39,19 @@ export async function generateMetadata({
 
   const baseUrl = getCanonicalBaseUrl();
   const hasSearchState = Object.keys((await searchParams) ?? {}).length > 0;
-  const title = `Daylily Cultivar Search – Over 100,000 Registered Daylilies | ${METADATA_CONFIG.SITE_NAME}`;
+  const title = `Search 100,000+ Daylily Cultivars | ${METADATA_CONFIG.SITE_NAME}`;
   const description =
     "Search over 100,000 registered daylilies by cultivar, hybridizer, color, bloom traits, photos, and current public catalog availability.";
 
   return {
-    title,
-    description,
-    alternates: { canonical: `${baseUrl}/cultivars` },
+    ...buildPublicPageMetadata({
+      canonicalPath: "/cultivars",
+      description,
+      imageAlt: "Daylily cultivar search",
+      imageUrl: `${baseUrl}${IMAGES.DEFAULT_LISTING}`,
+      pageUrl: `${baseUrl}/cultivars`,
+      title,
+    }),
     ...(hasSearchState
       ? {
           robots: {

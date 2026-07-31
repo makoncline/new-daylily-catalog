@@ -3,6 +3,7 @@
 import type { Metadata } from "next";
 import { describe, expect, it } from "vitest";
 import { buildPublicPageMetadata } from "@/app/(public)/_seo/public-seo";
+import { generateHomePageJsonLd } from "@/app/(public)/_seo/json-ld";
 import {
   generateCollectionMetadata,
   generateProfileMetadata,
@@ -40,6 +41,17 @@ const profile = {
 };
 
 describe("social sharing metadata", () => {
+  it("omits app rich results without verified reviews", async () => {
+    const jsonLd = await generateHomePageJsonLd({
+      description: "Daylily catalog software for growers.",
+      url: "https://daylilycatalog.com",
+    });
+
+    expect(jsonLd.map((schema) => schema["@type"])).not.toContain(
+      "SoftwareApplication",
+    );
+  });
+
   it("uses stable renderer-versioned image URLs", () => {
     expect(
       getSocialCardImageUrl({

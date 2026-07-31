@@ -1,5 +1,5 @@
 // eslint-disable react/no-danger -- intentional static JSON-LD, style, or compatibility script injection.
-import { generateSoftwareApplicationJsonLd } from "../_seo/json-ld";
+import { generateHomePageJsonLd } from "../_seo/json-ld";
 import type { PublicPageMetadata } from "../_seo/public-seo";
 import { serializeJsonLd } from "@/lib/utils/json-ld";
 
@@ -8,7 +8,7 @@ interface HomePageSEOProps {
 }
 
 export async function HomePageSEO({ metadata }: HomePageSEOProps) {
-  const jsonLd = await generateSoftwareApplicationJsonLd(metadata);
+  const jsonLd = await generateHomePageJsonLd(metadata);
 
   return (
     <>

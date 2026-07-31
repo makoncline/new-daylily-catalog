@@ -23,9 +23,9 @@ const HOME_PAGE_FAQ = [
   },
 ] as const;
 
-// Function to generate JSON-LD for SoftwareApplication schema
-async function createSoftwareApplicationJsonLd(metadata: MetadataInput) {
+async function createHomePageJsonLd(metadata: MetadataInput) {
   try {
+    // Add SoftwareApplication only when verified review data is available.
     // Create a schema set that covers both classic SEO and GEO use-cases.
     const schemas = [
       {
@@ -46,22 +46,6 @@ async function createSoftwareApplicationJsonLd(metadata: MetadataInput) {
           "@type": "WebSite",
           name: METADATA_CONFIG.SITE_NAME,
           url: metadata.url,
-        },
-      },
-      // SoftwareApplication schema (primary schema for the platform)
-      {
-        "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
-        name: METADATA_CONFIG.SITE_NAME,
-        description: metadata.description,
-        url: metadata.url,
-        applicationCategory: "BusinessApplication",
-        operatingSystem: "Web",
-        offers: {
-          "@type": "Offer",
-          price: "0",
-          priceCurrency: "USD",
-          availability: "https://schema.org/InStock",
         },
       },
       // Organization schema for the company
@@ -96,11 +80,10 @@ async function createSoftwareApplicationJsonLd(metadata: MetadataInput) {
           : new Error("Unknown error in JSON-LD generation"),
       level: "error",
       context: {
-        function: "createSoftwareApplicationJsonLd",
+        function: "createHomePageJsonLd",
       },
     });
 
-    // Minimal valid SoftwareApplication JSON-LD as fallback
     return [
       {
         "@context": "https://schema.org",
@@ -108,21 +91,10 @@ async function createSoftwareApplicationJsonLd(metadata: MetadataInput) {
         name: METADATA_CONFIG.SITE_NAME,
         url: metadata.url,
       },
-      {
-        "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
-        name: METADATA_CONFIG.SITE_NAME,
-        description:
-          metadata.description ||
-          "Discover beautiful daylilies from growers across the country.",
-        applicationCategory: "BusinessApplication",
-      },
     ];
   }
 }
 
-export async function generateSoftwareApplicationJsonLd(
-  metadata: MetadataInput,
-) {
-  return createSoftwareApplicationJsonLd(metadata);
+export async function generateHomePageJsonLd(metadata: MetadataInput) {
+  return createHomePageJsonLd(metadata);
 }
