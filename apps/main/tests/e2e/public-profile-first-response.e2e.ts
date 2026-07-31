@@ -113,5 +113,17 @@ test.describe("public profile first-response content @local", () => {
     expect(html).toContain('<meta property="og:image:width"');
     expect(html).toContain('<meta property="og:image:type"');
     expect(html).toContain('<meta name="twitter:description"');
+
+    const imageLessResponse = await request.get(
+      `/${PROFILE_SLUG}/static-first-listing-002`,
+    );
+    expect(imageLessResponse.status()).toBe(200);
+    const imageLessHtml = await imageLessResponse.text();
+    const imageLessDescription = imageLessHtml.match(
+      /<meta name="description" content="([^"]+)"/,
+    )?.[1];
+
+    expect(imageLessDescription).toContain("View listing details");
+    expect(imageLessDescription).not.toContain("View photos");
   });
 });

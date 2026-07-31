@@ -12,7 +12,7 @@ import {
 import { getSocialCardImageUrl } from "@/lib/social-card";
 import {
   buildCultivarMetaDescription,
-} from "@/app/(public)/cultivar/[cultivarNormalizedName]/_lib/cultivar-page-route";
+} from "@/app/(public)/cultivar/[cultivarNormalizedName]/_lib/cultivar-meta-description";
 import { metadata as privacyMetadata } from "@/app/(public)/privacy/page";
 import { metadata as supportMetadata } from "@/app/(public)/support/page";
 import { metadata as termsMetadata } from "@/app/(public)/terms/page";
@@ -131,17 +131,18 @@ describe("social sharing metadata", () => {
   });
 
   it("builds useful cultivar descriptions within the search snippet limit", () => {
+    const ahsListing = {
+      bloomSeason: "Midseason",
+      bloomSize: "4 in",
+      foliageType: "Semi-Evergreen",
+      hybridizer: "Cline",
+      name: "Coffee Frenzy",
+      ploidy: "Diploid",
+      scapeHeight: "42 in",
+      year: "2014",
+    };
     const description = buildCultivarMetaDescription({
-      ahsListing: {
-        bloomSeason: "Midseason",
-        bloomSize: "4 in",
-        foliageType: "Semi-Evergreen",
-        hybridizer: "Cline",
-        name: "Coffee Frenzy",
-        ploidy: "Diploid",
-        scapeHeight: "42 in",
-        year: "2014",
-      },
+      ahsListing,
       gardensCount: 2,
       hybridizer: "Cline",
       name: "Coffee Frenzy",
@@ -155,6 +156,19 @@ describe("social sharing metadata", () => {
     expect(description.length).toBeGreaterThanOrEqual(110);
     expect(description.length).toBeLessThanOrEqual(155);
 
+    const generatedNoOfferDescription = buildCultivarMetaDescription({
+      ahsListing,
+      gardensCount: 0,
+      hybridizer: "Cline",
+      name: "Coffee Frenzy",
+      offersCount: 0,
+      year: "2014",
+    });
+    expect(generatedNoOfferDescription).toContain(
+      "No current public grower offers are listed.",
+    );
+    expect(generatedNoOfferDescription).not.toContain("availability");
+
     const fallbackDescription = buildCultivarMetaDescription({
       ahsListing: null,
       gardensCount: 0,
@@ -163,6 +177,10 @@ describe("social sharing metadata", () => {
       offersCount: 0,
       year: null,
     });
+    expect(fallbackDescription).toContain(
+      "No current public grower offers are listed.",
+    );
+    expect(fallbackDescription).not.toContain("availability");
     expect(fallbackDescription.length).toBeGreaterThanOrEqual(110);
     expect(fallbackDescription.length).toBeLessThanOrEqual(155);
   });

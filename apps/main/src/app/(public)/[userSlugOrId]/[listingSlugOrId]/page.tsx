@@ -117,8 +117,9 @@ function getListingDescription(listing: PublicListingPageData) {
   let description = parts.join(" ").trim().replace(/\s+/g, " ");
 
   if (description.length < 110) {
-    description +=
-      " View photos and contact the grower for current availability and catalog details.";
+    description += listing.images.length
+      ? " View photos and contact the grower for current availability and catalog details."
+      : " View listing details and contact the grower for current availability and catalog information.";
   }
 
   return truncateDescription(description);
