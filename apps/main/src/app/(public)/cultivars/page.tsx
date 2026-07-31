@@ -6,12 +6,18 @@ import { buildPublicPageMetadata } from "@/app/(public)/_seo/public-seo";
 import { METADATA_CONFIG } from "@/config/constants";
 import { isPublicCultivarSearchEnabled } from "@/config/feature-flags";
 import { IMAGES } from "@/lib/constants/images";
+import { reportError } from "@/lib/error-utils";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import { serializeJsonLd } from "@/lib/utils/json-ld";
-import { CultivarSearchPageClient } from "./_components/cultivar-search-page-client";
+import {
+  CultivarSearchPageClient,
+  type CultivarSearchResponse,
+} from "./_components/cultivar-search-page-client";
 import { hasAdvancedCultivarSearchState } from "./_lib/cultivar-search-url";
 
 export const dynamic = "force-dynamic";
+
+const INITIAL_RESULT_LIMIT = 24;
 
 interface CultivarsPageProps {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -23,6 +29,41 @@ function getFirstSearchParam(
 ) {
   const value = params[key];
   return Array.isArray(value) ? value[0] : value;
+}
+
+async function getInitialSearchResponse(
+  baseUrl: string,
+): Promise<CultivarSearchResponse | undefined> {
+  try {
+    const { searchCultivars } = await import("@/server/search/cultivar-search");
+    const results = await searchCultivars({
+      baseUrl,
+      hasListings: true,
+      includeParentageTrees: false,
+      limit: INITIAL_RESULT_LIMIT + 1,
+      listingLimit: 0,
+      offset: 0,
+      prefixLastToken: true,
+      sort: "name",
+    });
+    const hasMore = results.length > INITIAL_RESULT_LIMIT;
+
+    return {
+      pagination: {
+        hasMore,
+        limit: INITIAL_RESULT_LIMIT,
+        nextOffset: hasMore ? INITIAL_RESULT_LIMIT : null,
+      },
+      results: results.slice(0, INITIAL_RESULT_LIMIT),
+    };
+  } catch (error) {
+    reportError({
+      error,
+      level: "warning",
+      context: { source: "cultivar-search-initial-results" },
+    });
+    return undefined;
+  }
 }
 
 export async function generateMetadata({
@@ -73,6 +114,10 @@ export default async function CultivarsPage({
   const rawSearchParams = (await searchParams) ?? {};
   const baseUrl = getCanonicalBaseUrl();
   const pageUrl = `${baseUrl}/cultivars`;
+  const initialResponse =
+    Object.keys(rawSearchParams).length === 0
+      ? await getInitialSearchResponse(baseUrl)
+      : undefined;
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
@@ -100,6 +145,7 @@ export default async function CultivarsPage({
       />
 
       <CultivarSearchPageClient
+        initialResponse={initialResponse}
         initialState={{
           advanced:
             getFirstSearchParam(rawSearchParams, "advanced") === "true" ||
