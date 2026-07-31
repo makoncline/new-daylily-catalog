@@ -707,7 +707,7 @@ function getQueueStatusSummary() {
   }
 }
 
-function recoverMappedOutputs() {
+function recoverMappedOutputs(staleAfterMs) {
   const database = openQueueDb();
   let rows;
 
@@ -716,7 +716,7 @@ function recoverMappedOutputs() {
     rows = database
       .prepare(
         `
-          SELECT "id", "codexNativeAgentId"
+          SELECT "id", "codexNativeAgentId", "updatedAt"
           FROM "v2_image_review_queue"
           WHERE "status" = 'processing'
         `,
@@ -727,6 +727,7 @@ function recoverMappedOutputs() {
   }
 
   let recovered = 0;
+  let preserved = 0;
   let reset = 0;
 
   for (const row of rows) {
@@ -755,8 +756,20 @@ function recoverMappedOutputs() {
           log(
             `recovery promotion failed id=${id} session=${sessionId} error=${message}`,
           );
+          preserved += 1;
+          continue;
         }
       }
+    }
+
+    const updatedAtMs = Date.parse(String(row.updatedAt));
+    const ageMs = Date.now() - updatedAtMs;
+    if (Number.isFinite(updatedAtMs) && ageMs < staleAfterMs) {
+      preserved += 1;
+      log(
+        `recovery preserved id=${id} session=${sessionId ?? "none"} ageSeconds=${Math.round(ageMs / 1_000)} retryAfterSeconds=${Math.ceil((staleAfterMs - ageMs) / 1_000)}`,
+      );
+      continue;
     }
 
     updateStatus(id, "pending", {
@@ -770,7 +783,7 @@ function recoverMappedOutputs() {
     );
   }
 
-  return { recovered, reset };
+  return { preserved, recovered, reset };
 }
 
 function promote(id, sessionId) {
@@ -959,10 +972,11 @@ function generate(item, args, activeChildren) {
           });
           return;
         } catch (error) {
-          if (!pendingError && code === 0) {
+          if (!pendingError) {
             error.codexResponse = responses.join("\n\n");
             error.codexDiagnostics = diagnostics.join("\n\n");
             error.imageCreated = true;
+            error.recoverableImage = true;
             error.sessionId = sessionId;
             rejectGeneration(error);
             return;
@@ -1024,7 +1038,7 @@ async function main() {
   logProdCopyAge();
   prepareQueueDbForConcurrentWrites();
   log(`queue initial ${getQueueStatusSummary()}`);
-  const recovery = recoverMappedOutputs();
+  const recovery = recoverMappedOutputs(args.timeoutMs);
   log(`queue afterRecovery ${getQueueStatusSummary()}`);
   const activeChildren = new Map();
   const runStartedAt = Date.now();
@@ -1131,20 +1145,21 @@ async function main() {
       completed += 1;
       recordMetrics(error?.durationMs, error?.codexUsage);
 
+      const status = error?.recoverableImage ? "processing" : "failed";
       try {
-        updateStatus(item.id, "failed", { lastError: message });
+        updateStatus(item.id, status, { lastError: message });
       } catch (databaseError) {
         const databaseMessage =
           databaseError instanceof Error
             ? databaseError.message
             : String(databaseError);
         log(
-          `status update failed id=${item.id} intendedStatus=failed error=${databaseMessage}`,
+          `status update failed id=${item.id} intendedStatus=${status} error=${databaseMessage}`,
         );
       }
 
       log(
-        `thread finished id=${item.id} session=${error?.sessionId ?? "unknown"} image=${error?.noImage ? "no" : error?.imageCreated ? "yes" : "unknown"} promoted=no status=failed durationSeconds=${Number.isFinite(error?.durationMs) ? (error.durationMs / 1_000).toFixed(1) : "unknown"} ${formatUsage(error?.codexUsage)} error=${message}`,
+        `thread finished id=${item.id} session=${error?.sessionId ?? "unknown"} image=${error?.noImage ? "no" : error?.imageCreated ? "yes" : "unknown"} promoted=no status=${status} durationSeconds=${Number.isFinite(error?.durationMs) ? (error.durationMs / 1_000).toFixed(1) : "unknown"} ${formatUsage(error?.codexUsage)} error=${message}`,
       );
       if (error?.noImage) {
         logLines(
@@ -1225,7 +1240,7 @@ async function main() {
   }
   log(`queue finish ${getQueueStatusSummary()}`);
   log(
-    `worker finished attempted=${schedulerResult.attempted} completed=${completed} promoted=${promoted} recovered=${recovery.recovered} recoveryReset=${recovery.reset} failed=${failed} interrupted=${interrupted} stopReason=${schedulerResult.stopReason ?? "complete"} successRate=${completed === 0 ? "0.0" : ((promoted / completed) * 100).toFixed(1)}% runLog=${RUN_LOG_PATH} eventsLog=${RUN_EVENTS_PATH}`,
+    `worker finished attempted=${schedulerResult.attempted} completed=${completed} promoted=${promoted} recovered=${recovery.recovered} recoveryPreserved=${recovery.preserved} recoveryReset=${recovery.reset} failed=${failed} interrupted=${interrupted} stopReason=${schedulerResult.stopReason ?? "complete"} successRate=${completed === 0 ? "0.0" : ((promoted / completed) * 100).toFixed(1)}% runLog=${RUN_LOG_PATH} eventsLog=${RUN_EVENTS_PATH}`,
   );
   removeWorkerState();
   process.removeListener("exit", removeWorkerState);

@@ -383,6 +383,39 @@ function insertQueueRow(row: BacklogRow, originalPath: string): void {
   }
 }
 
+function insertSourceInvalidRow(
+  row: BacklogRow,
+  originalPath: string,
+  error: string,
+): void {
+  const database = openQueueDb();
+  const now = new Date().toISOString();
+
+  try {
+    ensureSchema(database);
+    database
+      .prepare(
+        `
+          INSERT OR IGNORE INTO "v2_image_review_queue" (
+            "id",
+            "postTitle",
+            "originalPath",
+            "editedPath",
+            "status",
+            "attempts",
+            "lastError",
+            "promptVersion",
+            "createdAt",
+            "updatedAt"
+          ) VALUES (?, ?, ?, NULL, 'source_invalid', 0, ?, NULL, ?, ?)
+        `,
+      )
+      .run(row.id, row.postTitle, originalPath, error, now, now);
+  } finally {
+    database.close();
+  }
+}
+
 async function main() {
   const args = parseArgs();
   const { claimableIds, existingIds } = readQueueState();
@@ -441,8 +474,9 @@ async function main() {
 
     if (error) {
       failed += 1;
+      insertSourceInvalidRow(row, outputPath, error);
       console.warn(
-        `[v2-image-queue] failed id=${row.id} title=${row.postTitle ?? ""} error=${error}`,
+        `[v2-image-queue] source_invalid id=${row.id} title=${row.postTitle ?? ""} error=${error}`,
       );
       continue;
     }

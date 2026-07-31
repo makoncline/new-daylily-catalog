@@ -203,6 +203,23 @@ console.log(JSON.stringify({
         "2026-01-04",
         "2026-01-04",
       );
+    const freshTimestamp = new Date().toISOString();
+    database
+      .prepare(
+        `
+          INSERT INTO "v2_image_review_queue" (
+            "id", "postTitle", "originalPath", "status", "codexNativeAgentId",
+            "createdAt", "updatedAt"
+          ) VALUES (?, ?, ?, 'processing', 'session-fresh', ?, ?)
+        `,
+      )
+      .run(
+        "fresh-processing",
+        "Fresh Processing",
+        path.join(originalsRoot, "item-1.jpg"),
+        freshTimestamp,
+        freshTimestamp,
+      );
     database.close();
 
     execFileSync(
@@ -249,7 +266,12 @@ console.log(JSON.stringify({
       .all();
     verifiedDatabase.close();
 
-    expect(rows).toHaveLength(11);
+    expect(rows).toHaveLength(12);
+    expect(rows).toContainEqual({
+      id: "fresh-processing",
+      status: "processing",
+      codexNativeAgentId: "session-fresh",
+    });
     expect(rows).toContainEqual({
       id: "recovered",
       status: "review",
@@ -283,9 +305,11 @@ console.log(JSON.stringify({
     expect(runLog).toContain(
       "usageSamples=10 tokensInput=1000 tokensCached=800 tokensOutput=100 tokensReasoning=50",
     );
-    expect(runLog).toContain("queue initial pending=9 processing=2");
-    expect(runLog).toContain("queue afterRecovery pending=10 review=1");
-    expect(runLog).toContain("queue finish review=11");
+    expect(runLog).toContain("queue initial pending=9 processing=3");
+    expect(runLog).toContain(
+      "queue afterRecovery pending=10 processing=1 review=1",
+    );
+    expect(runLog).toContain("queue finish processing=1 review=11");
     expect(runLog).toContain(`paths reviewRoot=${reviewRoot}`);
     expect(runLog).toContain(
       `codexHome=${path.join(reviewRoot, "codex-image-home")}`,
