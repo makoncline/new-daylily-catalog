@@ -15,6 +15,7 @@ import {
   prepareQueueDbForConcurrentWrites,
   updateStatus,
 } from "./review-db.mjs";
+import { runRollingWorkerPool } from "./rolling-worker-pool.mjs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const PROMOTE_SCRIPT = path.join(SCRIPT_DIR, "promote-codex-native-result.mjs");
@@ -576,7 +577,7 @@ function logProdCopyAge() {
   }
 }
 
-function getClaimableIds({ id, limit }, excludedIds = new Set()) {
+function getClaimableIds({ id, limit }) {
   const database = openQueueDb();
 
   try {
@@ -594,24 +595,39 @@ function getClaimableIds({ id, limit }, excludedIds = new Set()) {
         )
         .get(id);
 
-      return row && !excludedIds.has(String(row.id)) ? [String(row.id)] : [];
+      return row ? [String(row.id)] : [];
     }
 
     const rows = database
       .prepare(
         `
-          SELECT "id", "status", "updatedAt"
+          SELECT "id"
           FROM "v2_image_review_queue"
           WHERE "status" = 'pending'
           ORDER BY "updatedAt" ASC, "id" ASC
+          LIMIT ?
         `,
       )
-      .all();
+      .all(limit);
 
-    return rows
-      .filter((row) => !excludedIds.has(String(row.id)))
-      .slice(0, limit)
-      .map((row) => String(row.id));
+    return rows.map((row) => String(row.id));
+  } finally {
+    database.close();
+  }
+}
+
+function getPendingCount() {
+  const database = openQueueDb();
+
+  try {
+    ensureSchema(database);
+    return Number(
+      database
+        .prepare(
+          `SELECT COUNT(*) AS "count" FROM "v2_image_review_queue" WHERE "status" = 'pending'`,
+        )
+        .get().count,
+    );
   } finally {
     database.close();
   }
@@ -1011,8 +1027,6 @@ async function main() {
   const recovery = recoverMappedOutputs();
   log(`queue afterRecovery ${getQueueStatusSummary()}`);
   const activeChildren = new Map();
-  const activeTasks = new Set();
-  const attemptedIds = new Set();
   const runStartedAt = Date.now();
   const durationsMs = [];
   const usageTotals = {
@@ -1022,37 +1036,25 @@ async function main() {
     reasoningOutputTokens: 0,
   };
   let usageSamples = 0;
-  let desiredConcurrency = args.concurrency;
-  let draining = false;
-  let forceStopping = false;
-  let stopSignal = null;
-  let stopReason = null;
   let completed = 0;
   let promoted = 0;
   let failed = 0;
   let interrupted = 0;
-  let catchupStarted = Boolean(args.id);
-  let catchupComplete = Boolean(args.id);
-  let backlogExhausted = false;
-  let refillChild = null;
-  let refillMode = null;
-  let refillPromise = null;
-  let fatalError = null;
 
-  const writeWorkerState = () => {
+  const writeWorkerState = (schedulerState) => {
     writeJsonAtomic(WORKER_STATE_PATH, {
-      active: activeChildren.size,
-      attempted: attemptedIds.size,
+      active: schedulerState.active,
+      attempted: schedulerState.attempted,
       completed,
-      desiredConcurrency,
-      draining,
+      desiredConcurrency: schedulerState.desiredConcurrency,
+      draining: schedulerState.draining,
       failed,
       limit: args.limit,
       pid: process.pid,
       promoted,
-      refillMode,
+      refillMode: schedulerState.refillMode,
       runId: RUN_ID,
-      status: draining ? "draining" : "running",
+      status: schedulerState.draining ? "draining" : "running",
       updatedAt: new Date().toISOString(),
     });
   };
@@ -1075,59 +1077,23 @@ async function main() {
     }
   };
 
-  const logProgress = () => {
+  const logProgress = (schedulerState) => {
     const completionPercent = ((completed / args.limit) * 100).toFixed(1);
     const successPercent =
       completed === 0 ? "0.0" : ((promoted / completed) * 100).toFixed(1);
     log(
-      `progress completed=${completed}/${args.limit} (${completionPercent}%) success=${promoted}/${completed} (${successPercent}%) failed=${failed} active=${activeChildren.size} target=${desiredConcurrency}`,
+      `progress completed=${completed}/${args.limit} (${completionPercent}%) success=${promoted}/${completed} (${successPercent}%) failed=${failed} active=${schedulerState.active} target=${schedulerState.desiredConcurrency}`,
     );
-    writeWorkerState();
   };
-
-  const requestDrain = (reason) => {
-    if (draining) return;
-    draining = true;
-    stopReason = reason;
-    log(`draining reason=${reason} active=${activeChildren.size}`);
-    if (refillChild) terminate(refillChild);
-    writeWorkerState();
-  };
-
-  const forceStop = (signal) => {
-    if (forceStopping) return;
-    forceStopping = true;
-    draining = true;
-    stopSignal = signal;
-    stopReason ??= signal;
-    log(`force stopping signal=${signal} active=${activeChildren.size}`);
-    if (refillChild) terminate(refillChild);
-    for (const child of activeChildren.values()) terminate(child);
-    writeWorkerState();
-  };
-
-  const handleSignal = (signal) => {
-    if (draining) {
-      forceStop(signal);
-      return;
-    }
-    requestDrain(signal);
-  };
-
-  const handleSigint = () => handleSignal("SIGINT");
-  const handleSigterm = () => handleSignal("SIGTERM");
-  process.on("SIGINT", handleSigint);
-  process.on("SIGTERM", handleSigterm);
 
   log(
     `worker started limit=${args.limit} backlogRefillSize=${args.backlogRefillSize} concurrency=${args.concurrency} model=${args.model} effort=${args.effort} timeoutMinutes=${Math.round(args.timeoutMs / 60_000)} usageIntervalMinutes=${args.usageIntervalMs / 60_000} scheduler=rolling sessionMode=isolated-image-only`,
   );
-  writeWorkerState();
   const usageMonitor = createUsageMonitor(args.usageIntervalMs);
   await usageMonitor.sample("start");
   usageMonitor.start();
 
-  const processItem = async (item) => {
+  const processItem = async (item, getSchedulerState) => {
     try {
       const result = await generate(item, args, activeChildren);
       promoted += 1;
@@ -1136,13 +1102,14 @@ async function main() {
       log(
         `thread finished id=${item.id} session=${result.sessionId} image=yes promoted=yes status=review durationSeconds=${(result.durationMs / 1_000).toFixed(1)} ${formatUsage(result.usage)} output=${result.imagePath}`,
       );
-      logProgress();
+      logProgress(getSchedulerState());
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      const schedulerState = getSchedulerState();
 
-      if (forceStopping) {
+      if (schedulerState.forceStopping) {
         interrupted += 1;
-        const interruption = `Worker interrupted by ${stopSignal ?? "signal"}`;
+        const interruption = `Worker interrupted by ${schedulerState.stopSignal ?? "signal"}`;
         try {
           updateStatus(item.id, "pending", { lastError: interruption });
         } catch (databaseError) {
@@ -1155,7 +1122,7 @@ async function main() {
           );
         }
         log(
-          `thread interrupted id=${item.id} session=${error?.sessionId ?? "unknown"} signal=${stopSignal ?? "unknown"} status=pending`,
+          `thread interrupted id=${item.id} session=${error?.sessionId ?? "unknown"} signal=${schedulerState.stopSignal ?? "unknown"} status=pending`,
         );
         return;
       }
@@ -1188,174 +1155,51 @@ async function main() {
           logLines(`no-image diagnostic id=${item.id}`, error.codexDiagnostics);
         }
       }
-      logProgress();
+      logProgress(schedulerState);
     }
   };
 
-  const startAvailable = () => {
-    if (draining || attemptedIds.size >= args.limit) return;
-
-    const slots = Math.min(
-      desiredConcurrency - activeTasks.size,
-      args.limit - attemptedIds.size,
-    );
-    if (slots <= 0) return;
-
-    const ids = getClaimableIds({ ...args, limit: slots }, attemptedIds);
-    for (const id of ids) {
-      const item = claimNextPendingItem(id);
-      if (!item) {
-        log(`skipped id=${id} reason=not-claimable`);
-        continue;
-      }
-
-      attemptedIds.add(id);
-      let task;
-      task = processItem(item).finally(() => {
-        activeTasks.delete(task);
-        writeWorkerState();
-      });
-      activeTasks.add(task);
-    }
-    writeWorkerState();
-  };
-
-  const beginRefill = (mode, limit) => {
-    if (refillPromise || draining || limit < 1) return;
-    refillMode = mode;
-    if (mode === "catchup") catchupStarted = true;
-    writeWorkerState();
-
-    refillPromise = queueSourceRows(mode, limit, (child) => {
-      refillChild = child;
-    })
-      .then((output) => {
-        if (mode === "catchup") catchupComplete = true;
-        if (mode === "backlog" && /\bselected=0\b/.test(output)) {
-          backlogExhausted = true;
-        }
-      })
-      .catch((error) => {
-        const message = error instanceof Error ? error.message : String(error);
-        if (draining) {
-          log(`queue refill interrupted mode=${mode}`);
-          return;
-        }
-
-        fatalError = error;
-        process.exitCode = 1;
-        log(`${mode} refill stopped error=${message}`);
-        requestDrain(`${mode} refill failed`);
-      })
-      .finally(() => {
-        refillChild = null;
-        refillMode = null;
-        refillPromise = null;
-        writeWorkerState();
-      });
-  };
-
-  const maybeRefill = () => {
-    if (args.id || draining || refillPromise) return;
-    const remaining = args.limit - attemptedIds.size;
-    if (remaining <= 0) return;
-
-    const pending = getClaimableIds(
-      { ...args, id: null, limit: remaining },
-      attemptedIds,
-    ).length;
-    if (!catchupStarted) {
-      beginRefill("catchup", remaining);
-      return;
-    }
-    if (!catchupComplete || backlogExhausted) return;
-
-    const lowWater = Math.min(remaining, desiredConcurrency * 2);
-    if (pending >= lowWater) return;
-    const refillSize = Math.min(
-      remaining - pending,
-      Math.max(args.backlogRefillSize, desiredConcurrency * 3),
-    );
-    beginRefill("backlog", refillSize);
-  };
-
-  const applyControlCommand = () => {
-    if (!fs.existsSync(WORKER_COMMAND_PATH)) return;
+  const takeControlCommand = () => {
+    if (!fs.existsSync(WORKER_COMMAND_PATH)) return null;
 
     let command;
     try {
       command = JSON.parse(fs.readFileSync(WORKER_COMMAND_PATH, "utf8"));
-      fs.rmSync(WORKER_COMMAND_PATH, { force: true });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       log(`control command ignored error=${message}`);
-      return;
+      return null;
+    } finally {
+      fs.rmSync(WORKER_COMMAND_PATH, { force: true });
     }
 
     if (command.runId !== RUN_ID) {
       log(
         `control command ignored reason=run-mismatch command=${command.runId}`,
       );
-      return;
+      return null;
     }
-    if (command.command === "drain") {
-      requestDrain("control command");
-      return;
-    }
-    if (
-      command.command === "concurrency" &&
-      Number.isInteger(command.value) &&
-      command.value > 0
-    ) {
-      const previous = desiredConcurrency;
-      desiredConcurrency = command.value;
-      log(
-        `concurrency changed previous=${previous} desired=${desiredConcurrency} active=${activeChildren.size}`,
-      );
-      writeWorkerState();
-      return;
-    }
-    log(`control command ignored reason=invalid command=${command.command}`);
+    return command;
   };
 
-  const waitForActivity = async () => {
-    const waits = [new Promise((resolve) => setTimeout(resolve, 250))];
-    waits.push(...activeTasks);
-    if (refillPromise) waits.push(refillPromise);
-    await Promise.race(waits);
-  };
-
-  while (true) {
-    applyControlCommand();
-    startAvailable();
-    maybeRefill();
-
-    if (!draining && attemptedIds.size >= args.limit) {
-      requestDrain("limit reached");
-    }
-    if (
-      !draining &&
-      args.id &&
-      attemptedIds.size === 0 &&
-      activeTasks.size === 0
-    ) {
-      requestDrain("queue item is not claimable");
-    }
-    if (
-      !draining &&
-      backlogExhausted &&
-      !refillPromise &&
-      activeTasks.size === 0 &&
-      getClaimableIds({ ...args, id: null, limit: 1 }, attemptedIds).length ===
-        0
-    ) {
-      requestDrain("source backlog exhausted");
-    }
-    if (draining && activeTasks.size === 0 && !refillPromise) break;
-    if (fatalError && activeTasks.size === 0 && !refillPromise) break;
-
-    await waitForActivity();
-  }
+  const schedulerResult = await runRollingWorkerPool({
+    backlogRefillSize: args.backlogRefillSize,
+    claimItem: claimNextPendingItem,
+    getClaimableIds: (limit) => getClaimableIds({ ...args, limit }),
+    getPendingCount,
+    initialConcurrency: args.concurrency,
+    limit: args.limit,
+    log,
+    onStateChange: writeWorkerState,
+    processItem,
+    queueSourceRows,
+    specificId: args.id,
+    takeControlCommand,
+    terminateChild: terminate,
+    terminateRunningChildren: () => {
+      for (const child of activeChildren.values()) terminate(child);
+    },
+  });
 
   await usageMonitor.finish();
   const wallSeconds = (Date.now() - runStartedAt) / 1_000;
@@ -1381,10 +1225,8 @@ async function main() {
   }
   log(`queue finish ${getQueueStatusSummary()}`);
   log(
-    `worker finished attempted=${attemptedIds.size} completed=${completed} promoted=${promoted} recovered=${recovery.recovered} recoveryReset=${recovery.reset} failed=${failed} interrupted=${interrupted} stopReason=${stopReason ?? "complete"} successRate=${completed === 0 ? "0.0" : ((promoted / completed) * 100).toFixed(1)}% runLog=${RUN_LOG_PATH} eventsLog=${RUN_EVENTS_PATH}`,
+    `worker finished attempted=${schedulerResult.attempted} completed=${completed} promoted=${promoted} recovered=${recovery.recovered} recoveryReset=${recovery.reset} failed=${failed} interrupted=${interrupted} stopReason=${schedulerResult.stopReason ?? "complete"} successRate=${completed === 0 ? "0.0" : ((promoted / completed) * 100).toFixed(1)}% runLog=${RUN_LOG_PATH} eventsLog=${RUN_EVENTS_PATH}`,
   );
-  process.removeListener("SIGINT", handleSigint);
-  process.removeListener("SIGTERM", handleSigterm);
   removeWorkerState();
   process.removeListener("exit", removeWorkerState);
   releaseWorkerLock();

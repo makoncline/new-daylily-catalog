@@ -1,9 +1,12 @@
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { afterEach, describe, expect, it } from "vitest";
+import {
+  createQueueDatabase,
+  createWorkerFixture,
+} from "./helpers/codex-native-worker-fixture";
 
 const appRoot = process.cwd();
 const scriptRoot = path.join(
@@ -34,14 +37,10 @@ afterEach(() => {
 
 describe("Codex-native image worker", () => {
   it("refuses to recover queue rows while another worker is running", () => {
-    const temporaryRoot = fs.mkdtempSync(
-      path.join(os.tmpdir(), "codex-native-worker-lock-"),
+    const { dataRoot, reviewRoot, temporaryRoot } = createWorkerFixture(
+      "codex-native-worker-lock-",
     );
     temporaryRoots.push(temporaryRoot);
-
-    const dataRoot = path.join(temporaryRoot, "data");
-    const reviewRoot = path.join(dataRoot, "v2-ahs-image-review");
-    fs.mkdirSync(reviewRoot, { recursive: true });
     fs.writeFileSync(
       path.join(reviewRoot, "codex-native-worker.lock"),
       JSON.stringify({
@@ -73,21 +72,17 @@ describe("Codex-native image worker", () => {
   });
 
   it("keeps concurrent queue rows mapped and promotes without lock failures", () => {
-    const temporaryRoot = fs.mkdtempSync(
-      path.join(os.tmpdir(), "codex-native-worker-"),
-    );
+    const {
+      dataRoot,
+      databasePath,
+      fakeCodexPath,
+      generatedRoot,
+      originalsRoot,
+      reviewRoot,
+      temporaryRoot,
+    } = createWorkerFixture("codex-native-worker-");
     temporaryRoots.push(temporaryRoot);
-
-    const dataRoot = path.join(temporaryRoot, "data");
-    const reviewRoot = path.join(dataRoot, "v2-ahs-image-review");
-    const originalsRoot = path.join(dataRoot, "v2-ahs-images");
-    const generatedRoot = path.join(temporaryRoot, "generated");
-    const databasePath = path.join(reviewRoot, "review.sqlite");
-    const fakeCodexPath = path.join(temporaryRoot, "fake-codex.mjs");
     const relativeDataRoot = path.relative(appRoot, dataRoot);
-
-    fs.mkdirSync(reviewRoot, { recursive: true });
-    fs.mkdirSync(originalsRoot, { recursive: true });
     const ids = Array.from({ length: 9 }, (_, index) => `item-${index + 1}`);
     for (const id of ids) {
       fs.writeFileSync(path.join(originalsRoot, `${id}.jpg`), `${id}-source`);
@@ -160,22 +155,7 @@ console.log(JSON.stringify({
     );
     fs.chmodSync(fakeCodexPath, 0o755);
 
-    const database = new DatabaseSync(databasePath);
-    database.exec(`
-      CREATE TABLE "v2_image_review_queue" (
-        "id" TEXT NOT NULL PRIMARY KEY,
-        "postTitle" TEXT,
-        "originalPath" TEXT NOT NULL,
-        "editedPath" TEXT,
-        "status" TEXT NOT NULL,
-        "attempts" INTEGER NOT NULL DEFAULT 0,
-        "lastError" TEXT,
-        "promptVersion" TEXT,
-        "codexNativeAgentId" TEXT,
-        "createdAt" TEXT NOT NULL,
-        "updatedAt" TEXT NOT NULL
-      );
-    `);
+    const database = createQueueDatabase(databasePath);
     const insert = database.prepare(`
       INSERT INTO "v2_image_review_queue" (
         "id", "postTitle", "originalPath", "status", "codexNativeAgentId",
@@ -314,21 +294,17 @@ console.log(JSON.stringify({
   });
 
   it("reports total account usage from startup through completion", () => {
-    const temporaryRoot = fs.mkdtempSync(
-      path.join(os.tmpdir(), "codex-native-worker-usage-"),
-    );
+    const {
+      dataRoot,
+      databasePath,
+      fakeCodexPath,
+      generatedRoot,
+      originalsRoot,
+      reviewRoot,
+      temporaryRoot,
+    } = createWorkerFixture("codex-native-worker-usage-");
     temporaryRoots.push(temporaryRoot);
-
-    const dataRoot = path.join(temporaryRoot, "data");
-    const reviewRoot = path.join(dataRoot, "v2-ahs-image-review");
-    const originalsRoot = path.join(dataRoot, "v2-ahs-images");
-    const generatedRoot = path.join(temporaryRoot, "generated");
-    const databasePath = path.join(reviewRoot, "review.sqlite");
-    const fakeCodexPath = path.join(temporaryRoot, "fake-codex.mjs");
     const usageCounterPath = path.join(temporaryRoot, "usage-counter");
-
-    fs.mkdirSync(reviewRoot, { recursive: true });
-    fs.mkdirSync(originalsRoot, { recursive: true });
     fs.writeFileSync(path.join(originalsRoot, "usage.jpg"), "source");
     fs.writeFileSync(
       fakeCodexPath,
@@ -393,22 +369,7 @@ if (process.argv.includes("app-server")) {
     );
     fs.chmodSync(fakeCodexPath, 0o755);
 
-    const database = new DatabaseSync(databasePath);
-    database.exec(`
-      CREATE TABLE "v2_image_review_queue" (
-        "id" TEXT NOT NULL PRIMARY KEY,
-        "postTitle" TEXT,
-        "originalPath" TEXT NOT NULL,
-        "editedPath" TEXT,
-        "status" TEXT NOT NULL,
-        "attempts" INTEGER NOT NULL DEFAULT 0,
-        "lastError" TEXT,
-        "promptVersion" TEXT,
-        "codexNativeAgentId" TEXT,
-        "createdAt" TEXT NOT NULL,
-        "updatedAt" TEXT NOT NULL
-      );
-    `);
+    const database = createQueueDatabase(databasePath);
     database
       .prepare(
         `
@@ -465,22 +426,18 @@ if (process.argv.includes("app-server")) {
   });
 
   it("prefetches catchup and backlog work while the queue stays active", () => {
-    const temporaryRoot = fs.mkdtempSync(
-      path.join(os.tmpdir(), "codex-native-backlog-worker-"),
-    );
+    const {
+      dataRoot,
+      databasePath,
+      fakeBacklogPath,
+      fakeCodexPath,
+      generatedRoot,
+      originalsRoot,
+      reviewRoot,
+      temporaryRoot,
+    } = createWorkerFixture("codex-native-backlog-worker-");
     temporaryRoots.push(temporaryRoot);
-
-    const dataRoot = path.join(temporaryRoot, "data");
-    const reviewRoot = path.join(dataRoot, "v2-ahs-image-review");
-    const originalsRoot = path.join(dataRoot, "v2-ahs-images");
-    const generatedRoot = path.join(temporaryRoot, "generated");
-    const databasePath = path.join(reviewRoot, "review.sqlite");
     const prodDatabasePath = path.join(temporaryRoot, "prod.sqlite");
-    const fakeCodexPath = path.join(temporaryRoot, "fake-codex.mjs");
-    const fakeBacklogPath = path.join(temporaryRoot, "fake-backlog.mjs");
-
-    fs.mkdirSync(reviewRoot, { recursive: true });
-    fs.mkdirSync(originalsRoot, { recursive: true });
     fs.writeFileSync(path.join(originalsRoot, "linked.jpg"), "linked-source");
     fs.writeFileSync(path.join(originalsRoot, "failed.jpg"), "failed-source");
     fs.writeFileSync(path.join(originalsRoot, "catchup.jpg"), "catchup-source");
@@ -550,22 +507,7 @@ database.close();
     );
     fs.chmodSync(fakeBacklogPath, 0o755);
 
-    const database = new DatabaseSync(databasePath);
-    database.exec(`
-      CREATE TABLE "v2_image_review_queue" (
-        "id" TEXT NOT NULL PRIMARY KEY,
-        "postTitle" TEXT,
-        "originalPath" TEXT NOT NULL,
-        "editedPath" TEXT,
-        "status" TEXT NOT NULL,
-        "attempts" INTEGER NOT NULL DEFAULT 0,
-        "lastError" TEXT,
-        "promptVersion" TEXT,
-        "codexNativeAgentId" TEXT,
-        "createdAt" TEXT NOT NULL,
-        "updatedAt" TEXT NOT NULL
-      );
-    `);
+    const database = createQueueDatabase(databasePath);
     database
       .prepare(
         `
@@ -661,19 +603,15 @@ database.close();
   });
 
   it("summarizes a no-image failure without failing the batch", () => {
-    const temporaryRoot = fs.mkdtempSync(
-      path.join(os.tmpdir(), "codex-native-no-image-"),
-    );
+    const {
+      dataRoot,
+      databasePath,
+      fakeCodexPath,
+      originalsRoot,
+      reviewRoot,
+      temporaryRoot,
+    } = createWorkerFixture("codex-native-no-image-");
     temporaryRoots.push(temporaryRoot);
-
-    const dataRoot = path.join(temporaryRoot, "data");
-    const reviewRoot = path.join(dataRoot, "v2-ahs-image-review");
-    const originalsRoot = path.join(dataRoot, "v2-ahs-images");
-    const databasePath = path.join(reviewRoot, "review.sqlite");
-    const fakeCodexPath = path.join(temporaryRoot, "fake-codex.mjs");
-
-    fs.mkdirSync(reviewRoot, { recursive: true });
-    fs.mkdirSync(originalsRoot, { recursive: true });
     fs.writeFileSync(path.join(originalsRoot, "no-image.jpg"), "source");
     fs.writeFileSync(
       fakeCodexPath,
@@ -687,21 +625,8 @@ console.log(JSON.stringify({
     );
     fs.chmodSync(fakeCodexPath, 0o755);
 
-    const database = new DatabaseSync(databasePath);
+    const database = createQueueDatabase(databasePath);
     database.exec(`
-      CREATE TABLE "v2_image_review_queue" (
-        "id" TEXT NOT NULL PRIMARY KEY,
-        "postTitle" TEXT,
-        "originalPath" TEXT NOT NULL,
-        "editedPath" TEXT,
-        "status" TEXT NOT NULL,
-        "attempts" INTEGER NOT NULL DEFAULT 0,
-        "lastError" TEXT,
-        "promptVersion" TEXT,
-        "codexNativeAgentId" TEXT,
-        "createdAt" TEXT NOT NULL,
-        "updatedAt" TEXT NOT NULL
-      );
       INSERT INTO "v2_image_review_queue" (
         "id", "postTitle", "originalPath", "status", "createdAt", "updatedAt"
       ) VALUES (
@@ -769,22 +694,18 @@ console.log(JSON.stringify({
   });
 
   it("changes concurrency live and drains without interrupting active work", async () => {
-    const temporaryRoot = fs.mkdtempSync(
-      path.join(os.tmpdir(), "codex-native-control-"),
-    );
+    const {
+      dataRoot,
+      databasePath,
+      fakeBacklogPath,
+      fakeCodexPath,
+      generatedRoot,
+      originalsRoot,
+      reviewRoot,
+      temporaryRoot,
+    } = createWorkerFixture("codex-native-control-");
     temporaryRoots.push(temporaryRoot);
-
-    const dataRoot = path.join(temporaryRoot, "data");
-    const reviewRoot = path.join(dataRoot, "v2-ahs-image-review");
-    const originalsRoot = path.join(dataRoot, "v2-ahs-images");
-    const generatedRoot = path.join(temporaryRoot, "generated");
-    const databasePath = path.join(reviewRoot, "review.sqlite");
-    const fakeCodexPath = path.join(temporaryRoot, "fake-codex.mjs");
-    const fakeBacklogPath = path.join(temporaryRoot, "fake-backlog.mjs");
     const statePath = path.join(reviewRoot, "codex-native-worker-state.json");
-
-    fs.mkdirSync(reviewRoot, { recursive: true });
-    fs.mkdirSync(originalsRoot, { recursive: true });
     for (let index = 1; index <= 8; index += 1) {
       fs.writeFileSync(
         path.join(originalsRoot, `control-${index}.jpg`),
@@ -817,22 +738,7 @@ console.log(\`[v2-image-queue] mode=\${mode} selected=0\`);
     );
     fs.chmodSync(fakeBacklogPath, 0o755);
 
-    const database = new DatabaseSync(databasePath);
-    database.exec(`
-      CREATE TABLE "v2_image_review_queue" (
-        "id" TEXT NOT NULL PRIMARY KEY,
-        "postTitle" TEXT,
-        "originalPath" TEXT NOT NULL,
-        "editedPath" TEXT,
-        "status" TEXT NOT NULL,
-        "attempts" INTEGER NOT NULL DEFAULT 0,
-        "lastError" TEXT,
-        "promptVersion" TEXT,
-        "codexNativeAgentId" TEXT,
-        "createdAt" TEXT NOT NULL,
-        "updatedAt" TEXT NOT NULL
-      );
-    `);
+    const database = createQueueDatabase(databasePath);
     const insert = database.prepare(`
       INSERT INTO "v2_image_review_queue" (
         "id", "postTitle", "originalPath", "status", "createdAt", "updatedAt"
@@ -945,19 +851,15 @@ console.log(\`[v2-image-queue] mode=\${mode} selected=0\`);
   });
 
   it("returns an interrupted thread to pending without counting a failure", async () => {
-    const temporaryRoot = fs.mkdtempSync(
-      path.join(os.tmpdir(), "codex-native-interrupted-"),
-    );
+    const {
+      dataRoot,
+      databasePath,
+      fakeCodexPath,
+      originalsRoot,
+      reviewRoot,
+      temporaryRoot,
+    } = createWorkerFixture("codex-native-interrupted-");
     temporaryRoots.push(temporaryRoot);
-
-    const dataRoot = path.join(temporaryRoot, "data");
-    const reviewRoot = path.join(dataRoot, "v2-ahs-image-review");
-    const originalsRoot = path.join(dataRoot, "v2-ahs-images");
-    const databasePath = path.join(reviewRoot, "review.sqlite");
-    const fakeCodexPath = path.join(temporaryRoot, "fake-codex.mjs");
-
-    fs.mkdirSync(reviewRoot, { recursive: true });
-    fs.mkdirSync(originalsRoot, { recursive: true });
     fs.writeFileSync(path.join(originalsRoot, "interrupted.jpg"), "source");
     fs.writeFileSync(
       fakeCodexPath,
@@ -968,22 +870,7 @@ setInterval(() => {}, 1_000);
     );
     fs.chmodSync(fakeCodexPath, 0o755);
 
-    const database = new DatabaseSync(databasePath);
-    database.exec(`
-      CREATE TABLE "v2_image_review_queue" (
-        "id" TEXT NOT NULL PRIMARY KEY,
-        "postTitle" TEXT,
-        "originalPath" TEXT NOT NULL,
-        "editedPath" TEXT,
-        "status" TEXT NOT NULL,
-        "attempts" INTEGER NOT NULL DEFAULT 0,
-        "lastError" TEXT,
-        "promptVersion" TEXT,
-        "codexNativeAgentId" TEXT,
-        "createdAt" TEXT NOT NULL,
-        "updatedAt" TEXT NOT NULL
-      );
-    `);
+    const database = createQueueDatabase(databasePath);
     database
       .prepare(
         `
