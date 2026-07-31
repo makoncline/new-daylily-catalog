@@ -170,6 +170,10 @@ describe("CultivarSearchPageClient", () => {
 
     render(
       <CultivarSearchPageClient
+        initialResponse={searchResponseFor({
+          cultivarReferenceId: "browse-result",
+          name: "Browse Result",
+        })}
         initialState={{
           hasCultivarPhoto: false,
           hasForSaleListings: false,
@@ -303,6 +307,43 @@ describe("CultivarSearchPageClient", () => {
     expect(`${window.location.pathname}${window.location.search}`).toContain(
       "sort=newest",
     );
+  });
+
+  it("uses server-rendered initial results without repeating the search", async () => {
+    window.history.replaceState({}, "", "/cultivars?utm_source=newsletter");
+
+    render(
+      <CultivarSearchPageClient
+        initialResponse={searchResponse()}
+        initialState={{
+          hasCultivarPhoto: false,
+          hasForSaleListings: false,
+          hasListings: true,
+          q: "",
+          sort: "name",
+        }}
+      />,
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "Stella de Oro" }),
+    ).toBeVisible();
+    expect(screen.getByRole("link", { name: /Stella de Oro/ })).toHaveAttribute(
+      "href",
+      "/cultivar/stella-de-oro",
+    );
+    await waitFor(() => {
+      expect(capturePosthogEventMock).toHaveBeenCalledWith(
+        "public_cultivar_search_results_viewed",
+        expect.objectContaining({
+          http_status: 200,
+          request_kind: "initial",
+          results_returned: 1,
+          visible_result_count: 1,
+        }),
+      );
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("exposes cultivar-focused advanced filters and sends their values", async () => {

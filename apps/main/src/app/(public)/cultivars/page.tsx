@@ -1,17 +1,28 @@
 // eslint-disable react/no-danger -- intentional static JSON-LD injection.
 import { type Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { MainContent } from "@/app/(public)/_components/main-content";
 import { buildPublicPageMetadata } from "@/app/(public)/_seo/public-seo";
 import { METADATA_CONFIG } from "@/config/constants";
 import { isPublicCultivarSearchEnabled } from "@/config/feature-flags";
 import { IMAGES } from "@/lib/constants/images";
+import { reportError } from "@/lib/error-utils";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import { serializeJsonLd } from "@/lib/utils/json-ld";
-import { CultivarSearchPageClient } from "./_components/cultivar-search-page-client";
+import {
+  getRequestId,
+  logSearchRequest,
+} from "@/server/search/cultivar-search-request-telemetry";
+import {
+  CultivarSearchPageClient,
+  type CultivarSearchResponse,
+} from "./_components/cultivar-search-page-client";
 import { hasAdvancedCultivarSearchState } from "./_lib/cultivar-search-url";
 
 export const dynamic = "force-dynamic";
+
+const INITIAL_RESULT_LIMIT = 24;
 
 interface CultivarsPageProps {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -23,6 +34,79 @@ function getFirstSearchParam(
 ) {
   const value = params[key];
   return Array.isArray(value) ? value[0] : value;
+}
+
+async function getInitialSearchResponse(
+  baseUrl: string,
+): Promise<CultivarSearchResponse | undefined> {
+  const startedAt = performance.now();
+  const requestId = getRequestId(await headers());
+  const searchParams = new URLSearchParams({
+    hasListings: "true",
+    limit: String(INITIAL_RESULT_LIMIT),
+    mode: "summary",
+    offset: "0",
+    sort: "name",
+  });
+
+  try {
+    const { searchCultivars } = await import("@/server/search/cultivar-search");
+    const results = await searchCultivars({
+      baseUrl,
+      hasListings: true,
+      includeParentageTrees: false,
+      limit: INITIAL_RESULT_LIMIT + 1,
+      listingLimit: 0,
+      offset: 0,
+      prefixLastToken: true,
+      sort: "name",
+    });
+    const hasMore = results.length > INITIAL_RESULT_LIMIT;
+    const responseResults = results.slice(0, INITIAL_RESULT_LIMIT);
+
+    logSearchRequest({
+      durationMs: performance.now() - startedAt,
+      hasMore,
+      httpStatus: 200,
+      mode: "summary",
+      requestId,
+      resultsReturned: responseResults.length,
+      searchParams,
+      status: "success",
+    });
+
+    return {
+      pagination: {
+        hasMore,
+        limit: INITIAL_RESULT_LIMIT,
+        nextOffset: hasMore ? INITIAL_RESULT_LIMIT : null,
+      },
+      results: responseResults,
+    };
+  } catch (error) {
+    const indexUnavailable =
+      error instanceof Error &&
+      error.name === "PublicSearchIndexUnavailableError";
+    logSearchRequest({
+      durationMs: performance.now() - startedAt,
+      errorName: indexUnavailable
+        ? undefined
+        : error instanceof Error
+          ? error.name
+          : "UnknownError",
+      httpStatus: indexUnavailable ? 503 : 500,
+      mode: "summary",
+      requestId,
+      searchParams,
+      status: indexUnavailable ? "index_unavailable" : "error",
+    });
+    reportError({
+      error,
+      level: "warning",
+      context: { requestId, source: "cultivar-search-initial-results" },
+    });
+    return undefined;
+  }
 }
 
 export async function generateMetadata({
@@ -73,6 +157,7 @@ export default async function CultivarsPage({
   const rawSearchParams = (await searchParams) ?? {};
   const baseUrl = getCanonicalBaseUrl();
   const pageUrl = `${baseUrl}/cultivars`;
+  const initialResponse = await getInitialSearchResponse(baseUrl);
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
@@ -100,6 +185,7 @@ export default async function CultivarsPage({
       />
 
       <CultivarSearchPageClient
+        initialResponse={initialResponse}
         initialState={{
           advanced:
             getFirstSearchParam(rawSearchParams, "advanced") === "true" ||

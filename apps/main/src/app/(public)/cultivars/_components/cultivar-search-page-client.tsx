@@ -182,7 +182,7 @@ interface CultivarSearchResult {
   };
 }
 
-interface CultivarSearchResponse {
+export interface CultivarSearchResponse {
   pagination: {
     hasMore: boolean;
     limit: number;
@@ -1423,10 +1423,21 @@ function ResultsSkeleton() {
 }
 
 export function CultivarSearchPageClient({
+  initialResponse,
   initialState,
 }: {
+  initialResponse?: CultivarSearchResponse;
   initialState: InitialCultivarSearchState;
 }) {
+  const initialResponseMatchesState = Boolean(
+    initialResponse &&
+      initialState.q === "" &&
+      (!initialState.sort || initialState.sort === "name") &&
+      Object.entries(getInitialFilters(initialState)).every(
+        ([key, value]) =>
+          value === EMPTY_FILTERS[key as keyof CultivarSearchFilters],
+      ),
+  );
   const [query, setQuery] = useState(initialState.q);
   const [debouncedQuery, setDebouncedQuery] = useState(initialState.q);
   const [filters, setFilters] = useState(() => getInitialFilters(initialState));
@@ -1437,9 +1448,13 @@ export function CultivarSearchPageClient({
     isCultivarSort(initialState.sort) ? initialState.sort : "name",
   );
   const [advanced, setAdvanced] = useState(initialState.advanced ?? false);
-  const [results, setResults] = useState<CultivarSearchResult[]>([]);
-  const [nextOffset, setNextOffset] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [results, setResults] = useState<CultivarSearchResult[]>(
+    () => initialResponse?.results ?? [],
+  );
+  const [nextOffset, setNextOffset] = useState<number | null>(
+    initialResponse?.pagination.nextOffset ?? null,
+  );
+  const [loading, setLoading] = useState(!initialResponse);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
@@ -1448,8 +1463,9 @@ export function CultivarSearchPageClient({
   const historyEntryIdRef = useRef<string | null>(null);
   const pendingScrollRestorationRef =
     useRef<CultivarSearchReturnSnapshot | null>(null);
-  const skipNextFetchRef = useRef(false);
-  const hasPresentedSearchStateRef = useRef(false);
+  const skipNextFetchRef = useRef(initialResponseMatchesState);
+  const hasPresentedSearchStateRef = useRef(initialResponseMatchesState);
+  const initialResponseCapturedRef = useRef(false);
   const retryPendingRef = useRef(false);
 
   useEffect(() => {
@@ -1547,6 +1563,32 @@ export function CultivarSearchPageClient({
     },
     [requestFilters.hasListings, shareParams, sort],
   );
+
+  useEffect(() => {
+    if (
+      !initialResponseMatchesState ||
+      !initialResponse ||
+      initialResponseCapturedRef.current
+    )
+      return;
+    initialResponseCapturedRef.current = true;
+    const requestParams = buildRequestParams(0);
+
+    captureSearchResultsViewed({
+      clientDurationMs: 0,
+      hasMore: initialResponse.pagination.hasMore,
+      outcome: initialResponse.results.length > 0 ? "results" : "empty",
+      params: requestParams,
+      requestKind: "initial",
+      responseTelemetry: {
+        httpStatus: 200,
+        requestId: undefined,
+        serverDurationMs: undefined,
+      },
+      resultsReturned: initialResponse.results.length,
+      visibleResultCount: initialResponse.results.length,
+    });
+  }, [buildRequestParams, initialResponse, initialResponseMatchesState]);
 
   useEffect(() => {
     if (!restorationChecked) return;
