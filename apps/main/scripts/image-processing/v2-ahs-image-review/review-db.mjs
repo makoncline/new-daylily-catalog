@@ -28,6 +28,10 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+/**
+ * @param {string} dirPath
+ * @returns {Map<string, string>}
+ */
 function mapFilesByStem(dirPath) {
   const fileMap = new Map();
 
@@ -73,6 +77,7 @@ export function prepareQueueDbForConcurrentWrites() {
   }
 }
 
+/** @param {DatabaseSync} database */
 export function ensureSchema(database) {
   database.exec(`
     CREATE TABLE IF NOT EXISTS "v2_image_review_queue" (
@@ -92,6 +97,7 @@ export function ensureSchema(database) {
       ON "v2_image_review_queue"("status", "updatedAt");
   `);
 
+  /** @type {Array<{ name: string }>} */
   const columns = database
     .prepare(`PRAGMA table_info("v2_image_review_queue")`)
     .all();
@@ -103,7 +109,12 @@ export function ensureSchema(database) {
   }
 }
 
+/**
+ * @param {DatabaseSync} database
+ * @param {string} id
+ */
 function readQueueItem(database, id) {
+  /** @type {Record<string, unknown> | undefined} */
   const row = database
     .prepare(
       `
@@ -551,6 +562,11 @@ export function getEditedItems() {
   }
 }
 
+/**
+ * @param {string} id
+ * @param {string} status
+ * @param {{ lastError?: unknown, editedPath?: unknown, promptVersion?: unknown, incrementAttempts?: boolean }} [options]
+ */
 export function updateStatus(id, status, options = {}) {
   const database = openQueueDb();
 
@@ -602,6 +618,7 @@ export function updateStatus(id, status, options = {}) {
   }
 }
 
+/** @param {string[]} ids */
 export function approveReviewItems(ids) {
   const uniqueIds = [
     ...new Set(ids.filter((id) => typeof id === "string" && id.length > 0)),

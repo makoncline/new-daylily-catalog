@@ -12,6 +12,20 @@ const scriptRoot = path.join(
 );
 const temporaryRoots: string[] = [];
 
+function createWorkerEnv(
+  temporaryRoot: string,
+  overrides: NodeJS.ProcessEnv = {},
+) {
+  const authPath = path.join(temporaryRoot, "codex-auth.json");
+  fs.writeFileSync(authPath, "{}");
+
+  return {
+    ...process.env,
+    CODEX_AUTH_PATH: authPath,
+    ...overrides,
+  };
+}
+
 afterEach(() => {
   for (const temporaryRoot of temporaryRoots.splice(0)) {
     fs.rmSync(temporaryRoot, { recursive: true, force: true });
@@ -42,11 +56,10 @@ describe("Codex-native image worker", () => {
       [path.join(scriptRoot, "run-codex-native-worker.mjs"), "--limit", "1"],
       {
         encoding: "utf8",
-        env: {
-          ...process.env,
+        env: createWorkerEnv(temporaryRoot, {
           CODEX_USAGE_CHECK_DISABLED: "1",
           V2_AHS_IMAGE_REVIEW_DATA_ROOT: dataRoot,
-        },
+        }),
       },
     );
 
@@ -224,13 +237,12 @@ console.log(JSON.stringify({
         "1",
       ],
       {
-        env: {
-          ...process.env,
+        env: createWorkerEnv(temporaryRoot, {
           CODEX_BIN: fakeCodexPath,
           CODEX_GENERATED_IMAGES_ROOT: generatedRoot,
           CODEX_USAGE_CHECK_DISABLED: "1",
           V2_AHS_IMAGE_REVIEW_DATA_ROOT: relativeDataRoot,
-        },
+        }),
       },
     );
 
@@ -424,12 +436,11 @@ if (process.argv.includes("app-server")) {
         "1",
       ],
       {
-        env: {
-          ...process.env,
+        env: createWorkerEnv(temporaryRoot, {
           CODEX_BIN: fakeCodexPath,
           CODEX_GENERATED_IMAGES_ROOT: generatedRoot,
           V2_AHS_IMAGE_REVIEW_DATA_ROOT: dataRoot,
-        },
+        }),
       },
     );
 
@@ -608,15 +619,14 @@ database.close();
         "1",
       ],
       {
-        env: {
-          ...process.env,
+        env: createWorkerEnv(temporaryRoot, {
           CODEX_BACKLOG_SCRIPT: fakeBacklogPath,
           CODEX_BIN: fakeCodexPath,
           CODEX_GENERATED_IMAGES_ROOT: generatedRoot,
           CODEX_USAGE_CHECK_DISABLED: "1",
           V2_AHS_IMAGE_REVIEW_DATA_ROOT: dataRoot,
           V2_AHS_PROD_COPY_DB_PATH: prodDatabasePath,
-        },
+        }),
       },
     );
 
@@ -712,12 +722,11 @@ console.log(JSON.stringify({
       ],
       {
         encoding: "utf8",
-        env: {
-          ...process.env,
+        env: createWorkerEnv(temporaryRoot, {
           CODEX_BIN: fakeCodexPath,
           CODEX_USAGE_CHECK_DISABLED: "1",
           V2_AHS_IMAGE_REVIEW_DATA_ROOT: dataRoot,
-        },
+        }),
       },
     );
 
@@ -840,14 +849,13 @@ console.log(\`[v2-image-queue] mode=\${mode} selected=0\`);
     }
     database.close();
 
-    const env = {
-      ...process.env,
+    const env = createWorkerEnv(temporaryRoot, {
       CODEX_BACKLOG_SCRIPT: fakeBacklogPath,
       CODEX_BIN: fakeCodexPath,
       CODEX_GENERATED_IMAGES_ROOT: generatedRoot,
       CODEX_USAGE_CHECK_DISABLED: "1",
       V2_AHS_IMAGE_REVIEW_DATA_ROOT: dataRoot,
-    };
+    });
     const worker = spawn(
       process.execPath,
       [
@@ -1003,12 +1011,11 @@ setInterval(() => {}, 1_000);
         "1",
       ],
       {
-        env: {
-          ...process.env,
+        env: createWorkerEnv(temporaryRoot, {
           CODEX_BIN: fakeCodexPath,
           CODEX_USAGE_CHECK_DISABLED: "1",
           V2_AHS_IMAGE_REVIEW_DATA_ROOT: dataRoot,
-        },
+        }),
         stdio: ["ignore", "pipe", "pipe"],
       },
     );

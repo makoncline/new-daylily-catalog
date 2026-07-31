@@ -44,7 +44,9 @@ const GENERATED_IMAGES_ROOT = path.resolve(
   process.env.CODEX_GENERATED_IMAGES_ROOT ||
     path.join(CODEX_IMAGE_HOME, "generated_images"),
 );
-const CODEX_AUTH_PATH = path.join(os.homedir(), ".codex", "auth.json");
+const CODEX_AUTH_PATH = path.resolve(
+  process.env.CODEX_AUTH_PATH || path.join(os.homedir(), ".codex", "auth.json"),
+);
 const CODEX_BIN = process.env.CODEX_BIN || "codex";
 const DEFAULT_MODEL = process.env.CODEX_IMAGE_AGENT_MODEL || "gpt-5.6-luna";
 const DEFAULT_EFFORT = process.env.CODEX_IMAGE_AGENT_EFFORT || "high";
