@@ -92,6 +92,7 @@ export const metadata = buildPublicPageMetadata({
 function createPageJsonLd() {
   const pageUrl = `${BASE_URL}${PAGE_PATH}`;
 
+  // Add SoftwareApplication only when verified review data is available.
   return [
     {
       "@context": "https://schema.org",
@@ -104,16 +105,6 @@ function createPageJsonLd() {
         name: METADATA_CONFIG.SITE_NAME,
         url: BASE_URL,
       },
-    },
-    {
-      "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      name: METADATA_CONFIG.SITE_NAME,
-      applicationCategory: "BusinessApplication",
-      operatingSystem: "Web",
-      description: PAGE_DESCRIPTION,
-      url: pageUrl,
-      featureList: HERO_POINTS,
     },
     {
       "@context": "https://schema.org",

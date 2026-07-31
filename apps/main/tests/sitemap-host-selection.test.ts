@@ -260,7 +260,10 @@ describe("sitemap and robots host selection", () => {
     delete process.env.VERCEL_URL;
     delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
     process.env.PORT = "4123";
-    const { GET: mainSitemap } = await import("@/app/sitemaps/main.xml/route");
+    const { GET: mainSitemap, dynamic } = await import(
+      "@/app/sitemaps/main.xml/route"
+    );
+    expect(dynamic).toBe("force-dynamic");
     const sitemapText = await (await mainSitemap()).text();
 
     expect(sitemapText).toContain(

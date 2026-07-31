@@ -20,7 +20,7 @@ import { buildPublicPageMetadata } from "../_seo/public-seo";
 const PAGE_PATH = "/sell-daylilies-online";
 const PAGE_TITLE = "Sell Daylilies Online With a Public Catalog";
 const PAGE_DESCRIPTION =
-  "Publish daylily listings with photos, prices, and availability. Buyers build a cart and send an inquiry while you control payment, shipping, pickup, and fulfillment.";
+  "Publish daylily listings with photos, prices, and availability. Buyers build a cart and send an inquiry while you control payment, shipping, and fulfillment.";
 const BASE_URL = getCanonicalBaseUrl();
 
 const HERO_POINTS = [
@@ -92,6 +92,7 @@ export const metadata = buildPublicPageMetadata({
 function createPageJsonLd() {
   const pageUrl = `${BASE_URL}${PAGE_PATH}`;
 
+  // Add SoftwareApplication only when verified review data is available.
   return [
     {
       "@context": "https://schema.org",
@@ -104,16 +105,6 @@ function createPageJsonLd() {
         name: METADATA_CONFIG.SITE_NAME,
         url: BASE_URL,
       },
-    },
-    {
-      "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      name: METADATA_CONFIG.SITE_NAME,
-      applicationCategory: "BusinessApplication",
-      operatingSystem: "Web",
-      description: PAGE_DESCRIPTION,
-      url: pageUrl,
-      featureList: HERO_POINTS,
     },
     {
       "@context": "https://schema.org",

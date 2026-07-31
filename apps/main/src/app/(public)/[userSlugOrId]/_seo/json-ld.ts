@@ -79,7 +79,6 @@ async function createProfilePageJsonLd(
               url: `${metadata.pageUrl}/lists/${list.id}`,
               // Include collection items if we have valid listings for this list
               ...(listListings.length > 0 && {
-                collectionSize: listListings.length,
                 itemListElement: listListings.map((listing, index) => ({
                   "@type": "ListItem",
                   position: index + 1,

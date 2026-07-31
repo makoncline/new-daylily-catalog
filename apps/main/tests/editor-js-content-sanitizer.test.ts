@@ -61,6 +61,14 @@ describe("EditorJS content sanitizer", () => {
     );
   });
 
+  it("normalizes public-site links to internal paths", () => {
+    const sanitized = sanitizeEditorJsHtml(
+      `<a href="http://www.daylilycatalog.com/catalogs">Catalogs</a>`,
+    );
+
+    expect(sanitized).toBe(`<a href="/catalogs">Catalogs</a>`);
+  });
+
   it("converts legacy plain text into escaped EditorJS content", () => {
     const parsed = parseAndSanitizeEditorJsContent(
       `Legacy <img src=x onerror="alert(1)"> text`,

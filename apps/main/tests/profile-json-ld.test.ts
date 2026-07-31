@@ -46,6 +46,7 @@ describe("profile page json-ld", () => {
         };
       }>;
       hasOfferCatalog?: Array<{
+        collectionSize?: number;
         itemListElement?: Array<{
           item?: {
             offers?: { availability?: string };
@@ -64,6 +65,7 @@ describe("profile page json-ld", () => {
       mainEntity.hasOfferCatalog?.[0]?.itemListElement?.[0]?.item?.offers
         ?.availability,
     ).toBe("https://schema.org/InStock");
+    expect(mainEntity.hasOfferCatalog?.[0]?.collectionSize).toBeUndefined();
     expect(jsonLd.interactionStatistic).toBeUndefined();
   });
 

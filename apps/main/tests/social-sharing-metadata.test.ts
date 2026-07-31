@@ -1,13 +1,19 @@
 // @vitest-environment node
 
 import type { Metadata } from "next";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { generateMetadata as generateCultivarSearchMetadata } from "@/app/(public)/cultivars/page";
 import { buildPublicPageMetadata } from "@/app/(public)/_seo/public-seo";
+import { generateHomePageJsonLd } from "@/app/(public)/_seo/json-ld";
 import {
   generateCollectionMetadata,
   generateProfileMetadata,
 } from "@/app/(public)/[userSlugOrId]/_seo/metadata";
 import { getSocialCardImageUrl } from "@/lib/social-card";
+
+vi.mock("@/config/feature-flags", () => ({
+  isPublicCultivarSearchEnabled: () => true,
+}));
 
 function getOpenGraphImageUrl(metadata: Metadata) {
   const images = metadata.openGraph?.images;
@@ -40,6 +46,17 @@ const profile = {
 };
 
 describe("social sharing metadata", () => {
+  it("omits app rich results without verified reviews", async () => {
+    const jsonLd = await generateHomePageJsonLd({
+      description: "Daylily catalog software for growers.",
+      url: "https://daylilycatalog.com",
+    });
+
+    expect(jsonLd.map((schema) => schema["@type"])).not.toContain(
+      "SoftwareApplication",
+    );
+  });
+
   it("uses stable renderer-versioned image URLs", () => {
     expect(
       getSocialCardImageUrl({
@@ -48,6 +65,15 @@ describe("social sharing metadata", () => {
         kind: "catalog",
       }),
     ).toBe("https://daylilycatalog.com/api/og/catalog/seller-1?v=2");
+  });
+
+  it("keeps the complete cultivar search Open Graph metadata", async () => {
+    const metadata = await generateCultivarSearchMetadata({
+      searchParams: Promise.resolve({}),
+    });
+
+    expect(metadata.openGraph?.description).toBe(metadata.description);
+    expect(getOpenGraphImageUrl(metadata)).not.toBeNull();
   });
 
   it("uses a catalog card without replacing the structured-data image", async () => {
