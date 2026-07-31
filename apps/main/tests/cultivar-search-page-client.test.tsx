@@ -170,6 +170,10 @@ describe("CultivarSearchPageClient", () => {
 
     render(
       <CultivarSearchPageClient
+        initialResponse={searchResponseFor({
+          cultivarReferenceId: "browse-result",
+          name: "Browse Result",
+        })}
         initialState={{
           hasCultivarPhoto: false,
           hasForSaleListings: false,
@@ -306,7 +310,7 @@ describe("CultivarSearchPageClient", () => {
   });
 
   it("uses server-rendered initial results without repeating the search", async () => {
-    window.history.replaceState({}, "", "/cultivars");
+    window.history.replaceState({}, "", "/cultivars?utm_source=newsletter");
 
     render(
       <CultivarSearchPageClient

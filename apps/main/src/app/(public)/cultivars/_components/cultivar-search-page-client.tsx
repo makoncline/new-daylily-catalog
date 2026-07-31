@@ -1429,6 +1429,15 @@ export function CultivarSearchPageClient({
   initialResponse?: CultivarSearchResponse;
   initialState: InitialCultivarSearchState;
 }) {
+  const initialResponseMatchesState = Boolean(
+    initialResponse &&
+      initialState.q === "" &&
+      (!initialState.sort || initialState.sort === "name") &&
+      Object.entries(getInitialFilters(initialState)).every(
+        ([key, value]) =>
+          value === EMPTY_FILTERS[key as keyof CultivarSearchFilters],
+      ),
+  );
   const [query, setQuery] = useState(initialState.q);
   const [debouncedQuery, setDebouncedQuery] = useState(initialState.q);
   const [filters, setFilters] = useState(() => getInitialFilters(initialState));
@@ -1454,8 +1463,8 @@ export function CultivarSearchPageClient({
   const historyEntryIdRef = useRef<string | null>(null);
   const pendingScrollRestorationRef =
     useRef<CultivarSearchReturnSnapshot | null>(null);
-  const skipNextFetchRef = useRef(Boolean(initialResponse));
-  const hasPresentedSearchStateRef = useRef(Boolean(initialResponse));
+  const skipNextFetchRef = useRef(initialResponseMatchesState);
+  const hasPresentedSearchStateRef = useRef(initialResponseMatchesState);
   const initialResponseCapturedRef = useRef(false);
   const retryPendingRef = useRef(false);
 
@@ -1556,7 +1565,12 @@ export function CultivarSearchPageClient({
   );
 
   useEffect(() => {
-    if (!initialResponse || initialResponseCapturedRef.current) return;
+    if (
+      !initialResponseMatchesState ||
+      !initialResponse ||
+      initialResponseCapturedRef.current
+    )
+      return;
     initialResponseCapturedRef.current = true;
     const requestParams = buildRequestParams(0);
 
@@ -1574,7 +1588,7 @@ export function CultivarSearchPageClient({
       resultsReturned: initialResponse.results.length,
       visibleResultCount: initialResponse.results.length,
     });
-  }, [buildRequestParams, initialResponse]);
+  }, [buildRequestParams, initialResponse, initialResponseMatchesState]);
 
   useEffect(() => {
     if (!restorationChecked) return;

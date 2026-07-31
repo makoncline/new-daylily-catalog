@@ -1,5 +1,6 @@
 // eslint-disable react/no-danger -- intentional static JSON-LD injection.
 import { type Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { MainContent } from "@/app/(public)/_components/main-content";
 import { buildPublicPageMetadata } from "@/app/(public)/_seo/public-seo";
@@ -9,6 +10,10 @@ import { IMAGES } from "@/lib/constants/images";
 import { reportError } from "@/lib/error-utils";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import { serializeJsonLd } from "@/lib/utils/json-ld";
+import {
+  getRequestId,
+  logSearchRequest,
+} from "@/server/search/cultivar-search-request-telemetry";
 import {
   CultivarSearchPageClient,
   type CultivarSearchResponse,
@@ -34,6 +39,16 @@ function getFirstSearchParam(
 async function getInitialSearchResponse(
   baseUrl: string,
 ): Promise<CultivarSearchResponse | undefined> {
+  const startedAt = performance.now();
+  const requestId = getRequestId(await headers());
+  const searchParams = new URLSearchParams({
+    hasListings: "true",
+    limit: String(INITIAL_RESULT_LIMIT),
+    mode: "summary",
+    offset: "0",
+    sort: "name",
+  });
+
   try {
     const { searchCultivars } = await import("@/server/search/cultivar-search");
     const results = await searchCultivars({
@@ -47,6 +62,18 @@ async function getInitialSearchResponse(
       sort: "name",
     });
     const hasMore = results.length > INITIAL_RESULT_LIMIT;
+    const responseResults = results.slice(0, INITIAL_RESULT_LIMIT);
+
+    logSearchRequest({
+      durationMs: performance.now() - startedAt,
+      hasMore,
+      httpStatus: 200,
+      mode: "summary",
+      requestId,
+      resultsReturned: responseResults.length,
+      searchParams,
+      status: "success",
+    });
 
     return {
       pagination: {
@@ -54,13 +81,29 @@ async function getInitialSearchResponse(
         limit: INITIAL_RESULT_LIMIT,
         nextOffset: hasMore ? INITIAL_RESULT_LIMIT : null,
       },
-      results: results.slice(0, INITIAL_RESULT_LIMIT),
+      results: responseResults,
     };
   } catch (error) {
+    const indexUnavailable =
+      error instanceof Error &&
+      error.name === "PublicSearchIndexUnavailableError";
+    logSearchRequest({
+      durationMs: performance.now() - startedAt,
+      errorName: indexUnavailable
+        ? undefined
+        : error instanceof Error
+          ? error.name
+          : "UnknownError",
+      httpStatus: indexUnavailable ? 503 : 500,
+      mode: "summary",
+      requestId,
+      searchParams,
+      status: indexUnavailable ? "index_unavailable" : "error",
+    });
     reportError({
       error,
       level: "warning",
-      context: { source: "cultivar-search-initial-results" },
+      context: { requestId, source: "cultivar-search-initial-results" },
     });
     return undefined;
   }
@@ -114,10 +157,7 @@ export default async function CultivarsPage({
   const rawSearchParams = (await searchParams) ?? {};
   const baseUrl = getCanonicalBaseUrl();
   const pageUrl = `${baseUrl}/cultivars`;
-  const initialResponse =
-    Object.keys(rawSearchParams).length === 0
-      ? await getInitialSearchResponse(baseUrl)
-      : undefined;
+  const initialResponse = await getInitialSearchResponse(baseUrl);
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
