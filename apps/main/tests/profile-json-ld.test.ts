@@ -83,6 +83,20 @@ describe("profile page json-ld", () => {
         lists: [],
       },
       {
+        id: "listing-zero-price",
+        title: "Zero Price Listing",
+        price: 0,
+        images: [{ url: "https://example.com/zero-price.jpg" }],
+        lists: [],
+      },
+      {
+        id: "listing-negative-price",
+        title: "Negative Price Listing",
+        price: -10,
+        images: [{ url: "https://example.com/negative-price.jpg" }],
+        lists: [],
+      },
+      {
         id: "listing-no-image",
         title: "No Image Listing",
         price: 90,

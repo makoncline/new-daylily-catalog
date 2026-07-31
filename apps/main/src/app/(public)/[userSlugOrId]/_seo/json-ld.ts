@@ -18,7 +18,10 @@ async function createProfilePageJsonLd(
     // Filter to only include listings with both prices AND images (required for valid Product schema)
     const validListings = listings.filter(
       (listing) =>
-        listing.price !== null && listing.images && listing.images.length > 0,
+        listing.price !== null &&
+        listing.price > 0 &&
+        listing.images &&
+        listing.images.length > 0,
     );
 
     // The main entity (Person or Organization) that the profile is about

@@ -44,15 +44,18 @@ describe("public listing json-ld", () => {
     });
   });
 
-  it("uses WebPage schema without a Product for unpriced listings", () => {
-    const [schema] = generateJsonLd(null);
+  it.each([null, 0, -10])(
+    "uses WebPage schema without a Product for a non-positive price of %s",
+    (price) => {
+      const [schema] = generateJsonLd(price);
 
-    expect(schema).toMatchObject({
-      "@type": "WebPage",
-      mainEntity: {
-        "@type": "Thing",
-      },
-    });
-    expect(JSON.stringify(schema)).not.toContain('"@type":"Product"');
-  });
+      expect(schema).toMatchObject({
+        "@type": "WebPage",
+        mainEntity: {
+          "@type": "Thing",
+        },
+      });
+      expect(JSON.stringify(schema)).not.toContain('"@type":"Product"');
+    },
+  );
 });

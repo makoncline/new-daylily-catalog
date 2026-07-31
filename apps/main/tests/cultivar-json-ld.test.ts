@@ -68,7 +68,11 @@ describe("cultivar json-ld", () => {
           {
             title: "Rolling Oaks",
             slug: "rolling-oaks",
-            offers: [{ id: "offer-1", slug: "starman-fan", price: null }],
+            offers: [
+              { id: "offer-1", slug: "starman-fan", price: null },
+              { id: "offer-2", slug: "starman-zero", price: 0 },
+              { id: "offer-3", slug: "starman-negative", price: -10 },
+            ],
           },
         ],
       },

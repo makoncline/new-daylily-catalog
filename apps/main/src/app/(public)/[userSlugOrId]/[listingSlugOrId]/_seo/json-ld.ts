@@ -40,7 +40,7 @@ export function createListingJsonLd({
     },
   ]);
 
-  if (!listing.price) {
+  if (listing.price === null || listing.price <= 0) {
     return [
       {
         "@context": "https://schema.org",
