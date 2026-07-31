@@ -60,12 +60,6 @@ export async function generateMetadata({
           },
         }
       : {}),
-    openGraph: {
-      title,
-      description,
-      type: "website",
-      url: `${baseUrl}/cultivars`,
-    },
   };
 }
 
