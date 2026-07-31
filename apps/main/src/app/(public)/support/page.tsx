@@ -1,10 +1,22 @@
-import type { Metadata } from "next";
+import { buildPublicPageMetadata } from "@/app/(public)/_seo/public-seo";
 import { getPublicFeedbackUrl } from "@/hooks/use-feedback-url";
+import { IMAGES } from "@/lib/constants/images";
+import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 
-export const metadata: Metadata = {
-  title: "Support | Daylily Catalog",
-  description: "Get help with Daylily Catalog or send an idea or bug report.",
-};
+const PAGE_PATH = "/support";
+const PAGE_TITLE = "Support | Daylily Catalog";
+const PAGE_DESCRIPTION =
+  "Get help with Daylily Catalog accounts, catalogs, imports, privacy requests, bugs, or feature ideas through the feedback form or support email.";
+const BASE_URL = getCanonicalBaseUrl();
+
+export const metadata = buildPublicPageMetadata({
+  canonicalPath: PAGE_PATH,
+  description: PAGE_DESCRIPTION,
+  imageAlt: "Daylily Catalog support",
+  imageUrl: IMAGES.DEFAULT_META,
+  pageUrl: `${BASE_URL}${PAGE_PATH}`,
+  title: PAGE_TITLE,
+});
 
 export default function SupportPage() {
   const feedbackUrl = getPublicFeedbackUrl();

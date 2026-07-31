@@ -11,8 +11,22 @@ import type { PublicCatalogSearchParamRecord } from "@/lib/public-catalog-url-st
 import { parseTableUrlColumnFilterValue } from "@/lib/table-url-filters";
 
 // Optimal meta description length
-const MIN_DESCRIPTION_LENGTH = 70;
+const MIN_DESCRIPTION_LENGTH = 110;
 const MAX_DESCRIPTION_LENGTH = 160;
+
+function truncateProfileDescription(value: string) {
+  const normalized = value.trim().replace(/\s+/g, " ");
+
+  if (normalized.length <= MAX_DESCRIPTION_LENGTH) {
+    return normalized;
+  }
+
+  const candidate = normalized.slice(0, MAX_DESCRIPTION_LENGTH - 3);
+  const lastSpace = candidate.lastIndexOf(" ");
+  const truncated = lastSpace > 0 ? candidate.slice(0, lastSpace) : candidate;
+
+  return `${truncated.replace(/[,;:]$/, "")}...`;
+}
 
 // Define a type for the profile data structure
 interface PublicProfile {
@@ -86,29 +100,20 @@ async function createProfileMetadata(
     const title = profile.title ?? "Daylily Catalog";
 
     // Generate description with proper length
-    let description = profile.description ?? "";
+    let description = profile.description?.trim().replace(/\s+/g, " ") ?? "";
 
     // If no description, create one with available information
     if (!description) {
-      description = `Browse our collection of beautiful daylilies.${
+      description = `Browse the public daylily catalog from ${title}, with listings, photos, prices, availability, garden details, and collection information.${
         profile.location ? ` Located in ${profile.location}.` : ""
       }`;
     }
 
-    // Ensure description is within length limits
-    if (description.length > MAX_DESCRIPTION_LENGTH) {
-      description =
-        description.substring(0, MAX_DESCRIPTION_LENGTH - 3) + "...";
-    } else if (description.length < MIN_DESCRIPTION_LENGTH) {
-      // Add generic text if too short
-      description += " Find unique daylilies for your garden from our catalog.";
-
-      // Truncate if it became too long
-      if (description.length > MAX_DESCRIPTION_LENGTH) {
-        description =
-          description.substring(0, MAX_DESCRIPTION_LENGTH - 3) + "...";
-      }
+    if (description.length < MIN_DESCRIPTION_LENGTH) {
+      description +=
+        " Explore this grower's public daylily catalog with listings, photos, prices, availability, garden details, and collection information.";
     }
+    description = truncateProfileDescription(description);
 
     const rawImageUrl = profile.images?.[0]?.url ?? IMAGES.DEFAULT_CATALOG;
     const imageUrl = getOptimizedMetaImageUrl(rawImageUrl);

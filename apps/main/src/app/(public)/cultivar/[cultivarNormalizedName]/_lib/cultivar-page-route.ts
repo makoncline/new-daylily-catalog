@@ -6,6 +6,7 @@ import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 import { fromCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import { getPublicCultivarPage } from "@/server/db/public-cultivar-read-model";
+import { buildCultivarMetaDescription } from "./cultivar-meta-description";
 import {
   buildNoIndexMetadata,
   buildPublicPageMetadata,
@@ -43,7 +44,14 @@ export async function getCultivarPageMetadata(
 
   const baseUrl = getCanonicalBaseUrl();
   const title = `${cultivarPage.summary.name} | ${METADATA_CONFIG.SITE_NAME}`;
-  const description = `${cultivarPage.summary.name} with ${cultivarPage.offers.summary.offersCount} public offers across ${cultivarPage.offers.summary.gardensCount} catalogs.`;
+  const description = buildCultivarMetaDescription({
+    ahsListing: cultivarPage.cultivar.ahsListing,
+    gardensCount: cultivarPage.offers.summary.gardensCount,
+    hybridizer: cultivarPage.summary.hybridizer,
+    name: cultivarPage.summary.name,
+    offersCount: cultivarPage.offers.summary.offersCount,
+    year: cultivarPage.summary.year,
+  });
   const pageUrl = `${baseUrl}/cultivar/${cultivarNormalizedName}`;
   const rawImageUrl = cultivarPage.heroImages[0]?.url ?? IMAGES.DEFAULT_META;
   const imageUrl = getOptimizedMetaImageUrl(rawImageUrl);

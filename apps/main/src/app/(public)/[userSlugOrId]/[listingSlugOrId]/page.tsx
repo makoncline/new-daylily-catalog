@@ -96,7 +96,11 @@ function truncateDescription(value: string, maxLength = 155) {
     return trimmed;
   }
 
-  return `${trimmed.slice(0, maxLength - 3).trim()}...`;
+  const candidate = trimmed.slice(0, maxLength - 3);
+  const lastSpace = candidate.lastIndexOf(" ");
+  const truncated = lastSpace > 0 ? candidate.slice(0, lastSpace) : candidate;
+
+  return `${truncated.trim().replace(/[,;:]$/, "")}...`;
 }
 
 function getListingDescription(listing: PublicListingPageData) {
@@ -110,8 +114,15 @@ function getListingDescription(listing: PublicListingPageData) {
     buyerDescription,
     `From ${listing.sellerTitle ?? "a Daylily Catalog grower"}.`,
   ].filter(Boolean);
+  let description = parts.join(" ").trim().replace(/\s+/g, " ");
 
-  return truncateDescription(parts.join(" "));
+  if (description.length < 110) {
+    description += listing.images.length
+      ? " View photos and contact the grower for current availability and catalog details."
+      : " View listing details and contact the grower for current availability and catalog information.";
+  }
+
+  return truncateDescription(description);
 }
 
 function getListingTitle(listing: PublicListingPageData) {

@@ -34,7 +34,10 @@ test.describe("public profile first-response content @local", () => {
             userId: user.id,
             title: `${LISTING_TITLE_PREFIX} ${suffix}`,
             slug: `static-first-listing-${suffix}`,
-            description: `Fixture listing ${suffix}`,
+            description:
+              i === 1
+                ? "cultivar ".repeat(30).trim()
+                : `Fixture listing ${suffix}`,
             price: i,
           },
         });
@@ -65,6 +68,11 @@ test.describe("public profile first-response content @local", () => {
     expect(page1Response.status()).toBe(200);
     const page1Html = await page1Response.text();
     await assertFirstDocumentContent(page1Html, `${LISTING_TITLE_PREFIX} 001`);
+    const profileDescription = page1Html.match(
+      /<meta name="description" content="([^"]+)"/,
+    )?.[1];
+    expect(profileDescription?.length).toBeGreaterThanOrEqual(110);
+    expect(page1Html).toContain('<meta property="og:description"');
 
     const page2Response = await request.get(`/${PROFILE_SLUG}/page/2`);
     expect(page2Response.status()).toBe(200);
@@ -77,5 +85,45 @@ test.describe("public profile first-response content @local", () => {
       expect(page1Prerender).toContain("1");
       expect(page2Prerender).toContain("1");
     }
+  });
+
+  test("listing metadata is complete in the first HTML response", async ({
+    request,
+  }) => {
+    const response = await request.get(
+      `/${PROFILE_SLUG}/static-first-listing-001`,
+    );
+
+    expect(response.status()).toBe(200);
+    const html = await response.text();
+    const description = html.match(
+      /<meta name="description" content="([^"]+)"/,
+    )?.[1];
+
+    expect(description?.length).toBeGreaterThanOrEqual(110);
+    expect(description?.endsWith("cultivar...")).toBe(true);
+    expect(html).toContain('<link rel="canonical"');
+    expect(html).toContain('<meta property="og:title"');
+    expect(html).toContain('<meta property="og:description"');
+    expect(html).toContain('<meta property="og:type"');
+    expect(html).toContain('<meta property="og:url"');
+    expect(html).toContain('<meta property="og:image"');
+    expect(html).toContain('<meta property="og:image:alt"');
+    expect(html).toContain('<meta property="og:image:height"');
+    expect(html).toContain('<meta property="og:image:width"');
+    expect(html).toContain('<meta property="og:image:type"');
+    expect(html).toContain('<meta name="twitter:description"');
+
+    const imageLessResponse = await request.get(
+      `/${PROFILE_SLUG}/static-first-listing-002`,
+    );
+    expect(imageLessResponse.status()).toBe(200);
+    const imageLessHtml = await imageLessResponse.text();
+    const imageLessDescription = imageLessHtml.match(
+      /<meta name="description" content="([^"]+)"/,
+    )?.[1];
+
+    expect(imageLessDescription).toContain("View listing details");
+    expect(imageLessDescription).not.toContain("View photos");
   });
 });
