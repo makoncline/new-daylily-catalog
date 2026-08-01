@@ -43,24 +43,40 @@ import {
 
 interface ContactFormProps {
   userId: string;
+  inquiryItem?: CartItem;
   onSubmitSuccess?: () => void;
 }
 
-export function ContactForm({ userId, onSubmitSuccess }: ContactFormProps) {
+export function ContactForm({
+  userId,
+  inquiryItem,
+  onSubmitSuccess,
+}: ContactFormProps) {
   return (
     <TRPCReactProvider>
-      <ContactFormContent userId={userId} onSubmitSuccess={onSubmitSuccess} />
+      <ContactFormContent
+        userId={userId}
+        inquiryItem={inquiryItem}
+        onSubmitSuccess={onSubmitSuccess}
+      />
     </TRPCReactProvider>
   );
 }
 
-function ContactFormContent({ userId, onSubmitSuccess }: ContactFormProps) {
+function ContactFormContent({
+  userId,
+  inquiryItem,
+  onSubmitSuccess,
+}: ContactFormProps) {
   const { items, updateQuantity, removeItem, clearCart, total } =
     useCart(userId);
+  const hasInquiryItem = Boolean(
+    inquiryItem && !items.some((item) => item.id === inquiryItem.id),
+  );
   const { customerInfo, updateCustomerInfo } = useCustomerInfo();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showClearCartDialog, setShowClearCartDialog] = useState(false);
-  const hasItems = items.length > 0;
+  const hasItems = hasInquiryItem || items.length > 0;
 
   const sendMessage = api.public.sendMessage.useMutation({
     onSuccess: () => {
@@ -120,12 +136,12 @@ function ContactFormContent({ userId, onSubmitSuccess }: ContactFormProps) {
 
   // Update form when cart items change
   useEffect(() => {
-    form.setValue("hasItems", items.length > 0, {
+    form.setValue("hasItems", hasItems, {
       shouldDirty: false,
       shouldTouch: false,
       shouldValidate: true,
     });
-  }, [items.length, form]);
+  }, [hasItems, form]);
 
   const onSubmit = (data: ContactFormWithCartData) => {
     setIsSubmitting(true);
@@ -136,29 +152,14 @@ function ContactFormContent({ userId, onSubmitSuccess }: ContactFormProps) {
       name: data.name ?? "",
     });
 
-    // Format cart items for the message
-    let formattedMessage = data.message ?? "";
-
-    if (items.length > 0) {
-      formattedMessage += "\n\n--- Cart Items ---\n";
-      items.forEach((item) => {
-        formattedMessage += `\n${item.quantity}x ${item.title}`;
-        if (item.price) {
-          formattedMessage += ` (${formatPrice(item.price)} each)`;
-        }
-      });
-      formattedMessage += `\n\nSubtotal: ${formatPrice(total)}`;
-      formattedMessage +=
-        "\n\nNote: Final pricing, shipping, and handling may vary at the discretion of the seller.";
-    }
-
     // Send the message
     sendMessage.mutate({
       userId: data.userId,
       customerEmail: data.email,
       customerName: data.name ?? "",
-      message: formattedMessage,
-      items: items,
+      message: data.message ?? "",
+      items,
+      inquiryItem: hasInquiryItem ? inquiryItem : undefined,
     });
   };
 
@@ -227,6 +228,18 @@ function ContactFormContent({ userId, onSubmitSuccess }: ContactFormProps) {
                 </FormItem>
               )}
             />
+
+            {hasInquiryItem && inquiryItem && (
+              <div className="border-border rounded-md border p-4">
+                <h3 className="mb-2 font-medium">About this listing</h3>
+                <p>{inquiryItem.title}</p>
+                <p className="text-muted-foreground text-sm">
+                  {inquiryItem.price === null
+                    ? "Price not provided"
+                    : formatPrice(inquiryItem.price)}
+                </p>
+              </div>
+            )}
 
             {items.length > 0 && (
               <div className="border-border rounded-md border p-4">

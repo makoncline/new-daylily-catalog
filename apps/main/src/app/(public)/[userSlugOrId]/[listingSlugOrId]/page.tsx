@@ -232,6 +232,8 @@ export default async function PublicListingPage({ params }: PageProps) {
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
         <PublicListingContactButton
           listingId={listing.id}
+          listingTitle={listing.title}
+          listingPrice={listing.price}
           sellerId={listing.userId}
           sellerName={listing.sellerTitle ?? undefined}
         />

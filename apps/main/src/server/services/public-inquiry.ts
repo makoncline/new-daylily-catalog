@@ -14,6 +14,7 @@ export interface SendPublicInquiryInput {
   customerName?: string;
   message: string;
   items?: CartItem[];
+  inquiryItem?: CartItem;
 }
 
 export interface SendPublicInquiryOptions {
@@ -32,7 +33,7 @@ interface PublicInquiryContext {
   sellerNameForSellerEmail: string;
   sellerNameForCustomerEmail: string;
   sellerSubjectName: string;
-  subtotal: number;
+  subtotal: string;
 }
 
 function getSesClient() {
@@ -79,14 +80,15 @@ function formatCartItems(items: CartItem[] | undefined) {
     return {
       hasCartItems: false,
       formattedItems: "(No items selected)",
-      subtotal: 0,
+      subtotal: "$0.00",
     };
   }
 
-  const subtotal = items.reduce(
-    (sum, item) => sum + (item.price ?? 0) * item.quantity,
-    0,
-  );
+  const subtotal = items.some((item) => item.price === null)
+    ? "Price not provided"
+    : `$${items
+        .reduce((sum, item) => sum + (item.price ?? 0) * item.quantity, 0)
+        .toFixed(2)}`;
   const formattedItems = items
     .map(
       (item) =>
@@ -104,20 +106,23 @@ function formatCartItems(items: CartItem[] | undefined) {
 }
 
 async function resolveCartItems(input: SendPublicInquiryInput) {
-  if (!input.items?.length) {
-    return { items: input.items, hadOmittedItems: false };
+  const requestedItems = input.inquiryItem
+    ? [input.inquiryItem, ...(input.items ?? [])]
+    : input.items;
+  if (!requestedItems?.length) {
+    return { items: requestedItems, hadOmittedItems: false };
   }
 
   const listings = await db.listing.findMany({
     where: {
-      id: { in: [...new Set(input.items.map((item) => item.listingId))] },
+      id: { in: [...new Set(requestedItems.map((item) => item.listingId))] },
       userId: input.userId,
       ...isPublished(),
     },
     select: { id: true, title: true, price: true },
   });
   const listingById = new Map(listings.map((listing) => [listing.id, listing]));
-  const items = input.items.flatMap((item) => {
+  const items = requestedItems.flatMap((item) => {
     const listing = listingById.get(item.listingId);
     return listing
       ? [{ ...item, title: listing.title, price: listing.price }]
@@ -131,7 +136,7 @@ async function resolveCartItems(input: SendPublicInquiryInput) {
     });
   }
 
-  return { items, hadOmittedItems: items.length !== input.items.length };
+  return { items, hadOmittedItems: items.length !== requestedItems.length };
 }
 
 async function loadPublicInquiryContext(
@@ -213,7 +218,7 @@ ${
     ? `Customer's Selected Items:
 ${context.formattedItems}${context.hadOmittedItems ? "\n\nOne or more unavailable items were omitted." : ""}
 
-Subtotal: $${context.subtotal.toFixed(2)}
+Subtotal: ${context.subtotal}
 Note: Final pricing, shipping, and handling are at your discretion.`
     : "No items were selected."
 }
@@ -253,7 +258,7 @@ ${
     ? `Items you're interested in:
 ${context.formattedItems}${context.hadOmittedItems ? "\n\nOne or more unavailable items were omitted." : ""}
 
-Subtotal: $${context.subtotal.toFixed(2)}
+Subtotal: ${context.subtotal}
 (Note: Final pricing, shipping, and handling may vary at the discretion of the seller.)`
     : ""
 }

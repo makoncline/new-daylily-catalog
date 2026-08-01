@@ -84,9 +84,13 @@ export function usePublicListingContactTracker({
 
 export function PublicListingContactButton({
   listingId,
+  listingTitle,
+  listingPrice,
   sellerId,
   sellerName,
 }: Pick<PublicListingPageActionsProps, "listingId" | "sellerId"> & {
+  listingTitle: string;
+  listingPrice: number | null;
   sellerName?: string;
 }) {
   const trackContactClick = usePublicListingContactTracker({
@@ -100,6 +104,14 @@ export function PublicListingContactButton({
       userName={sellerName}
       showTopButton
       onContactClick={trackContactClick}
+      inquiryItem={{
+        id: listingId,
+        listingId,
+        title: listingTitle,
+        price: listingPrice,
+        quantity: 1,
+        userId: sellerId,
+      }}
     />
   );
 }

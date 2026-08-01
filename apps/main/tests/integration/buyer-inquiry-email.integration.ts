@@ -65,4 +65,10 @@ test("buyer inquiry sends the seller and buyer emails", async ({
       }),
     ]),
   );
+
+  for (const email of emails) {
+    expect(email.text).toContain("Existing Bloom");
+    expect(email.text).toContain("Subtotal: Price not provided");
+    expect(email.text).not.toContain("No items selected");
+  }
 });

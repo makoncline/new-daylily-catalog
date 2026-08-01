@@ -30,6 +30,7 @@ const publicInquiryInputSchema = z.object({
   customerName: z.string().max(120).optional(),
   message: z.string().max(5000),
   items: z.array(publicInquiryCartItemSchema).max(25).optional(),
+  inquiryItem: publicInquiryCartItemSchema.optional(),
 });
 
 export const publicRouter = createTRPCRouter({

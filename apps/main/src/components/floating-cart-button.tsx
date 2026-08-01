@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { ShoppingCart, MessageCircle } from "lucide-react";
 import { ContactForm } from "@/components/contact-form";
+import { type CartItem } from "@/types";
 import { useState } from "react";
 
 interface FloatingCartButtonProps {
@@ -18,6 +19,7 @@ interface FloatingCartButtonProps {
   userName?: string;
   showTopButton?: boolean;
   onContactClick?: () => void;
+  inquiryItem?: CartItem;
 }
 
 export function FloatingCartButton({
@@ -25,9 +27,11 @@ export function FloatingCartButton({
   userName,
   showTopButton = false,
   onContactClick,
+  inquiryItem,
 }: FloatingCartButtonProps) {
   const { itemCount } = useCart(userId);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [includeInquiryItem, setIncludeInquiryItem] = useState(false);
 
   return (
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -36,6 +40,7 @@ export function FloatingCartButton({
           type="button"
           className="w-full sm:w-auto"
           onClick={() => {
+            setIncludeInquiryItem(true);
             onContactClick?.();
             setIsDialogOpen(true);
           }}
@@ -54,7 +59,10 @@ export function FloatingCartButton({
           type="button"
           className="fixed right-4 bottom-[calc(2.5rem+env(safe-area-inset-bottom))] z-50 flex items-center gap-2 rounded-full shadow-md"
           variant="default"
-          onClick={onContactClick}
+          onClick={() => {
+            setIncludeInquiryItem(false);
+            onContactClick?.();
+          }}
           aria-label={
             itemCount > 0
               ? `Contact seller and view cart (${itemCount} ${itemCount === 1 ? "item" : "items"})`
@@ -84,6 +92,7 @@ export function FloatingCartButton({
         </DialogDescription>
         <ContactForm
           userId={userId}
+          inquiryItem={includeInquiryItem ? inquiryItem : undefined}
           onSubmitSuccess={() => setIsDialogOpen(false)}
         />
       </DialogContent>
