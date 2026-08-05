@@ -30,6 +30,7 @@ import type {
 const capturePosthogEventMock = vi.hoisted(() => vi.fn());
 const downloadCatalogImportFileMock = vi.hoisted(() => vi.fn());
 const requestCultivarMatchesMock = vi.hoisted(() => vi.fn());
+const routerPushMock = vi.hoisted(() => vi.fn());
 
 type TestViewerState =
   | CatalogImporterViewerState
@@ -154,6 +155,10 @@ vi.mock("@/lib/catalog-importer-file", async (importOriginal) => ({
   downloadCatalogImportFile: downloadCatalogImportFileMock,
 }));
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: routerPushMock }),
+}));
+
 describe("CatalogImporterWorkbench", () => {
   beforeEach(async () => {
     vi.unstubAllGlobals();
@@ -189,6 +194,7 @@ describe("CatalogImporterWorkbench", () => {
     downloadCatalogImportFileMock.mockResolvedValue(undefined);
     requestCultivarMatchesMock.mockReset();
     requestCultivarMatchesMock.mockResolvedValue([]);
+    routerPushMock.mockReset();
   });
 
   it("starts directly with concise source choices", () => {
@@ -1447,11 +1453,10 @@ describe("CatalogImporterWorkbench", () => {
       name: "Publish your catalog",
     });
     expect(downloadMembership).toBeVisible();
-    expect(
-      screen.getByRole("button", {
-        name: "Sign in instead",
-      }),
-    ).toBeVisible();
+    const signInButton = screen.getByRole("button", {
+      name: "Sign in instead",
+    });
+    expect(signInButton).toBeVisible();
     expect(
       downloadMembership.compareDocumentPosition(
         screen.getByRole("button", {
@@ -1460,5 +1465,12 @@ describe("CatalogImporterWorkbench", () => {
       ) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(screen.queryByText("File details")).not.toBeInTheDocument();
+
+    fireEvent.click(signInButton);
+    await waitFor(() => {
+      expect(routerPushMock).toHaveBeenCalledWith(
+        "/sign-in?returnTo=%2Fdashboard%2Fimports",
+      );
+    });
   }, 10_000);
 });

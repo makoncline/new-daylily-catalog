@@ -88,6 +88,7 @@ describe("Docker build cache and observability boundaries", () => {
     expect(dockerfile).not.toContain(
       "COPY --from=deps --chown=nextjs:nodejs /app/node_modules",
     );
+    expect(dockerfile).not.toContain("COPY patches ./patches");
     expect(dockerfile).toContain(
       "COPY --from=runtime-deps --chown=nextjs:nodejs /runtime/node_modules ./node_modules",
     );
