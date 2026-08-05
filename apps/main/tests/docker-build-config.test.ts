@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -5,6 +6,30 @@ import { describe, expect, it } from "vitest";
 const repoRoot = path.resolve(process.cwd(), "../..");
 
 describe("Docker build cache and observability boundaries", () => {
+  it("keeps standalone output for Docker and delegates Vercel builds", () => {
+    const appRoot = path.join(repoRoot, "apps/main");
+    const turboConfig = JSON.parse(
+      readFileSync(path.join(repoRoot, "turbo.json"), "utf8"),
+    );
+    const readOutput = (env: NodeJS.ProcessEnv) =>
+      execFileSync(
+        process.execPath,
+        [
+          "--input-type=module",
+          "-e",
+          'import config from "./next.config.js"; process.stdout.write(String(config.output));',
+        ],
+        { cwd: appRoot, encoding: "utf8", env },
+      );
+    const localEnv = { ...process.env };
+    delete localEnv.VERCEL;
+
+    expect(readOutput(localEnv)).toBe("standalone");
+    expect(readOutput({ ...process.env, VERCEL: "1" })).toBe("undefined");
+    expect(turboConfig.tasks.build.env).toContain("VERCEL");
+    expect(turboConfig.tasks["build:next"].env).toContain("VERCEL");
+  });
+
   it("keeps PR cache exports lean without moving a separate compiler cache", () => {
     const dockerfile = readFileSync(
       path.join(repoRoot, "apps/main/Dockerfile"),

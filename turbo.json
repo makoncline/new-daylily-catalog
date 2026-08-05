@@ -38,10 +38,12 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
+      "env": ["VERCEL"],
       "outputs": [".next/**", "!.next/cache/**"]
     },
     "build:next": {
       "dependsOn": ["^build:next"],
+      "env": ["VERCEL"],
       "outputs": [".next/**", "!.next/cache/**"]
     },
     "lint": {},
