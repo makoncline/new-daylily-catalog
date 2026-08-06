@@ -15,7 +15,9 @@ function readConfiguredRuntimeFeatureFlags(): RuntimeFeatureFlags {
     "/data/runtime-feature-flags.json";
 
   try {
-    return parseRuntimeFeatureFlags(JSON.parse(readFileSync(path, "utf8")));
+    return parseRuntimeFeatureFlags(
+      JSON.parse(readFileSync(/* turbopackIgnore: true */ path, "utf8")),
+    );
   } catch {
     return DISABLED_RUNTIME_FEATURE_FLAGS;
   }

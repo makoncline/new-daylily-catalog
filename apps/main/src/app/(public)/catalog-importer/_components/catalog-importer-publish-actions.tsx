@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { ArrowRight, Check, Sparkles } from "lucide-react";
 import {
@@ -218,12 +219,13 @@ function CatalogImporterLoginButton({
   controller: CatalogImporterWorkbenchController;
 }) {
   const [leaving, setLeaving] = useState(false);
+  const router = useRouter();
 
   const openLogin = async () => {
     setLeaving(true);
     await controller.flushDraft();
     const returnTo = encodeURIComponent("/dashboard/imports");
-    window.location.assign(`/sign-in?returnTo=${returnTo}`);
+    router.push(`/sign-in?returnTo=${returnTo}`);
   };
 
   return (

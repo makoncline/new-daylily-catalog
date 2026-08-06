@@ -65,7 +65,10 @@ function getOutputPath() {
       ? configuredPath
       : DEFAULT_QUERY_PROFILER_OUTPUT_PATH;
 
-  return path.resolve(process.cwd(), outputPath);
+  return path.resolve(
+    /* turbopackIgnore: true */ process.cwd(),
+    outputPath,
+  );
 }
 
 function acquireResetLock(outputPath: string) {
