@@ -15,7 +15,7 @@ export const stripeRouter = createTRPCRouter({
     return createSubscriptionCheckout({
       cancelPath: "/dashboard",
       db: ctx.db,
-      metadata: {},
+      metadata: { source: "dashboard" },
       successPath: "/subscribe/success",
       user: ctx.user,
     });

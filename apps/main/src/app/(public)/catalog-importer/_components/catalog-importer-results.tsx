@@ -13,7 +13,6 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import type { CatalogImporterViewerResolution } from "@/lib/catalog-importer-membership";
-import type { MembershipPriceDisplay } from "@/server/stripe/membership-price-display";
 import {
   CatalogImporterAnalysis,
   type CatalogImporterInsightFilter,
@@ -127,12 +126,10 @@ interface CatalogImporterResultsProps {
 export function CatalogImporterResults({
   activeStep,
   controller,
-  membershipPriceDisplay,
   onStepChange,
   viewerResolution,
 }: CatalogImporterResultsProps & {
   activeStep: CatalogImporterStep;
-  membershipPriceDisplay: MembershipPriceDisplay | null;
   onStepChange: (step: CatalogImporterStep) => void;
   viewerResolution: CatalogImporterViewerResolution;
 }) {
@@ -293,7 +290,6 @@ export function CatalogImporterResults({
           {!dashboardReturnPath ? (
             <CatalogImporterPublishActions
               controller={controller}
-              membershipPriceDisplay={membershipPriceDisplay}
               placement="preview"
               viewerResolution={viewerResolution}
             />
@@ -421,7 +417,6 @@ export function CatalogImporterResults({
           <CatalogImporterPublishActions
             controller={controller}
             dashboardReturnPath={dashboardReturnPath}
-            membershipPriceDisplay={membershipPriceDisplay}
             placement="finish"
             viewerResolution={viewerResolution}
           />

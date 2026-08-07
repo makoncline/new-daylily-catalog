@@ -6,7 +6,9 @@ const mocks = vi.hoisted(() => ({
   captureEvent: vi.fn(),
   constructEvent: vi.fn(),
   findUser: vi.fn(),
+  finalizeCheckout: vi.fn(),
   funnelEvents: vi.fn(),
+  paidActivation: vi.fn(),
   syncSubscription: vi.fn(),
 }));
 
@@ -34,7 +36,12 @@ vi.mock("@/server/analytics/posthog-server", () => ({
 }));
 
 vi.mock("@/server/stripe/stripe-funnel-events", () => ({
+  getCheckoutPaidActivation: mocks.paidActivation,
   getStripeFunnelEvents: mocks.funnelEvents,
+}));
+
+vi.mock("@/server/stripe/membership-checkout-price", () => ({
+  finalizeMembershipCheckoutSession: mocks.finalizeCheckout,
 }));
 
 function request(signature = "sig_test") {
@@ -49,7 +56,9 @@ describe("Stripe webhook route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.findUser.mockResolvedValue({ clerkUserId: "user_test" });
+    mocks.finalizeCheckout.mockResolvedValue(null);
     mocks.funnelEvents.mockReturnValue([]);
+    mocks.paidActivation.mockReturnValue(null);
     mocks.syncSubscription.mockResolvedValue({ status: "active" });
   });
 
@@ -120,6 +129,43 @@ describe("Stripe webhook route", () => {
         entry_source: "catalog_importer",
       },
     });
+  });
+
+  it("records the final Stripe-hosted billing choice", async () => {
+    const event = {
+      type: "checkout.session.completed",
+      data: {
+        object: {
+          id: "cs_test",
+          customer: "cus_test",
+          metadata: { source: "dashboard" },
+          subscription: "sub_test",
+        },
+      },
+    };
+    mocks.constructEvent.mockReturnValue(event);
+    mocks.finalizeCheckout.mockResolvedValue("annual");
+    mocks.paidActivation.mockReturnValue({
+      event: "paid_activated",
+      properties: { billing_option: "annual" },
+    });
+    const { POST } = await import("@/app/api/stripe-webhook/route");
+
+    const response = await POST(request());
+
+    expect(response.status).toBe(200);
+    expect(mocks.finalizeCheckout).toHaveBeenCalledWith(event.data.object);
+    expect(mocks.paidActivation).toHaveBeenCalledWith({
+      billingOption: "annual",
+      session: event.data.object,
+      subscriptionStatus: "active",
+    });
+    expect(mocks.captureEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "paid_activated",
+        properties: expect.objectContaining({ billing_option: "annual" }),
+      }),
+    );
   });
 
   it("acknowledges relevant events without a customer id", async () => {

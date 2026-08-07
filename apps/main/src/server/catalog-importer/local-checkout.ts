@@ -1,13 +1,18 @@
 import { randomUUID } from "node:crypto";
 import type { PrismaClient } from "@prisma/client";
+import type { SubscriptionBillingOption } from "@/config/subscription-config";
 
 const PENDING_SESSION_KEY_PREFIX = "catalog-importer-checkout:";
+export const LOCAL_E2E_CHECKOUT_EMAIL =
+  "importer-onboarding+clerk_test@example.com";
 
 interface PendingCatalogImporterCheckout {
   sessionId: string;
   customerId: string;
   email: string;
   importId: string;
+  billingOption: SubscriptionBillingOption;
+  source: string;
   status: string;
   created: number;
 }
@@ -17,6 +22,8 @@ export interface LocalCatalogImporterCheckoutDetails {
   customerId: string;
   email: string;
   importId: string;
+  billingOption: SubscriptionBillingOption;
+  source: string;
   status: string | null;
   created: number;
 }
@@ -38,30 +45,31 @@ export function isLocalE2ECheckoutEnabled() {
 
 export async function createLocalE2ECheckoutSession({
   db,
-  email,
   importId,
 }: {
   db: PrismaClient;
-  email: string;
   importId: string;
 }) {
   const sessionId = `cs_test_catalog_importer_${randomUUID()}`;
   const customerId = `cus_e2e_${randomUUID().replace(/-/g, "").slice(0, 24)}`;
   const created = Math.floor(Date.now() / 1000);
+  const billingOption: SubscriptionBillingOption = "annual";
   const pendingSession: PendingCatalogImporterCheckout = {
     sessionId,
     customerId,
-    email,
+    email: LOCAL_E2E_CHECKOUT_EMAIL,
     importId,
-    status: "trialing",
+    billingOption,
+    source: "catalog_importer",
+    status: "active",
     created,
   };
   const subscriptionSnapshot = {
     subscriptionId: `sub_e2e_${sessionId}`,
-    status: "trialing",
-    priceId: "price_e2e",
+    status: "active",
+    priceId: "price_e2e_annual",
     currentPeriodStart: created,
-    currentPeriodEnd: created + 7 * 24 * 60 * 60,
+    currentPeriodEnd: created + 365 * 24 * 60 * 60,
     cancelAtPeriodEnd: false,
     paymentMethod: { brand: "visa", last4: "4242" },
   };
@@ -108,6 +116,8 @@ export async function getLocalE2ECheckoutDetails(
       customerId: parsed.customerId,
       email: parsed.email.toLowerCase(),
       importId: parsed.importId,
+      billingOption: parsed.billingOption,
+      source: parsed.source,
       status: parsed.status,
       created: parsed.created,
     };

@@ -303,8 +303,28 @@ test.describe("dashboard setup journey @local", () => {
       await expect(dashboardHome.upgradeToProButton).toBeVisible();
       await dashboardHome.upgradeToProButton.click();
 
-      // Verify we landed on Stripe checkout
+      // Verify the shared Stripe-hosted billing choice and checkout are ready.
       await stripeCheckout.isReady();
+      await expect(
+        page.getByRole("heading", {
+          name: "Subscribe to Daylily Catalog Pro",
+        }),
+      ).toBeVisible();
+      await expect(
+        page.getByText("$12.99", { exact: true }).first(),
+      ).toBeVisible();
+      const annualBilling = page.getByRole("switch", {
+        name: /annual billing/i,
+      });
+      await expect(annualBilling).not.toBeChecked();
+      await annualBilling.click();
+      await expect(annualBilling).toBeChecked();
+      await expect(
+        page.getByText("$79.99", { exact: true }).first(),
+      ).toBeVisible();
+      await expect(
+        page.getByText("Billed annually", { exact: true }),
+      ).toBeVisible();
 
       // Programmatically simulate the user having a subscription
       const stripeUser = await db.user.findUnique({

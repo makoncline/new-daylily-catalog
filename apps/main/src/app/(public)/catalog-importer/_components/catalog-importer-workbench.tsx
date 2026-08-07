@@ -15,15 +15,12 @@ import { CatalogImporterUpload } from "@/app/(public)/catalog-importer/_componen
 import { useCatalogImporterWorkbench } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
 import type { CatalogImporterDraft } from "@/lib/catalog-importer-draft";
 import type { CatalogImporterViewerResolution } from "@/lib/catalog-importer-membership";
-import type { MembershipPriceDisplay } from "@/server/stripe/membership-price-display";
 
 export function CatalogImporterWorkbench({
   initialDraft = null,
-  membershipPriceDisplay = null,
   viewerResolution,
 }: {
   initialDraft?: CatalogImporterDraft | null;
-  membershipPriceDisplay?: MembershipPriceDisplay | null;
   viewerResolution: CatalogImporterViewerResolution;
 }) {
   const controller = useCatalogImporterWorkbench(initialDraft);
@@ -183,7 +180,6 @@ export function CatalogImporterWorkbench({
           <CatalogImporterResults
             activeStep={activeStep}
             controller={controller}
-            membershipPriceDisplay={membershipPriceDisplay}
             onStepChange={changeStep}
             viewerResolution={viewerResolution}
           />

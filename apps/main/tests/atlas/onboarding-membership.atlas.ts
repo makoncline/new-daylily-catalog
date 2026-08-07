@@ -103,18 +103,13 @@ test("Download or publish", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Publish your catalog" }),
   ).toBeVisible();
-  await captureAtlasState(page, "onboarding-importer-choice");
-});
-
-test("Importer checkout", async ({ page }) => {
-  await page.goto(
-    "/catalog-importer/checkout?import_id=12a94b5f-3da4-4d28-b6df-76f8f4bc8392&entry=catalog_importer&return_to=%2Fcatalog-importer",
-  );
   await expect(
-    page.getByRole("heading", {
-      name: SUBSCRIPTION_CONFIG.COPY.CHECKOUT.TITLE,
+    page.getByRole("button", {
+      name: SUBSCRIPTION_CONFIG.COPY.CTA.CONTINUE_TO_CHECKOUT,
     }),
   ).toBeVisible();
-  await expect(page.getByLabel("Email address")).toBeVisible();
-  await captureAtlasState(page, "onboarding-importer-checkout");
+  await expect(
+    page.getByText("Choose monthly or yearly securely in Stripe."),
+  ).toBeVisible();
+  await captureAtlasState(page, "onboarding-importer-choice");
 });

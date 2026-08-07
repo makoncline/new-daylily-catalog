@@ -1,12 +1,11 @@
 import { TRPCError } from "@trpc/server";
-import {
-  getDefaultSubscriptionBillingOption,
-  getStripeTrialPeriodDays,
-} from "@/config/subscription-config";
-import { env, requireEnv } from "@/env";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import type { TRPCInternalContext } from "@/server/api/trpc";
 import { getStripeClient } from "@/server/stripe/client";
+import {
+  getMembershipCheckoutPrice,
+  HOSTED_BILLING_CHOICE,
+} from "@/server/stripe/membership-checkout-price";
 import {
   hasActiveSubscription,
   needsBillingAttention,
@@ -30,7 +29,7 @@ export async function createSubscriptionCheckout({
 }) {
   const baseUrl = getCanonicalBaseUrl();
   const stripe = getStripeClient();
-  const billingOption = getDefaultSubscriptionBillingOption();
+  const checkoutPrice = await getMembershipCheckoutPrice();
   let stripeCustomerId = user.stripeCustomerId;
 
   if (stripeCustomerId) {
@@ -78,21 +77,25 @@ export async function createSubscriptionCheckout({
     mode: "subscription",
     line_items: [
       {
-        price: requireEnv(
-          billingOption.stripePriceEnvironmentVariable,
-          env.STRIPE_PRICE_ID,
-        ),
+        price: checkoutPrice.priceId,
         quantity: 1,
       },
     ],
     subscription_data: {
-      trial_period_days: getStripeTrialPeriodDays(),
-      ...(hasMetadata ? { metadata } : {}),
+      metadata: {
+        billing_choice: HOSTED_BILLING_CHOICE,
+        membership_currency: checkoutPrice.currency,
+        membership_product_id: checkoutPrice.productId,
+        ...(hasMetadata ? metadata : {}),
+      },
     },
     success_url: `${baseUrl}${successPath}`,
     cancel_url: `${baseUrl}${cancelPath}`,
     metadata: {
       userId: user.id,
+      billing_choice: HOSTED_BILLING_CHOICE,
+      membership_currency: checkoutPrice.currency,
+      membership_product_id: checkoutPrice.productId,
       ...metadata,
     },
   });

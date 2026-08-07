@@ -91,7 +91,6 @@ jobs:
           BUILD_DATABASE_URL: ${{ vars.DATABASE_URL }}
           BUILD_TURSO_DATABASE_AUTH_TOKEN: ${{ secrets.TURSO_DATABASE_AUTH_TOKEN }}
           BUILD_STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
-          BUILD_STRIPE_PRICE_ID: ${{ vars.STRIPE_PRICE_ID }}
           BUILD_SENTRY_AUTH_TOKEN: ${{ github.event_name != 'pull_request' && secrets.SENTRY_AUTH_TOKEN || '' }}
         run: |
           BUILD_ENV_FILE="$RUNNER_TEMP/daylilycatalog-build.env"
@@ -106,8 +105,8 @@ jobs:
             exit 1
           fi
 
-          if [ -z "$BUILD_STRIPE_SECRET_KEY" ] || [ -z "$BUILD_STRIPE_PRICE_ID" ]; then
-            echo "Configure STRIPE_SECRET_KEY and STRIPE_PRICE_ID in the '$BUILD_ENVIRONMENT_NAME' environment." >&2
+          if [ -z "$BUILD_STRIPE_SECRET_KEY" ]; then
+            echo "Configure STRIPE_SECRET_KEY in the '$BUILD_ENVIRONMENT_NAME' environment." >&2
             exit 1
           fi
 
@@ -122,7 +121,6 @@ jobs:
           DATABASE_URL=$BUILD_DATABASE_URL
           TURSO_DATABASE_AUTH_TOKEN=$BUILD_TURSO_DATABASE_AUTH_TOKEN
           STRIPE_SECRET_KEY=$BUILD_STRIPE_SECRET_KEY
-          STRIPE_PRICE_ID=$BUILD_STRIPE_PRICE_ID
           EOF
 
           if [ -n "$BUILD_SENTRY_AUTH_TOKEN" ]; then

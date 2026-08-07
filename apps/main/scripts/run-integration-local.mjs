@@ -39,7 +39,6 @@ const integrationEnv = {
   CLERK_SECRET_KEY: "sk_test_integration",
   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_integration",
   STRIPE_SECRET_KEY: "sk_test_integration",
-  STRIPE_PRICE_ID: "price_integration",
   AWS_ACCESS_KEY_ID: "integration-access-key",
   AWS_SECRET_ACCESS_KEY: "integration-secret-key",
   AWS_REGION: "integration-region",
