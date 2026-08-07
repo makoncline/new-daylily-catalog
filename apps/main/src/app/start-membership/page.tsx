@@ -8,17 +8,10 @@ import {
   SellerLandingViewTracker,
 } from "./_components/seller-landing-actions";
 import { PRO_FEATURES, METADATA_CONFIG } from "@/config/constants";
-import {
-  getSubscriptionPriceCopy,
-  SUBSCRIPTION_CONFIG,
-} from "@/config/subscription-config";
+import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 import { IMAGES } from "@/lib/constants/images";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import { serializeJsonLd } from "@/lib/utils/json-ld";
-import {
-  getMembershipPriceDisplay,
-  type MembershipPriceDisplay,
-} from "@/server/stripe/get-membership-price-display";
 import { UsedByWave } from "@/components/used-by-wave";
 import { LaurelRatingBadge } from "@/components/laurel-rating-badge";
 import {
@@ -113,8 +106,8 @@ const FAQ_ITEMS = [
       "No. Daylily Catalog does not process buyer payments. You handle the sale directly.",
   },
   {
-    question: SUBSCRIPTION_CONFIG.COPY.MARKETING.TRIAL_FAQ_QUESTION,
-    answer: SUBSCRIPTION_CONFIG.COPY.MARKETING.TRIAL_FAQ_ANSWER,
+    question: SUBSCRIPTION_CONFIG.COPY.MARKETING.MEMBERSHIP_FAQ_QUESTION,
+    answer: SUBSCRIPTION_CONFIG.COPY.MARKETING.MEMBERSHIP_FAQ_ANSWER,
   },
   {
     question: "Can I build my catalog before publishing?",
@@ -146,10 +139,9 @@ function createFaqSchema(baseUrl: string) {
   };
 }
 
-export default async function StartMembershipPage() {
+export default function StartMembershipPage() {
   const baseUrl = getCanonicalBaseUrl();
   const faqSchema = createFaqSchema(baseUrl);
-  const membershipPriceDisplay = await getMembershipPriceDisplay();
 
   return (
     <div className="min-h-svh overflow-hidden">
@@ -160,7 +152,7 @@ export default async function StartMembershipPage() {
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(faqSchema) }}
       />
 
-      <StartMembershipHero membershipPriceDisplay={membershipPriceDisplay} />
+      <StartMembershipHero />
 
       <GrowerTestimonialsSection />
 
@@ -177,13 +169,7 @@ export default async function StartMembershipPage() {
   );
 }
 
-function StartMembershipHero({
-  membershipPriceDisplay,
-}: {
-  membershipPriceDisplay: MembershipPriceDisplay;
-}) {
-  const priceCopy = getSubscriptionPriceCopy(membershipPriceDisplay);
-
+function StartMembershipHero() {
   return (
     <MarketingHero>
       <MarketingHeroContent
@@ -203,9 +189,8 @@ function StartMembershipHero({
           </h1>
 
           <p className="mt-6 max-w-[34rem] text-xl leading-8 font-medium text-pretty text-[#dfe9dc] lg:mt-4 lg:text-lg lg:leading-7">
-            Add photos, prices, availability, notes, and contact info. Build and
-            preview your catalog first.{" "}
-            {SUBSCRIPTION_CONFIG.COPY.MARKETING.HERO_TRIAL}
+            Add photos, prices, availability, notes, and contact info.{" "}
+            {SUBSCRIPTION_CONFIG.COPY.MARKETING.HERO}
           </p>
 
           <div className="mt-8 flex flex-col gap-4 lg:mt-5 lg:flex-row lg:gap-5">
@@ -230,17 +215,17 @@ function StartMembershipHero({
         </div>
 
         <div
-          id="pricing"
+          id="membership"
           className="border-y border-white/28 py-6 text-white backdrop-blur-[2px] lg:border-y-0 lg:border-l lg:py-1 lg:pl-10"
         >
           <p className="text-sm font-bold tracking-[0.18em] text-[#f4c477] uppercase">
             Grower membership
           </p>
-          <p className="mt-4 text-6xl leading-none font-bold tracking-tight text-white">
-            {priceCopy.recurringPrice}
-          </p>
+          <h2 className="mt-4 text-4xl leading-tight font-semibold tracking-normal text-white lg:text-5xl">
+            Publish when you are ready
+          </h2>
           <p className="mt-3 max-w-lg text-lg leading-7 text-[#dfe9dc]">
-            {SUBSCRIPTION_CONFIG.COPY.MARKETING.TRIAL_PRICE}
+            {SUBSCRIPTION_CONFIG.COPY.MARKETING.VALUE_PANEL}
           </p>
 
           <div className="mt-6 grid gap-4 border-t border-white/22 pt-5">
