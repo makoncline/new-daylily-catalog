@@ -16,6 +16,7 @@ FROM base AS deps
 WORKDIR /app
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY patches ./patches
 COPY apps/main/package.json ./apps/main/package.json
 COPY packages/standalone-runtime/package.json ./packages/standalone-runtime/package.json
 COPY apps/main/prisma ./apps/main/prisma

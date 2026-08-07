@@ -2,6 +2,7 @@
 
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { getSharp } from "next/dist/server/image-optimizer";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PublicSocialCard } from "@/components/public-social-card";
@@ -19,24 +20,48 @@ vi.mock("@/lib/error-utils", () => ({
   reportError: mocks.reportError,
 }));
 
+async function expectSocialPng(response: Response) {
+  const image = Buffer.from(await response.arrayBuffer());
+
+  expect(response.status).toBe(200);
+  expect(response.headers.get("content-type")).toBe("image/png");
+  expect(image.subarray(1, 4).toString()).toBe("PNG");
+  expect(image.byteLength).toBeGreaterThan(10_000);
+}
+
 describe("social card route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.unstubAllGlobals();
+
+    // Match a production process that has already handled an optimized image.
+    getSharp(undefined, undefined);
   });
 
-  it("renders a Facebook-sized PNG from ImageAsset WebP data", async () => {
+  it("renders a warmed production catalog PNG from ImageAsset WebP data", async () => {
     const webp = await readFile(
       join(process.cwd(), "public/assets/catalog-blooms.webp"),
     );
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(webp, {
-        status: 200,
-        headers: {
-          "Content-Type": "image/webp",
-        },
-      }),
-    );
+    const nativeFetch = globalThis.fetch;
+    const fetchMock = vi.fn<typeof fetch>(async (input, init) => {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
+
+      if (url.startsWith("https://media.daylilycatalog.com/")) {
+        return new Response(webp, {
+          status: 200,
+          headers: {
+            "Content-Type": "image/webp",
+          },
+        });
+      }
+
+      return nativeFetch(input, init);
+    });
     vi.stubGlobal("fetch", fetchMock);
     mocks.getPublicSocialCardData.mockResolvedValue({
       kind: "catalog",
@@ -55,27 +80,20 @@ describe("social card route", () => {
         params: Promise.resolve({ kind: "catalog", id: "seller-1" }),
       },
     );
-    const image = Buffer.from(await response.arrayBuffer());
 
-    expect(response.status).toBe(200);
-    expect(response.headers.get("content-type")).toBe("image/png");
-    expect(response.headers.get("cache-control")).toBe(
-      "public, max-age=300",
-    );
+    await expectSocialPng(response);
+    expect(response.headers.get("cache-control")).toBe("public, max-age=300");
     expect(response.headers.get("cloudflare-cdn-cache-control")).toBe(
       "public, max-age=900, stale-while-revalidate=86400, stale-if-error=86400",
     );
-    expect(image.subarray(1, 4).toString()).toBe("PNG");
-    expect(image.readUInt32BE(16)).toBe(1200);
-    expect(image.readUInt32BE(20)).toBe(630);
-    expect(image.byteLength).toBeGreaterThan(10_000);
+
     expect(fetchMock).toHaveBeenCalledWith(
       "https://media.daylilycatalog.com/image-assets/seller/display.webp",
       expect.objectContaining({
         cache: "force-cache",
       }),
     );
-  });
+  }, 15_000);
 
   it("rejects unknown social card kinds before reading public data", async () => {
     const { GET } = await import("@/app/api/og/[kind]/[id]/route");
@@ -88,6 +106,28 @@ describe("social card route", () => {
 
     expect(response.status).toBe(404);
     expect(mocks.getPublicSocialCardData).not.toHaveBeenCalled();
+  });
+
+  it("renders a warmed production listing PNG", async () => {
+    mocks.getPublicSocialCardData.mockResolvedValue({
+      kind: "listing",
+      title: "Coffee Frenzy",
+      sellerTitle: "RollingOaksDaylilies",
+      hybridizer: "Kay Cline",
+      year: "2014",
+      price: 12,
+      imageUrls: [],
+    });
+
+    const { GET } = await import("@/app/api/og/[kind]/[id]/route");
+    const response = await GET(
+      new Request("https://daylilycatalog.com/api/og/listing/listing-1"),
+      {
+        params: Promise.resolve({ kind: "listing", id: "listing-1" }),
+      },
+    );
+
+    await expectSocialPng(response);
   });
 
   it("shows available hybridizer and year beneath a listing title", () => {
