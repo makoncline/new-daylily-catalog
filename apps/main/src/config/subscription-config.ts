@@ -109,15 +109,16 @@ export const SUBSCRIPTION_CONFIG = {
     },
     MARKETING: {
       FINAL_CTA:
-        "Build and preview your catalog, start your trial, then open your dashboard.",
-      HERO_TRIAL: `Start a ${TRIAL_DURATION} trial before your dashboard opens.`,
-      HOW_IT_WORKS_TITLE: "Build first. Start your trial when ready.",
+        "Build and preview your catalog. Choose a paid membership when you are ready to publish.",
+      HERO: "Build and preview your catalog first. Choose a membership when you are ready to publish.",
+      HOW_IT_WORKS_TITLE: "Build first. Publish when you are ready.",
+      MEMBERSHIP_FAQ_ANSWER:
+        "Build and preview your catalog for free. Choose a paid membership when you are ready to publish it.",
+      MEMBERSHIP_FAQ_QUESTION: "When do I choose a membership?",
       PUBLISH_STEP:
-        "Start your trial, choose your public URL, and import the ready listings.",
-      TRIAL_FAQ_ANSWER:
-        "The trial starts at checkout, before your dashboard opens.",
-      TRIAL_FAQ_QUESTION: "When does my free trial start?",
-      TRIAL_PRICE: `Start your ${TRIAL_DURATION} trial before your paid dashboard opens.`,
+        "Choose a paid membership, select your public URL, and import the ready listings.",
+      VALUE_PANEL:
+        "Build and preview first. Choose a paid membership only when you are ready to publish your catalog.",
     },
     STATUS: {
       ACTIVE_DESCRIPTION:
