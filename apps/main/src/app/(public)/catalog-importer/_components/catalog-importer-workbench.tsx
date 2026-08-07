@@ -83,7 +83,7 @@ export function CatalogImporterWorkbench({
             <CatalogImporterUpload
               controller={controller}
               onClear={reset}
-              onSourceReady={() => changeStep("prepare")}
+              onSourceReady={changeStep}
             />
             {controller.parsedSpreadsheet ? (
               <Button type="button" onClick={() => changeStep("prepare")}>

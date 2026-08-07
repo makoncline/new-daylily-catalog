@@ -202,6 +202,14 @@ function sampleCsv() {
   ].join("\n");
 }
 
+function ordinaryCsv() {
+  return [
+    "cultivar,cost,details,notes",
+    "Happy Returns,15.00,Pale yellow fragrant bloom,Display row",
+    "Chicago Apache,18.00,Velvety red flower,Back border",
+  ].join("\n");
+}
+
 async function openCleaner(page: Page, viewport: typeof desktop) {
   await page.setViewportSize(viewport);
   await mockCultivarMatches(page);
@@ -223,7 +231,6 @@ async function loadSpreadsheet(page: Page, csv = sampleCsv()) {
 
 async function uploadSpreadsheet(page: Page) {
   await loadSpreadsheet(page);
-  await page.getByRole("button", { name: "Build catalog preview" }).click();
   await expect(
     page.getByRole("region", { name: "Catalog preview ready" }),
   ).toBeVisible();
@@ -248,7 +255,7 @@ test("Mobile importer upload", async ({ page }) => {
 
 test("Desktop importer column mapping", async ({ page }) => {
   await openCleaner(page, desktop);
-  await loadSpreadsheet(page);
+  await loadSpreadsheet(page, ordinaryCsv());
   await expect(
     page.getByRole("button", { name: "Build catalog preview" }),
   ).toBeVisible();
@@ -351,7 +358,7 @@ test("Desktop importer incomplete download", async ({ page }) => {
   await uploadSpreadsheet(page);
   await page.getByRole("button", { name: "Finish" }).click();
   await page
-    .getByRole("button", { name: "Download enhanced original" })
+    .getByRole("button", { name: "Download updated original spreadsheet" })
     .click();
   await expect(page.getByRole("alertdialog")).toBeVisible();
   await captureAtlasState(page, "catalog-importer-desktop-download-confirm");
@@ -404,6 +411,6 @@ test("Mobile importer preview", async ({ page }) => {
         return getComputedStyle(element).gridTemplateColumns.split(" ").length;
       }),
     )
-    .toBe(2);
+    .toBe(1);
   await captureAtlasState(page, "catalog-importer-mobile-preview");
 });

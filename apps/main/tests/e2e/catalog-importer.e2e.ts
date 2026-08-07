@@ -310,7 +310,7 @@ test.describe("catalog importer", () => {
 
     const downloadPromise = page.waitForEvent("download");
     await page
-      .getByRole("button", { name: "Download enhanced original" })
+      .getByRole("button", { name: "Download updated original spreadsheet" })
       .click();
     await page
       .getByRole("alertdialog", {
@@ -321,7 +321,7 @@ test.describe("catalog importer", () => {
     const download = await downloadPromise;
     const downloadPath = await download.path();
     expect(download.suggestedFilename()).toBe(
-      "spring-catalog-enhanced-original.csv",
+      "spring-catalog-updated-spreadsheet.csv",
     );
     expect(downloadPath).not.toBeNull();
     const csv = await readFile(downloadPath, "utf8");
@@ -337,6 +337,31 @@ test.describe("catalog importer", () => {
     expect(csv).not.toContain("two for $20");
     expect(csv).not.toContain("three for $30");
     expect(csv.split("\r\n")).toHaveLength(26);
+  });
+
+  test("opens the exact catalog template directly in preview", async ({
+    page,
+  }) => {
+    await mockCultivarMatches(page);
+    await page.goto("/catalog-importer");
+
+    await page.locator('input[type="file"]').setInputFiles({
+      name: "daylily-clean-list-template.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from(
+        [
+          "name,price,description,private note",
+          "A.W. Shucks,25,Purple bloom,Back garden",
+        ].join("\n"),
+      ),
+    });
+
+    await expect(
+      page.getByRole("region", { name: "Catalog preview ready" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Map your columns" }),
+    ).toHaveCount(0);
   });
 
   test("loads a sample catalog without a spreadsheet", async ({ page }) => {
@@ -432,7 +457,7 @@ test.describe("catalog importer", () => {
     await mobileActions.getByRole("button", { name: "Finish" }).click();
     await expect(
       page.getByRole("button", {
-        name: "Download prepared import file",
+        name: "Download catalog preview spreadsheet",
       }),
     ).toBeVisible();
     await expect(

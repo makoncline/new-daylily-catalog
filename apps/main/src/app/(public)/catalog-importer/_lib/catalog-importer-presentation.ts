@@ -208,5 +208,5 @@ export function getCatalogImporterDownloadFileName(
       .replace(/^-+|-+$/g, "")
       .toLowerCase() || "daylily-catalog";
 
-  return `${safeName}-${kind === "clean" ? "prepared-import" : "enhanced-original"}.${extension}`;
+  return `${safeName}-${kind === "clean" ? "catalog-preview" : "updated-spreadsheet"}.${extension}`;
 }

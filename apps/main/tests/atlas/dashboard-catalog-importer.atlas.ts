@@ -114,21 +114,22 @@ async function expectNoPageOverflow(page: Page) {
 async function prepareListings(page: Page, csv = sampleCsv()) {
   await page.getByRole("link", { name: "Build import" }).click();
   await expect(
-    page.getByRole("heading", { name: "Build a daylily catalog import" }),
+    page.getByRole("heading", {
+      name: "Turn the catalog you already have into one buyers can browse",
+    }),
   ).toBeVisible();
   await page.locator('input[type="file"]').setInputFiles({
     name: "dashboard-import.csv",
     mimeType: "text/csv",
     buffer: Buffer.from(csv),
   });
-  await page.getByRole("button", { name: "Build catalog preview" }).click();
   await expect(
-    page.getByRole("heading", { name: "Your catalog preview" }),
+    page.getByRole("button", { name: "Finish", exact: true }),
   ).toBeVisible({ timeout: 30_000 });
   await page.getByRole("button", { name: "Finish", exact: true }).click();
   await expect(
     page.getByRole("heading", {
-      name: /Your (current )?import is ready/,
+      name: /\d+ listings? ready/,
     }),
   ).toBeVisible({ timeout: 30_000 });
   await page.getByRole("link", { name: "Continue to import" }).click();
