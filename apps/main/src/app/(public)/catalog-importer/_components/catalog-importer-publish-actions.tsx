@@ -101,6 +101,7 @@ export function CatalogImporterPublishActions({
           ? "catalog-importer-preview-membership"
           : "catalog-importer-download-membership"
       }
+      dashboardReturnPath={dashboardReturnPath}
       placement={placement}
       viewerState={viewerState}
     />
@@ -110,14 +111,19 @@ export function CatalogImporterPublishActions({
 function CatalogImporterMembershipPrompt({
   ctaId,
   controller,
+  dashboardReturnPath,
   placement,
   viewerState,
 }: {
   ctaId: string;
   controller: CatalogImporterWorkbenchController;
+  dashboardReturnPath: string | null;
   placement: "preview" | "finish";
   viewerState: Exclude<CatalogImporterViewerState, "pro">;
 }) {
+  const continueInDashboard =
+    placement === "finish" && viewerState === "signed_in_nonpro";
+
   return (
     <ProUpgrade
       aria-labelledby={`${ctaId}-heading`}
@@ -158,17 +164,32 @@ function CatalogImporterMembershipPrompt({
           </ProUpgradeFeatures>
         </ProUpgradeDetails>
         <ProUpgradeActions className="gap-2">
-          <CatalogImporterMembershipButton
-            controller={controller}
-            ctaId={ctaId}
-            viewerState={viewerState}
-          />
+          {continueInDashboard ? (
+            <Button asChild className="w-full" size="lg">
+              <Link
+                href={dashboardReturnPath ?? "/dashboard/imports"}
+                data-ph-capture-attribute-action="continue-dashboard-importer"
+                data-ph-capture-attribute-cta_id={ctaId}
+              >
+                Continue to dashboard importer
+                <ArrowRight data-icon="inline-end" />
+              </Link>
+            </Button>
+          ) : (
+            <CatalogImporterMembershipButton
+              controller={controller}
+              ctaId={ctaId}
+              viewerState={viewerState}
+            />
+          )}
           {placement === "finish" && viewerState === "anonymous" ? (
             <CatalogImporterLoginButton controller={controller} />
           ) : null}
-          <p className="text-muted-foreground text-center text-xs">
-            Choose monthly or yearly securely in Stripe.
-          </p>
+          {!continueInDashboard ? (
+            <p className="text-muted-foreground text-center text-xs">
+              Choose monthly or yearly securely in Stripe.
+            </p>
+          ) : null}
           {placement === "preview" ? (
             <Link
               href="/start-membership"

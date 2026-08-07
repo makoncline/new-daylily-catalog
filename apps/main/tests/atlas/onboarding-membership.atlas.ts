@@ -53,6 +53,16 @@ async function openImporterResults(page: Page) {
   ).toBeVisible();
 }
 
+async function mockSignedInNonProViewer(page: Page) {
+  await page.route("**/api/catalog-importer/viewer-state", async (route) => {
+    await route.fulfill({
+      body: JSON.stringify({ viewerState: "signed_in_nonpro" }),
+      contentType: "application/json",
+      status: 200,
+    });
+  });
+}
+
 test("Membership offer", async ({ page }) => {
   await page.goto("/start-membership");
   await expect(
@@ -112,4 +122,25 @@ test("Download or publish", async ({ page }) => {
     page.getByText("Choose monthly or yearly securely in Stripe."),
   ).toBeVisible();
   await captureAtlasState(page, "onboarding-importer-choice");
+});
+
+test("Signed-in importer handoff", async ({ page }) => {
+  await mockSignedInNonProViewer(page);
+  await openImporterResults(page);
+  await page.getByRole("button", { name: "Finish" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Publish your catalog" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Continue to dashboard importer" }),
+  ).toHaveAttribute("href", "/dashboard/imports");
+  await expect(
+    page.getByRole("button", {
+      name: SUBSCRIPTION_CONFIG.COPY.CTA.CONTINUE_TO_CHECKOUT,
+    }),
+  ).not.toBeVisible();
+  await expect(
+    page.getByText("Choose monthly or yearly securely in Stripe."),
+  ).not.toBeVisible();
+  await captureAtlasState(page, "onboarding-importer-signed-in-finish");
 });

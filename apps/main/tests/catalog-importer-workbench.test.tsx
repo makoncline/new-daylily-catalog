@@ -935,6 +935,38 @@ describe("CatalogImporterWorkbench", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("continues signed-in growers from finish to the dashboard importer", async () => {
+    render(<CatalogImporterWorkbench viewerState="signed_in_nonpro" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Use sample catalog" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Build catalog preview" }),
+    );
+    await openPreview();
+
+    expect(
+      screen.getByRole("button", { name: "Continue to secure checkout" }),
+    ).toBeVisible();
+
+    fireEvent.click(screen.getByRole("button", { name: "Finish" }));
+
+    expect(
+      screen.getByRole("link", { name: "Continue to dashboard importer" }),
+    ).toHaveAttribute("href", "/dashboard/imports");
+    expect(
+      screen.getByRole("link", { name: "Continue to dashboard importer" }),
+    ).toHaveAttribute(
+      "data-ph-capture-attribute-action",
+      "continue-dashboard-importer",
+    );
+    expect(
+      screen.queryByRole("button", { name: "Continue to secure checkout" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Choose monthly or yearly securely in Stripe."),
+    ).not.toBeInTheDocument();
+  });
+
   it("explains how to recover when account status is unavailable", async () => {
     render(<CatalogImporterWorkbench viewerState="unavailable" />);
 
