@@ -34,6 +34,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { MAX_CATALOG_IMPORT_FILE_BYTES } from "@/lib/catalog-importer-file";
 import { cn } from "@/lib/utils";
 import type { CatalogImporterWorkbenchController } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
+import type { CatalogImporterSourceDestination } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
 
 const ACCEPTED_FILES = {
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
@@ -46,7 +47,7 @@ interface CatalogImporterUploadProps {
   controller: CatalogImporterWorkbenchController;
   onClear?: () => void;
   onEditMapping?: () => void;
-  onSourceReady?: () => void;
+  onSourceReady?: (destination: CatalogImporterSourceDestination) => void;
   showClear?: boolean;
 }
 
@@ -74,7 +75,7 @@ export function CatalogImporterUpload({
       if (file) {
         void controller
           .loadFile(file)
-          .then((loaded) => loaded && onSourceReady?.());
+          .then((destination) => destination && onSourceReady?.(destination));
       }
     },
     [controller, onSourceReady],
@@ -274,7 +275,7 @@ export function CatalogImporterUpload({
             data-ph-capture-attribute-source="sample"
             onClick={() => {
               controller.loadSampleCatalog();
-              onSourceReady?.();
+              onSourceReady?.("prepare");
             }}
           >
             <Sparkles className="size-4" />
@@ -287,7 +288,7 @@ export function CatalogImporterUpload({
             data-ph-capture-attribute-source="manual"
             onClick={() => {
               controller.loadManualCatalog();
-              onSourceReady?.();
+              onSourceReady?.("prepare");
             }}
           >
             <ListFilter className="size-4" />

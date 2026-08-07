@@ -351,7 +351,7 @@ test("Desktop importer incomplete download", async ({ page }) => {
   await uploadSpreadsheet(page);
   await page.getByRole("button", { name: "Finish" }).click();
   await page
-    .getByRole("button", { name: "Download enhanced original" })
+    .getByRole("button", { name: "Download updated original spreadsheet" })
     .click();
   await expect(page.getByRole("alertdialog")).toBeVisible();
   await captureAtlasState(page, "catalog-importer-desktop-download-confirm");

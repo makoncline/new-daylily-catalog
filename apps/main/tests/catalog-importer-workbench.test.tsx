@@ -29,6 +29,7 @@ import type {
 
 const capturePosthogEventMock = vi.hoisted(() => vi.fn());
 const downloadCatalogImportFileMock = vi.hoisted(() => vi.fn());
+const parseCatalogImportFileMock = vi.hoisted(() => vi.fn());
 const requestCultivarMatchesMock = vi.hoisted(() => vi.fn());
 const routerPushMock = vi.hoisted(() => vi.fn());
 
@@ -153,6 +154,7 @@ vi.mock("@/lib/catalog-importer-match-client", () => ({
 vi.mock("@/lib/catalog-importer-file", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/catalog-importer-file")>()),
   downloadCatalogImportFile: downloadCatalogImportFileMock,
+  parseCatalogImportFile: parseCatalogImportFileMock,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -192,6 +194,7 @@ describe("CatalogImporterWorkbench", () => {
     capturePosthogEventMock.mockClear();
     downloadCatalogImportFileMock.mockReset();
     downloadCatalogImportFileMock.mockResolvedValue(undefined);
+    parseCatalogImportFileMock.mockReset();
     requestCultivarMatchesMock.mockReset();
     requestCultivarMatchesMock.mockResolvedValue([]);
     routerPushMock.mockReset();
@@ -220,6 +223,75 @@ describe("CatalogImporterWorkbench", () => {
       screen.queryByText("Prepare a spreadsheet that imports perfectly"),
     ).not.toBeInTheDocument();
     expect(screen.queryByText(/MVP imports/)).not.toBeInTheDocument();
+  });
+
+  it("skips mapping for the exact template and tracks the shortcut", async () => {
+    parseCatalogImportFileMock.mockResolvedValue({
+      fileName: "daylily-clean-list-template.csv",
+      source: "upload",
+      sheets: [
+        {
+          name: "CSV",
+          rows: [
+            ["name", "price", "description", "private note"],
+            ["A.W. Shucks", "25", "Purple bloom", "Back garden"],
+          ],
+        },
+      ],
+    });
+    render(<CatalogImporterWorkbench />);
+
+    fireEvent.change(document.querySelector('input[type="file"]')!, {
+      target: {
+        files: [
+          new File(["template"], "daylily-clean-list-template.csv", {
+            type: "text/csv",
+          }),
+        ],
+      },
+    });
+
+    expect(await openPreview()).toBeVisible();
+    expect(
+      screen.queryByRole("heading", { name: "Map your columns" }),
+    ).not.toBeInTheDocument();
+    expect(capturePosthogEventMock).toHaveBeenCalledWith(
+      "catalog_import_previewed",
+      expect.objectContaining({
+        mapping_skipped: true,
+        source: "upload",
+      }),
+    );
+  });
+
+  it("keeps mapping for an ordinary spreadsheet with similar headings", async () => {
+    parseCatalogImportFileMock.mockResolvedValue({
+      fileName: "seller-catalog.csv",
+      source: "upload",
+      sheets: [
+        {
+          name: "CSV",
+          rows: [
+            ["Cultivar", "Cost", "Details", "Notes"],
+            ["A.W. Shucks", "25", "Purple bloom", "Back garden"],
+          ],
+        },
+      ],
+    });
+    render(<CatalogImporterWorkbench />);
+
+    fireEvent.change(document.querySelector('input[type="file"]')!, {
+      target: {
+        files: [
+          new File(["catalog"], "seller-catalog.csv", { type: "text/csv" }),
+        ],
+      },
+    });
+
+    expect(
+      await screen.findByRole("heading", { name: "Map your columns" }),
+    ).toBeVisible();
+    expect(requestCultivarMatchesMock).not.toHaveBeenCalled();
   });
 
   it("builds the same preview from a manually entered listing", async () => {
@@ -574,6 +646,7 @@ describe("CatalogImporterWorkbench", () => {
           file_type: "csv",
           issue_count: 1,
           matched_count: 0,
+          mapping_skipped: false,
           ready_count: 0,
           review_count: 10,
           row_count: 10,
@@ -849,7 +922,7 @@ describe("CatalogImporterWorkbench", () => {
     await openPreview();
     fireEvent.click(screen.getByRole("button", { name: "Finish" }));
     const downloadButton = screen.getByRole("button", {
-      name: "Download enhanced original",
+      name: "Download updated original spreadsheet",
     });
 
     fireEvent.click(downloadButton);
@@ -1429,11 +1502,13 @@ describe("CatalogImporterWorkbench", () => {
     fireEvent.click(screen.getByRole("button", { name: "Continue to finish" }));
     expect(
       screen.getByRole("button", {
-        name: "Download prepared import file",
+        name: "Download catalog preview spreadsheet",
       }),
     ).toBeVisible();
     expect(
-      screen.getByRole("button", { name: "Download enhanced original" }),
+      screen.getByRole("button", {
+        name: "Download updated original spreadsheet",
+      }),
     ).toBeVisible();
     expect(
       screen.getByRole("heading", {
@@ -1460,7 +1535,7 @@ describe("CatalogImporterWorkbench", () => {
     expect(
       downloadMembership.compareDocumentPosition(
         screen.getByRole("button", {
-          name: "Download prepared import file",
+          name: "Download catalog preview spreadsheet",
         }),
       ) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();

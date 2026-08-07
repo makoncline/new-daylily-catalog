@@ -57,15 +57,15 @@ export function CatalogImporterDownloadOptions({
           )}
         >
           <ItemContent className="gap-1">
-            <ItemTitle>Prepared file</ItemTitle>
+            <ItemTitle>Catalog preview spreadsheet</ItemTitle>
             <ItemDescription className="line-clamp-none">
-              Clean data, ready to import
+              A clean spreadsheet made for this catalog preview.
             </ItemDescription>
           </ItemContent>
           <ItemActions className={cn("w-full", !stacked && "sm:w-auto")}>
             <Button
               type="button"
-              aria-label="Download prepared import file"
+              aria-label="Download catalog preview spreadsheet"
               className={cn("w-full", !stacked && "sm:w-auto sm:min-w-40")}
               data-ph-capture-attribute-action={
                 reviewIncomplete ? "download-review-warning" : "download"
@@ -90,15 +90,16 @@ export function CatalogImporterDownloadOptions({
           )}
         >
           <ItemContent className="gap-1">
-            <ItemTitle>Enhanced original</ItemTitle>
+            <ItemTitle>Updated original spreadsheet</ItemTitle>
             <ItemDescription className="line-clamp-none">
-              Your workbook with matches added
+              Your original workbook with your edits and catalog match fields
+              added.
             </ItemDescription>
           </ItemContent>
           <ItemActions className={cn("w-full", !stacked && "sm:w-auto")}>
             <Button
               type="button"
-              aria-label="Download enhanced original"
+              aria-label="Download updated original spreadsheet"
               className={cn("w-full", !stacked && "sm:w-auto sm:min-w-40")}
               data-ph-capture-attribute-action={
                 reviewIncomplete ? "download-review-warning" : "download"

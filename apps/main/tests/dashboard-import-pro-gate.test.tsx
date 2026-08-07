@@ -49,7 +49,7 @@ describe("DashboardImportProGate", () => {
 
     fireEvent.click(
       screen.getByRole("button", {
-        name: "Download prepared import file",
+        name: "Download catalog preview spreadsheet",
       }),
     );
     expect(mocks.controller.downloadResults).toHaveBeenCalledWith("clean");

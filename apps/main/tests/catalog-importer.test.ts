@@ -14,6 +14,7 @@ import {
   getCatalogImportRowDisposition,
   getCatalogImportState,
   getSourceColumns,
+  isRecognizedCatalogImportSheet,
   suggestColumnMapping,
   prepareCatalogImportListing,
   type SpreadsheetCell,
@@ -497,6 +498,33 @@ describe("catalog importer normalization", () => {
       privateNote: 3,
       title: 0,
     });
+  });
+
+  it("recognizes only the downloadable template and catalog preview shapes", () => {
+    expect(
+      isRecognizedCatalogImportSheet([
+        ["name", "price", "description", "private note"],
+        ["A.W. Shucks", "25", "Purple bloom", "Back garden"],
+      ]),
+    ).toBe(true);
+    expect(
+      isRecognizedCatalogImportSheet([
+        [
+          "Name",
+          "Daylily Catalog ID",
+          "Price",
+          "Daylily Catalog Cultivar Name",
+          "Description",
+          "Daylily Catalog Cultivar URL",
+          "Private Note",
+        ],
+      ]),
+    ).toBe(true);
+    expect(
+      isRecognizedCatalogImportSheet([
+        ["Cultivar", "Cost", "Details", "Notes"],
+      ]),
+    ).toBe(false);
   });
 
   it("provides a ready-to-map sample catalog with review and issue examples", () => {
