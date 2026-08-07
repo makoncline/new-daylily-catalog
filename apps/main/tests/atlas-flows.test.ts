@@ -34,10 +34,13 @@ describe("Atlas flow contract", () => {
       "See the transformation",
       "Choose the outcome",
     ]);
-    expect(statesForFlow(onboarding)).toHaveLength(4);
+    expect(statesForFlow(onboarding)).toHaveLength(5);
     expect(getAtlasState("onboarding-importer-results").captureSpec).toBe(
       "tests/atlas/onboarding-membership.atlas.ts",
     );
+    expect(
+      getAtlasState("onboarding-importer-signed-in-finish").captureSpec,
+    ).toBe("tests/atlas/onboarding-membership.atlas.ts");
   });
 
   it("declares the listing-management journey and its compact UI states", () => {

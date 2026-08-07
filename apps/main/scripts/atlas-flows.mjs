@@ -626,6 +626,13 @@ export const ATLAS_FLOWS = [
             "/catalog-importer",
             false,
           ),
+          onboardingState(
+            "onboarding-importer-signed-in-finish",
+            "Signed-in dashboard handoff",
+            "The finish state sends a signed-in grower to the dashboard importer without starting checkout.",
+            "/catalog-importer",
+            false,
+          ),
         ],
       },
     ],
