@@ -215,7 +215,7 @@ function StartMembershipHero() {
         </div>
 
         <div
-          id="membership"
+          id="pricing"
           className="border-y border-white/28 py-6 text-white backdrop-blur-[2px] lg:border-y-0 lg:border-l lg:py-1 lg:pl-10"
         >
           <p className="text-sm font-bold tracking-[0.18em] text-[#f4c477] uppercase">
