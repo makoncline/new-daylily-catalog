@@ -328,7 +328,7 @@ export const ATLAS_FLOWS = [
           importerState(
             "catalog-importer-desktop-results",
             "Desktop catalog results",
-            "The personalized enrichment reveal, preparation status, and complete results workspace.",
+            "The exact Daylily Catalog template opened directly in the personalized results workspace.",
             "/catalog-importer",
             false,
           ),
