@@ -9,15 +9,6 @@ const featureState = vi.hoisted(() => ({
   discoveryEnabled: false,
 }));
 
-vi.mock("@/server/stripe/get-membership-price-display", () => ({
-  getMembershipPriceDisplay: () =>
-    Promise.resolve({
-      amount: "$99",
-      interval: "/yr",
-      monthlyEquivalent: null,
-    }),
-}));
-
 vi.mock("@/config/feature-flags", () => ({
   isCatalogImporterDiscoveryEnabled: () => featureState.discoveryEnabled,
 }));

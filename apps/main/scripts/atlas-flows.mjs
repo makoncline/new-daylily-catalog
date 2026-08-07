@@ -562,7 +562,7 @@ export const ATLAS_FLOWS = [
     audience: "member",
     title: "Create a catalog and start membership",
     description:
-      "Understand the grower offer, transform an existing catalog, and reach the trial handoff.",
+      "Understand the grower offer, transform an existing catalog, and continue to Stripe-hosted membership checkout.",
     tests: {
       unit: [
         testRef("unit", "tests/catalog-importer-draft.test.ts"),
@@ -574,6 +574,7 @@ export const ATLAS_FLOWS = [
           "integration",
           "tests/catalog-importer-checkout-router.test.ts",
         ),
+        testRef("integration", "tests/use-pro.test.tsx"),
         fullAppIntegrationRef(
           "tests/integration/catalog-importer-checkout-provider-boundaries.integration.ts",
         ),
@@ -623,18 +624,6 @@ export const ATLAS_FLOWS = [
             "Download or publish",
             "The explicit choice between free prepared files and a live Pro catalog.",
             "/catalog-importer",
-            false,
-          ),
-        ],
-      },
-      {
-        title: "Start the trial",
-        states: [
-          onboardingState(
-            "onboarding-importer-checkout",
-            "Importer checkout",
-            "The account email and exact trial terms immediately before Stripe.",
-            "/catalog-importer/checkout?import_id=12a94b5f-3da4-4d28-b6df-76f8f4bc8392&entry=catalog_importer&return_to=%2Fcatalog-importer",
             false,
           ),
         ],

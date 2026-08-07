@@ -1,32 +1,27 @@
 import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
-import { normalizeError, reportError } from "@/lib/error-utils";
-import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { capturePosthogEvent } from "@/lib/analytics/posthog";
-import { api } from "@/trpc/react";
 import { usePersistedSubscriptionQuery } from "@/hooks/use-persisted-subscription-query";
+import { api } from "@/trpc/react";
 
 export function usePro() {
-  const router = useRouter();
   const { data: subscription, isLoading } = usePersistedSubscriptionQuery();
-  const generateCheckout = api.stripe.generateCheckout.useMutation();
+  const createCheckout = api.stripe.generateCheckout.useMutation();
 
   const subscriptionStatus = subscription?.status ?? null;
   const isPro = hasActiveSubscription(subscription?.status);
   const isTrialing = subscriptionStatus === "trialing";
 
   const sendToCheckout = async () => {
-    capturePosthogEvent("checkout_started", { source: "use-pro" });
-
+    const analyticsProperties = { source: "dashboard" };
+    capturePosthogEvent("checkout_started", analyticsProperties);
     try {
-      const { url } = await generateCheckout.mutateAsync();
-      capturePosthogEvent("checkout_redirect_ready", { source: "use-pro" });
-      router.push(url);
-    } catch (error) {
-      capturePosthogEvent("checkout_failed", { source: "use-pro" });
-      reportError({
-        error: normalizeError(error),
-        context: { action: "sendToCheckout" },
-      });
+      const checkout = await createCheckout.mutateAsync();
+      capturePosthogEvent("checkout_redirect_ready", analyticsProperties);
+      window.location.assign(checkout.url);
+    } catch {
+      capturePosthogEvent("checkout_failed", analyticsProperties);
+      toast.error("Checkout did not open. Try again.");
     }
   };
 
@@ -35,7 +30,7 @@ export function usePro() {
     isTrialing,
     subscriptionStatus,
     isLoading,
-    isPending: generateCheckout.isPending,
+    isPending: createCheckout.isPending,
     sendToCheckout,
   } as const;
 }

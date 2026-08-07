@@ -29,7 +29,6 @@ Required environment setup:
   - Variable: `NEXT_PUBLIC_SENTRY_ENABLED`
   - Variable: `NEXT_PUBLIC_POSTHOG_KEY`
   - Variable: `NEXT_PUBLIC_POSTHOG_HOST`
-  - Variable: `STRIPE_PRICE_ID`
   - Variable: `DATABASE_URL`
   - Secret: `TURSO_DATABASE_AUTH_TOKEN`
   - Secret: `STRIPE_SECRET_KEY` optional for cold-cache-safe production Docker builds
@@ -39,7 +38,6 @@ Required environment setup:
   - Variable: `APP_BASE_URL` set to the preview deployment origin for that environment
   - Variable: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
   - Variable: `NEXT_PUBLIC_CLOUDFLARE_URL`
-  - Variable: `STRIPE_PRICE_ID`
   - Variable: `DATABASE_URL` set to the shared seeded preview Turso database
   - Variable: `VERCEL_TEAM`
   - Secret: `CLERK_SECRET_KEY`
@@ -82,7 +80,6 @@ Non-secrets:
 - `NEXT_PUBLIC_CLOUDFLARE_URL`
 - `AWS_REGION`
 - `AWS_BUCKET_NAME`
-- `STRIPE_PRICE_ID`
 - `DATABASE_URL`
 - `NEXT_PUBLIC_SENTRY_ENABLED`
 - `SENTRY_ENVIRONMENT` set to `production`
@@ -102,6 +99,25 @@ Secrets:
 Optional:
 
 - `SENTRY_AUTH_TOKEN`
+
+## Stripe Membership Catalog
+
+Configure the membership offer in each Stripe mode that the app uses.
+
+- Keep the monthly and yearly recurring prices on the same active product.
+- Use the same currency for both prices.
+- Set `daylily_catalog_pro_monthly_checkout` as the lookup key on the active monthly price.
+- Configure the active yearly price as the subscription upsell for that monthly price.
+- Do not configure a trial on the Checkout Session or either price.
+
+The app resolves the monthly entry price by lookup key. Stripe Checkout shows
+the monthly and yearly choice. The webhook reads the completed line item and
+records the selected billing interval.
+
+To change the monthly amount, create a new price and transfer the lookup key to
+it. Then configure its yearly upsell. To change only the yearly amount, create a
+new yearly price and select it as the monthly price's upsell. Existing
+subscriptions stay on their current prices.
 
 ### Optional local SQLite runtime mode
 

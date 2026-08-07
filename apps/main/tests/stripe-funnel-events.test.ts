@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
 import type Stripe from "stripe";
-import { getStripeFunnelEvents } from "@/server/stripe/stripe-funnel-events";
+import {
+  getCheckoutPaidActivation,
+  getStripeFunnelEvents,
+} from "@/server/stripe/stripe-funnel-events";
 
 function makeSubscriptionEvent(
   type: Stripe.Event.Type,
   status: Stripe.Subscription.Status,
   options?: {
+    metadata?: Record<string, string>;
     previousStatus?: Stripe.Subscription.Status;
     trialEnd?: number | null;
   },
@@ -14,6 +18,7 @@ function makeSubscriptionEvent(
     type,
     data: {
       object: {
+        metadata: options?.metadata ?? {},
         status,
         trial_end: options?.trialEnd ?? null,
       },
@@ -25,6 +30,49 @@ function makeSubscriptionEvent(
 }
 
 describe("getStripeFunnelEvents", () => {
+  it("waits for completed Checkout before immediate paid activation", () => {
+    const event = makeSubscriptionEvent(
+      "customer.subscription.created",
+      "active",
+      {
+        metadata: {
+          billing_option: "annual",
+          import_id: "import-123",
+          source: "catalog_importer",
+        },
+      },
+    );
+
+    expect(getStripeFunnelEvents(event)).toEqual([]);
+  });
+
+  it("attributes paid activation to Stripe's final hosted choice", () => {
+    expect(
+      getCheckoutPaidActivation({
+        billingOption: "annual",
+        session: {
+          id: "cs_test",
+          metadata: {
+            import_id: "import-123",
+            source: "catalog_importer",
+          },
+          subscription: "sub_test",
+        } as never,
+        subscriptionStatus: "active",
+      }),
+    ).toEqual({
+      event: "paid_activated",
+      properties: {
+        $insert_id: "stripe:paid_activated:sub_test",
+        billing_option: "annual",
+        import_id: "import-123",
+        source: "catalog_importer",
+        trigger: "checkout.session.completed",
+        subscription_status: "active",
+      },
+    });
+  });
+
   it("emits trial_started for new trialing subscriptions", () => {
     const event = makeSubscriptionEvent(
       "customer.subscription.created",

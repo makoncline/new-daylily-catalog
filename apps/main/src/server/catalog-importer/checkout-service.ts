@@ -2,11 +2,7 @@ import type { PrismaClient } from "@prisma/client";
 import type Stripe from "stripe";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import {
-  getDefaultSubscriptionBillingOption,
-  getStripeTrialPeriodDays,
-} from "@/config/subscription-config";
-import { env, requireEnv } from "@/env";
+import { type SubscriptionBillingOption } from "@/config/subscription-config";
 import {
   CATALOG_IMPORTER_ENTRY_SOURCE,
   CATALOG_IMPORTER_MEMBERSHIP_RETURN_PATH,
@@ -18,6 +14,11 @@ import { captureServerPosthogEvent } from "@/server/analytics/posthog-server";
 import type { TRPCInternalContext } from "@/server/api/trpc";
 import { getStripeClient } from "@/server/stripe/client";
 import { createSubscriptionCheckout } from "@/server/stripe/create-subscription-checkout";
+import {
+  getCheckoutSessionBillingOption,
+  getMembershipCheckoutPrice,
+  HOSTED_BILLING_CHOICE,
+} from "@/server/stripe/membership-checkout-price";
 import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
 import {
   createLocalE2ECheckoutSession,
@@ -25,13 +26,13 @@ import {
   isLocalE2ECheckoutEnabled,
 } from "./local-checkout";
 
-const emailSchema = z.string().trim().email().max(254).toLowerCase();
 const checkoutSessionIdSchema = z.string().trim().min(1).max(255);
 
 export const catalogImporterCheckoutInputSchema =
-  catalogImporterCheckoutSourceSchema.extend({
-    email: emailSchema,
-  });
+  catalogImporterCheckoutSourceSchema;
+
+export const signedInCatalogImporterCheckoutInputSchema =
+  catalogImporterCheckoutSourceSchema;
 
 export const claimCatalogImporterCheckoutInputSchema = z
   .object({
@@ -44,6 +45,8 @@ interface CatalogImporterCheckoutDetails {
   customerId: string;
   email: string;
   importId: string;
+  billingOption: SubscriptionBillingOption | null;
+  source: string | null;
   status: string | null;
 }
 
@@ -124,10 +127,12 @@ async function getStripeCheckoutDetails(
   }
 
   return {
+    billingOption: await getCheckoutSessionBillingOption(session),
     sessionId: session.id,
     customerId,
     email,
     importId: session.metadata.import_id,
+    source: session.metadata.source ?? null,
     status: await getSubscriptionStatus(stripe, session),
   };
 }
@@ -186,7 +191,6 @@ export async function createCatalogImporterCheckout({
   if (isLocalE2ECheckoutEnabled()) {
     const session = await createLocalE2ECheckoutSession({
       db,
-      email: input.email,
       importId: input.importId,
     });
 
@@ -198,28 +202,26 @@ export async function createCatalogImporterCheckout({
   }
 
   const sourceMetadata = {
+    source: "catalog_importer",
     import_id: input.importId,
     entry_source: input.entrySource,
     return_to: input.returnTo,
   };
-  const billingOption = getDefaultSubscriptionBillingOption();
   const stripe = getStripeClient();
+  const checkoutPrice = await getMembershipCheckoutPrice();
   const session = await stripe.checkout.sessions.create({
-    customer_email: input.email,
     mode: "subscription",
     line_items: [
       {
-        price: requireEnv(
-          billingOption.stripePriceEnvironmentVariable,
-          env.STRIPE_PRICE_ID,
-        ),
+        price: checkoutPrice.priceId,
         quantity: 1,
       },
     ],
     subscription_data: {
-      trial_period_days: getStripeTrialPeriodDays(),
       metadata: {
-        email: input.email,
+        billing_choice: HOSTED_BILLING_CHOICE,
+        membership_currency: checkoutPrice.currency,
+        membership_product_id: checkoutPrice.productId,
         ...sourceMetadata,
       },
     },
@@ -228,7 +230,9 @@ export async function createCatalogImporterCheckout({
       input.importId,
     )}`,
     metadata: {
-      email: input.email,
+      billing_choice: HOSTED_BILLING_CHOICE,
+      membership_currency: checkoutPrice.currency,
+      membership_product_id: checkoutPrice.productId,
       ...sourceMetadata,
     },
     client_reference_id: input.importId,
@@ -250,10 +254,11 @@ export async function createSignedInCatalogImporterCheckout({
   user,
 }: {
   db: TRPCInternalContext["db"];
-  input: z.infer<typeof catalogImporterCheckoutSourceSchema>;
+  input: z.infer<typeof signedInCatalogImporterCheckoutInputSchema>;
   user: AuthenticatedUser;
 }) {
   const metadata = {
+    source: "catalog_importer",
     import_id: input.importId,
     entry_source: input.entrySource,
   };
@@ -351,7 +356,8 @@ export async function claimCatalogImporterCheckout({
       properties: {
         $insert_id: `catalog-importer:${activationEvent}:${details.sessionId}`,
         import_id: details.importId,
-        source: "catalog-importer-checkout-claim",
+        billing_option: details.billingOption ?? undefined,
+        source: details.source ?? "catalog-importer-checkout-claim",
         source_page: "/catalog-importer/checkout/success",
         stripe_customer_id: details.customerId,
         subscription_status: details.status ?? "unknown",

@@ -33,8 +33,8 @@ describe("Atlas flow contract", () => {
       "Bring a catalog",
       "See the transformation",
       "Choose the outcome",
-      "Start the trial",
     ]);
+    expect(statesForFlow(onboarding)).toHaveLength(4);
     expect(getAtlasState("onboarding-importer-results").captureSpec).toBe(
       "tests/atlas/onboarding-membership.atlas.ts",
     );

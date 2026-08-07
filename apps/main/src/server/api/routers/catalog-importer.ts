@@ -3,13 +3,13 @@ import {
   protectedProcedure,
   publicProcedure,
 } from "@/server/api/trpc";
-import { catalogImporterCheckoutSourceSchema } from "@/lib/catalog-importer-membership";
 import {
   catalogImporterCheckoutInputSchema,
   claimCatalogImporterCheckout,
   claimCatalogImporterCheckoutInputSchema,
   createCatalogImporterCheckout,
   createSignedInCatalogImporterCheckout,
+  signedInCatalogImporterCheckoutInputSchema,
 } from "@/server/catalog-importer/checkout-service";
 
 export const catalogImporterRouter = createTRPCRouter({
@@ -24,7 +24,7 @@ export const catalogImporterRouter = createTRPCRouter({
     }),
 
   createSignedInCheckout: protectedProcedure
-    .input(catalogImporterCheckoutSourceSchema)
+    .input(signedInCatalogImporterCheckoutInputSchema)
     .mutation(async ({ ctx, input }) => {
       return createSignedInCatalogImporterCheckout({
         db: ctx.db,

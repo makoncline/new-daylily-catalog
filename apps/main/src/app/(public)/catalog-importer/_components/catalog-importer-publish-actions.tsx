@@ -18,26 +18,19 @@ import {
 } from "@/components/pro-upgrade";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 import {
-  getSubscriptionPriceCopy,
-  SUBSCRIPTION_CONFIG,
-} from "@/config/subscription-config";
-import { capturePosthogEvent } from "@/lib/analytics/posthog";
-import {
-  CATALOG_IMPORTER_ENTRY_SOURCE,
-  createCatalogImporterCheckoutPath,
   createCatalogImporterCheckoutSource,
   type CatalogImporterViewerResolution,
   type CatalogImporterViewerState,
 } from "@/lib/catalog-importer-membership";
-import type { MembershipPriceDisplay } from "@/server/stripe/membership-price-display";
-import { api, TRPCReactProvider } from "@/trpc/react";
+import { capturePosthogEvent } from "@/lib/analytics/posthog";
+import { getTrpcClient } from "@/trpc/client";
 import type { CatalogImporterWorkbenchController } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
 
 interface CatalogImporterPublishActionsProps {
   controller: CatalogImporterWorkbenchController;
   dashboardReturnPath?: string | null;
-  membershipPriceDisplay: MembershipPriceDisplay | null;
   placement: "preview" | "finish";
   viewerResolution: CatalogImporterViewerResolution;
 }
@@ -45,7 +38,6 @@ interface CatalogImporterPublishActionsProps {
 export function CatalogImporterPublishActions({
   controller,
   dashboardReturnPath = null,
-  membershipPriceDisplay,
   placement,
   viewerResolution,
 }: CatalogImporterPublishActionsProps) {
@@ -109,7 +101,6 @@ export function CatalogImporterPublishActions({
           ? "catalog-importer-preview-membership"
           : "catalog-importer-download-membership"
       }
-      membershipPriceDisplay={membershipPriceDisplay}
       placement={placement}
       viewerState={viewerState}
     />
@@ -119,19 +110,14 @@ export function CatalogImporterPublishActions({
 function CatalogImporterMembershipPrompt({
   ctaId,
   controller,
-  membershipPriceDisplay,
   placement,
   viewerState,
 }: {
   ctaId: string;
   controller: CatalogImporterWorkbenchController;
-  membershipPriceDisplay: MembershipPriceDisplay | null;
   placement: "preview" | "finish";
   viewerState: Exclude<CatalogImporterViewerState, "pro">;
 }) {
-  const priceCopy = membershipPriceDisplay
-    ? getSubscriptionPriceCopy(membershipPriceDisplay)
-    : null;
   return (
     <ProUpgrade
       aria-labelledby={`${ctaId}-heading`}
@@ -172,31 +158,17 @@ function CatalogImporterMembershipPrompt({
           </ProUpgradeFeatures>
         </ProUpgradeDetails>
         <ProUpgradeActions className="gap-2">
-          {viewerState === "anonymous" ? (
-            <AnonymousCatalogImporterMembershipButton
-              controller={controller}
-              ctaId={ctaId}
-            />
-          ) : (
-            <TRPCReactProvider>
-              <SignedInCatalogImporterMembershipButton
-                controller={controller}
-                ctaId={ctaId}
-              />
-            </TRPCReactProvider>
-          )}
+          <CatalogImporterMembershipButton
+            controller={controller}
+            ctaId={ctaId}
+            viewerState={viewerState}
+          />
           {placement === "finish" && viewerState === "anonymous" ? (
             <CatalogImporterLoginButton controller={controller} />
           ) : null}
-          {priceCopy ? (
-            <p className="text-muted-foreground text-center text-xs">
-              {priceCopy.summaryWithCancellation}
-            </p>
-          ) : (
-            <p className="text-muted-foreground text-center text-xs">
-              {SUBSCRIPTION_CONFIG.COPY.IMPORTER.PRICE_UNAVAILABLE}
-            </p>
-          )}
+          <p className="text-muted-foreground text-center text-xs">
+            Choose monthly or yearly securely in Stripe.
+          </p>
           {placement === "preview" ? (
             <Link
               href="/start-membership"
@@ -243,18 +215,20 @@ function CatalogImporterLoginButton({
   );
 }
 
-function AnonymousCatalogImporterMembershipButton({
+function CatalogImporterMembershipButton({
   controller,
   ctaId,
+  viewerState,
 }: {
   controller: CatalogImporterWorkbenchController;
   ctaId: string;
+  viewerState: Exclude<CatalogImporterViewerState, "pro">;
 }) {
   const [leaving, setLeaving] = useState(false);
   const [startError, setStartError] = useState(false);
   const startInProgressRef = useRef(false);
 
-  const startTrial = async () => {
+  const openCheckout = async () => {
     if (startInProgressRef.current) {
       return;
     }
@@ -263,80 +237,30 @@ function AnonymousCatalogImporterMembershipButton({
     setLeaving(true);
     setStartError(false);
     try {
-      const targetPath = createCatalogImporterCheckoutPath(
+      const checkoutSource = createCatalogImporterCheckoutSource(
         controller.projectId,
       );
       await controller.flushDraft();
-      window.location.assign(targetPath);
-    } catch {
-      startInProgressRef.current = false;
-      setLeaving(false);
-      setStartError(true);
-    }
-  };
-
-  return (
-    <>
-      <Button
-        type="button"
-        size="lg"
-        data-ph-capture-attribute-action="start-pro-checkout"
-        data-ph-capture-attribute-cta_id={ctaId}
-        disabled={leaving}
-        onClick={() => void startTrial()}
-      >
-        {leaving ? (
-          <Spinner data-icon="inline-start" />
-        ) : (
-          <Sparkles data-icon="inline-start" />
-        )}
-        {SUBSCRIPTION_CONFIG.COPY.CTA.START_TRIAL}
-      </Button>
-      {startError ? (
-        <p className="text-destructive text-center text-xs" role="alert">
-          {controller.storageWarning
-            ? "Checkout did not open. Keep this page open and try again."
-            : "Checkout did not open. Your catalog is still saved. Try again."}
-        </p>
-      ) : null}
-    </>
-  );
-}
-
-function SignedInCatalogImporterMembershipButton({
-  controller,
-  ctaId,
-}: {
-  controller: CatalogImporterWorkbenchController;
-  ctaId: string;
-}) {
-  const checkout = api.catalogImporter.createSignedInCheckout.useMutation();
-  const [leaving, setLeaving] = useState(false);
-  const [startError, setStartError] = useState(false);
-  const startInProgressRef = useRef(false);
-
-  const startTrial = async () => {
-    if (startInProgressRef.current) {
-      return;
-    }
-
-    startInProgressRef.current = true;
-    setLeaving(true);
-    setStartError(false);
-    try {
-      await controller.flushDraft();
-      const { url } = await checkout.mutateAsync({
-        ...createCatalogImporterCheckoutSource(controller.projectId),
-      });
-      window.location.assign(url);
+      const analyticsProperties = {
+        source: "catalog_importer",
+        import_id: checkoutSource.importId,
+        entry_source: checkoutSource.entrySource,
+      };
+      capturePosthogEvent("checkout_started", analyticsProperties);
+      const catalogImporter = getTrpcClient().catalogImporter;
+      const checkout =
+        viewerState === "anonymous"
+          ? await catalogImporter.createCheckout.mutate(checkoutSource)
+          : await catalogImporter.createSignedInCheckout.mutate(checkoutSource);
+      capturePosthogEvent("checkout_redirect_ready", analyticsProperties);
+      window.location.assign(checkout.url);
     } catch {
       startInProgressRef.current = false;
       setLeaving(false);
       setStartError(true);
       capturePosthogEvent("checkout_failed", {
-        import_id: controller.projectId,
-        entry_source: CATALOG_IMPORTER_ENTRY_SOURCE,
         source: "catalog_importer",
+        import_id: controller.projectId,
       });
     }
   };
@@ -346,17 +270,17 @@ function SignedInCatalogImporterMembershipButton({
       <Button
         type="button"
         size="lg"
-        data-ph-capture-attribute-action="start-pro-checkout"
+        data-ph-capture-attribute-action="start-stripe-checkout"
         data-ph-capture-attribute-cta_id={ctaId}
         disabled={leaving}
-        onClick={() => void startTrial()}
+        onClick={() => void openCheckout()}
       >
         {leaving ? (
           <Spinner data-icon="inline-start" />
         ) : (
           <Sparkles data-icon="inline-start" />
         )}
-        {SUBSCRIPTION_CONFIG.COPY.CTA.START_TRIAL}
+        {SUBSCRIPTION_CONFIG.COPY.CTA.CONTINUE_TO_CHECKOUT}
       </Button>
       {startError ? (
         <p className="text-destructive text-center text-xs" role="alert">

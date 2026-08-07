@@ -12,13 +12,8 @@ import {
   catalogImporterViewerResponseSchema,
   type CatalogImporterViewerResolution,
 } from "@/lib/catalog-importer-membership";
-import type { MembershipPriceDisplay } from "@/server/stripe/membership-price-display";
 
-export function CatalogImporterClient({
-  membershipPriceDisplay = null,
-}: {
-  membershipPriceDisplay?: MembershipPriceDisplay | null;
-}) {
+export function CatalogImporterClient() {
   const startedLoading = useRef(false);
   const [viewerResolution, setViewerResolution] =
     useState<CatalogImporterViewerResolution>({ status: "checking" });
@@ -100,7 +95,6 @@ export function CatalogImporterClient({
       ) : (
         <CatalogImporterWorkbench
           initialDraft={initialDraft}
-          membershipPriceDisplay={membershipPriceDisplay}
           viewerResolution={viewerResolution}
         />
       )}

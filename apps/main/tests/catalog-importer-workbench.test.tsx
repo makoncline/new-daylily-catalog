@@ -1293,10 +1293,10 @@ describe("CatalogImporterWorkbench", () => {
       name: "Publish this catalog with Pro",
     });
     expect(
-      screen.getByRole("button", { name: /Start.*trial/i }),
+      screen.getByRole("button", { name: "Continue to secure checkout" }),
     ).toHaveAttribute(
       "data-ph-capture-attribute-action",
-      "start-pro-checkout",
+      "start-stripe-checkout",
     );
     expect(
       screen.getByRole("link", { name: "See Pro details" }),
