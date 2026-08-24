@@ -108,6 +108,7 @@ export async function GET(request: Request) {
       priceMax: getNumberParam(searchParams, "priceMax"),
       priceMin: getNumberParam(searchParams, "priceMin"),
       q: searchParams.get("q") ?? undefined,
+      rebloom: getBooleanParam(searchParams, "rebloom"),
       scapeHeightMax: getNumberParam(searchParams, "scapeHeightMax"),
       scapeHeightMin: getNumberParam(searchParams, "scapeHeightMin"),
       sculptedType: searchParams.get("sculptedType") ?? undefined,

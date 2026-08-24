@@ -35,6 +35,13 @@ if (!globalThis.ResizeObserver) {
   });
 }
 
+if (!Element.prototype.scrollIntoView) {
+  Object.defineProperty(Element.prototype, "scrollIntoView", {
+    value: vi.fn(),
+    writable: true,
+  });
+}
+
 function searchResponse() {
   return {
     pagination: {
@@ -346,6 +353,30 @@ describe("CultivarSearchPageClient", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("offers rebloom independently from Bloom Season", async () => {
+    render(
+      <CultivarSearchPageClient
+        initialResponse={searchResponse()}
+        initialState={{
+          hasCultivarPhoto: false,
+          hasForSaleListings: false,
+          hasListings: true,
+          q: "",
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("switch", { name: "Advanced" }));
+    expect(
+      screen.getByRole("button", { name: "Rebloomers only" }),
+    ).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Bloom Season" }));
+
+    expect(
+      screen.queryByText("Rebloom", { exact: true }),
+    ).not.toBeInTheDocument();
+  });
+
   it("exposes cultivar-focused advanced filters and sends their values", async () => {
     fetchMock.mockImplementation((url: string) => {
       if (url.includes("/api/v1/cultivars/facets")) {
@@ -407,6 +438,7 @@ describe("CultivarSearchPageClient", () => {
     expect(screen.getByTestId("advanced-filter-award")).toBeVisible();
     expect(screen.getByTestId("advanced-filter-flower-show")).toBeVisible();
     expect(screen.getByTestId("advanced-filter-sculpted-type")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Rebloomers only" }));
 
     fireEvent.click(screen.getByRole("button", { name: "Flower Show" }));
     fireEvent.click(await screen.findByText("Large"));
@@ -438,6 +470,7 @@ describe("CultivarSearchPageClient", () => {
           (url) =>
             url.includes("scapeHeightMin=28") &&
             url.includes("parentage=seedling") &&
+            url.includes("rebloom=true") &&
             url.includes("hybridizer=Reed%7CStone") &&
             url.includes("flowerShow=Large") &&
             url.includes("sculptedType=Cristate"),
