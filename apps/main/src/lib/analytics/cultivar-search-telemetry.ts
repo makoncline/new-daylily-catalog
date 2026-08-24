@@ -50,6 +50,7 @@ const SEARCH_FILTER_PARAMS: TelemetryParamDefinition[] = [
   { kind: "text", param: "ploidy", property: "ploidy" },
   { kind: "number", param: "priceMax", property: "price_max" },
   { kind: "number", param: "priceMin", property: "price_min" },
+  { kind: "boolean", param: "rebloom", property: "rebloom" },
   {
     kind: "number",
     param: "scapeHeightMax",

@@ -218,6 +218,7 @@ export default async function CultivarsPage({
           parentage: getFirstSearchParam(rawSearchParams, "parentage"),
           ploidy: getFirstSearchParam(rawSearchParams, "ploidy"),
           q: getFirstSearchParam(rawSearchParams, "q") ?? "",
+          rebloom: getFirstSearchParam(rawSearchParams, "rebloom") === "true",
           scapeHeightMax: getFirstSearchParam(
             rawSearchParams,
             "scapeHeightMax",

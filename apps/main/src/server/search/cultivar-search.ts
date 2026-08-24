@@ -55,6 +55,7 @@ interface CultivarSearchArgs {
   priceMax?: number;
   priceMin?: number;
   q?: string;
+  rebloom?: boolean;
   scapeHeightMax?: number;
   scapeHeightMin?: number;
   sculptedType?: string;
@@ -662,7 +663,6 @@ export async function searchCultivars(args: CultivarSearchArgs) {
     columnSql: "i.bloomHabit",
     params,
     sql: whereSql,
-    specialClauses: { rebloom: "i.rebloom = 1" },
     value: args.bloomHabit,
   });
   addFacetFilter({
@@ -671,6 +671,9 @@ export async function searchCultivars(args: CultivarSearchArgs) {
     sql: whereSql,
     value: args.bloomSeason,
   });
+  if (args.rebloom) {
+    whereSql.push("i.rebloom = 1");
+  }
   addTextFilter({
     columnSql: "lower(i.color)",
     params,

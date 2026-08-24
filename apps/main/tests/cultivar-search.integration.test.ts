@@ -216,12 +216,13 @@ describe("cultivar search", () => {
     ]);
   });
 
-  it("uses the dedicated rebloom flag for the Rebloom bloom-habit option", async () => {
+  it("combines bloom season with the dedicated rebloom flag", async () => {
     const results = await searchCultivars({
       baseUrl: "https://daylilycatalog.com",
-      bloomHabit: "Rebloom",
+      bloomSeason: "Midseason",
       includeParentageTrees: false,
       listingLimit: 0,
+      rebloom: true,
     });
 
     expect(results.map((result) => result.cultivarReferenceId)).toEqual([

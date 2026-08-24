@@ -94,6 +94,7 @@ interface InitialCultivarSearchState {
   parentage?: string;
   ploidy?: string;
   q: string;
+  rebloom?: boolean;
   scapeHeightMax?: string;
   scapeHeightMin?: string;
   sculptedType?: string;
@@ -124,6 +125,7 @@ interface CultivarSearchFilters {
   hybridizer: string;
   parentage: string;
   ploidy: string;
+  rebloom: boolean;
   scapeHeightMax: string;
   scapeHeightMin: string;
   sculptedType: string;
@@ -240,6 +242,7 @@ const EMPTY_FILTERS: CultivarSearchFilters = {
   hybridizer: "",
   parentage: "",
   ploidy: "",
+  rebloom: false,
   scapeHeightMax: "",
   scapeHeightMin: "",
   sculptedType: "",
@@ -312,6 +315,7 @@ const BOOLEAN_FILTER_CHIPS = [
   { key: "hasListings", label: "In catalogs" },
   { key: "hasCultivarPhoto", label: "With photos" },
   { key: "hasForSaleListings", label: "For sale" },
+  { key: "rebloom", label: "Rebloomers only" },
 ] as const satisfies ReadonlyArray<{
   key: keyof CultivarSearchFilters;
   label: string;
@@ -507,6 +511,7 @@ function getInitialFilters(
     hybridizer: initialState.hybridizer ?? "",
     parentage: initialState.parentage ?? "",
     ploidy: initialState.ploidy ?? "",
+    rebloom: initialState.rebloom ?? false,
     scapeHeightMax: initialState.scapeHeightMax ?? "",
     scapeHeightMin: initialState.scapeHeightMin ?? "",
     sculptedType: initialState.sculptedType ?? "",
@@ -543,6 +548,7 @@ function readControlStateFromUrl() {
     parentage: params.get("parentage") ?? undefined,
     ploidy: params.get("ploidy") ?? undefined,
     q: params.get("q") ?? "",
+    rebloom: params.get("rebloom") === "true",
     scapeHeightMax: params.get("scapeHeightMax") ?? undefined,
     scapeHeightMin: params.get("scapeHeightMin") ?? undefined,
     sculptedType: params.get("sculptedType") ?? undefined,
@@ -1012,6 +1018,7 @@ function AdvancedFilters({
           [
             filters.bloomHabit,
             filters.bloomSeason,
+            filters.rebloom,
             filters.scapeHeightMin || filters.scapeHeightMax,
             filters.bloomSizeMin || filters.bloomSizeMax,
             filters.budCountMin || filters.budCountMax,
@@ -1024,7 +1031,7 @@ function AdvancedFilters({
             <CultivarFacetFilter
               definitionId="bloomHabit"
               value={filters.bloomHabit}
-              options={["Diurnal", "Nocturnal", "Extended", "Rebloom"]}
+              options={["Diurnal", "Nocturnal", "Extended"]}
               onChange={(bloomHabit) => updateImmediately({ bloomHabit })}
             />
             <CultivarFacetFilter
@@ -1040,6 +1047,15 @@ function AdvancedFilters({
                 "Very Late",
               ]}
               onChange={(bloomSeason) => updateImmediately({ bloomSeason })}
+            />
+            <CultivarBooleanFilter
+              active={filters.rebloom}
+              definitionId="bloomSeason"
+              label="Rebloomers only"
+              testId="cultivar-filter-rebloom"
+              onToggle={() =>
+                updateImmediately({ rebloom: !filters.rebloom })
+              }
             />
           </div>
           <CultivarRangeFilter
@@ -1533,6 +1549,7 @@ export function CultivarSearchPageClient({
     addFacetParam(params, "hybridizer", requestFilters.hybridizer);
     addParam(params, "parentage", requestFilters.parentage);
     addFacetParam(params, "ploidy", requestFilters.ploidy);
+    addParam(params, "rebloom", requestFilters.rebloom);
     addParam(params, "scapeHeightMax", requestFilters.scapeHeightMax);
     addParam(params, "scapeHeightMin", requestFilters.scapeHeightMin);
     addFacetParam(params, "sculptedType", requestFilters.sculptedType);

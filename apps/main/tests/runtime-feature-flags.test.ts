@@ -10,6 +10,7 @@ import {
   isPublicCultivarSearchEnabled,
 } from "@/config/feature-flags";
 import {
+  getDaylilyCatalogSkill,
   getHomeMarkdown,
   getLlmsTxt,
   getOpenApiDocument,
@@ -74,6 +75,17 @@ describe("runtime feature flags", () => {
     expect(getHomeMarkdown(baseUrl)).toContain("/api/v1/cultivars/search");
     expect(getOpenApiDocument(baseUrl).paths).toHaveProperty(
       "/api/v1/cultivars/search",
+    );
+    const searchOperation = getOpenApiDocument(baseUrl).paths[
+      "/api/v1/cultivars/search"
+    ].get;
+    expect(searchOperation.parameters).toContainEqual({
+      in: "query",
+      name: "rebloom",
+      schema: { type: "boolean" },
+    });
+    expect(getDaylilyCatalogSkill(baseUrl)).toContain(
+      "bloomSeason, rebloom, flowerShow",
     );
 
     writeFileSync(runtimeFlagsPath, '{"publicCultivarSearch":false}');
