@@ -88,7 +88,9 @@ describe("public Google Sheet catalog preview", () => {
       "ResizeObserver",
       class {
         constructor(private readonly callback: ResizeObserverCallback) {}
-        disconnect() {}
+        disconnect() {
+          return;
+        }
         observe(target: Element) {
           this.callback(
             [
@@ -100,7 +102,9 @@ describe("public Google Sheet catalog preview", () => {
             this as unknown as ResizeObserver,
           );
         }
-        unobserve() {}
+        unobserve() {
+          return;
+        }
       },
     );
     await clearCatalogImporterDraft();
