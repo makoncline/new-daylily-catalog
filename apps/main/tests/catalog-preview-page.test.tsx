@@ -158,6 +158,11 @@ describe("public Google Sheet catalog preview", () => {
       screen.getByRole("heading", { name: "WDS Spring Catalog" }),
     ).toBeVisible();
     expect(screen.getByRole("heading", { name: "A.W. Shucks" })).toBeVisible();
+    expect(screen.getByTestId("advanced-search-panel")).toBeVisible();
+    expect(screen.getByPlaceholderText("Search listings...")).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Search and filter" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "Try your own catalog" }),
     ).toHaveAttribute("href", "/catalog-importer");

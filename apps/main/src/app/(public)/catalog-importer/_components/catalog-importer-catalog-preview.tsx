@@ -256,6 +256,7 @@ export function CatalogImporterCatalogPreview({
     [previewListings],
   );
   const showSearchPanel =
+    readOnly ||
     previewListings.length > 6 ||
     columnFilters.length > 0 ||
     Boolean(globalFilter) ||
