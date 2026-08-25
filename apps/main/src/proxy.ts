@@ -46,6 +46,7 @@ const publicHtmlFirstSegmentExclusions = new Set([
   "api",
   "catalog",
   "catalog-importer",
+  "catalog-preview",
   "catalogs",
   "dashboard",
   "onboarding",

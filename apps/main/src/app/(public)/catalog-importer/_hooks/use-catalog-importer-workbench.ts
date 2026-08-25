@@ -214,6 +214,7 @@ function getNextReviewedIssueActions({
 
 export function useCatalogImporterWorkbench(
   initialDraft: CatalogImporterDraft | null = null,
+  { saveDraft = true }: { saveDraft?: boolean } = {},
 ) {
   const restoredImportState = getCatalogImportState(
     initialDraft?.matchedRows ?? [],
@@ -499,6 +500,11 @@ export function useCatalogImporterWorkbench(
       const nextSession = { ...sessionRef.current, ...updates };
       sessionRef.current = nextSession;
       setSession(nextSession);
+
+      if (!saveDraft) {
+        return Promise.resolve();
+      }
+
       const draft = serializeCatalogImporterSession(nextSession);
 
       draftWriteChain.current = draftWriteChain.current.then(async () => {
@@ -518,7 +524,7 @@ export function useCatalogImporterWorkbench(
 
       return draftWriteChain.current;
     },
-    [],
+    [saveDraft],
   );
 
   const saveMatchedRows = useCallback(
@@ -780,21 +786,23 @@ export function useCatalogImporterWorkbench(
             nextHeaderRowIndex,
             getSourceColumns(sheet.rows, nextHeaderRowIndex),
           );
-          logCatalogImporterSubmissionSample({
-            headerRowIndex: nextHeaderRowIndex,
-            importId: sessionRef.current.projectId,
-            mapping: nextMapping,
-            parsedSpreadsheet: spreadsheet,
-            resultCounts: {
-              issueCount: telemetry.issue_count,
-              matchedCount: telemetry.matched_count,
-              readyCount: telemetry.ready_count,
-              reviewCount: telemetry.review_count,
-              rowCount: telemetry.row_count,
-              warningCount: telemetry.warning_count,
-            },
-            selectedSheetIndex: nextSheetIndex,
-          });
+          if (saveDraft) {
+            logCatalogImporterSubmissionSample({
+              headerRowIndex: nextHeaderRowIndex,
+              importId: sessionRef.current.projectId,
+              mapping: nextMapping,
+              parsedSpreadsheet: spreadsheet,
+              resultCounts: {
+                issueCount: telemetry.issue_count,
+                matchedCount: telemetry.matched_count,
+                readyCount: telemetry.ready_count,
+                reviewCount: telemetry.review_count,
+                rowCount: telemetry.row_count,
+                warningCount: telemetry.warning_count,
+              },
+              selectedSheetIndex: nextSheetIndex,
+            });
+          }
           capturePosthogEvent("catalog_import_previewed", {
             file_type: getCatalogImportFileType(spreadsheet.fileName),
             import_id: sessionRef.current.projectId,
@@ -832,7 +840,7 @@ export function useCatalogImporterWorkbench(
         return false;
       }
     },
-    [loadCandidates, commitSession],
+    [loadCandidates, commitSession, saveDraft],
   );
 
   const buildCatalogPreview = useCallback(async () => {
