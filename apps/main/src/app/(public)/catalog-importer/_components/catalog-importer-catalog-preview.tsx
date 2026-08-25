@@ -175,13 +175,15 @@ export function CatalogImporterCatalogPreview({
   onColumnFiltersChange,
   onGlobalFilterChange,
   onOpenReview,
+  readOnly = false,
 }: {
   columnFilters: ColumnFiltersState;
   controller: CatalogImporterWorkbenchController;
   globalFilter: string;
   onColumnFiltersChange: OnChangeFn<ColumnFiltersState>;
   onGlobalFilterChange: OnChangeFn<string>;
-  onOpenReview: (row: CatalogImportRow) => void;
+  onOpenReview?: (row: CatalogImportRow) => void;
+  readOnly?: boolean;
 }) {
   const [mode, setMode] = useState<PublicCatalogSearchMode>("basic");
   const [panelCollapsed, setPanelCollapsed] = useState(false);
@@ -361,24 +363,26 @@ export function CatalogImporterCatalogPreview({
             id="catalog-importer-preview-heading"
             className="text-xl font-semibold tracking-tight"
           >
-            Your catalog preview
+            {readOnly ? "Catalog listings" : "Your catalog preview"}
           </h2>
           <p className="text-muted-foreground mt-1 max-w-3xl text-sm leading-6">
             Buyers could search by name, price, hybridizer, bloom season, and
             other registered details before they contact you.
           </p>
-          <p className="mt-2 font-mono text-sm">
-            daylilycatalog.com/your-catalog
-            <span className="text-muted-foreground ml-2 font-sans text-xs">
-              private preview
-            </span>
-          </p>
+          {!readOnly ? (
+            <p className="mt-2 font-mono text-sm">
+              daylilycatalog.com/your-catalog
+              <span className="text-muted-foreground ml-2 font-sans text-xs">
+                private preview
+              </span>
+            </p>
+          ) : null}
           {linkedRows.length < controller.includedRows.length ? (
             <p className="text-muted-foreground mt-1 text-sm">
               {linkedRows.length.toLocaleString()} of{" "}
               {controller.includedRows.length.toLocaleString()} listings are
               linked and shown.
-              {controller.reviewRows.length > 0 ? (
+              {!readOnly && controller.reviewRows.length > 0 ? (
                 <>
                   {" "}
                   <a
@@ -551,7 +555,7 @@ function CatalogPreviewDetailsSheet({
   onOpenChange,
 }: {
   row: CatalogImportRow | null;
-  onOpenReview: (row: CatalogImportRow) => void;
+  onOpenReview?: (row: CatalogImportRow) => void;
   onOpenChange: (open: boolean) => void;
 }) {
   const match = row?.match ?? null;
@@ -613,19 +617,21 @@ function CatalogPreviewDetailsSheet({
               cultivarHref={cultivarHref}
             />
 
-            <div>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  onOpenChange(false);
-                  onOpenReview(row);
-                }}
-              >
-                <Link2 aria-hidden="true" className="size-4" />
-                Change cultivar match
-              </Button>
-            </div>
+            {onOpenReview ? (
+              <div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    onOpenChange(false);
+                    onOpenReview(row);
+                  }}
+                >
+                  <Link2 aria-hidden="true" className="size-4" />
+                  Change cultivar match
+                </Button>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </SheetContent>
