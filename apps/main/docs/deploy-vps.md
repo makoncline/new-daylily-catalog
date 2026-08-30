@@ -89,12 +89,14 @@ Non-secrets:
 - `SENTRY_ENVIRONMENT` set to `production`
 - `NEXT_PUBLIC_POSTHOG_KEY`
 - `NEXT_PUBLIC_POSTHOG_HOST`
+- `PUBLIC_STOREFRONT_SELLER_IDS` set to the approved seller IDs, initially `3`
 
 Secrets:
 
 - `TURSO_DATABASE_AUTH_TOKEN` when `DATABASE_URL` uses `libsql://`
 - `CLERK_SECRET_KEY`
 - `CLERK_WEBHOOK_SECRET`
+- `STOREFRONT_INQUIRY_TOKENS_JSON`
 - `STRIPE_SECRET_KEY`
 - `STRIPE_WEBHOOK_SECRET`
 - `AWS_ACCESS_KEY_ID`
@@ -103,6 +105,45 @@ Secrets:
 Optional:
 
 - `SENTRY_AUTH_TOKEN`
+
+## Storefront Inquiry Receiver
+
+Approved storefront services submit contact and cart inquiries to:
+
+```text
+POST /api/v1/storefronts/{sellerId}/inquiries
+```
+
+Set `STOREFRONT_INQUIRY_TOKENS_JSON` in the Daylily Catalog service. The value
+is a JSON object that maps each approved seller ID to a unique, high-entropy
+token. Each token must be unpadded base64url text for at least 32 random bytes.
+This format has at least 43 characters and uses only letters, numbers,
+underscores, and hyphens. For example:
+
+```json
+{ "3": "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE" }
+```
+
+The token in this example shows the required format only. Do not use it in a
+deployment.
+
+Set only that seller's token as `STOREFRONT_INQUIRY_TOKEN` in its storefront
+service. The storefront sends the token as `Authorization: Bearer <token>`. Do
+not expose the token to browser code.
+
+The route seller ID is authoritative. The receiver maps cart lines to that
+seller and uses the existing public-listing checks before it sends email. It
+returns `404` before it reads the request body when the seller is not in
+`PUBLIC_STOREFRONT_SELLER_IDS`. An approved seller without a configured token
+returns `503`. The token map must not contain sellers outside the allowlist.
+Invalid token maps fail closed. An authenticated storefront can send one client
+address in `X-Storefront-Client-IP`. The receiver ignores public
+`X-Forwarded-For`, `X-Real-IP`, and `CF-Connecting-IP` values and forwards only
+the dedicated header to the inquiry rate limiter.
+
+All receiver responses use `Cache-Control: no-store`. A successful request
+returns HTTP 202 with only `id` and `acceptedAt` fields. A rate-limited request
+returns HTTP 429 with `Retry-After` in seconds.
 
 ## Stripe Membership Catalog
 

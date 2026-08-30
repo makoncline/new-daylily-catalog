@@ -1,11 +1,9 @@
 import { createHash } from "node:crypto";
 import { TRPCError } from "@trpc/server";
 import { db as appDb } from "@/server/db";
+import { PUBLIC_INQUIRY_RATE_LIMIT } from "@/server/services/public-inquiry-rate-limit-config";
 
-export const PUBLIC_INQUIRY_RATE_LIMIT = {
-  maxRequests: 5,
-  windowMs: 15 * 60 * 1000,
-} as const;
+export { PUBLIC_INQUIRY_RATE_LIMIT } from "@/server/services/public-inquiry-rate-limit-config";
 
 interface RateLimitBucket {
   timestamps: number[];
