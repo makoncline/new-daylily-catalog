@@ -55,7 +55,8 @@ Required environment setup:
 - Internal app port: `3000`
 - Container start command: `node server.js`
 - Container bind address: `0.0.0.0`
-- Recommended database mode: Turso (`DATABASE_URL=libsql://...`)
+- Database mode: Turso primary plus one embedded replica
+- Persistent data path: `/data`
 
 ## Hostname Strategy
 
@@ -80,17 +81,22 @@ Non-secrets:
 - `NEXT_PUBLIC_CLOUDFLARE_URL`
 - `AWS_REGION`
 - `AWS_BUCKET_NAME`
-- `DATABASE_URL`
+- `DATABASE_URL` set to the remote `libsql://...` Turso URL
+- `TURSO_EMBEDDED_REPLICA_URL` set to `file:/data/turso-replica.db`
+- `TURSO_EMBEDDED_REPLICA_SYNC_INTERVAL_SECONDS`
+- `PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS`
 - `NEXT_PUBLIC_SENTRY_ENABLED`
 - `SENTRY_ENVIRONMENT` set to `production`
 - `NEXT_PUBLIC_POSTHOG_KEY`
 - `NEXT_PUBLIC_POSTHOG_HOST`
+- `PUBLIC_STOREFRONT_SELLER_IDS` set to the approved seller IDs, initially `3`
 
 Secrets:
 
 - `TURSO_DATABASE_AUTH_TOKEN` when `DATABASE_URL` uses `libsql://`
 - `CLERK_SECRET_KEY`
 - `CLERK_WEBHOOK_SECRET`
+- `STOREFRONT_INQUIRY_TOKENS_JSON`
 - `STRIPE_SECRET_KEY`
 - `STRIPE_WEBHOOK_SECRET`
 - `AWS_ACCESS_KEY_ID`
@@ -99,6 +105,45 @@ Secrets:
 Optional:
 
 - `SENTRY_AUTH_TOKEN`
+
+## Storefront Inquiry Receiver
+
+Approved storefront services submit contact and cart inquiries to:
+
+```text
+POST /api/v1/storefronts/{sellerId}/inquiries
+```
+
+Set `STOREFRONT_INQUIRY_TOKENS_JSON` in the Daylily Catalog service. The value
+is a JSON object that maps each approved seller ID to a unique, high-entropy
+token. Each token must be unpadded base64url text for at least 32 random bytes.
+This format has at least 43 characters and uses only letters, numbers,
+underscores, and hyphens. For example:
+
+```json
+{ "3": "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE" }
+```
+
+The token in this example shows the required format only. Do not use it in a
+deployment.
+
+Set only that seller's token as `STOREFRONT_INQUIRY_TOKEN` in its storefront
+service. The storefront sends the token as `Authorization: Bearer <token>`. Do
+not expose the token to browser code.
+
+The route seller ID is authoritative. The receiver maps cart lines to that
+seller and uses the existing public-listing checks before it sends email. It
+returns `404` before it reads the request body when the seller is not in
+`PUBLIC_STOREFRONT_SELLER_IDS`. An approved seller without a configured token
+returns `503`. The token map must not contain sellers outside the allowlist.
+Invalid token maps fail closed. An authenticated storefront can send one client
+address in `X-Storefront-Client-IP`. The receiver ignores public
+`X-Forwarded-For`, `X-Real-IP`, and `CF-Connecting-IP` values and forwards only
+the dedicated header to the inquiry rate limiter.
+
+All receiver responses use `Cache-Control: no-store`. A successful request
+returns HTTP 202 with only `id` and `acceptedAt` fields. A rate-limited request
+returns HTTP 429 with `Retry-After` in seconds.
 
 ## Stripe Membership Catalog
 
@@ -118,14 +163,6 @@ To change the monthly amount, create a new price and transfer the lookup key to
 it. Then configure its yearly upsell. To change only the yearly amount, create a
 new yearly price and select it as the monthly price's upsell. Existing
 subscriptions stay on their current prices.
-
-### Optional local SQLite runtime mode
-
-If you choose local SQLite instead of Turso, set:
-
-- `DATABASE_URL=file:/data/daylilycatalog.sqlite`
-
-And mount a persistent volume at `/data`.
 
 ## Reverse Proxy Notes
 
@@ -161,13 +198,17 @@ Caddy should terminate HTTPS and proxy plain HTTP to the container on port `3000
 ## Volumes
 
 - Persistent Next.js runtime cache:
-  - `./next-cache:/app/.next/cache`
-- Optional local SQLite deployment: mount a persistent volume to `/data`
+  - `./next-cache:/app/apps/main/.next/cache`
+- Persistent embedded Turso replica and search indexes:
+  - `./data:/data`
 
-Create the cache directory on the server before first deploy so the non-root app user can write to it:
+Create both directories on the server before first deploy. The container runs as
+UID and GID 1001 and must be able to write to both mounts.
 
 ```sh
-install -d -o 1001 -g 1001 /srv/stacks/daylilycatalog/next-cache
+install -d -o 1001 -g 1001 \
+  /srv/stacks/daylilycatalog/data \
+  /srv/stacks/daylilycatalog/next-cache
 ```
 
 ## External Dependencies
@@ -236,7 +277,8 @@ services:
     env_file:
       - .env
     volumes:
-      - ./next-cache:/app/.next/cache
+      - ./data:/data
+      - ./next-cache:/app/apps/main/.next/cache
     networks:
       - edge
 
@@ -246,13 +288,6 @@ networks:
 ```
 
 Committed source: `deploy/vps/compose.yaml`
-
-If you run local SQLite instead of Turso, add:
-
-```yaml
-    volumes:
-      - ./data:/data
-```
 
 ## Caddy Route
 
@@ -275,10 +310,12 @@ Use the canonical [production-like local Docker smoke workflow](./prod-like-loca
 ## Deploy Steps
 
 1. Place the repo or deployment files at `/srv/stacks/daylilycatalog`.
-2. Create the cache directory:
+2. Create the persistent data and cache directories:
 
 ```sh
-install -d -o 1001 -g 1001 /srv/stacks/daylilycatalog/next-cache
+install -d -o 1001 -g 1001 \
+  /srv/stacks/daylilycatalog/data \
+  /srv/stacks/daylilycatalog/next-cache
 ```
 
 3. Copy `deploy/vps/compose.yaml` to `/srv/stacks/daylilycatalog/compose.yaml`.
@@ -308,7 +345,7 @@ Rollback is just an image tag change:
 
 ## Cache Notes
 
-`./next-cache:/app/.next/cache` keeps ISR and other Next runtime cache data across container recreations.
+`./next-cache:/app/apps/main/.next/cache` keeps ISR and other Next runtime cache data across container recreations.
 
 Caveats:
 

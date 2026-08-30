@@ -24,10 +24,14 @@ export const env = createEnv({
     TURSO_EMBEDDED_REPLICA_URL: z.string().optional(),
     TURSO_EMBEDDED_REPLICA_SYNC_INTERVAL_SECONDS: z.string().optional(),
     PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS: z.string().optional(),
+    PUBLIC_STOREFRONT_ARTIFACT_ROOT: z.string().min(1).optional(),
+    PUBLIC_STOREFRONT_SELLER_IDS: z.string().min(1).optional(),
+    STOREFRONT_ARTIFACT_REFRESH_TOKEN: z.string().optional(),
     VERCEL_AUTOMATION_BYPASS_SECRET: z.string().optional(),
     CLERK_SECRET_KEY: z.string().optional(),
     CLERK_WEBHOOK_SECRET: z.string().optional(),
     DAYLILY_MCP_OAUTH_CLIENT_ID: z.string().optional(),
+    STOREFRONT_INQUIRY_TOKENS_JSON: z.string().optional(),
     STRIPE_SECRET_KEY: z.string().optional(),
     STRIPE_WEBHOOK_SECRET: z.string().optional(),
     AWS_ACCESS_KEY_ID: z.string().optional(),
@@ -56,11 +60,17 @@ export const env = createEnv({
       process.env.TURSO_EMBEDDED_REPLICA_SYNC_INTERVAL_SECONDS,
     PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS:
       process.env.PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS,
+    PUBLIC_STOREFRONT_ARTIFACT_ROOT:
+      process.env.PUBLIC_STOREFRONT_ARTIFACT_ROOT,
+    PUBLIC_STOREFRONT_SELLER_IDS: process.env.PUBLIC_STOREFRONT_SELLER_IDS,
+    STOREFRONT_ARTIFACT_REFRESH_TOKEN:
+      process.env.STOREFRONT_ARTIFACT_REFRESH_TOKEN,
     VERCEL_AUTOMATION_BYPASS_SECRET:
       process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
     CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY,
     CLERK_WEBHOOK_SECRET: process.env.CLERK_WEBHOOK_SECRET,
     DAYLILY_MCP_OAUTH_CLIENT_ID: process.env.DAYLILY_MCP_OAUTH_CLIENT_ID,
+    STOREFRONT_INQUIRY_TOKENS_JSON: process.env.STOREFRONT_INQUIRY_TOKENS_JSON,
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:
       process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
     NEXT_PUBLIC_CLOUDFLARE_URL: process.env.NEXT_PUBLIC_CLOUDFLARE_URL,
@@ -167,6 +177,21 @@ if (!process.env.SKIP_ENV_VALIDATION) {
     ) {
       throw new Error(
         "PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS must be a non-negative integer.",
+      );
+    }
+  }
+
+  if (env.PUBLIC_STOREFRONT_SELLER_IDS) {
+    const sellerIds = env.PUBLIC_STOREFRONT_SELLER_IDS.split(",").map((value) =>
+      value.trim(),
+    );
+
+    if (
+      sellerIds.some((sellerId) => sellerId.length === 0) ||
+      new Set(sellerIds).size !== sellerIds.length
+    ) {
+      throw new Error(
+        "PUBLIC_STOREFRONT_SELLER_IDS must contain unique, nonempty comma-separated IDs.",
       );
     }
   }

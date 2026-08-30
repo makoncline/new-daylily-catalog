@@ -1,0 +1,82 @@
+@import "@daylily-catalog/ui/styles.css";
+
+@source "../**/*.{ts,tsx}";
+
+:root {
+  --background: oklch(0.982 0.012 85);
+  --foreground: oklch(0.225 0.025 58);
+  --card: oklch(0.997 0.006 85);
+  --card-foreground: oklch(0.225 0.025 58);
+  --popover: oklch(0.997 0.006 85);
+  --popover-foreground: oklch(0.225 0.025 58);
+  --primary: oklch(0.43 0.12 38);
+  --primary-foreground: oklch(0.985 0.01 85);
+  --secondary: oklch(0.91 0.035 85);
+  --secondary-foreground: oklch(0.28 0.04 58);
+  --muted: oklch(0.94 0.018 85);
+  --muted-foreground: oklch(0.46 0.025 58);
+  --accent: oklch(0.9 0.055 70);
+  --accent-foreground: oklch(0.25 0.04 52);
+  --border: oklch(0.84 0.028 78);
+  --input: oklch(0.84 0.028 78);
+  --ring: oklch(0.56 0.12 42);
+  --radius: 0.75rem;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  background-image:
+    radial-gradient(
+      circle at 15% -10%,
+      color-mix(in oklab, var(--accent) 32%, transparent),
+      transparent 34rem
+    ),
+    linear-gradient(
+      to bottom,
+      var(--background),
+      color-mix(in oklab, var(--background) 94%, white)
+    );
+}
+
+::selection {
+  background: color-mix(in oklab, var(--primary) 25%, transparent);
+}
+
+.skip-link {
+  position: fixed;
+  inset-inline-start: 1rem;
+  inset-block-start: 1rem;
+  z-index: 100;
+  transform: translateY(-200%);
+  border-radius: var(--radius);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  padding: 0.75rem 1rem;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+.font-serif {
+  font-family: Georgia, Cambria, "Times New Roman", serif;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

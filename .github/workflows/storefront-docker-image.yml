@@ -1,0 +1,221 @@
+name: Storefront Docker Image
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: storefront-docker-image-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  scope:
+    name: Detect storefront changes
+    runs-on: ubuntu-latest
+    outputs:
+      storefront: ${{ steps.affected.outputs.storefront }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - name: Classify changed paths
+        id: affected
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            node .github/scripts/affected-apps.mjs --force storefront --path .github/workflows/storefront-docker-image.yml
+          elif [ "$EVENT_NAME" = "pull_request" ]; then
+            node .github/scripts/affected-apps.mjs --base "$BASE_SHA" --head "$HEAD_SHA" --merge-base
+          else
+            node .github/scripts/affected-apps.mjs --base "$BASE_SHA" --head "$HEAD_SHA"
+          fi
+
+  verify-and-push:
+    name: Build and verify storefront image
+    runs-on: ubuntu-latest
+    needs: scope
+    if: needs.scope.outputs.storefront == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork != true)
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute image metadata
+        id: meta
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.head_ref || github.ref_name }}
+        run: |
+          IMAGE_REPO="ghcr.io/makoncline/daylily-storefront"
+          SHORT_SHA="$(echo '${{ github.sha }}' | cut -c1-8)"
+
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            IMMUTABLE_TAG="pr-${{ github.event.pull_request.number }}-${SHORT_SHA}"
+            SHOULD_PUSH="false"
+            CACHE_TO=""
+          elif [ "$EVENT_NAME" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            IMMUTABLE_TAG="main-${SHORT_SHA}"
+            SHOULD_PUSH="true"
+            CACHE_TO="type=gha,scope=storefront,mode=max"
+          else
+            IMMUTABLE_TAG="manual-${SHORT_SHA}"
+            SHOULD_PUSH="false"
+            CACHE_TO=""
+          fi
+
+          {
+            echo "image_repo=${IMAGE_REPO}"
+            echo "image_ref=${IMAGE_REPO}:${IMMUTABLE_TAG}"
+            echo "immutable_tag=${IMMUTABLE_TAG}"
+            echo "should_push=${SHOULD_PUSH}"
+            echo "cache_to=${CACHE_TO}"
+            echo "labels<<EOF"
+            echo "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}"
+            echo "org.opencontainers.image.revision=${{ github.sha }}"
+            echo "org.opencontainers.image.ref.name=${REF_NAME}"
+            echo "org.opencontainers.image.version=${IMMUTABLE_TAG}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Enable corepack
+        run: corepack enable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm fetch
+      - run: pnpm install --frozen-lockfile --prefer-offline
+      - name: Verify storefront package exists
+        run: pnpm --filter @daylily-catalog/storefront --fail-if-no-match exec node --version
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build image for verification
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/storefront/Dockerfile
+          load: true
+          push: false
+          tags: ${{ steps.meta.outputs.image_ref }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=storefront
+          cache-to: ${{ steps.meta.outputs.cache_to }}
+
+      - name: Start production-contract fixture API
+        env:
+          STOREFRONT_FIXTURE_INQUIRY_TOKEN: AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE
+        run: |
+          fixture_tls="$RUNNER_TEMP/storefront-fixture-tls"
+          mkdir --parents "$fixture_tls"
+          openssl req -x509 -newkey rsa:2048 -nodes -sha256 -days 1 \
+            -subj "/CN=127.0.0.1" \
+            -addext "subjectAltName = IP:127.0.0.1" \
+            -keyout "$fixture_tls/private-key.pem" \
+            -out "$fixture_tls/certificate.pem"
+          chmod 0600 "$fixture_tls/private-key.pem"
+
+          STOREFRONT_FIXTURE_CERTIFICATE_PATH=/certs/certificate.pem \
+          STOREFRONT_FIXTURE_PRIVATE_KEY_PATH=/certs/private-key.pem \
+          docker run --detach --rm \
+            --name daylily-storefront-api-fixture-ci \
+            --network host \
+            --volume "$GITHUB_WORKSPACE:/workspace:ro" \
+            --volume "$fixture_tls:/certs:ro" \
+            --env STOREFRONT_FIXTURE_CERTIFICATE_PATH \
+            --env STOREFRONT_FIXTURE_INQUIRY_TOKEN \
+            --env STOREFRONT_FIXTURE_PRIVATE_KEY_PATH \
+            node:24-bookworm-slim \
+            node --experimental-strip-types /workspace/apps/storefront/tests/support/storefront-api-fixture-server.mjs
+
+          for attempt in {1..30}; do
+            if curl --fail --silent --show-error \
+              --cacert "$fixture_tls/certificate.pem" \
+              https://127.0.0.1:3443/health; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs daylily-storefront-api-fixture-ci
+          exit 1
+
+      - name: Start storefront container
+        env:
+          IMAGE_REF: ${{ steps.meta.outputs.image_ref }}
+          NODE_EXTRA_CA_CERTS: /certs/certificate.pem
+          STOREFRONT_API_BASE_URL: https://127.0.0.1:3443
+          STOREFRONT_DATA_SOURCE: remote
+          STOREFRONT_HOSTNAME: rolling-oaks-daylilies.makon.dev
+          STOREFRONT_INQUIRY_ADAPTER: remote
+          STOREFRONT_INQUIRY_TOKEN: AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE
+          STOREFRONT_SELLER_ID: "3"
+          STOREFRONT_SITE_KEY: rolling-oaks
+        run: |
+          docker run --detach --rm \
+            --name daylily-storefront-ci \
+            --network host \
+            --volume "$RUNNER_TEMP/storefront-fixture-tls:/certs:ro" \
+            --env NODE_EXTRA_CA_CERTS \
+            --env STOREFRONT_API_BASE_URL \
+            --env STOREFRONT_DATA_SOURCE \
+            --env STOREFRONT_HOSTNAME \
+            --env STOREFRONT_INQUIRY_ADAPTER \
+            --env STOREFRONT_INQUIRY_TOKEN \
+            --env STOREFRONT_SELLER_ID \
+            --env STOREFRONT_SITE_KEY \
+            "$IMAGE_REF"
+
+      - name: Wait for storefront health
+        run: |
+          for attempt in {1..30}; do
+            if curl --fail --silent --show-error http://127.0.0.1:3000/api/health; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs daylily-storefront-ci
+          exit 1
+
+      - name: Install Playwright browser
+        run: pnpm --filter @daylily-catalog/storefront --fail-if-no-match exec playwright install --with-deps chromium
+      - name: Run storefront end-to-end tests
+        env:
+          BASE_URL: http://127.0.0.1:3000
+        run: pnpm --filter @daylily-catalog/storefront --fail-if-no-match exec playwright test
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: storefront-playwright-report
+          path: apps/storefront/playwright-report
+          retention-days: 30
+      - name: Stop storefront test containers
+        if: always()
+        run: docker rm --force daylily-storefront-ci daylily-storefront-api-fixture-ci || true
+
+      - name: Log in to GHCR
+        if: steps.meta.outputs.should_push == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish verified image
+        if: steps.meta.outputs.should_push == 'true'
+        env:
+          IMAGE_REPO: ${{ steps.meta.outputs.image_repo }}
+          IMAGE_REF: ${{ steps.meta.outputs.image_ref }}
+        run: |
+          docker push "$IMAGE_REF"
+          docker tag "$IMAGE_REF" "$IMAGE_REPO:latest"
+          docker push "$IMAGE_REPO:latest"

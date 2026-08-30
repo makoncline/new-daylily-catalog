@@ -14,8 +14,8 @@ search responses. The app renders deterministic responses on an origin miss,
 and Cloudflare serves the cached response for normal traffic and crawler
 traffic.
 
-The successful-response TTL lives in one app constant and is sent as a
-Cloudflare-only response header:
+The standard successful-response TTL lives in one app constant and is sent as
+a Cloudflare-only response header:
 
 ```http
 Cloudflare-CDN-Cache-Control: public, max-age=43200, stale-while-revalidate=604800, stale-if-error=86400
@@ -30,6 +30,39 @@ That means:
 - The normal `Cache-Control` header can stay controlled by Next. For these
   dynamic App Router routes, Next still emits browser/origin-safe no-store
   directives.
+
+The public storefront snapshot API is an explicit daily-freshness exception. It
+owns these headers for successful `200` and `304` responses:
+
+```http
+Cache-Control: public, max-age=0, must-revalidate
+Cloudflare-CDN-Cache-Control: public, max-age=86400, stale-while-revalidate=604800, stale-if-error=86400
+Cache-Tag: daylily-storefront-data
+ETag: W/"<sha-256-base64url>"
+```
+
+The fresh window is 24 hours. The established seven-day revalidation window and
+one-day origin-error window stay unchanged. The request route reads only the
+last atomically published storefront artifact. A separate one-shot process
+builds that artifact from a completed replica sync at least every 24 hours. An
+initial build is required before the route can return `200`. The storefront
+health contract marks a usable artifact degraded after 26 hours.
+
+Artifact age and edge age are independent. A successful publication must purge
+the `daylily-storefront-data` tag in the API zone. It must then purge the
+affected storefront zone's `daylily-storefront-public-html` tag. Without that
+ordered purge, a quiet API URL can retain a 24-hour edge entry and then use the
+seven-day revalidation window after caching an artifact that was already almost
+24 hours old. Users can receive data that is almost nine days old in the worst
+case. Main-like stale protection is accepted only with this publish-time
+invalidation.
+
+The future 24-hour job owns the sync, atomic publication, API-zone tag purge,
+storefront-zone tag purge, and failure alert. It must not purge after a failed
+publication. This branch defines the contract but does not add credentials, a
+scheduler, or live purge calls. Cloudflare documents the tag header and purge
+operation in its
+[purge-by-tag guidance](https://developers.cloudflare.com/cache/how-to/purge-cache/purge-by-tags/).
 
 Cloudflare still owns request eligibility. It decides which requests may use the
 app's CDN cache directive: anonymous public document requests only. This keeps
@@ -47,7 +80,7 @@ The current official guidance points to this shape:
   <https://nextjs.org/docs/app/guides/self-hosting>
 - Next CDN docs say static and ISR pages are cacheable from standard
   `Cache-Control`, while dynamic pages intentionally emit `private, no-cache,
-  no-store, max-age=0, must-revalidate`. The docs also warn that CDN cache and
+no-store, max-age=0, must-revalidate`. The docs also warn that CDN cache and
   Next's internal revalidation are separate systems, so CDN purges are required
   when on-demand revalidation must be instant.
   <https://nextjs.org/docs/app/guides/cdn-caching>
@@ -102,8 +135,9 @@ In the app:
   responses use the same app-owned CDN policy. Cloudflare's default full-URL
   key keeps each query-string combination separate.
 
-The public read path still uses `replicaDb` where the read model supports it, so
-origin misses stay cheap and do not hit live Turso for normal public reads.
+Most public read paths still use `replicaDb` where the read model supports it.
+The storefront API is different: origin misses read a published file and never
+query Prisma or Turso.
 
 ## Routes In Scope
 
@@ -128,6 +162,7 @@ Cache successful responses from these public read APIs, keyed by the full URL:
 
 - `/api/v1/cultivars/search`
 - `/api/v1/cultivars/facets`
+- `/api/v1/storefronts/*`
 
 Leave these out of this rollout:
 
@@ -137,7 +172,7 @@ Leave these out of this rollout:
 - auth, onboarding, subscription, webhook, MCP, well-known, and static asset
   routes
 - App Router RSC requests: `_rsc` query, `RSC: 1`, or `Accept:
-  text/x-component`
+text/x-component`
 - browser prefetch requests
 - requests with authenticated Clerk/session cookies or an `Authorization`
   header
@@ -278,7 +313,7 @@ Local origin proof:
 - `/`, `/start-membership`, `/cultivars`, filtered `/cultivars?...`, and the
   established public catalog/cultivar/seller routes returned
   `Cloudflare-CDN-Cache-Control: public, max-age=43200,
-  stale-while-revalidate=604800, stale-if-error=86400`.
+stale-while-revalidate=604800, stale-if-error=86400`.
 - Authorization and Clerk `__session` and `__session_<suffix>` requests omitted
   that header, while an anonymous analytics cookie retained it.
 - Successful cultivar search and facet JSON responses returned the same CDN

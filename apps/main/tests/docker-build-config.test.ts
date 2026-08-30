@@ -6,6 +6,36 @@ import { describe, expect, it } from "vitest";
 const repoRoot = path.resolve(process.cwd(), "../..");
 
 describe("Docker build cache and observability boundaries", () => {
+  it("keeps the storefront artifact location and seller allowlist in the runtime contract", () => {
+    const envSource = readFileSync(
+      path.join(repoRoot, "apps/main/src/env.js"),
+      "utf8",
+    );
+    const localTemplate = readFileSync(
+      path.join(repoRoot, "apps/main/.env.example"),
+      "utf8",
+    );
+    const vpsTemplate = readFileSync(
+      path.join(repoRoot, "apps/main/deploy/vps/.env.example"),
+      "utf8",
+    );
+    const turboConfig = JSON.parse(
+      readFileSync(path.join(repoRoot, "turbo.json"), "utf8"),
+    );
+
+    for (const name of [
+      "PUBLIC_STOREFRONT_ARTIFACT_ROOT",
+      "PUBLIC_STOREFRONT_SELLER_IDS",
+      "STOREFRONT_ARTIFACT_REFRESH_TOKEN",
+    ]) {
+      expect(envSource).toContain(`${name}: z.string()`);
+      expect(envSource).toContain(`process.env.${name}`);
+      expect(localTemplate).toContain(`${name}=`);
+      expect(vpsTemplate).toContain(`${name}=`);
+      expect(turboConfig.globalPassThroughEnv).toContain(name);
+    }
+  });
+
   it("keeps standalone output for Docker and delegates Vercel builds", () => {
     const appRoot = path.join(repoRoot, "apps/main");
     const turboConfig = JSON.parse(
@@ -66,6 +96,24 @@ describe("Docker build cache and observability boundaries", () => {
     ).toContain("apps/*/Dockerfile");
   });
 
+  it("keeps package-local storefront contract dependencies in clean builder stages", () => {
+    const dockerfile = readFileSync(
+      path.join(repoRoot, "apps/main/Dockerfile"),
+      "utf8",
+    );
+    const contractPackage = JSON.parse(
+      readFileSync(
+        path.join(repoRoot, "packages/storefront-contract/package.json"),
+        "utf8",
+      ),
+    );
+
+    expect(contractPackage.dependencies).toHaveProperty("zod");
+    expect(dockerfile).toContain(
+      "COPY --from=deps /app/packages/storefront-contract/node_modules ./packages/storefront-contract/node_modules",
+    );
+  });
+
   it("keeps Sentry build environments distinct and disables sourcemaps only for non-deployed PR images", () => {
     const workflow = readFileSync(
       path.join(repoRoot, ".github/workflows/pr-docker-image.yml"),
@@ -101,6 +149,10 @@ describe("Docker build cache and observability boundaries", () => {
       path.join(repoRoot, "apps/main/Dockerfile"),
       "utf8",
     );
+    const dockerignore = readFileSync(
+      path.join(repoRoot, ".dockerignore"),
+      "utf8",
+    );
     const appPackage = JSON.parse(
       readFileSync(path.join(repoRoot, "apps/main/package.json"), "utf8"),
     );
@@ -119,8 +171,30 @@ describe("Docker build cache and observability boundaries", () => {
     expect(dockerfile).toContain(
       "COPY --from=runtime-deps --chown=nextjs:nodejs /runtime/node_modules ./node_modules",
     );
+    expect(dockerfile).not.toContain(
+      "build-public-search-index.mjs ./apps/main/scripts/build-public-search-index.mjs",
+    );
     expect(dockerfile).toContain(
-      "sync-public-search-source-replica.mjs ./apps/main/scripts/sync-public-search-source-replica.mjs",
+      "build-public-search-index-target.mjs ./apps/main/scripts/build-public-search-index-target.mjs",
+    );
+    expect(dockerfile).toContain(
+      "target-worker-stream.js ./apps/main/src/server/target-worker-stream.js",
+    );
+    expect(dockerfile).toContain(
+      "build-public-search-index.js ./apps/main/src/server/search/build-public-search-index.js",
+    );
+    expect(dockerfile).not.toContain("sync-public-search-source-replica.mjs");
+    expect(dockerfile).toContain(
+      "build-public-parentage-index.mjs ./apps/main/scripts/build-public-parentage-index.mjs",
+    );
+    expect(dockerfile).toContain(
+      "build-public-storefront-artifacts-target.mjs ./apps/main/scripts/build-public-storefront-artifacts-target.mjs",
+    );
+    expect(dockerfile).toContain(
+      "storefront-artifact-refresh-watchdog.mjs ./apps/main/scripts/storefront-artifact-refresh-watchdog.mjs",
+    );
+    expect(dockerfile).toContain(
+      "refresh-public-storefront-artifacts.mjs ./apps/main/scripts/refresh-public-storefront-artifacts.mjs",
     );
     expect(dockerfile).not.toContain(
       "/runtime/node_modules ./apps/main/node_modules",
@@ -130,6 +204,15 @@ describe("Docker build cache and observability boundaries", () => {
     );
     expect(dockerfile).toContain(
       'for (const dependency of ["@aws-sdk/client-s3", "@prisma/client", "@prisma/adapter-libsql", "@libsql/client"]) serverRequire(dependency)',
+    );
+    expect(dockerfile).toContain(
+      'const storefrontBuilderRequire = createRequire("/app/apps/main/scripts/build-public-storefront-artifacts.mjs")',
+    );
+    expect(dockerfile).toContain(
+      'for (const dependency of ["@daylily-catalog/storefront-contract", "node-html-parser"]) storefrontBuilderRequire(dependency)',
+    );
+    expect(dockerfile).toContain(
+      'await import("file:///app/apps/main/scripts/build-public-storefront-artifacts.mjs")',
     );
     expect(dockerfile).toContain('const sharp = serverRequire("sharp")');
     expect(dockerfile).toContain("Object.keys(require.cache).find");
@@ -144,12 +227,44 @@ describe("Docker build cache and observability boundaries", () => {
     expect(dockerfile).toContain(
       'cp -a "$source_modules/.prisma" "$runtime_modules/.prisma"',
     );
+    expect(dockerfile).toContain("openssl ca-certificates sqlite3 tini");
+    expect(dockerfile).toContain('ENTRYPOINT ["/usr/bin/tini", "--"]');
+    expect(dockerfile).toContain(
+      "FROM base AS storefront-refresh-watchdog-test",
+    );
+    expect(dockerfile).toContain(
+      "storefront-refresh-watchdog-container-hang.mjs",
+    );
+    const compose = readFileSync(
+      path.join(repoRoot, "apps/main/deploy/vps/compose.yaml"),
+      "utf8",
+    );
+    expect(compose).toContain("restart: unless-stopped");
+    const workflow = readFileSync(
+      path.join(repoRoot, ".github/workflows/pr-docker-image.yml"),
+      "utf8",
+    );
+    expect(workflow).toContain("--target storefront-refresh-watchdog-test");
+    expect(workflow).toContain(
+      'if [ "$watchdog_elapsed_seconds" -ge 5 ]; then',
+    );
+    expect(workflow).toContain('if [ "$watchdog_status" -eq 124 ]; then');
+    expect(workflow).toContain('if [ "$watchdog_status" -ne 137 ]; then');
+    expect(workflow).toContain("trap cleanup_watchdog_container EXIT");
+    expect(dockerignore).toContain(
+      "!apps/main/tests/fixtures/storefront-refresh-watchdog-container-hang.mjs",
+    );
     expect(runtimePackage.dependencies).toEqual({
       "@aws-sdk/client-s3": appPackage.dependencies["@aws-sdk/client-s3"],
+      "@daylily-catalog/storefront-contract":
+        appPackage.dependencies["@daylily-catalog/storefront-contract"],
       "@libsql/client": appPackage.dependencies["@libsql/client"],
+      "@prisma/adapter-better-sqlite3":
+        appPackage.dependencies["@prisma/adapter-better-sqlite3"],
       "@prisma/adapter-libsql":
         appPackage.dependencies["@prisma/adapter-libsql"],
       "@prisma/client": appPackage.dependencies["@prisma/client"],
+      "node-html-parser": appPackage.dependencies["node-html-parser"],
       sharp: appPackage.dependencies.sharp,
     });
   });

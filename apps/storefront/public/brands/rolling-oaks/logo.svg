@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" role="img" aria-labelledby="title desc">
+  <title id="title">Rolling Oaks Daylilies</title>
+  <desc id="desc">A daylily bloom framed by oak leaves.</desc>
+  <rect width="640" height="640" rx="96" fill="#f8f0df"/>
+  <circle cx="320" cy="285" r="198" fill="#ead7b4"/>
+  <g fill="none" stroke="#24412d" stroke-width="18" stroke-linecap="round">
+    <path d="M111 456c91-118 152-121 209-70 57-51 118-48 209 70"/>
+    <path d="M164 427c-17-70 15-126 72-161M476 427c17-70-15-126-72-161"/>
+  </g>
+  <g fill="#9d4c2e" stroke="#713620" stroke-width="7">
+    <ellipse cx="320" cy="270" rx="53" ry="153"/>
+    <ellipse cx="320" cy="270" rx="53" ry="153" transform="rotate(60 320 270)"/>
+    <ellipse cx="320" cy="270" rx="53" ry="153" transform="rotate(120 320 270)"/>
+  </g>
+  <circle cx="320" cy="270" r="47" fill="#efbf62"/>
+  <g fill="#4c7047">
+    <ellipse cx="186" cy="360" rx="28" ry="63" transform="rotate(-42 186 360)"/>
+    <ellipse cx="454" cy="360" rx="28" ry="63" transform="rotate(42 454 360)"/>
+  </g>
+  <text x="320" y="558" text-anchor="middle" font-family="Georgia,serif" font-size="42" fill="#24412d">Rolling Oaks</text>
+</svg>

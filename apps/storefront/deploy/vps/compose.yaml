@@ -1,0 +1,16 @@
+services:
+  rolling-oaks-storefront:
+    image: ghcr.io/makoncline/daylily-storefront:${IMAGE_TAG}
+    restart: unless-stopped
+    mem_limit: 700m
+    memswap_limit: 700m
+    env_file:
+      - .env
+    environment:
+      NODE_OPTIONS: --max-old-space-size=512
+    networks:
+      - edge
+
+networks:
+  edge:
+    external: true

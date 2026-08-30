@@ -1,0 +1,16 @@
+# This example is inert. Do not install it until the owner gate in README.md passes.
+[Unit]
+Description=Refresh Daylily storefront artifacts and purge affected caches
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=6h
+StartLimitBurst=4
+
+[Service]
+Type=oneshot
+TimeoutStartSec=30m
+EnvironmentFile=/srv/stacks/daylilycatalog/.env
+EnvironmentFile=/srv/stacks/daylilycatalog/storefront-artifact-refresh.env
+ExecStart=/usr/bin/docker compose --project-directory /srv/stacks/daylilycatalog exec -T --env PUBLIC_STOREFRONT_SELLER_IDS --env STOREFRONT_ARTIFACT_REFRESH_TOKEN --env STOREFRONT_API_CLOUDFLARE_ZONE_ID --env STOREFRONT_API_CLOUDFLARE_CACHE_PURGE_TOKEN --env STOREFRONT_SITE_CLOUDFLARE_PURGE_TARGETS_JSON app node apps/main/scripts/refresh-public-storefront-artifacts.mjs
+Restart=on-failure
+RestartSec=15m

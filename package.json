@@ -6,6 +6,7 @@
   "packageManager": "pnpm@9.12.0",
   "scripts": {
     "main": "pnpm --filter @daylily-catalog/main",
+    "storefront": "pnpm --filter @daylily-catalog/storefront",
     "dev": "TURBO_CACHE_DIR=.turbo turbo run dev --filter=@daylily-catalog/main",
     "build": "TURBO_CACHE_DIR=.turbo turbo run build --filter=@daylily-catalog/main",
     "build:next": "TURBO_CACHE_DIR=.turbo turbo run build:next --filter=@daylily-catalog/main",

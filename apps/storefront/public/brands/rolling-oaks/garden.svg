@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Rolling Oaks garden</title>
+  <desc id="desc">A stylized garden filled with warm daylily blooms.</desc>
+  <defs>
+    <linearGradient id="sky" x2="0" y2="1"><stop stop-color="#e9e0c9"/><stop offset="1" stop-color="#f9f4e8"/></linearGradient>
+    <linearGradient id="field" x2="0" y2="1"><stop stop-color="#65835b"/><stop offset="1" stop-color="#263f2c"/></linearGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#sky)"/>
+  <path d="M0 410C280 350 430 470 690 402c259-68 486-41 910 36v462H0Z" fill="url(#field)"/>
+  <path d="M0 580c316-95 555 106 840 3 285-104 543-52 760 34" fill="none" stroke="#9eb086" stroke-width="54" opacity=".55"/>
+  <g fill="#9d4c2e">
+    <circle cx="220" cy="590" r="58"/><circle cx="475" cy="690" r="70"/><circle cx="735" cy="548" r="62"/><circle cx="1010" cy="675" r="74"/><circle cx="1320" cy="555" r="66"/>
+  </g>
+  <g fill="#f2bc59">
+    <circle cx="220" cy="590" r="17"/><circle cx="475" cy="690" r="20"/><circle cx="735" cy="548" r="18"/><circle cx="1010" cy="675" r="21"/><circle cx="1320" cy="555" r="19"/>
+  </g>
+  <g stroke="#36523a" stroke-width="12"><path d="M220 648v170M475 760v120M735 610v230M1010 749v128M1320 622v221"/></g>
+</svg>

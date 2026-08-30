@@ -10,20 +10,96 @@ on:
         type: string
 
 concurrency:
-  # GitHub emits a run before evaluating the job condition. Only eligible
-  # Vercel preview events share the cancellation key, so irrelevant deployment
-  # events cannot cancel the real smoke test for this SHA.
-  group: preview-smoke-${{ github.event.deployment.sha || github.event.inputs.commit_sha }}-${{ (github.event_name == 'workflow_dispatch' || (github.event.deployment_status.state == 'success' && github.event.deployment_status.creator.login == 'vercel[bot]' && github.event.deployment_status.environment_url != '' && (github.event.deployment.environment == 'Preview' || github.event.deployment.environment == 'preview'))) && 'eligible' || github.run_id }}
+  # A second Vercel deployment for the same commit must not cancel the main
+  # preview before the affected-path check identifies the app.
+  group: main-preview-smoke-${{ github.event.deployment.id || github.event.inputs.commit_sha || github.run_id }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
+  scope:
+    name: Detect main changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      main: ${{ steps.affected.outputs.main }}
+      trusted_candidate: ${{ steps.provenance.outputs.trusted }}
+    steps:
+      - name: Check out trusted classifier
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+          path: trusted
+          persist-credentials: false
+      - name: Check out preview candidate
+        if: github.event_name == 'deployment_status'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.deployment.sha }}
+          fetch-depth: 0
+          path: candidate
+          persist-credentials: false
+      - name: Set up trusted Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install trusted Turbo
+        id: trusted-turbo
+        working-directory: trusted
+        run: |
+          npm install --global --ignore-scripts turbo@2.9.6
+          turbo_binary="$(command -v turbo)"
+          test -x "$turbo_binary"
+          echo "path=$turbo_binary" >> "$GITHUB_OUTPUT"
+      - name: Classify preview paths
+        id: affected
+        env:
+          AFFECTED_APPS_TURBO_BINARY: ${{ steps.trusted-turbo.outputs.path }}
+          EVENT_NAME: ${{ github.event_name }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          HEAD_SHA: ${{ github.event.deployment.sha || github.sha }}
+        run: |
+          trusted_classifier="$GITHUB_WORKSPACE/trusted/.github/scripts/affected-apps.mjs"
+          trusted_provenance="$GITHUB_WORKSPACE/trusted/.github/scripts/preview-candidate-provenance.mjs"
+          if [ ! -f "$trusted_classifier" ] || [ ! -f "$trusted_provenance" ]; then
+            echo "main=false" >> "$GITHUB_OUTPUT"
+            echo "trusted_tools=false" >> "$GITHUB_OUTPUT"
+            echo "Trusted preview tools are not installed on the default branch yet. Skip this bootstrap preview."
+            exit 0
+          fi
+          echo "trusted_tools=true" >> "$GITHUB_OUTPUT"
+
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            cd "$GITHUB_WORKSPACE/trusted"
+            node .github/scripts/affected-apps.mjs --force main --path .github/workflows/e2e-on-preview.yml
+          else
+            cd "$GITHUB_WORKSPACE/candidate"
+            git rev-parse --verify "origin/$DEFAULT_BRANCH^{commit}"
+            node "$GITHUB_WORKSPACE/trusted/.github/scripts/affected-apps.mjs" --base "origin/$DEFAULT_BRANCH" --head "$HEAD_SHA" --merge-base
+          fi
+      - name: Verify same-repository candidate
+        id: provenance
+        if: github.event_name == 'deployment_status' && steps.affected.outputs.trusted_tools == 'true'
+        env:
+          CANDIDATE_REF: ${{ github.event.deployment.ref }}
+          HEAD_SHA: ${{ github.event.deployment.sha }}
+        working-directory: candidate
+        run: node "$GITHUB_WORKSPACE/trusted/.github/scripts/preview-candidate-provenance.mjs" --head "$HEAD_SHA" --ref "$CANDIDATE_REF"
+
   e2e:
+    needs: scope
     if: >
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.deployment_status.state == 'success' &&
-       github.event.deployment_status.creator.login == 'vercel[bot]' &&
-       github.event.deployment_status.environment_url != '' &&
-       (github.event.deployment.environment == 'Preview' || github.event.deployment.environment == 'preview'))
+      needs.scope.outputs.main == 'true' &&
+      ((github.event_name == 'workflow_dispatch') ||
+       (needs.scope.outputs.trusted_candidate == 'true' &&
+        github.event.deployment_status.state == 'success' &&
+        github.event.deployment_status.creator.login == 'vercel[bot]' &&
+        github.event.deployment_status.environment_url != '' &&
+        (github.event.deployment.environment == 'Preview' || github.event.deployment.environment == 'preview')))
     runs-on: ubuntu-latest
     environment: preview
     env:
@@ -44,6 +120,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ steps.sha.outputs.COMMIT_SHA }}
+          persist-credentials: false
 
       - uses: actions/setup-node@v4
         with:

@@ -65,7 +65,6 @@ if (
   process.env.TURSO_DATABASE_AUTH_TOKEN = "";
   process.env.TURSO_EMBEDDED_REPLICA_URL = "";
   process.env.TURSO_EMBEDDED_REPLICA_SYNC_INTERVAL_SECONDS = "";
-  process.env.TURSO_EMBEDDED_REPLICA_SYNC_URL = "";
 }
 
 if (args.length === 0) {

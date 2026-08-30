@@ -1,17 +1,22 @@
 // @vitest-environment node
 
-import { execFile, execFileSync } from "node:child_process";
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { execFile } from "node:child_process";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { buildPublicSearchIndex } from "../src/server/search/build-public-search-index.js";
 
 const execFileAsync = promisify(execFile);
 const buildScriptPath = path.join(
   process.cwd(),
   "scripts/build-public-search-index.mjs",
+);
+const targetWorkerPath = path.join(
+  process.cwd(),
+  "scripts/build-public-search-index-target.mjs",
 );
 
 async function runBuildScript(args: string[], env: Partial<NodeJS.ProcessEnv>) {
@@ -132,56 +137,86 @@ function createAuthoritativeFlowerShowSource(sourcePath: string) {
         NULL,
         '2026-07-16'
       );
+
+    INSERT INTO "User" VALUES ('seller', 'cus_seller');
+    INSERT INTO "KeyValue" VALUES (
+      'stripe:customer:cus_seller',
+      '{"status":"active"}'
+    );
+    INSERT INTO "UserProfile" VALUES (
+      'seller',
+      'test-garden',
+      'Test Garden'
+    );
+    INSERT INTO "Listing" VALUES (
+      'listing-1',
+      'aerial-art',
+      'seller',
+      'PUBLISHED',
+      25,
+      'Aerial Art Plant',
+      'A plant for sale Second line',
+      'aerial-art-plant',
+      '2026-07-16'
+    );
+    INSERT INTO "Image" VALUES ('listing-1');
   `);
 
   db.close();
 }
 
-function createFailingSourceCheckSqlite(binDirectory: string) {
-  const sqlitePath = execFileSync("which", ["sqlite3"], {
-    encoding: "utf8",
-  }).trim();
-  const wrapperPath = path.join(binDirectory, "sqlite3");
-
-  writeFileSync(
-    wrapperPath,
-    [
-      "#!/bin/sh",
-      'if [ "$1" = "$FAIL_SOURCE_PATH" ] && [ "$2" = "PRAGMA quick_check;" ]; then',
-      '  echo "database disk image is malformed" >&2',
-      "  exit 11",
-      "fi",
-      `exec "${sqlitePath}" "$@"`,
-      "",
-    ].join("\n"),
-  );
-  chmodSync(wrapperPath, 0o755);
-}
-
-describe("build-public-search-index source selection", () => {
-  it("requires an explicit source in production", async () => {
-    const error = await runBuildScript([], {
-      NODE_ENV: "production",
-      TURSO_EMBEDDED_REPLICA_URL: "file:/data/turso-replica.db",
+describe("build-public-search-index", () => {
+  it("streams cultivars and listings in one source read transaction", async () => {
+    const tempDirectory = mkdtempSync(
+      path.join(tmpdir(), "public-search-source-transaction-"),
+    );
+    const targetPath = path.join(tempDirectory, "target.sqlite");
+    const directQuery = vi.fn(() => {
+      throw new Error("Source reads must use the transaction client.");
     });
-
-    expect(error).toMatchObject({
-      stderr: expect.stringContaining(
-        "Production search index builds require an explicit --source path",
+    const transactionQuery = vi.fn(
+      async (_sql: string, ..._args: unknown[]) => [],
+    );
+    const transaction = { $queryRawUnsafe: transactionQuery };
+    const sourceDb = {
+      $queryRawUnsafe: directQuery,
+      $transaction: vi.fn(
+        async (
+          callback: (client: typeof transaction) => Promise<unknown>,
+          _options: { timeout: number },
+        ) => callback(transaction),
       ),
-    });
-  });
+    };
 
-  it("refuses to build from the live embedded replica path", async () => {
-    const error = await runBuildScript(["--source", "/data/turso-replica.db"], {
-      TURSO_EMBEDDED_REPLICA_URL: "file:/data/turso-replica.db",
-    });
+    try {
+      await expect(
+        buildPublicSearchIndex({
+          sourceDb: sourceDb as never,
+          sourceLabel: "transaction-test",
+          targetPath,
+          targetWorkerPath,
+        }),
+      ).resolves.toMatchObject({
+        cultivars: 0,
+        linkedListings: 0,
+        quickCheck: "ok",
+      });
 
-    expect(error).toMatchObject({
-      stderr: expect.stringContaining(
-        "Refusing to build search index from live Turso embedded replica",
-      ),
-    });
+      expect(sourceDb.$transaction).toHaveBeenCalledTimes(1);
+      expect(sourceDb.$transaction).toHaveBeenCalledWith(expect.any(Function), {
+        timeout: 5 * 60 * 1_000,
+      });
+      expect(transactionQuery).toHaveBeenCalledTimes(2);
+      expect(transactionQuery.mock.calls[0]?.[0]).toContain(
+        "WITH cultivar_ids AS",
+      );
+      expect(transactionQuery.mock.calls[1]?.[0]).toContain(
+        "WITH listing_ids AS",
+      );
+      expect(directQuery).not.toHaveBeenCalled();
+    } finally {
+      rmSync(tempDirectory, { force: true, recursive: true });
+    }
   });
 
   it("indexes authoritative flower_show without deriving a replacement", async () => {
@@ -193,14 +228,30 @@ describe("build-public-search-index source selection", () => {
 
     try {
       createAuthoritativeFlowerShowSource(sourcePath);
+      const oldTargetDb = new DatabaseSync(targetPath);
+      oldTargetDb.exec(
+        "CREATE TABLE Marker (value TEXT); INSERT INTO Marker VALUES ('old');",
+      );
+      oldTargetDb.close();
+
       const { stdout } = await execFileAsync(
         process.execPath,
         [buildScriptPath, "--source", sourcePath, "--target", targetPath],
         { env: process.env },
       );
-      expect(stdout).toContain("Source quick_check: ok");
+      expect(stdout).toContain("quickCheck|ok");
 
       const targetDb = new DatabaseSync(targetPath, { readOnly: true });
+      const metadata = targetDb
+        .prepare("SELECT key, value FROM SearchIndexMeta ORDER BY key")
+        .all() as Array<{ key: string; value: string }>;
+      const builtAt = metadata.find((entry) => entry.key === "builtAt")?.value;
+      expect(typeof builtAt).toBe("string");
+      expect(Number.isNaN(Date.parse(builtAt ?? ""))).toBe(false);
+      expect(metadata.filter((entry) => entry.key !== "builtAt")).toEqual([
+        { key: "schemaVersion", value: "13" },
+        { key: "sourceLabel", value: sourcePath },
+      ]);
       const rows = targetDb
         .prepare(
           `SELECT displayName, flowerShow, sculptedTypes
@@ -233,13 +284,34 @@ describe("build-public-search-index source selection", () => {
         { value: "Cristate", count: 1 },
         { value: "Pleated", count: 1 },
       ]);
+      expect(
+        targetDb
+          .prepare(
+            `SELECT catalogSlugOrId, forSale, hasPhoto
+             FROM CultivarListingSearchIndex`,
+          )
+          .get(),
+      ).toEqual({
+        catalogSlugOrId: "test-garden",
+        forSale: 1,
+        hasPhoto: 1,
+      });
       targetDb.close();
+
+      const previousDb = new DatabaseSync(`${targetPath}.previous`, {
+        readOnly: true,
+      });
+      expect(previousDb.prepare("SELECT value FROM Marker").get()).toEqual({
+        value: "old",
+      });
+      previousDb.close();
+      expect(existsSync(`${targetPath}.next`)).toBe(false);
     } finally {
       rmSync(tempDirectory, { force: true, recursive: true });
     }
   });
 
-  it("does not promote an index when the final source check fails", async () => {
+  it("preserves the last-known-good index when the source build fails", async () => {
     const tempDirectory = mkdtempSync(
       path.join(tmpdir(), "public-search-source-check-"),
     );
@@ -247,27 +319,20 @@ describe("build-public-search-index source selection", () => {
     const targetPath = path.join(tempDirectory, "target.sqlite");
 
     try {
-      createAuthoritativeFlowerShowSource(sourcePath);
+      const sourceDb = new DatabaseSync(sourcePath);
+      sourceDb.exec("CREATE TABLE IncompleteSource (id TEXT PRIMARY KEY);");
+      sourceDb.close();
       const targetDb = new DatabaseSync(targetPath);
       targetDb.exec(
         "CREATE TABLE Marker (value TEXT); INSERT INTO Marker VALUES ('old');",
       );
       targetDb.close();
-      createFailingSourceCheckSqlite(tempDirectory);
-
       const error = await runBuildScript(
         ["--source", sourcePath, "--target", targetPath],
-        {
-          FAIL_SOURCE_PATH: sourcePath,
-          PATH: `${tempDirectory}:${process.env.PATH}`,
-        },
+        {},
       );
 
-      expect(error).toMatchObject({
-        stderr: expect.stringContaining(
-          "Source replica post_build quick_check failed",
-        ),
-      });
+      expect(error).toBeInstanceOf(Error);
       const preservedTarget = new DatabaseSync(targetPath, { readOnly: true });
       expect(preservedTarget.prepare("SELECT value FROM Marker").get()).toEqual(
         {
@@ -275,6 +340,7 @@ describe("build-public-search-index source selection", () => {
         },
       );
       preservedTarget.close();
+      expect(existsSync(`${targetPath}.next`)).toBe(false);
     } finally {
       rmSync(tempDirectory, { force: true, recursive: true });
     }

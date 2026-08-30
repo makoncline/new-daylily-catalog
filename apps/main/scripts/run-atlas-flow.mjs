@@ -171,7 +171,6 @@ async function startServer() {
       RUNTIME_FEATURE_FLAGS_PATH: runtimeFlagsPath,
       TURSO_DATABASE_AUTH_TOKEN: "",
       TURSO_EMBEDDED_REPLICA_URL: "",
-      TURSO_EMBEDDED_REPLICA_SYNC_URL: "",
     },
   });
   const deadline = Date.now() + 120_000;

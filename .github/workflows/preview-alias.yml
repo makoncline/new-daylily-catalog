@@ -2,72 +2,133 @@ name: Alias Vercel Preview
 
 on:
   deployment_status:
-  workflow_dispatch:
-    inputs:
-      url:
-        description: "Deployment URL to alias"
-        required: true
-        type: string
 
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
 
 jobs:
+  scope:
+    name: Detect main changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      main: ${{ steps.affected.outputs.main }}
+      candidate_sha: ${{ steps.preview-origin.outputs.sha }}
+      preview_origin: ${{ steps.preview-origin.outputs.origin }}
+      trusted_candidate: ${{ steps.provenance.outputs.trusted }}
+    steps:
+      - name: Check out trusted classifier
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+          path: trusted
+          persist-credentials: false
+      - name: Check out preview candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.deployment.sha }}
+          fetch-depth: 0
+          path: candidate
+          persist-credentials: false
+      - name: Set up trusted Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install trusted Turbo
+        id: trusted-turbo
+        working-directory: trusted
+        run: |
+          npm install --global --ignore-scripts turbo@2.9.6
+          turbo_binary="$(command -v turbo)"
+          test -x "$turbo_binary"
+          echo "path=$turbo_binary" >> "$GITHUB_OUTPUT"
+      - name: Classify preview paths
+        id: affected
+        env:
+          AFFECTED_APPS_TURBO_BINARY: ${{ steps.trusted-turbo.outputs.path }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          HEAD_SHA: ${{ github.event.deployment.sha }}
+        working-directory: candidate
+        run: |
+          for trusted_tool in \
+            affected-apps.mjs \
+            preview-candidate-provenance.mjs \
+            vercel-preview-origin.mjs
+          do
+            if [ ! -f "$GITHUB_WORKSPACE/trusted/.github/scripts/$trusted_tool" ]; then
+              echo "main=false" >> "$GITHUB_OUTPUT"
+              echo "Trusted preview tools are not installed on the default branch yet. Skip this bootstrap preview."
+              exit 0
+            fi
+          done
+
+          git rev-parse --verify "origin/$DEFAULT_BRANCH^{commit}"
+          node "$GITHUB_WORKSPACE/trusted/.github/scripts/affected-apps.mjs" --base "origin/$DEFAULT_BRANCH" --head "$HEAD_SHA" --merge-base
+      - name: Verify same-repository candidate
+        id: provenance
+        if: steps.affected.outputs.main == 'true'
+        env:
+          CANDIDATE_REF: ${{ github.event.deployment.ref }}
+          HEAD_SHA: ${{ github.event.deployment.sha }}
+        working-directory: candidate
+        run: node "$GITHUB_WORKSPACE/trusted/.github/scripts/preview-candidate-provenance.mjs" --head "$HEAD_SHA" --ref "$CANDIDATE_REF"
+      - name: Validate Vercel preview origin
+        id: preview-origin
+        if: steps.affected.outputs.main == 'true'
+        env:
+          DEPLOYMENT_SHA: ${{ github.event.deployment.sha }}
+          DEPLOYMENT_ENVIRONMENT_URL: ${{ github.event.deployment_status.environment_url }}
+          DEPLOYMENT_TARGET_URL: ${{ github.event.deployment_status.target_url }}
+        run: node "$GITHUB_WORKSPACE/trusted/.github/scripts/vercel-preview-origin.mjs"
+
   alias:
+    needs: scope
     if: >
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.deployment_status.state == 'success' &&
-       (github.event.deployment.environment == 'Preview' || github.event.deployment.environment == 'preview') &&
-       ((github.event.deployment_status.environment_url != '' && contains(github.event.deployment_status.environment_url, 'vercel.app')) ||
-        (github.event.deployment_status.target_url != '' && contains(github.event.deployment_status.target_url, 'vercel.app'))))
+      needs.scope.outputs.main == 'true' &&
+      needs.scope.outputs.candidate_sha == github.event.deployment.sha &&
+      needs.scope.outputs.preview_origin != '' &&
+      needs.scope.outputs.trusted_candidate == 'true' &&
+      github.event.deployment_status.state == 'success' &&
+      github.event.deployment_status.creator.login == 'vercel[bot]' &&
+      github.event.deployment.environment == 'Preview'
     runs-on: ubuntu-latest
     environment: preview
+    permissions:
+      contents: read
+    outputs:
+      preview_hash: ${{ steps.alias.outputs.preview_hash }}
     steps:
-      - name: Compute values
-        id: vals
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "URL=${{ github.event.inputs.url }}" >> $GITHUB_OUTPUT
-            echo "SHA=${{ github.sha }}" >> $GITHUB_OUTPUT
-            echo "HASH=$(echo '${{ github.sha }}' | cut -c1-8)" >> $GITHUB_OUTPUT
-          else
-            URL="${{ github.event.deployment_status.environment_url }}"
-            if [ -z "$URL" ]; then
-              URL="${{ github.event.deployment_status.target_url }}"
-            fi
-            if [ -z "$URL" ]; then
-              echo "Deployment status did not include environment_url or target_url." >&2
-              exit 1
-            fi
-            echo "URL=$URL" >> $GITHUB_OUTPUT
-            echo "SHA=${{ github.event.deployment.sha }}" >> $GITHUB_OUTPUT
-            echo "HASH=$(echo '${{ github.event.deployment.sha }}' | cut -c1-8)" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Alias to <hash>.deploy-preview.daylilycatalog.com
-        if: steps.vals.outputs.URL != ''
+      - name: Check out trusted alias script
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - name: Verify main preview and assign alias
+        id: alias
         env:
+          CANDIDATE_SHA: ${{ needs.scope.outputs.candidate_sha }}
+          MAIN_VERCEL_PROJECT_ID: ${{ vars.MAIN_VERCEL_PROJECT_ID }}
+          PREVIEW_ORIGIN: ${{ needs.scope.outputs.preview_origin }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_TEAM: ${{ vars.VERCEL_TEAM }}
-          URL: ${{ steps.vals.outputs.URL }}
-          HASH: ${{ steps.vals.outputs.HASH }}
-        run: |
-          ALIAS="${HASH}.deploy-preview.daylilycatalog.com"
-          # sanity check scope / login
-          npx vercel whoami --token "$VERCEL_TOKEN" --scope "$VERCEL_TEAM"
-          # optional: confirm domain is visible in this scope
-          npx vercel domains ls --token "$VERCEL_TOKEN" --scope "$VERCEL_TEAM"
-          # alias within the correct team
-          npx vercel alias set "$URL" "$ALIAS" --token "$VERCEL_TOKEN" --scope "$VERCEL_TEAM"
+        run: node .github/scripts/alias-vercel-preview.mjs
 
+  comment:
+    needs: alias
+    if: github.event_name == 'deployment_status' && needs.alias.outputs.preview_hash != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
       - name: Comment alias URL on PR
-        if: steps.vals.outputs.URL != ''
         uses: mshick/add-pr-comment@v2
         with:
           repo-token: ${{ github.token }}
           message-id: preview-alias-url
           message: |
             <!-- preview-alias-url -->
-            Preview alias is ready: https://${{ steps.vals.outputs.HASH }}.deploy-preview.daylilycatalog.com
+            Preview alias is ready: https://${{ needs.alias.outputs.preview_hash }}.deploy-preview.daylilycatalog.com

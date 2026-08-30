@@ -496,6 +496,7 @@ const reviewRoot = path.join(
   "v2-ahs-image-review",
 );
 const database = new DatabaseSync(path.join(reviewRoot, "review.sqlite"));
+database.exec("PRAGMA busy_timeout = 30000");
 const modeIndex = process.argv.indexOf("--mode");
 const mode = process.argv[modeIndex + 1];
 const linked = database
@@ -585,6 +586,7 @@ database.close();
         "1",
       ],
       {
+        encoding: "utf8",
         env: createWorkerEnv(temporaryRoot, {
           CODEX_BACKLOG_SCRIPT: fakeBacklogPath,
           CODEX_BIN: fakeCodexPath,

@@ -8,8 +8,20 @@ ENV PATH=$PNPM_HOME:$PATH
 
 RUN corepack enable
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends openssl ca-certificates sqlite3 \
+    && apt-get install -y --no-install-recommends openssl ca-certificates sqlite3 tini \
     && rm -rf /var/lib/apt/lists/*
+
+FROM base AS storefront-refresh-watchdog-test
+
+WORKDIR /app
+
+COPY apps/main/scripts/storefront-artifact-refresh-watchdog.mjs ./apps/main/scripts/storefront-artifact-refresh-watchdog.mjs
+COPY apps/main/tests/fixtures/storefront-refresh-watchdog-container-hang.mjs ./apps/main/tests/fixtures/storefront-refresh-watchdog-container-hang.mjs
+
+USER node
+
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["node", "apps/main/tests/fixtures/storefront-refresh-watchdog-container-hang.mjs"]
 
 FROM base AS deps
 
@@ -19,6 +31,8 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY patches ./patches
 COPY apps/main/package.json ./apps/main/package.json
 COPY packages/standalone-runtime/package.json ./packages/standalone-runtime/package.json
+COPY packages/storefront-contract/package.json ./packages/storefront-contract/package.json
+COPY packages/storefront-contract/src ./packages/storefront-contract/src
 COPY apps/main/prisma ./apps/main/prisma
 
 RUN pnpm install --frozen-lockfile \
@@ -38,6 +52,7 @@ WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/main/node_modules ./apps/main/node_modules
+COPY --from=deps /app/packages/storefront-contract/node_modules ./packages/storefront-contract/node_modules
 COPY . .
 
 ARG BUILD_ENV_FINGERPRINT
@@ -76,18 +91,25 @@ RUN groupadd --system --gid 1001 nodejs \
     && chown -R nextjs:nodejs /app /data
 
 COPY --from=builder --chown=nextjs:nodejs /app/apps/main/public ./apps/main/public
-COPY --from=builder --chown=nextjs:nodejs /app/apps/main/scripts/build-public-search-index.mjs ./apps/main/scripts/build-public-search-index.mjs
-COPY --from=builder --chown=nextjs:nodejs /app/apps/main/scripts/sync-public-search-source-replica.mjs ./apps/main/scripts/sync-public-search-source-replica.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/apps/main/scripts/build-public-search-index-target.mjs ./apps/main/scripts/build-public-search-index-target.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/apps/main/src/server/target-worker-stream.js ./apps/main/src/server/target-worker-stream.js
+COPY --from=builder --chown=nextjs:nodejs /app/apps/main/src/server/search/build-public-search-index.js ./apps/main/src/server/search/build-public-search-index.js
 COPY --from=builder --chown=nextjs:nodejs /app/apps/main/scripts/build-public-parentage-index.mjs ./apps/main/scripts/build-public-parentage-index.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/apps/main/scripts/build-public-storefront-artifacts.mjs ./apps/main/scripts/build-public-storefront-artifacts.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/apps/main/scripts/build-public-storefront-artifacts-target.mjs ./apps/main/scripts/build-public-storefront-artifacts-target.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/apps/main/scripts/storefront-artifact-refresh-watchdog.mjs ./apps/main/scripts/storefront-artifact-refresh-watchdog.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/apps/main/scripts/refresh-public-storefront-artifacts.mjs ./apps/main/scripts/refresh-public-storefront-artifacts.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/apps/main/scripts/storefront/public-storefront-data.mjs ./apps/main/scripts/storefront/public-storefront-data.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/apps/main/scripts/set-feature-flag.mjs ./apps/main/scripts/set-feature-flag.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/apps/main/.next/standalone ./
 COPY --from=runtime-deps --chown=nextjs:nodejs /runtime/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/apps/main/.next/static ./apps/main/.next/static
 
-RUN node -e 'const { execFileSync } = require("node:child_process"); const { createRequire } = require("node:module"); void (async () => { const serverRequire = createRequire("/app/apps/main/server.js"); for (const dependency of ["@aws-sdk/client-s3", "@prisma/client", "@prisma/adapter-libsql", "@libsql/client"]) serverRequire(dependency); const sharp = serverRequire("sharp"); await sharp({ create: { width: 1, height: 1, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } }).webp().toBuffer(); const sharpAddon = Object.keys(require.cache).find((modulePath) => modulePath.endsWith(".node") && modulePath.includes("sharp")); if (!sharpAddon) throw new Error("Loaded Sharp native addon was not found."); const sharpLdd = execFileSync("ldd", [sharpAddon], { encoding: "utf8" }); process.stdout.write(sharpLdd); if (sharpLdd.includes("not found")) process.exit(1); })().catch((error) => { console.error(error); process.exit(1); })'
+RUN node -e 'const { execFileSync } = require("node:child_process"); const { createRequire } = require("node:module"); void (async () => { const serverRequire = createRequire("/app/apps/main/server.js"); for (const dependency of ["@aws-sdk/client-s3", "@prisma/client", "@prisma/adapter-libsql", "@libsql/client"]) serverRequire(dependency); const storefrontBuilderRequire = createRequire("/app/apps/main/scripts/build-public-storefront-artifacts.mjs"); for (const dependency of ["@daylily-catalog/storefront-contract", "node-html-parser"]) storefrontBuilderRequire(dependency); await import("file:///app/apps/main/scripts/build-public-storefront-artifacts.mjs"); const sharp = serverRequire("sharp"); await sharp({ create: { width: 1, height: 1, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } }).webp().toBuffer(); const sharpAddon = Object.keys(require.cache).find((modulePath) => modulePath.endsWith(".node") && modulePath.includes("sharp")); if (!sharpAddon) throw new Error("Loaded Sharp native addon was not found."); const sharpLdd = execFileSync("ldd", [sharpAddon], { encoding: "utf8" }); process.stdout.write(sharpLdd); if (sharpLdd.includes("not found")) process.exit(1); })().catch((error) => { console.error(error); process.exit(1); })'
 
 USER nextjs
 
 EXPOSE 3000
 
+ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["node", "apps/main/server.js"]
