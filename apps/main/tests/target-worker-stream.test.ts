@@ -76,4 +76,42 @@ describe("target worker stream", () => {
       }),
     ).rejects.toThrow("Intentional early target exit.");
   });
+
+  it("registers the target before source streaming and unregisters it after exit", async () => {
+    let releaseRegistration!: () => void;
+    const registration = new Promise<void>((resolve) => {
+      releaseRegistration = resolve;
+    });
+    let startedPid: number | null = null;
+    let stoppedPid: number | null = null;
+    let sourceStarted = false;
+
+    const operation = streamToTargetWorker({
+      targetWorkerArgs: [],
+      targetWorkerLifecycle: {
+        onWorkerStarted: async (pid) => {
+          startedPid = pid;
+          await registration;
+        },
+        onWorkerStopped: (pid) => {
+          stoppedPid = pid;
+        },
+      },
+      targetWorkerPath: workerPath,
+      stream: async () => {
+        sourceStarted = true;
+        return { copied: 0 };
+      },
+    });
+
+    await vi.waitFor(() => expect(startedPid).toEqual(expect.any(Number)));
+    expect(sourceStarted).toBe(false);
+    releaseRegistration();
+
+    await expect(operation).resolves.toMatchObject({
+      sourceResult: { copied: 0 },
+    });
+    expect(sourceStarted).toBe(true);
+    expect(stoppedPid).toBe(startedPid);
+  });
 });

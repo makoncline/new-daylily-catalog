@@ -1,6 +1,5 @@
 // @vitest-environment node
 
-import { execFile } from "node:child_process";
 import {
   chmod,
   mkdtemp,
@@ -16,17 +15,20 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { promisify } from "node:util";
+import { storefrontSnapshotSchema } from "@daylily-catalog/storefront-contract";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { withTempAppDb } from "@/lib/test-utils/app-test-db";
 
 process.env.SKIP_ENV_VALIDATION = "1";
 process.env.DATABASE_URL ??= "file:./tests/.tmp/public-storefront-route.sqlite";
 
-const execFileAsync = promisify(execFile);
 const buildScriptPath = path.join(
   process.cwd(),
   "scripts/build-public-storefront-artifacts.mjs",
+);
+const targetWorkerPath = path.join(
+  process.cwd(),
+  "scripts/build-public-storefront-artifacts-target.mjs",
 );
 
 interface PublishedStorefrontManifest {
@@ -43,38 +45,18 @@ interface PublishedStorefrontManifest {
 async function runBuilder(args: {
   outputRoot: string;
   sellerIds: string[];
-  sellerIdsFromEnv?: boolean;
-  sourceUrl: string;
+  sourceDb: Pick<(typeof import("@/server/db"))["db"], "$transaction">;
 }) {
-  const sourcePath = args.sourceUrl.replace(/^file:/, "");
-  const sellerArgs = args.sellerIdsFromEnv
-    ? []
-    : args.sellerIds.flatMap((sellerId) => ["--seller-id", sellerId]);
-  const childEnv: NodeJS.ProcessEnv = {
-    ...process.env,
-    NEXT_PUBLIC_CLOUDFLARE_URL: "https://images.daylilycatalog.com",
-  };
-  delete childEnv.PUBLIC_STOREFRONT_SELLER_IDS;
-  if (args.sellerIdsFromEnv) {
-    childEnv.PUBLIC_STOREFRONT_SELLER_IDS = args.sellerIds.join(",");
-  }
-
-  return execFileAsync(
-    process.execPath,
-    [
-      buildScriptPath,
-      "--source",
-      sourcePath,
-      "--output",
-      args.outputRoot,
-      ...sellerArgs,
-    ],
-    {
-      cwd: process.cwd(),
-      env: childEnv,
-      maxBuffer: 1024 * 1024,
-    },
+  const { buildPublicStorefrontArtifacts } = await import(
+    pathToFileURL(buildScriptPath).href
   );
+
+  return buildPublicStorefrontArtifacts({
+    output: args.outputRoot,
+    sellerIds: args.sellerIds,
+    sourceDb: args.sourceDb,
+    targetWorkerPath,
+  });
 }
 
 async function readManifest(outputRoot: string) {
@@ -101,7 +83,6 @@ describe("public storefront artifacts", () => {
 
     try {
       await withTempAppDb(async ({ user }) => {
-        const sourceUrl = process.env.DATABASE_URL!;
         const { db } = await import("@/server/db");
         const otherSeller = await db.user.create({ data: {} });
 
@@ -187,7 +168,7 @@ describe("public storefront artifacts", () => {
             flower_form_names: "Single",
             unusual_forms_names: "Crispate",
             rebloom: 1,
-            image_url: "https://example.com/cultivar.jpg",
+            image_url: "https://www.daylilydatabase.org/cultivar.jpg",
           },
         });
         await db.cultivarReference.create({
@@ -284,7 +265,7 @@ describe("public storefront artifacts", () => {
           data: {
             id: "ahs-only-cultivar",
             post_title: "AHS Fallback Cultivar",
-            image_url: "https://example.com/ahs-only.jpg",
+            image_url: "https://www.daylilydatabase.org/ahs-only.jpg",
           },
         });
         await db.cultivarReference.create({
@@ -415,13 +396,14 @@ describe("public storefront artifacts", () => {
         });
 
         const configuredSellerIds = [user.id, otherSeller.id];
-        const initialBuild = await runBuilder({
+        const transactionOnlySource = {
+          $transaction: db.$transaction.bind(db),
+        };
+        const initialResult: unknown = await runBuilder({
           outputRoot,
           sellerIds: configuredSellerIds,
-          sellerIdsFromEnv: true,
-          sourceUrl,
+          sourceDb: transactionOnlySource,
         });
-        const initialResult: unknown = JSON.parse(initialBuild.stdout);
         expect(initialResult).toMatchObject({
           ready: true,
           sellers: [{ id: user.id }, { id: otherSeller.id }],
@@ -487,45 +469,7 @@ describe("public storefront artifacts", () => {
         const responseText = await response.text();
         expect(responseText).toBe(await readFile(artifactPath, "utf8"));
 
-        const body = JSON.parse(responseText) as {
-          version: number;
-          generatedAt: string;
-          seller: {
-            id: string;
-            profile: {
-              content: { blocks: Array<{ data: { text: string } }> } | null;
-              images: Array<{
-                id: string;
-                url: string;
-                thumbUrl: string | null;
-                blurUrl: string | null;
-                order: number;
-              }>;
-            } | null;
-          };
-          lists: Array<{ id: string; listingIds: string[] }>;
-          listings: Array<{
-            id: string;
-            title: string;
-            cultivar: {
-              details: {
-                ahsImageUrl: string | null;
-                flower: string | null;
-                form: string | null;
-                hybridizer: string | null;
-                rebloom: boolean | null;
-                seedlingNum: string | null;
-              } | null;
-            } | null;
-            images: Array<{
-              id: string;
-              url: string;
-              thumbUrl: string | null;
-              blurUrl: string | null;
-              order: number;
-            }>;
-          }>;
-        };
+        const body = storefrontSnapshotSchema.parse(JSON.parse(responseText));
         expect(body.version).toBe(1);
         expect(body.generatedAt).toBe(published.manifest.generatedAt);
         expect(body.seller.id).toBe(user.id);
@@ -538,7 +482,7 @@ describe("public storefront artifacts", () => {
             url: "https://media.daylilycatalog.com/profile.jpg",
             thumbUrl: "https://media.daylilycatalog.com/profile-thumb.jpg",
             blurUrl: "https://media.daylilycatalog.com/profile-blur.jpg",
-            order: 2,
+            order: 0,
           },
           {
             id: "profile-direct-asset",
@@ -546,7 +490,7 @@ describe("public storefront artifacts", () => {
             thumbUrl:
               "https://media.daylilycatalog.com/profile-direct-thumb.jpg",
             blurUrl: null,
-            order: 3,
+            order: 1,
           },
         ]);
         expect(body.lists).toEqual([
@@ -587,19 +531,19 @@ describe("public storefront artifacts", () => {
               url: "https://media.daylilycatalog.com/listing.jpg",
               thumbUrl: "https://media.daylilycatalog.com/listing-thumb.jpg",
               blurUrl: "https://media.daylilycatalog.com/listing-blur.jpg",
-              order: 2,
+              order: 0,
             },
             {
               id: "listing-direct-asset",
               url: "https://media.daylilycatalog.com/listing-direct.jpg",
               thumbUrl: "https://media.daylilycatalog.com/listing-direct.jpg",
               blurUrl: null,
-              order: 3,
+              order: 1,
             },
           ],
           cultivar: {
             details: {
-              ahsImageUrl: "https://example.com/cultivar.jpg",
+              ahsImageUrl: "https://www.daylilydatabase.org/cultivar.jpg",
               flower: "Single",
               form: "Crispate",
               hybridizer: "Hybridizer, Partner Hybridizer",
@@ -632,7 +576,7 @@ describe("public storefront artifacts", () => {
           images: [
             {
               id: "ahs-fallback-listing:cultivar-fallback",
-              url: "https://example.com/ahs-only.jpg",
+              url: "https://www.daylilydatabase.org/ahs-only.jpg",
               thumbUrl: null,
               blurUrl: null,
               order: 0,
@@ -643,26 +587,11 @@ describe("public storefront artifacts", () => {
           body.listings.find(({ id }) => id === "legacy-cultivar-listing"),
         ).toMatchObject({
           cultivar: {
-            details: {
-              id: "legacy-ahs-cultivar",
-              name: "Legacy Cultivar",
-              hybridizer: "Legacy Hybridizer",
-              year: "1999",
-              seedlingNum: "LEG-99",
-              form: "Double",
-              flower: "Double",
-              rebloom: null,
-            },
+            id: "legacy-cultivar-reference",
+            normalizedName: "legacy cultivar",
+            details: null,
           },
-          images: [
-            {
-              id: "legacy-cultivar-listing:cultivar-fallback",
-              url: "https://example.com/legacy-ahs.jpg",
-              thumbUrl: null,
-              blurUrl: null,
-              order: 0,
-            },
-          ],
+          images: [],
         });
         expect(responseText).not.toContain("do not expose this note");
         expect(responseText).not.toContain("hidden-listing");
@@ -671,6 +600,8 @@ describe("public storefront artifacts", () => {
         expect(responseText).not.toContain("unsafe.example");
         expect(responseText).not.toContain("pending-asset");
         expect(responseText).not.toContain("private.example");
+        expect(responseText).not.toContain("legacy-ahs.jpg");
+        expect(responseText).not.toContain("Legacy Hybridizer");
         expect(responseText).not.toContain("/cdn-cgi/image/");
 
         const notModified = await GET(
@@ -757,7 +688,7 @@ describe("public storefront artifacts", () => {
         await runBuilder({
           outputRoot,
           sellerIds: configuredSellerIds,
-          sourceUrl,
+          sourceDb: db,
         });
 
         const movedManifestPath = `${published.path}.missing`;
@@ -792,9 +723,9 @@ describe("public storefront artifacts", () => {
             runBuilder({
               outputRoot,
               sellerIds: configuredSellerIds,
-              sourceUrl,
+              sourceDb: db,
             }),
-          ).rejects.toMatchObject({ code: expect.any(Number) });
+          ).rejects.toThrow("Target worker failed: EACCES");
         } finally {
           await chmod(currentDirectory, 0o755);
         }
@@ -836,7 +767,7 @@ describe("public storefront artifacts", () => {
         await runBuilder({
           outputRoot,
           sellerIds: configuredSellerIds,
-          sourceUrl,
+          sourceDb: db,
         });
         const afterSuccessfulPublish = await readManifest(outputRoot);
         expect(afterSuccessfulPublish.contents).not.toBe(
@@ -887,13 +818,11 @@ describe("public storefront artifacts", () => {
           runBuilder({
             outputRoot,
             sellerIds: [user.id],
-            sourceUrl: process.env.DATABASE_URL!,
+            sourceDb: db,
           }),
-        ).rejects.toMatchObject({
-          stderr: expect.stringContaining(
-            `Duplicate public list slug "duplicate-list" for seller "${user.id}".`,
-          ),
-        });
+        ).rejects.toThrow(
+          `Duplicate public list slug "duplicate-list" for seller "${user.id}".`,
+        );
 
         await db.list.delete({ where: { id: "second-collision-list" } });
         await db.list.update({
@@ -904,13 +833,11 @@ describe("public storefront artifacts", () => {
           runBuilder({
             outputRoot,
             sellerIds: [user.id],
-            sourceUrl: process.env.DATABASE_URL!,
+            sourceDb: db,
           }),
-        ).rejects.toMatchObject({
-          stderr: expect.stringContaining(
-            `Reserved public list slug "all" for seller "${user.id}".`,
-          ),
-        });
+        ).rejects.toThrow(
+          `Reserved public list slug "all" for seller "${user.id}".`,
+        );
 
         await db.list.update({
           where: { id: "first-collision-list" },
@@ -920,13 +847,71 @@ describe("public storefront artifacts", () => {
           runBuilder({
             outputRoot,
             sellerIds: [user.id],
-            sourceUrl: process.env.DATABASE_URL!,
+            sourceDb: db,
           }),
-        ).rejects.toMatchObject({
-          stderr: expect.stringContaining(
-            `Unsafe public list slug "bad/path" for seller "${user.id}".`,
-          ),
+        ).rejects.toThrow(
+          `Unsafe public list slug "bad/path" for seller "${user.id}".`,
+        );
+        await expect(
+          stat(path.join(outputRoot, "current", "manifest.json")),
+        ).rejects.toMatchObject({ code: "ENOENT" });
+      });
+    } finally {
+      await rm(outputRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("rejects a shared-contract failure without waiting for a later seller stream", async () => {
+    const outputRoot = await mkdtemp(
+      path.join(tmpdir(), "public-storefront-contract-rejection-"),
+    );
+
+    try {
+      await withTempAppDb(async ({ user }) => {
+        const { db } = await import("@/server/db");
+        const laterSeller = await db.user.create({ data: {} });
+        await db.v2AhsCultivar.create({
+          data: {
+            id: "unapproved-image-cultivar",
+            image_url: "https://example.com/unapproved.jpg",
+            post_title: "Unapproved Image Cultivar",
+          },
         });
+        await db.cultivarReference.create({
+          data: {
+            id: "unapproved-image-reference",
+            normalizedName: "unapproved image cultivar",
+            v2AhsCultivarId: "unapproved-image-cultivar",
+          },
+        });
+        await db.listing.create({
+          data: {
+            id: "unapproved-image-listing",
+            cultivarReferenceId: "unapproved-image-reference",
+            slug: "unapproved-image-cultivar",
+            title: "Unapproved Image Cultivar",
+            userId: user.id,
+          },
+        });
+        await db.listing.createMany({
+          data: Array.from({ length: 300 }, (_, index) => ({
+            id: `later-seller-listing-${index.toString().padStart(3, "0")}`,
+            description: "A".repeat(2_000),
+            slug: `later-seller-listing-${index.toString().padStart(3, "0")}`,
+            title: `Later Seller Listing ${index.toString().padStart(3, "0")}`,
+            userId: laterSeller.id,
+          })),
+        });
+
+        await expect(
+          runBuilder({
+            outputRoot,
+            sellerIds: [user.id, laterSeller.id],
+            sourceDb: db,
+          }),
+        ).rejects.toThrow(
+          "Must be a safe local image path or an approved HTTPS image URL.",
+        );
         await expect(
           stat(path.join(outputRoot, "current", "manifest.json")),
         ).rejects.toMatchObject({ code: "ENOENT" });
@@ -938,12 +923,11 @@ describe("public storefront artifacts", () => {
 
   it("keeps a committed manifest active when post-publication housekeeping fails", async () => {
     await withTempAppDb(async ({ user }) => {
-      const { buildPublicStorefrontArtifacts } = await import(
+      const { publishPublicStorefrontArtifacts } = await import(
         pathToFileURL(buildScriptPath).href
       );
       const housekeepingLabels = [
         "Artifact retention cleanup failed",
-        "Prisma disconnect failed",
         "Build lock release failed",
       ];
 
@@ -953,11 +937,10 @@ describe("public storefront artifacts", () => {
         );
 
         try {
-          const result = await buildPublicStorefrontArtifacts(
+          const result = await publishPublicStorefrontArtifacts(
             {
               output: outputRoot,
               sellerIds: [user.id],
-              source: process.env.DATABASE_URL!,
             },
             {
               executeHousekeepingOperation: async (
@@ -970,6 +953,13 @@ describe("public storefront artifacts", () => {
                 }
                 return value;
               },
+              getSnapshot: async (sellerId: string, generatedAt: string) => ({
+                generatedAt,
+                lists: [],
+                listings: [],
+                seller: { id: sellerId, profile: null },
+                version: 1,
+              }),
             },
           );
 

@@ -3,7 +3,6 @@
 import { spawn } from "node:child_process";
 import {
   access,
-  link,
   lstat,
   mkdir,
   mkdtemp,
@@ -19,7 +18,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 const buildScriptPath = path.join(
   process.cwd(),
@@ -27,25 +26,13 @@ const buildScriptPath = path.join(
 );
 
 const temporaryRoots = new Set<string>();
-const originalLiveReplica = process.env.TURSO_EMBEDDED_REPLICA_URL;
-const originalSellerIds = process.env.PUBLIC_STOREFRONT_SELLER_IDS;
-
-interface TestDatabase {
-  $disconnect: () => Promise<undefined>;
-  $queryRawUnsafe: () => Promise<undefined>;
-}
 
 interface BuildDependencies {
   checkpoint?: (
     label: string,
     context: { artifactPath?: string },
   ) => Promise<void>;
-  createDatabase?: (sourcePath: string) => Promise<TestDatabase>;
-  getSnapshot?: (
-    database: TestDatabase,
-    sellerId: string,
-    generatedAt: string,
-  ) => Promise<unknown>;
+  getSnapshot?: (sellerId: string, generatedAt: string) => Promise<unknown>;
   lockOptions?: {
     heartbeatMilliseconds: number;
     staleMilliseconds: number;
@@ -58,11 +45,10 @@ interface BuildResult {
 }
 
 interface BuilderModule {
-  buildPublicStorefrontArtifacts: (
-    options: { output: string; sellerIds: string[]; source: string },
+  publishPublicStorefrontArtifacts: (
+    options: { output: string; sellerIds: string[] },
     dependencies?: BuildDependencies,
   ) => Promise<BuildResult>;
-  main: (args: string[], dependencies?: BuildDependencies) => Promise<void>;
 }
 
 async function loadBuilder(cacheKey: string) {
@@ -101,19 +87,11 @@ function startBuilderChild(
     marker: string;
     outputRoot: string;
     readyPath: string;
-    sourcePath: string;
   },
 ) {
   const child = spawn(
     process.execPath,
-    [
-      runnerPath,
-      args.sourcePath,
-      args.outputRoot,
-      args.marker,
-      args.readyPath,
-      args.gatePath,
-    ],
+    [runnerPath, args.outputRoot, args.marker, args.readyPath, args.gatePath],
     { stdio: ["ignore", "pipe", "pipe"] },
   );
   let stdout = "";
@@ -141,17 +119,6 @@ function startBuilderChild(
 }
 
 afterEach(async () => {
-  if (originalLiveReplica === undefined) {
-    delete process.env.TURSO_EMBEDDED_REPLICA_URL;
-  } else {
-    process.env.TURSO_EMBEDDED_REPLICA_URL = originalLiveReplica;
-  }
-  if (originalSellerIds === undefined) {
-    delete process.env.PUBLIC_STOREFRONT_SELLER_IDS;
-  } else {
-    process.env.PUBLIC_STOREFRONT_SELLER_IDS = originalSellerIds;
-  }
-
   await Promise.all(
     [...temporaryRoots].map((root) =>
       rm(root, { force: true, recursive: true }),
@@ -161,120 +128,20 @@ afterEach(async () => {
 });
 
 describe("public storefront artifact publication safety", () => {
-  it("uses the trimmed seller allowlist and rejects empty or duplicate values", async () => {
-    const root = await createTemporaryRoot("storefront-seller-allowlist-");
-    const sourcePath = path.join(root, "source.sqlite");
+  it("rolls back a new artifact when publication fails before the manifest commit", async () => {
+    const root = await createTemporaryRoot("storefront-publication-rollback-");
     const outputRoot = path.join(root, "output");
-    await writeFile(sourcePath, "test source seam");
-    const { main } = await loadBuilder("seller-allowlist");
+    const { publishPublicStorefrontArtifacts } = await loadBuilder("rollback");
     const dependencies = {
-      createDatabase: async () => ({
-        $disconnect: async () => undefined,
-        $queryRawUnsafe: async () => undefined,
-      }),
-      getSnapshot: async (_database: unknown, sellerId: string) => ({
+      getSnapshot: async (sellerId: string, generatedAt: string) => ({
+        generatedAt,
+        marker: "previous",
         seller: { id: sellerId },
       }),
     };
-    const stdoutWrite = vi
-      .spyOn(process.stdout, "write")
-      .mockImplementation(() => true);
 
-    try {
-      process.env.PUBLIC_STOREFRONT_SELLER_IDS = " seller-a, seller-b ";
-      await main(
-        ["--source", sourcePath, "--output", outputRoot],
-        dependencies,
-      );
-      const manifest = parseJson<{ sellers: Array<{ id: string }> }>(
-        await readFile(
-          path.join(outputRoot, "current", "manifest.json"),
-          "utf8",
-        ),
-      );
-      expect(manifest.sellers.map((seller) => seller.id)).toEqual([
-        "seller-a",
-        "seller-b",
-      ]);
-
-      const invalidAllowlistCases = [
-        [
-          "seller-a,,seller-b",
-          "PUBLIC_STOREFRONT_SELLER_IDS cannot contain an empty seller ID.",
-        ],
-        ["seller-a,seller-a", "Each storefront seller ID must be unique."],
-      ] as const;
-      for (const [value, message] of invalidAllowlistCases) {
-        process.env.PUBLIC_STOREFRONT_SELLER_IDS = value;
-        await expect(
-          main(
-            [
-              "--source",
-              sourcePath,
-              "--output",
-              path.join(root, `invalid-${value.length}`),
-            ],
-            dependencies,
-          ),
-        ).rejects.toThrow(message);
-      }
-    } finally {
-      stdoutWrite.mockRestore();
-    }
-  });
-
-  it.each(["hard link", "symbolic link"])(
-    "rejects a %s alias of the live replica before it creates output",
-    async (aliasType) => {
-      const root = await createTemporaryRoot("storefront-source-safety-");
-      const liveReplicaPath = path.join(root, "live.sqlite");
-      const sourceAliasPath = path.join(root, "source.sqlite");
-      const outputRoot = path.join(root, "output");
-      await writeFile(liveReplicaPath, "not opened");
-      if (aliasType === "hard link") {
-        await link(liveReplicaPath, sourceAliasPath);
-      } else {
-        await symlink(liveReplicaPath, sourceAliasPath);
-      }
-      process.env.TURSO_EMBEDDED_REPLICA_URL = `file:${liveReplicaPath}`;
-
-      const { buildPublicStorefrontArtifacts } =
-        await loadBuilder("source-safety");
-
-      await expect(
-        buildPublicStorefrontArtifacts({
-          output: outputRoot,
-          sellerIds: ["seller"],
-          source: sourceAliasPath,
-        }),
-      ).rejects.toThrow(
-        "The builder must use the dedicated synced storefront source replica, not the live embedded replica.",
-      );
-      await expect(stat(outputRoot)).rejects.toMatchObject({ code: "ENOENT" });
-    },
-  );
-
-  it("rolls back a new artifact when publication fails before the manifest commit", async () => {
-    const root = await createTemporaryRoot("storefront-publication-rollback-");
-    const sourcePath = path.join(root, "source.sqlite");
-    const outputRoot = path.join(root, "output");
-    await writeFile(sourcePath, "test source seam");
-    const { buildPublicStorefrontArtifacts } = await loadBuilder("rollback");
-    const database = {
-      $disconnect: async () => undefined,
-      $queryRawUnsafe: async () => undefined,
-    };
-    const dependencies = {
-      createDatabase: async () => database,
-      getSnapshot: async (
-        _database: unknown,
-        sellerId: string,
-        generatedAt: string,
-      ) => ({ generatedAt, marker: "previous", seller: { id: sellerId } }),
-    };
-
-    await buildPublicStorefrontArtifacts(
-      { output: outputRoot, sellerIds: ["seller"], source: sourcePath },
+    await publishPublicStorefrontArtifacts(
+      { output: outputRoot, sellerIds: ["seller"] },
       dependencies,
     );
     const manifestPath = path.join(outputRoot, "current", "manifest.json");
@@ -288,8 +155,8 @@ describe("public storefront artifact publication safety", () => {
       "after_manifest_rename_before_sync",
     ]) {
       await expect(
-        buildPublicStorefrontArtifacts(
-          { output: outputRoot, sellerIds: ["seller"], source: sourcePath },
+        publishPublicStorefrontArtifacts(
+          { output: outputRoot, sellerIds: ["seller"] },
           {
             ...dependencies,
             checkpoint: async (label: string) => {
@@ -297,11 +164,7 @@ describe("public storefront artifact publication safety", () => {
                 throw new Error(`simulated failure at ${failureCheckpoint}`);
               }
             },
-            getSnapshot: async (
-              _database: unknown,
-              sellerId: string,
-              generatedAt: string,
-            ) => ({
+            getSnapshot: async (sellerId: string, generatedAt: string) => ({
               generatedAt,
               marker: "replacement",
               seller: { id: sellerId },
@@ -323,22 +186,17 @@ describe("public storefront artifact publication safety", () => {
 
   it("removes its lock when acquisition setup fails after file creation", async () => {
     const root = await createTemporaryRoot("storefront-lock-setup-failure-");
-    const sourcePath = path.join(root, "source.sqlite");
     const outputRoot = path.join(root, "output");
     const lockPath = path.join(outputRoot, ".build.lock");
-    await writeFile(sourcePath, "test source seam");
-    const { buildPublicStorefrontArtifacts } = await loadBuilder("lock-setup");
+    const { publishPublicStorefrontArtifacts } =
+      await loadBuilder("lock-setup");
     const dependencies = {
-      createDatabase: async () => ({
-        $disconnect: async () => undefined,
-        $queryRawUnsafe: async () => undefined,
-      }),
       getSnapshot: async () => ({ marker: "published" }),
     };
 
     await expect(
-      buildPublicStorefrontArtifacts(
-        { output: outputRoot, sellerIds: ["seller"], source: sourcePath },
+      publishPublicStorefrontArtifacts(
+        { output: outputRoot, sellerIds: ["seller"] },
         {
           ...dependencies,
           checkpoint: async (label: string) => {
@@ -352,8 +210,8 @@ describe("public storefront artifact publication safety", () => {
     await expect(lstat(lockPath)).rejects.toMatchObject({ code: "ENOENT" });
 
     await expect(
-      buildPublicStorefrontArtifacts(
-        { output: outputRoot, sellerIds: ["seller"], source: sourcePath },
+      publishPublicStorefrontArtifacts(
+        { output: outputRoot, sellerIds: ["seller"] },
         dependencies,
       ),
     ).resolves.toMatchObject({ ready: true });
@@ -361,16 +219,15 @@ describe("public storefront artifact publication safety", () => {
 
   it("installs content-addressed artifacts without replacing a concurrent final", async () => {
     const root = await createTemporaryRoot("storefront-no-clobber-");
-    const sourcePath = path.join(root, "source.sqlite");
     const outputRoot = path.join(root, "output");
-    await writeFile(sourcePath, "test source seam");
-    const { buildPublicStorefrontArtifacts } = await loadBuilder("no-clobber");
+    const { publishPublicStorefrontArtifacts } =
+      await loadBuilder("no-clobber");
     const expectedBody = JSON.stringify({ marker: "same-content" });
     let contenderPath = "";
     let contenderIdentity: Awaited<ReturnType<typeof stat>> | null = null;
 
-    const result = await buildPublicStorefrontArtifacts(
-      { output: outputRoot, sellerIds: ["seller"], source: sourcePath },
+    const result = await publishPublicStorefrontArtifacts(
+      { output: outputRoot, sellerIds: ["seller"] },
       {
         checkpoint: async (
           label: string,
@@ -383,10 +240,6 @@ describe("public storefront artifact publication safety", () => {
           await writeFile(contenderPath, expectedBody, { flag: "wx" });
           contenderIdentity = await stat(contenderPath);
         },
-        createDatabase: async () => ({
-          $disconnect: async () => undefined,
-          $queryRawUnsafe: async () => undefined,
-        }),
         getSnapshot: async () => ({ marker: "same-content" }),
       },
     );
@@ -401,21 +254,16 @@ describe("public storefront artifact publication safety", () => {
 
   it("sweeps only stale regular files and retains the replaced generation", async () => {
     const root = await createTemporaryRoot("storefront-safe-sweep-");
-    const sourcePath = path.join(root, "source.sqlite");
     const outputRoot = path.join(root, "output");
-    await writeFile(sourcePath, "test source seam");
-    const { buildPublicStorefrontArtifacts } = await loadBuilder("safe-sweep");
+    const { publishPublicStorefrontArtifacts } =
+      await loadBuilder("safe-sweep");
     let marker = "previous";
     const dependencies = {
-      createDatabase: async () => ({
-        $disconnect: async () => undefined,
-        $queryRawUnsafe: async () => undefined,
-      }),
       getSnapshot: async () => ({ marker }),
     };
 
-    await buildPublicStorefrontArtifacts(
-      { output: outputRoot, sellerIds: ["seller"], source: sourcePath },
+    await publishPublicStorefrontArtifacts(
+      { output: outputRoot, sellerIds: ["seller"] },
       dependencies,
     );
     const priorManifest = parseJson<{
@@ -459,8 +307,8 @@ describe("public storefront artifact publication safety", () => {
     }
 
     marker = "replacement";
-    const result = await buildPublicStorefrontArtifacts(
-      { output: outputRoot, sellerIds: ["seller"], source: sourcePath },
+    const result = await publishPublicStorefrontArtifacts(
+      { output: outputRoot, sellerIds: ["seller"] },
       dependencies,
     );
 
@@ -491,30 +339,24 @@ describe("public storefront artifact publication safety", () => {
 
   it("prevents a stale owner from deleting the replacement lease or publishing after takeover", async () => {
     const root = await createTemporaryRoot("storefront-lock-race-");
-    const sourcePath = path.join(root, "source.sqlite");
     const outputRoot = path.join(root, "output");
     const runnerPath = path.join(root, "builder-child.mjs");
     const readyA = path.join(root, "ready-a");
     const readyB = path.join(root, "ready-b");
     const gateA = path.join(root, "gate-a");
     const gateB = path.join(root, "gate-b");
-    await writeFile(sourcePath, "test source seam");
     await writeFile(
       runnerPath,
       `
 import { access, writeFile } from "node:fs/promises";
 import { setTimeout as delay } from "node:timers/promises";
-import { buildPublicStorefrontArtifacts } from ${JSON.stringify(pathToFileURL(buildScriptPath).href)};
+import { publishPublicStorefrontArtifacts } from ${JSON.stringify(pathToFileURL(buildScriptPath).href)};
 
-const [source, output, marker, ready, gate] = process.argv.slice(2);
-const database = {
-  $disconnect: async () => undefined,
-  $queryRawUnsafe: async () => undefined,
-};
+const [output, marker, ready, gate] = process.argv.slice(2);
 
 try {
-  const result = await buildPublicStorefrontArtifacts(
-    { output, sellerIds: ["seller"], source },
+  const result = await publishPublicStorefrontArtifacts(
+    { output, sellerIds: ["seller"] },
     {
       checkpoint: async (label) => {
         if (label !== "before_manifest_commit") return;
@@ -528,8 +370,7 @@ try {
           }
         }
       },
-      createDatabase: async () => database,
-      getSnapshot: async (_database, sellerId, generatedAt) => ({
+      getSnapshot: async (sellerId, generatedAt) => ({
         generatedAt,
         marker,
         seller: { id: sellerId },
@@ -550,7 +391,6 @@ try {
       marker: "old-owner",
       outputRoot,
       readyPath: readyA,
-      sourcePath,
     });
     let childB: ReturnType<typeof startBuilderChild> | null = null;
     try {
@@ -570,7 +410,6 @@ try {
         marker: "new-owner",
         outputRoot,
         readyPath: readyB,
-        sourcePath,
       });
       await waitForFile(readyB);
       const replacementLock = parseJson<{

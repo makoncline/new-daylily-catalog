@@ -1,4 +1,4 @@
-import { Buffer } from "node:buffer";
+import { isCanonicalStorefrontBearerToken } from "@daylily-catalog/storefront-contract";
 import { z } from "zod";
 
 export const storefrontSellerIdSchema = z
@@ -7,19 +7,6 @@ export const storefrontSellerIdSchema = z
   .min(1)
   .max(128)
   .regex(/^[A-Za-z0-9_-]+$/u);
-
-const storefrontInquiryTokenPattern = /^[A-Za-z0-9_-]+$/u;
-
-function isValidStorefrontInquiryToken(token: string) {
-  if (!storefrontInquiryTokenPattern.test(token)) {
-    return false;
-  }
-
-  const tokenBytes = Buffer.from(token, "base64url");
-  return (
-    tokenBytes.byteLength >= 32 && tokenBytes.toString("base64url") === token
-  );
-}
 
 function skipJsonWhitespace(value: string, startIndex: number) {
   let index = startIndex;
@@ -104,7 +91,7 @@ function parseTokenMap(value: string | undefined) {
 
     const tokenResult = readJsonString(value, index);
     const token = tokenResult.value;
-    if (!isValidStorefrontInquiryToken(token)) {
+    if (!isCanonicalStorefrontBearerToken(token)) {
       throw new Error("STOREFRONT_INQUIRY_TOKENS_JSON has an invalid token.");
     }
     if (tokenValues.has(token)) {

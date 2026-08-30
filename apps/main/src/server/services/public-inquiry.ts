@@ -19,6 +19,7 @@ export interface SendPublicInquiryInput {
 
 export interface SendPublicInquiryOptions {
   headers?: Headers;
+  rejectCartChanges?: boolean;
 }
 
 interface PublicInquiryContext {
@@ -105,7 +106,10 @@ function formatCartItems(items: CartItem[] | undefined) {
   };
 }
 
-async function resolveCartItems(input: SendPublicInquiryInput) {
+async function resolveCartItems(
+  input: SendPublicInquiryInput,
+  rejectCartChanges: boolean,
+) {
   const requestedItems = input.inquiryItem
     ? [input.inquiryItem, ...(input.items ?? [])]
     : input.items;
@@ -122,6 +126,25 @@ async function resolveCartItems(input: SendPublicInquiryInput) {
     select: { id: true, title: true, price: true },
   });
   const listingById = new Map(listings.map((listing) => [listing.id, listing]));
+
+  if (
+    rejectCartChanges &&
+    requestedItems.some((item) => {
+      const currentPrice = listingById.get(item.listingId)?.price;
+      return (
+        currentPrice === undefined ||
+        currentPrice === null ||
+        currentPrice <= 0 ||
+        currentPrice !== item.price
+      );
+    })
+  ) {
+    throw new TRPCError({
+      code: "CONFLICT",
+      message: "The cart changed. Refresh it and try again.",
+    });
+  }
+
   const items = requestedItems.flatMap((item) => {
     const listing = listingById.get(item.listingId);
     return listing
@@ -141,6 +164,7 @@ async function resolveCartItems(input: SendPublicInquiryInput) {
 
 async function loadPublicInquiryContext(
   input: SendPublicInquiryInput,
+  rejectCartChanges: boolean,
 ): Promise<PublicInquiryContext> {
   const user = await db.user.findUnique({
     where: { id: input.userId },
@@ -174,7 +198,10 @@ async function loadPublicInquiryContext(
   }
 
   const customerDisplayName = getCustomerDisplayName(input);
-  const { items, hadOmittedItems } = await resolveCartItems(input);
+  const { items, hadOmittedItems } = await resolveCartItems(
+    input,
+    rejectCartChanges,
+  );
   const { formattedItems, hasCartItems, subtotal } = formatCartItems(items);
   const catalogUrl = `${getCanonicalBaseUrl()}/${user.profile?.slug ?? user.id}`;
 
@@ -282,7 +309,10 @@ export async function sendPublicInquiry(
       input,
     });
 
-    const context = await loadPublicInquiryContext(input);
+    const context = await loadPublicInquiryContext(
+      input,
+      options.rejectCartChanges === true,
+    );
     const cleanedMessage = normalizeInquiryMessage(input.message);
     const formattedMessage =
       cleanedMessage !== ""

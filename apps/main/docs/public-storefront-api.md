@@ -105,10 +105,11 @@ listing has no image. Image objects always contain all five keys. `order` is a
 nonnegative integer and is unique in one image array. A ready generated
 cultivar image takes precedence over the trusted AHS registry URL.
 
-Cultivar details use the V2 AHS record when it exists. A legacy-only cultivar
-reference uses its public `AhsListing` fields. Legacy data has `rebloom: null`
-because that source has no rebloom field. The builder does not derive a
-seedling number or other missing trait.
+The cultivar envelope comes from `CultivarReference`. Its `details` value uses
+only the linked V2 AHS record. A reference without a V2 link has
+`details: null`. A listing without a cultivar reference has `cultivar: null`.
+The builder does not use the obsolete `AhsListing` fallback and does not derive
+missing traits.
 
 The builder includes only ready profile and listing assets of the correct kind.
 It includes direct assets that do not have a legacy image ID. It does not use
@@ -132,11 +133,12 @@ that contain `/`, `?`, `#`, or `%`. It does not invent a collision suffix.
 
 ## Visibility rules
 
-The artifact builder reads the dedicated, synced source replica. The request
-route does not connect to Prisma, the source replica, or Turso. It returns only
-public lists and public listings for the requested seller. It does not apply a
-subscription rule. A dedicated seller storefront can show its public data
-without a Daylily Catalog Pro subscription.
+The artifact builder explicitly syncs the normal embedded libSQL replica. It
+then pages public projections through the singleton `replicaDb` client. The
+request route does not connect to Prisma, the replica, or Turso. It returns
+only public lists and public listings for the requested seller. It does not
+apply a subscription rule. A dedicated seller storefront can show its public
+data without a Daylily Catalog Pro subscription.
 
 The API does not return private notes, Clerk identifiers, roles, Stripe data,
 subscription state, or key-value data. Profile rich text is sanitized before it
@@ -149,65 +151,59 @@ Production must set these runtime values:
 ```dotenv
 PUBLIC_STOREFRONT_ARTIFACT_ROOT=/data/storefronts
 PUBLIC_STOREFRONT_SELLER_IDS=3
+STOREFRONT_ARTIFACT_REFRESH_TOKEN=<private canonical base64url token>
 ```
 
 `PUBLIC_STOREFRONT_SELLER_IDS` is the explicit publication allowlist. It uses
 comma-separated, nonempty user IDs. Duplicate IDs are invalid. The builder does
 not discover sellers. The request route serves only seller entries in the
-published manifest. One or more `--seller-id` options can supply the complete
-allowlist for a manual build instead of the environment value.
+published manifest. `STOREFRONT_ARTIFACT_REFRESH_TOKEN` protects the fixed
+loopback refresh route. Generate a separate value for each environment.
 
-On the current dedicated-source branch, prepare one source replica and then run
-the one-shot builder. The following command runs in the deployed container and
-uses the environment from the `app` service:
+The source-controlled operation is
+`apps/main/scripts/refresh-public-storefront-artifacts.mjs`. The disabled
+systemd service in `apps/main/deploy/vps` runs it inside the existing `app`
+container. Before it starts artifact work, the operation validates the exact
+seller allowlist, version-controlled approved site identities, active
+hostnames, API-zone credential, and distinct per-site purge credentials. It
+then calls this fixed loopback route with the refresh bearer token:
 
-```sh
-cd /srv/stacks/daylilycatalog
-docker compose exec -T app sh -eu -c '
-  mkdir -p "$PUBLIC_STOREFRONT_ARTIFACT_ROOT"
-  node apps/main/scripts/sync-public-search-source-replica.mjs \
-    --source "$PUBLIC_STOREFRONT_ARTIFACT_ROOT/source-replica.sqlite"
-  node apps/main/scripts/build-public-storefront-artifacts.mjs \
-    --source "$PUBLIC_STOREFRONT_ARTIFACT_ROOT/source-replica.sqlite" \
-    --output "$PUBLIC_STOREFRONT_ARTIFACT_ROOT"
-'
+```http
+POST http://127.0.0.1:3000/api/internal/storefront-artifacts/refresh
+Authorization: Bearer <STOREFRONT_ARTIFACT_REFRESH_TOKEN>
 ```
 
-The sync command creates or updates its own local libSQL replica from the remote
-`DATABASE_URL`. It also runs `PRAGMA quick_check`. It does not copy or open the
-normal `TURSO_EMBEDDED_REPLICA_URL` file. The builder rejects that live embedded
-replica, including hard-link and symbolic-link aliases, and rejects remote
-database URLs. The source sync must finish before Prisma opens the source. This
-gives the build one stable file and keeps its paged read from competing with the
-normal embedded-replica owner.
+The internal route is not a public management API. All responses use
+`Cache-Control: no-store`. It authenticates before sync or publication. The
+main process calls `syncEmbeddedReplica()`, pages each approved seller through
+the exact synced singleton, and streams bounded NDJSON pages to a target-only
+Node 20 child. The child never opens or copies the replica file. It validates
+the complete document with `@daylily-catalog/storefront-contract` before it
+hashes or publishes any representation.
 
-Source acquisition is isolated from snapshot mapping and atomic publication.
-The one-replica integration can replace this first command with a completed
-`syncEmbeddedReplica()` plus bounded source paging. The public mapper, artifact
-format, and publication contract do not depend on how the rows arrive.
-
-The builder processes sellers serially. It writes immutable JSON files with an
+The target worker processes sellers serially. It writes immutable JSON files with an
 address bound to the seller ID and exact body bytes. A token-owned lease and
 heartbeat permit one publisher. Every artifact and manifest commit verifies
 lease ownership. The manifest rename and parent-directory sync are the commit
 point. A handled failure before that sync restores the prior manifest and
 removes files created by the failed attempt. A failure after the durable commit
 is recoverable housekeeping: the command reports a warning and still returns
-success because the new manifest is active. The builder disconnects Prisma and
-exits, which releases the build memory.
+success because the new manifest is active.
 
-A successful JSON result has `ready: true`, the build `generatedAt`, the
-published sellers, any housekeeping warnings, and the artifact root. Treat only
-an exit status of zero with `ready: true` as a completed publication.
+A successful internal refresh receipt contains the build `generatedAt` and the
+exact seller set. The outer operation accepts it only when the seller set equals
+the configured allowlist. It then purges the API tag and every affected site
+tag. Its final JSON result contains `generatedAt`, `sellers`, and `purgedSites`.
+Treat only exit status zero as a complete refresh.
 
-Run an initial successful sync and build before the endpoint receives traffic.
-Every 24 hours, run the source sync to completion, require its `ok: true`
-result, and then run the builder. Do not run the two commands concurrently. If
-either command fails, keep the prior manifest and alert the owner. If the
-manifest does not exist, the route returns `503` and does not build data during
-the request. The storefront health endpoint classifies a usable artifact as
-degraded after 26 hours but continues to serve it. This branch does not install
-or enable a production scheduler.
+Run one successful operation before the endpoint receives storefront traffic,
+and run it every 24 hours after approval. If sync, build, validation,
+publication, or purge fails, keep the prior manifest and fail the operation so
+systemd retries it. If the manifest does not exist, the public route returns
+`503` and does not build data during the request. The storefront health
+endpoint classifies a usable artifact as degraded after 26 hours but continues
+to serve it. This branch includes disabled systemd templates; it does not
+install or enable them.
 
 Before publication, the builder refreshes the retention clock for every object
 in the prior manifest. After the new manifest is durable, it removes only
@@ -215,15 +211,17 @@ unreferenced objects whose retention clock is more than seven days old. A
 request that opened the prior manifest therefore has a seven-day grace period
 to open and read its object.
 
-After the new manifest is active, the future 24-hour job must purge cache tags
-in this order:
+After the new manifest is active, the operation purges cache tags in this
+order:
 
 1. Purge `daylily-storefront-data` in the Daylily Catalog API zone.
 2. Purge `daylily-storefront-public-html` in the affected storefront zone.
 
-The job must run purges only after the builder returns zero with `ready: true`.
-It must alert on a failed publication or purge. This branch does not add purge
-credentials, a scheduler, or live purge calls.
+The operation starts purges only after the refresh route returns a valid exact
+seller receipt. An API purge failure prevents all site purges. A site purge
+failure prevents later site purges. The disabled service retries a nonzero
+exit. Connect final service failure to alerting before enablement. This branch
+does not add credentials, enable the timer, or call Cloudflare.
 
 ## Cache contract
 
@@ -253,7 +251,7 @@ The daily publication target and the purge keep artifact freshness and edge
 freshness from compounding.
 
 Cloudflare consumes the origin `Cache-Tag` header and uses the tag for targeted
-purges. The future job must send the API tag to the API zone before it purges
+purges. The operation sends the API tag to the API zone before it purges
 the storefront HTML tag in the storefront zone. See Cloudflare's
 [purge-by-tag guidance](https://developers.cloudflare.com/cache/how-to/purge-cache/purge-by-tags/).
 

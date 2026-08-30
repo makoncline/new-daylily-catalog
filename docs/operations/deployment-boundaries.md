@@ -19,6 +19,8 @@ The monorepo has two deployable applications. They share source control and sele
 
 `.github/scripts/affected-apps.mjs` is the source of truth. It uses `git diff --no-renames` so a file move affects its old path and its new path. It uses Turbo `query affected` for package and lockfile changes. The query compares the dependency closure for each application. A storefront-only package or lockfile change does not select the main application. A shared dependency change selects each affected consumer. A storefront contract change selects the contract test job and both producer and consumer checks. The contract commands use `--fail-if-no-match`; the workflow fails if the package is absent.
 
+Non-runtime app documentation also skips image and deployment jobs. This includes every file under either app's `docs/**` directory and every other app `*.md` file unless it is under that app's `public/**` directory. Public assets and machine-readable documents under `public/**` remain runtime inputs and select their app.
+
 Each workspace package must have a unique name and explicit internal dependencies. The final storefront change must contain the `apps/storefront` lockfile importer and the `@daylily-catalog/storefront` package name. The scope checkout uses the pull-request head commit, not the synthetic merge commit. The classifier fails the job if Git or Turbo cannot make a safe decision.
 
 Pull-request workflows always start the small scope job. This job also runs the path-rule regression tests. App jobs then run or skip. Documentation-only changes keep one visible workflow result without a required check that stays pending.
@@ -34,7 +36,7 @@ Pull-request workflows always start the small scope job. This job also runs the 
 | Deploy target      | `daylilycatalog`                    | `rolling-oaks-daylilies` after approval |
 | Caddy upstream     | `app:3000`                          | `rolling-oaks-storefront:3000`          |
 
-The main workflow keeps its current deployment behavior, but only main or dependency-affected shared changes can reach it. The storefront workflow uses fixture data and a stub inquiry adapter to verify the generic image. It publishes the image after a successful main-branch build. It does not use seller configuration and does not call a deploy webhook.
+The main workflow keeps its current deployment behavior, but only main or dependency-affected shared changes can reach it. The storefront workflow verifies the generic image with the approved Rolling Oaks staging identity. It uses remote data and inquiry modes against an ephemeral local HTTPS server that implements the production API contract. It publishes the image after a successful main-branch build. It uses no production credential and does not call a deploy webhook.
 
 Deployment gateway registration, a protected deployment environment, and an automatic webhook need a later owner-controlled cutover.
 
@@ -50,7 +52,7 @@ The main stack environment is the only source for `PUBLIC_STOREFRONT_SELLER_IDS`
 
 After the job commits the new manifest, it must purge `daylily-storefront-data` in the API zone with the API token. Only after that succeeds can it purge `daylily-storefront-public-html` in each affected site's own zone with that site's token. A missing target or failed purge must stop later purges, make the run fail, alert, and retry. Storefront health must degrade when the serving artifact is more than 26 hours old. This limit permits two hours of timer jitter and detects a missed daily run before the stale cache windows hide it.
 
-The disabled service and timer examples in `apps/main/deploy/vps` define the integration point. The final artifact command does not exist on this branch. Do not invent or install a replacement. Before enablement, the implementation must add a source-controlled one-shot command, an exclusive lock, atomic publication, ordered purge tests, retry behavior, alerting, and the initial seller `3` artifact. The owner must approve the final command, live purge inputs, service installation, and timer enablement. This repository change does not enable the production scheduler or call a purge.
+The disabled service and timer examples in `apps/main/deploy/vps` run the source-controlled `apps/main/scripts/refresh-public-storefront-artifacts.mjs` command inside the existing main container. The command validates all site and Cloudflare inputs before it calls the protected loopback refresh route. The route syncs the one embedded replica, publishes the shared-schema-validated artifact atomically, and returns the exact seller set. The command then performs the ordered API and site tag purges. The loopback request has a 15-minute deadline, each purge has a 30-second deadline, and the service has a 30-minute deadline. Focused tests cover missing targets, failed refreshes, and failed purges. Before enablement, connect final service failure to alerting and build the initial seller `3` artifact. The owner must approve the live token and purge inputs, service installation, and timer enablement. This repository change does not enable the production scheduler or call a purge.
 
 ## Multi-site server model
 

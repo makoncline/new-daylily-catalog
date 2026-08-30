@@ -6,7 +6,7 @@ const transparentPixel = Buffer.from(
 );
 
 test.beforeEach(async ({ page }) => {
-  await page.route("https://images.daylilycatalog.com/**", async (route) => {
+  await page.route("https://media.daylilycatalog.com/**", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "image/png",
@@ -108,21 +108,21 @@ test("a buyer can search, view a listing, and send a cart inquiry", async ({
   await expect(
     page.getByText("$15.00", { exact: false }).first(),
   ).toBeVisible();
-  await expect(page.locator('img[src*="-thumb-200.webp"]')).toBeVisible();
+  await expect(page.locator('img[src*="/thumb-200.webp"]')).toBeVisible();
   await expect
-    .poll(() => requestedUrls.some((url) => url.endsWith("-display-800.webp")))
+    .poll(() => requestedUrls.some((url) => url.endsWith("/display-800.webp")))
     .toBe(true);
   await expect
-    .poll(() => requestedUrls.some((url) => url.endsWith("-thumb-200.webp")))
+    .poll(() => requestedUrls.some((url) => url.endsWith("/thumb-200.webp")))
     .toBe(true);
   await expect
-    .poll(() => requestedUrls.some((url) => url.endsWith("-blur-20.webp")))
+    .poll(() => requestedUrls.some((url) => url.endsWith("/blur-20.webp")))
     .toBe(true);
   expect(
     requestedUrls.filter(
       (url) =>
         url.includes("/_next/image?") &&
-        decodeURIComponent(url).includes("images.daylilycatalog.com"),
+        decodeURIComponent(url).includes("media.daylilycatalog.com"),
     ),
   ).toEqual([]);
   await page.getByLabel("Name").fill("Fixture Buyer");
@@ -289,7 +289,7 @@ test("a saved cart hydrates without an empty-cart announcement", async ({
             title: "Boundary Twenty",
             price: 20,
             imageUrl:
-              "https://images.daylilycatalog.com/fixtures/daylily-2-thumb-200.webp",
+              "https://media.daylilycatalog.com/users/3/listing-images/3438/cm6jw60zk0001n5lbm20whcqn/thumb-200.webp",
             isForSale: true,
             quantity: 1,
           },
@@ -327,6 +327,28 @@ test("discovery routes exclude transactional pages and missing listings are real
     "daylily-storefront-public-html",
   );
 
+  for (const path of ["/openapi.json", "/.well-known/api-catalog"]) {
+    const machineDocument = await request.get(path);
+    expect(machineDocument.status()).toBe(200);
+    expect(machineDocument.headers()["cloudflare-cdn-cache-control"]).toBe(
+      "public, max-age=3600, stale-while-revalidate=86400",
+    );
+    expect(machineDocument.headers()["cache-tag"]).toBe(
+      "daylily-storefront-public-html",
+    );
+  }
+
+  for (const path of ["/favicon.ico", "/icon", "/robots.txt"]) {
+    const metadataResponse = await request.get(path);
+    expect(metadataResponse.status()).toBe(200);
+    expect(metadataResponse.headers()["cloudflare-cdn-cache-control"]).toBe(
+      "public, max-age=43200, stale-while-revalidate=604800, stale-if-error=86400",
+    );
+    expect(metadataResponse.headers()["cache-tag"]).toBe(
+      "daylily-storefront-public-html",
+    );
+  }
+
   const skill = await request.get(
     "/.well-known/agent-skills/catalog-navigation/SKILL.md",
     { headers: { accept: "text/markdown" } },
@@ -338,7 +360,7 @@ test("discovery routes exclude transactional pages and missing listings are real
   );
 
   const cart = await request.get("/cart");
-  expect(cart.headers()["cloudflare-cdn-cache-control"]).toBeUndefined();
+  expect(cart.headers()["cloudflare-cdn-cache-control"]).toBe("no-store");
 
   const markdown = await request.get("/catalog/display-garden", {
     headers: { accept: "text/markdown" },
@@ -347,7 +369,7 @@ test("discovery routes exclude transactional pages and missing listings are real
   expect(markdown.headers()["content-type"]).toContain("text/markdown");
   expect(markdown.headers()["cache-control"]).toBe("no-store");
   expect(markdown.headers().vary).toContain("Accept");
-  expect(markdown.headers()["cloudflare-cdn-cache-control"]).toBeUndefined();
+  expect(markdown.headers()["cloudflare-cdn-cache-control"]).toBe("no-store");
   await expect(markdown.text()).resolves.toContain("# Display Garden");
 
   const rsc = await request.get("/catalog/all?_rsc=browser-proof", {
@@ -367,6 +389,10 @@ test("discovery routes exclude transactional pages and missing listings are real
 
   const sitemap = await request.get("/sitemap.xml");
   expect(sitemap.status()).toBe(200);
+  expect(sitemap.headers()["cloudflare-cdn-cache-control"]).toBe(
+    "public, max-age=86400",
+  );
+  expect(sitemap.headers()["cache-tag"]).toBe("daylily-storefront-public-html");
   const xml = await sitemap.text();
   expect(xml).toContain("/catalog/display-garden");
   expect(xml).toContain("/catalog/st.-james");

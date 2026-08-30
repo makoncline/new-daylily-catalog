@@ -218,9 +218,36 @@ describe("storefront inquiry route", () => {
         customerName: "Buyer Name",
         message: "Do you ship this cultivar?",
       },
-      { headers: new Headers() },
+      { headers: new Headers(), rejectCartChanges: true },
     );
     expect(isSellerApproved).toHaveBeenCalledWith("3");
+  });
+
+  it("fails privately without delivery when the receipt is invalid", async () => {
+    const invalidReceiptHandler = createStorefrontInquiryHandler({
+      createReceipt: () => ({
+        id: "inquiry-123",
+        acceptedAt: "not-an-ISO-date",
+      }),
+      getToken: (sellerId) =>
+        getConfiguredStorefrontInquiryToken(sellerId, TOKEN_MAP, "3"),
+      isSellerApproved: (sellerId) =>
+        isConfiguredStorefrontSeller(sellerId, "3"),
+      sendInquiry,
+    });
+
+    const response = await invalidReceiptHandler(
+      createRequest(contactInquiry),
+      { sellerId: "3" },
+    );
+
+    expect(response.status).toBe(500);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    await expect(response.json()).resolves.toEqual({
+      error: "internal_server_error",
+      message: "The inquiry could not be delivered.",
+    });
+    expect(sendInquiry).not.toHaveBeenCalled();
   });
 
   it("binds cart items to the route seller and forwards only the dedicated client IP", async () => {
@@ -251,8 +278,31 @@ describe("storefront inquiry route", () => {
           },
         ],
       },
-      { headers: new Headers({ "x-forwarded-for": "203.0.113.10" }) },
+      {
+        headers: new Headers({ "x-forwarded-for": "203.0.113.10" }),
+        rejectCartChanges: true,
+      },
     );
+  });
+
+  it("returns the cart_changed machine code for a stale storefront cart", async () => {
+    sendInquiry.mockRejectedValueOnce(
+      new TRPCError({
+        code: "CONFLICT",
+        message: "The cart changed. Refresh it and try again.",
+      }),
+    );
+
+    const response = await handler(createRequest(cartInquiry), {
+      sellerId: "3",
+    });
+
+    expect(response.status).toBe(409);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    await expect(response.json()).resolves.toEqual({
+      error: "cart_changed",
+      message: "The cart changed. Refresh it and try again.",
+    });
   });
 
   it("rejects invalid inquiry data and invalid dedicated client IP values", async () => {

@@ -15,6 +15,7 @@
   },
   "include": [
     "next-env.d.ts",
+    "src/app/.well-known/**/*.ts",
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",

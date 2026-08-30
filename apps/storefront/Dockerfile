@@ -21,6 +21,11 @@ COPY packages/ui/package.json ./packages/ui/package.json
 
 RUN pnpm install --frozen-lockfile --filter @daylily-catalog/storefront...
 
+RUN mkdir --parents /runtime-dependencies \
+    && cp --archive --dereference \
+      /app/packages/storefront-contract/node_modules/zod \
+      /runtime-dependencies/zod
+
 FROM base AS builder
 
 WORKDIR /app
@@ -50,6 +55,9 @@ RUN groupadd --system --gid 1001 nodejs \
 COPY --from=builder --chown=nextjs:nodejs /app/apps/storefront/public ./apps/storefront/public
 COPY --from=builder --chown=nextjs:nodejs /app/apps/storefront/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/storefront/.next/static ./apps/storefront/.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/apps/storefront/scripts/production-startup-preflight.mjs ./apps/storefront/scripts/production-startup-preflight.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/packages/storefront-contract/src/runtime.js ./packages/storefront-contract/src/runtime.js
+COPY --from=dependencies --chown=nextjs:nodejs /runtime-dependencies/zod ./node_modules/zod
 
 USER nextjs
 
@@ -58,4 +66,4 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
   CMD node -e 'fetch("http://127.0.0.1:3000/api/health").then((response) => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1))'
 
-CMD ["node", "apps/storefront/server.js"]
+CMD ["sh", "-c", "node apps/storefront/scripts/production-startup-preflight.mjs && exec node apps/storefront/server.js"]

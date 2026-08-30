@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck -- Directly executable artifact publisher, contract-tested by Vitest.
 
 import { createHash, randomUUID } from "node:crypto";
 import {
@@ -8,30 +9,34 @@ import {
   open,
   readFile,
   readdir,
-  realpath,
   rename,
-  stat,
   unlink,
   utimes,
 } from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
-import { PrismaClient } from "@prisma/client";
-import { getPublicStorefrontSnapshot } from "./storefront/public-storefront-data.mjs";
+import { fileURLToPath } from "node:url";
+import { streamToTargetWorker } from "../src/server/target-worker-stream.js";
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
-const appRoot = path.resolve(scriptDirectory, "..");
+const defaultTargetWorkerPath = path.join(
+  scriptDirectory,
+  "build-public-storefront-artifacts-target.mjs",
+);
 const manifestFormatVersion = 1;
+const sourceListingBatchSize = 200;
+const sourceReadTransactionTimeoutMilliseconds = 5 * 60 * 1_000;
 const artifactRetentionMilliseconds = 7 * 24 * 60 * 60 * 1_000;
-const staleLockMilliseconds = 6 * 60 * 60 * 1_000;
+// The scheduled retry starts after 15 minutes. It must be able to quarantine a
+// lease left by a watchdog kill, while a live build refreshes the lease each minute.
+const staleLockMilliseconds = 5 * 60 * 1_000;
 const artifactFilePattern = /^[a-f0-9]{64}\.json$/;
 const artifactTemporaryFilePattern =
   /^\.[a-f0-9]{64}\.json\.artifact\.[a-f0-9-]+\.[a-f0-9-]+\.tmp$/;
 const manifestTemporaryFilePattern =
   /^\.manifest\.[a-f0-9-]+\.[a-f0-9-]+\.tmp$/;
 const abandonedLockFilePattern = /^\.build\.lock\.(stale|release)\./;
-const liveReplicaProductionPath = "/data/turso-replica.db";
+const reservedPublicListSlugs = new Set(["all", "for-sale", "search"]);
+const unsafePublicListSlugPattern = /[/?#%]/;
 
 function validateSellerIds(sellerIds) {
   if (!Array.isArray(sellerIds) || sellerIds.length === 0) {
@@ -50,117 +55,6 @@ function validateSellerIds(sellerIds) {
   }
 
   return normalizedSellerIds;
-}
-
-function parseArgs(args = process.argv.slice(2)) {
-  const normalizedArgs = args[0] === "--" ? args.slice(1) : args;
-  const sellerIds = [];
-  let source = null;
-  let output = null;
-
-  for (let index = 0; index < normalizedArgs.length; index += 1) {
-    const argument = normalizedArgs[index];
-    const value = normalizedArgs[index + 1];
-    if (!["--source", "--output", "--seller-id"].includes(argument)) {
-      throw new Error(`Unexpected argument: ${argument}`);
-    }
-    if (!value || value.startsWith("--")) {
-      throw new Error(`Missing value for ${argument}.`);
-    }
-
-    if (argument === "--source") {
-      if (source) {
-        throw new Error("--source can be specified only once.");
-      }
-      source = value;
-    } else if (argument === "--output") {
-      if (output) {
-        throw new Error("--output can be specified only once.");
-      }
-      output = value;
-    } else {
-      sellerIds.push(value);
-    }
-    index += 1;
-  }
-
-  if (!source) {
-    throw new Error("--source is required.");
-  }
-  if (!output) {
-    throw new Error("--output is required.");
-  }
-  if (sellerIds.length === 0) {
-    const configuredSellerIds = process.env.PUBLIC_STOREFRONT_SELLER_IDS;
-    if (!configuredSellerIds) {
-      throw new Error(
-        "At least one --seller-id or PUBLIC_STOREFRONT_SELLER_IDS value is required.",
-      );
-    }
-
-    const configuredValues = configuredSellerIds
-      .split(",")
-      .map((sellerId) => sellerId.trim());
-    if (configuredValues.some((sellerId) => sellerId.length === 0)) {
-      throw new Error(
-        "PUBLIC_STOREFRONT_SELLER_IDS cannot contain an empty seller ID.",
-      );
-    }
-    sellerIds.push(...configuredValues);
-  }
-  return { output, sellerIds: validateSellerIds(sellerIds), source };
-}
-
-function normalizeLocalPath(input) {
-  if (input.includes("://") && !input.startsWith("file:")) {
-    throw new Error(`Remote database sources are not supported: ${input}`);
-  }
-
-  const withoutScheme = input.startsWith("file:") ? input.slice(5) : input;
-  if (!withoutScheme) {
-    throw new Error("The database source path cannot be empty.");
-  }
-
-  return path.resolve(appRoot, withoutScheme);
-}
-
-async function assertSafeSource(sourcePath) {
-  const sourceStat = await stat(sourcePath).catch(() => null);
-  if (!sourceStat?.isFile()) {
-    throw new Error(`The database source does not exist: ${sourcePath}`);
-  }
-
-  const resolvedSource = await realpath(sourcePath);
-  const configuredLiveReplica = process.env.TURSO_EMBEDDED_REPLICA_URL;
-  const configuredLiveReplicaPath =
-    configuredLiveReplica &&
-    (configuredLiveReplica.startsWith("file:") ||
-      !configuredLiveReplica.includes("://"))
-      ? normalizeLocalPath(configuredLiveReplica)
-      : null;
-  const liveReplicaPaths = [
-    liveReplicaProductionPath,
-    ...(configuredLiveReplicaPath ? [configuredLiveReplicaPath] : []),
-  ];
-
-  for (const liveReplicaPath of liveReplicaPaths) {
-    const liveReplicaStat = await stat(liveReplicaPath).catch(() => null);
-    const resolvedLiveReplica = await realpath(liveReplicaPath).catch(() =>
-      path.resolve(liveReplicaPath),
-    );
-    const isSameFile =
-      liveReplicaStat &&
-      sourceStat.dev === liveReplicaStat.dev &&
-      sourceStat.ino === liveReplicaStat.ino;
-
-    if (resolvedSource !== resolvedLiveReplica && !isSameFile) {
-      continue;
-    }
-
-    throw new Error(
-      "The builder must use the dedicated synced storefront source replica, not the live embedded replica.",
-    );
-  }
 }
 
 function isFileExistsError(error) {
@@ -1090,28 +984,29 @@ async function runRecoverableHousekeeping(
   }
 }
 
-export async function buildPublicStorefrontArtifacts(
+export async function publishPublicStorefrontArtifacts(
   options,
   dependencies = {},
 ) {
   const sellerIds = validateSellerIds(options.sellerIds);
+  if (
+    typeof options.output !== "string" ||
+    options.output.trim().length === 0
+  ) {
+    throw new Error("The storefront artifact output path is required.");
+  }
+  if (typeof dependencies.getSnapshot !== "function") {
+    throw new Error("A storefront snapshot reader is required.");
+  }
+
   const executeHousekeepingOperation =
     dependencies.executeHousekeepingOperation ??
     ((_label, operation) => operation());
   const checkpoint = dependencies.checkpoint ?? (async () => undefined);
-  const createDatabase =
-    dependencies.createDatabase ??
-    (async (sourcePath) => {
-      const adapter = new PrismaBetterSqlite3(
-        { url: `file:${sourcePath}` },
-        { timestampFormat: "unixepoch-ms" },
-      );
-      return new PrismaClient({ adapter, log: ["error"] });
-    });
-  const getSnapshot = dependencies.getSnapshot ?? getPublicStorefrontSnapshot;
-  const sourcePath = normalizeLocalPath(options.source);
-  const outputRoot = path.resolve(appRoot, options.output);
-  await assertSafeSource(sourcePath);
+  const getSnapshot = dependencies.getSnapshot;
+  const validateSnapshot =
+    dependencies.validateSnapshot ?? ((snapshot) => snapshot);
+  const outputRoot = path.resolve(options.output);
   await mkdir(outputRoot, { recursive: true });
   const artifactDirectory = path.join(outputRoot, "artifacts");
   const currentDirectory = path.join(outputRoot, "current");
@@ -1121,31 +1016,29 @@ export async function buildPublicStorefrontArtifacts(
     ...dependencies.lockOptions,
     checkpoint,
   });
-  let database = null;
   let buildError = null;
   let manifestCommitted = false;
   let result = null;
-  const generatedAt = new Date().toISOString();
+  const generatedAt = options.generatedAt ?? new Date().toISOString();
   const sellers = [];
   const warnings = [];
   const publicationJournal = [];
   const temporaryFiles = new Map();
 
   try {
-    database = await createDatabase(sourcePath);
-    await database.$queryRawUnsafe("PRAGMA query_only = ON");
     const previouslyReferencedArtifacts =
       await getPreviouslyReferencedArtifacts(currentDirectory);
 
     for (const sellerId of sellerIds) {
-      const snapshot = await getSnapshot(database, sellerId, generatedAt);
+      const snapshot = await getSnapshot(sellerId, generatedAt);
       if (!snapshot) {
         throw new Error(
           `Configured storefront seller was not found: ${sellerId}`,
         );
       }
 
-      const body = JSON.stringify(snapshot);
+      const validatedSnapshot = await validateSnapshot(snapshot);
+      const body = JSON.stringify(validatedSnapshot);
       const metadata = getRepresentationMetadata(body, sellerId);
       await publishArtifact(
         artifactDirectory,
@@ -1254,39 +1147,23 @@ export async function buildPublicStorefrontArtifacts(
       }
     }
   } finally {
-    const resourceCleanup = [
-      ...(database
-        ? [
-            {
-              label: "Prisma disconnect failed",
-              operation: () => database.$disconnect(),
-            },
-          ]
-        : []),
-      {
-        label: "Build lock release failed",
-        operation: buildLock.release,
-      },
-    ];
-
-    for (const { label, operation } of resourceCleanup) {
-      if (manifestCommitted) {
-        await runRecoverableHousekeeping(
-          label,
-          operation,
-          warnings,
-          executeHousekeepingOperation,
-        );
-        continue;
-      }
-
+    if (manifestCommitted) {
+      await runRecoverableHousekeeping(
+        "Build lock release failed",
+        buildLock.release,
+        warnings,
+        executeHousekeepingOperation,
+      );
+    } else {
       try {
-        await operation();
+        await buildLock.release();
       } catch (error) {
         if (!buildError) {
           buildError = error;
         } else {
-          reportHousekeepingWarning(`${label}: ${getErrorMessage(error)}`);
+          reportHousekeepingWarning(
+            `Build lock release failed: ${getErrorMessage(error)}`,
+          );
         }
       }
     }
@@ -1302,20 +1179,394 @@ export async function buildPublicStorefrontArtifacts(
   return result;
 }
 
-export async function main(args = process.argv.slice(2), dependencies = {}) {
-  const result = await buildPublicStorefrontArtifacts(
-    parseArgs(args),
-    dependencies,
-  );
-  process.stdout.write(`${JSON.stringify(result)}\n`);
+function isRecord(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-const isDirectExecution =
-  process.argv[1] &&
-  import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href;
-if (isDirectExecution) {
-  main().catch((error) => {
-    console.error(error instanceof Error ? error.message : String(error));
-    process.exitCode = 1;
+function getPublicListSlug(title) {
+  return title.toLowerCase().replace(/\s+/g, "-");
+}
+
+function assertSafePublicSlug(slug, label, sellerId) {
+  if (
+    typeof slug !== "string" ||
+    slug.length === 0 ||
+    slug === "." ||
+    slug === ".." ||
+    unsafePublicListSlugPattern.test(slug)
+  ) {
+    throw new Error(
+      `Unsafe public ${label} slug "${String(slug)}" for seller "${sellerId}".`,
+    );
+  }
+  if (reservedPublicListSlugs.has(slug)) {
+    throw new Error(
+      `Reserved public ${label} slug "${slug}" for seller "${sellerId}".`,
+    );
+  }
+}
+
+function validatePublicLists(lists, sellerId) {
+  if (!Array.isArray(lists)) {
+    throw new Error(`Public lists are invalid for seller "${sellerId}".`);
+  }
+
+  const listIds = new Set();
+  const listIdBySlug = new Map();
+  return lists.map((list) => {
+    if (
+      !isRecord(list) ||
+      typeof list.id !== "string" ||
+      list.id.length === 0 ||
+      typeof list.title !== "string"
+    ) {
+      throw new Error(`A public list is invalid for seller "${sellerId}".`);
+    }
+    if (listIds.has(list.id)) {
+      throw new Error(
+        `Duplicate public list ID "${list.id}" for seller "${sellerId}".`,
+      );
+    }
+
+    const expectedSlug = getPublicListSlug(list.title);
+    if (list.slug !== expectedSlug) {
+      throw new Error(
+        `Invalid public list slug "${String(list.slug)}" for seller "${sellerId}". Expected "${expectedSlug}".`,
+      );
+    }
+    assertSafePublicSlug(expectedSlug, "list", sellerId);
+
+    const existingListId = listIdBySlug.get(expectedSlug);
+    if (existingListId) {
+      throw new Error(
+        `Duplicate public list slug "${expectedSlug}" for seller "${sellerId}". Lists "${existingListId}" and "${list.id}" generate the same slug.`,
+      );
+    }
+
+    listIds.add(list.id);
+    listIdBySlug.set(expectedSlug, list.id);
+    return { ...list, listingIds: [] };
   });
+}
+
+async function* readNdjsonLines(input) {
+  input.setEncoding("utf8");
+  let buffered = "";
+
+  for await (const chunk of input) {
+    buffered += String(chunk);
+    let lineEnd = buffered.indexOf("\n");
+    while (lineEnd >= 0) {
+      yield buffered.slice(0, lineEnd);
+      buffered = buffered.slice(lineEnd + 1);
+      lineEnd = buffered.indexOf("\n");
+    }
+  }
+
+  if (buffered) yield buffered;
+}
+
+async function readProtocolMessage(reader, expectedType) {
+  const next = await reader.next();
+  if (next.done) {
+    throw new Error(
+      `Storefront source ended before the ${expectedType} message.`,
+    );
+  }
+  if (!next.value.trim()) {
+    throw new Error("Storefront source sent an empty protocol message.");
+  }
+
+  let message;
+  try {
+    message = JSON.parse(next.value);
+  } catch {
+    throw new Error("Storefront source sent invalid JSON.");
+  }
+  if (!isRecord(message) || message.type !== expectedType) {
+    throw new Error(
+      `Expected storefront source message ${expectedType}, received ${isRecord(message) ? String(message.type) : "invalid"}.`,
+    );
+  }
+  return message;
+}
+
+function validateSourceCompletion(message, sellerResults) {
+  const sourceResult = message.sourceResult;
+  if (!isRecord(sourceResult) || !Array.isArray(sourceResult.sellers)) {
+    throw new Error("The storefront source completion result is invalid.");
+  }
+  if (sourceResult.sellers.length !== sellerResults.length) {
+    throw new Error("The storefront source seller count changed during build.");
+  }
+
+  for (const [index, expected] of sellerResults.entries()) {
+    const actual = sourceResult.sellers[index];
+    if (
+      !isRecord(actual) ||
+      actual.id !== expected.id ||
+      actual.listingCount !== expected.listingCount
+    ) {
+      throw new Error(
+        `The storefront source result does not match seller "${expected.id}".`,
+      );
+    }
+  }
+}
+
+async function readPublicStorefrontSnapshot({
+  generatedAt,
+  isLastSeller,
+  reader,
+  sellerId,
+  sellerResults,
+}) {
+  const start = await readProtocolMessage(reader, "seller_start");
+  if (
+    start.sellerId !== sellerId ||
+    !isRecord(start.seller) ||
+    start.seller.id !== sellerId
+  ) {
+    throw new Error(
+      `The storefront source seller does not match "${sellerId}".`,
+    );
+  }
+
+  const lists = validatePublicLists(start.lists, sellerId);
+  const listById = new Map(lists.map((list) => [list.id, list]));
+  const listings = [];
+  const listingIds = new Set();
+  const listingIdBySlug = new Map();
+
+  while (true) {
+    const next = await reader.next();
+    if (next.done) {
+      throw new Error(
+        `Storefront source ended before seller "${sellerId}" was complete.`,
+      );
+    }
+
+    let message;
+    try {
+      message = JSON.parse(next.value);
+    } catch {
+      throw new Error("Storefront source sent invalid JSON.");
+    }
+    if (!isRecord(message) || message.sellerId !== sellerId) {
+      throw new Error(`The storefront source changed seller "${sellerId}".`);
+    }
+    if (message.type === "seller_complete") {
+      if (message.listingCount !== listings.length) {
+        throw new Error(
+          `The storefront listing count changed for seller "${sellerId}".`,
+        );
+      }
+      sellerResults.push({ id: sellerId, listingCount: listings.length });
+      break;
+    }
+    if (
+      message.type !== "listing_page" ||
+      !Array.isArray(message.items) ||
+      message.items.length === 0 ||
+      message.items.length > sourceListingBatchSize
+    ) {
+      throw new Error(
+        `Invalid storefront listing page for seller "${sellerId}".`,
+      );
+    }
+
+    for (const item of message.items) {
+      if (
+        !isRecord(item) ||
+        !isRecord(item.listing) ||
+        typeof item.listing.id !== "string" ||
+        item.listing.id.length === 0 ||
+        !Array.isArray(item.listIds)
+      ) {
+        throw new Error(`Invalid public listing for seller "${sellerId}".`);
+      }
+      if (listingIds.has(item.listing.id)) {
+        throw new Error(
+          `Duplicate public listing ID "${item.listing.id}" for seller "${sellerId}".`,
+        );
+      }
+      assertSafePublicSlug(item.listing.slug, "listing", sellerId);
+      const existingListingId = listingIdBySlug.get(item.listing.slug);
+      if (existingListingId) {
+        throw new Error(
+          `Duplicate public listing slug "${item.listing.slug}" for seller "${sellerId}". Listings "${existingListingId}" and "${item.listing.id}" use the same slug.`,
+        );
+      }
+
+      const uniqueListIds = new Set();
+      for (const listId of item.listIds) {
+        if (typeof listId !== "string" || !listById.has(listId)) {
+          throw new Error(
+            `Listing "${item.listing.id}" references an unknown public list for seller "${sellerId}".`,
+          );
+        }
+        if (uniqueListIds.has(listId)) {
+          throw new Error(
+            `Listing "${item.listing.id}" repeats public list "${listId}" for seller "${sellerId}".`,
+          );
+        }
+        uniqueListIds.add(listId);
+        listById.get(listId).listingIds.push(item.listing.id);
+      }
+
+      listingIds.add(item.listing.id);
+      listingIdBySlug.set(item.listing.slug, item.listing.id);
+      listings.push(item.listing);
+    }
+  }
+
+  if (isLastSeller) {
+    const completion = await readProtocolMessage(reader, "complete");
+    validateSourceCompletion(completion, sellerResults);
+    if (!(await reader.next()).done) {
+      throw new Error("Storefront source sent data after completion.");
+    }
+  }
+
+  return {
+    version: 1,
+    generatedAt,
+    seller: start.seller,
+    lists,
+    listings,
+  };
+}
+
+export async function runPublicStorefrontArtifactsTargetWorker(
+  { input, output, sellerIds },
+  dependencies = {},
+) {
+  const normalizedSellerIds = validateSellerIds(sellerIds);
+  const reader = readNdjsonLines(input)[Symbol.asyncIterator]();
+  const sellerResults = [];
+  let sellerIndex = 0;
+
+  try {
+    return await publishPublicStorefrontArtifacts(
+      { output, sellerIds: normalizedSellerIds },
+      {
+        ...dependencies,
+        getSnapshot: async (sellerId, generatedAt) => {
+          if (sellerId !== normalizedSellerIds[sellerIndex]) {
+            throw new Error(
+              "Storefront publication requested sellers out of order.",
+            );
+          }
+          const snapshot = await readPublicStorefrontSnapshot({
+            generatedAt,
+            isLastSeller: sellerIndex === normalizedSellerIds.length - 1,
+            reader,
+            sellerId,
+            sellerResults,
+          });
+          sellerIndex += 1;
+          return snapshot;
+        },
+      },
+    );
+  } finally {
+    input.destroy?.();
+    try {
+      await reader.return?.();
+    } catch (error) {
+      reportHousekeepingWarning(
+        `Storefront source stream cleanup failed: ${getErrorMessage(error)}`,
+      );
+    }
+  }
+}
+
+function validateTargetResult(targetResult, sourceResult, outputRoot) {
+  if (
+    !isRecord(targetResult) ||
+    targetResult.ready !== true ||
+    targetResult.outputRoot !== outputRoot ||
+    !Array.isArray(targetResult.sellers) ||
+    targetResult.sellers.length !== sourceResult.sellers.length
+  ) {
+    throw new Error("The storefront target worker returned an invalid result.");
+  }
+
+  for (const [index, sourceSeller] of sourceResult.sellers.entries()) {
+    const targetSeller = targetResult.sellers[index];
+    if (!isRecord(targetSeller) || targetSeller.id !== sourceSeller.id) {
+      throw new Error(
+        `The storefront target result does not match seller "${sourceSeller.id}".`,
+      );
+    }
+  }
+}
+
+/**
+ * Stream bounded public projections from an already-synced Prisma replica to
+ * the target-only publication worker.
+ *
+ * @param {{
+ *   output: string,
+ *   sellerIds: string[],
+ *   sourceDb: import("@prisma/client").PrismaClient,
+ *   targetWorkerLifecycle?: {
+ *     onWorkerStarted: (pid: number) => Promise<void> | void,
+ *     onWorkerStopped: (pid: number) => Promise<void> | void,
+ *   },
+ *   targetWorkerPath?: string,
+ * }} options
+ */
+export async function buildPublicStorefrontArtifacts({
+  output,
+  sellerIds,
+  sourceDb,
+  targetWorkerLifecycle,
+  targetWorkerPath = defaultTargetWorkerPath,
+}) {
+  const normalizedSellerIds = validateSellerIds(sellerIds);
+  if (!sourceDb)
+    throw new Error("A synced storefront source database is required.");
+  if (typeof output !== "string" || output.trim().length === 0) {
+    throw new Error("The storefront artifact output path is required.");
+  }
+  if (
+    typeof targetWorkerPath !== "string" ||
+    targetWorkerPath.trim().length === 0 ||
+    !path.isAbsolute(targetWorkerPath)
+  ) {
+    throw new Error("The storefront target worker path must be absolute.");
+  }
+
+  const outputRoot = path.resolve(output);
+  if (typeof sourceDb.$transaction !== "function") {
+    throw new Error(
+      "The synced storefront source database must support transactions.",
+    );
+  }
+  const { streamPublicStorefrontSource } = await import(
+    "./storefront/public-storefront-data.mjs"
+  );
+  const { sourceResult, targetResult } = await streamToTargetWorker({
+    targetWorkerArgs: [
+      "--output",
+      outputRoot,
+      ...normalizedSellerIds.flatMap((sellerId) => ["--seller-id", sellerId]),
+    ],
+    targetWorkerLifecycle,
+    targetWorkerPath,
+    stream: (write) =>
+      sourceDb.$transaction(
+        (transaction) =>
+          streamPublicStorefrontSource({
+            database: transaction,
+            sellerIds: normalizedSellerIds,
+            write,
+          }),
+        { timeout: sourceReadTransactionTimeoutMilliseconds },
+      ),
+  });
+
+  validateTargetResult(targetResult, sourceResult, outputRoot);
+  return targetResult;
 }

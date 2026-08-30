@@ -45,9 +45,9 @@ describe("storefront Markdown negotiation", () => {
     );
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(response.headers.get("vary")).toBe("Accept");
-    expect(
-      response.headers.get(PUBLIC_CLOUDFLARE_CACHE_CONTROL_HEADER),
-    ).toBeNull();
+    expect(response.headers.get(PUBLIC_CLOUDFLARE_CACHE_CONTROL_HEADER)).toBe(
+      "no-store",
+    );
     expect(response.headers.get("cache-tag")).toBeNull();
     await expect(response.text()).resolves.toContain(expectedContent);
   });
@@ -66,9 +66,9 @@ describe("storefront Markdown negotiation", () => {
     );
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(response.headers.get("vary")).toBe("Accept");
-    expect(
-      response.headers.get(PUBLIC_CLOUDFLARE_CACHE_CONTROL_HEADER),
-    ).toBeNull();
+    expect(response.headers.get(PUBLIC_CLOUDFLARE_CACHE_CONTROL_HEADER)).toBe(
+      "no-store",
+    );
     await expect(response.text()).resolves.toContain(title);
   });
 
@@ -87,7 +87,7 @@ describe("storefront Markdown negotiation", () => {
     expect(htmlResponse.headers.get("vary")).toContain("Accept");
     expect(
       markdownResponse.headers.get(PUBLIC_CLOUDFLARE_CACHE_CONTROL_HEADER),
-    ).toBeNull();
+    ).toBe("no-store");
     expect(markdownResponse.headers.get("cache-tag")).toBeNull();
     expect(markdownResponse.headers.get("cache-control")).toBe("no-store");
   });
@@ -128,9 +128,9 @@ describe("storefront Markdown negotiation", () => {
 
     for (const response of [credentialed, prefetch]) {
       expect(response.headers.get("cache-control")).toBe("no-store");
-      expect(
-        response.headers.get(PUBLIC_CLOUDFLARE_CACHE_CONTROL_HEADER),
-      ).toBeNull();
+      expect(response.headers.get(PUBLIC_CLOUDFLARE_CACHE_CONTROL_HEADER)).toBe(
+        "no-store",
+      );
       expect(response.headers.get("content-type") ?? "").not.toContain(
         "text/markdown",
       );

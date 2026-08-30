@@ -55,11 +55,11 @@ The main catalog owns the source data and the storefront artifact builder. Befor
 6. Make the main API endpoint serve only the last complete artifact.
 7. After a manifest commit, purge `daylily-storefront-data` in the API zone. Only after that succeeds, purge `daylily-storefront-public-html` in each affected site's own zone with its distinct token. A missing target or purge failure must stop later purges, return a failure, alert, and retry.
 
-The disabled templates in `apps/main/deploy/vps` define the 24-hour service contract and its two-hour jitter. Storefront health must degrade when the serving artifact is more than 26 hours old. The artifact command is not final. Do not install or enable the templates until the owner gate in the main VPS runbook passes.
+The disabled templates in `apps/main/deploy/vps` define the 24-hour service contract and its two-hour jitter. The service runs the source-controlled refresh and ordered purge command inside the main container. Storefront health must degrade when the serving artifact is more than 26 hours old. Do not install or enable the templates until the owner gate in the main VPS runbook passes.
 
 ## Staged release
 
-The storefront workflow builds, tests, and publishes an immutable `main-<short-sha>` image when storefront or dependency-affected shared inputs change. It does not deploy the image. The image build uses fixture data and the stub inquiry adapter. It does not need seller or production data credentials.
+The storefront workflow builds, tests, and publishes an immutable `main-<short-sha>` image when storefront or dependency-affected shared inputs change. It does not deploy the image. Its container test uses the approved Rolling Oaks staging identity with remote data and inquiry modes against an ephemeral local HTTPS server that implements the production API contract. The test uses a disposable bearer token and certificate. It does not need production data or inquiry credentials.
 
 Production derives `POST /api/v1/storefronts/{sellerId}/inquiries` from `STOREFRONT_API_BASE_URL`. Do not configure a second inquiry URL. The main service maps seller `3` to one distinct token in `STOREFRONT_INQUIRY_TOKENS_JSON`. Give this site service only that token as `STOREFRONT_INQUIRY_TOKEN`. Do not reuse the token for another seller. Keep the real value out of source control.
 

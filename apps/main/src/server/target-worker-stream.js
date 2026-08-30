@@ -80,9 +80,19 @@ function parseWorkerResult(output) {
 }
 
 /**
- * @param {{targetWorkerArgs: string[], targetWorkerPath: string}} options
+ * @param {{
+ *   onWorkerStarted?: (pid: number) => Promise<void> | void,
+ *   onWorkerStopped?: (pid: number) => Promise<void> | void,
+ *   targetWorkerArgs: string[],
+ *   targetWorkerPath: string,
+ * }} options
  */
-function startTargetWorker({ targetWorkerArgs, targetWorkerPath }) {
+async function startTargetWorker({
+  onWorkerStarted,
+  onWorkerStopped,
+  targetWorkerArgs,
+  targetWorkerPath,
+}) {
   const child = spawn(
     process.execPath,
     [targetWorkerPath, ...targetWorkerArgs],
@@ -103,9 +113,22 @@ function startTargetWorker({ targetWorkerArgs, targetWorkerPath }) {
     stderr += chunk;
   });
 
+  const workerPid = child.pid;
+  let registered = false;
+  let registration = Promise.resolve();
   const completion = new Promise((resolve, reject) => {
     child.once("error", reject);
-    child.once("close", (code, signal) => {
+    child.once("close", async (code, signal) => {
+      try {
+        await registration;
+        if (registered && workerPid !== undefined) {
+          await onWorkerStopped?.(workerPid);
+        }
+      } catch (error) {
+        reject(error);
+        return;
+      }
+
       if (code !== 0) {
         const detail =
           stderr.trim() || (signal ? `signal ${signal}` : `exit code ${code}`);
@@ -124,6 +147,25 @@ function startTargetWorker({ targetWorkerArgs, targetWorkerPath }) {
   // The source stream can still be active when the worker fails. Attach a
   // handler now, then surface the failure when the stream awaits completion.
   void completion.catch(() => undefined);
+
+  if (onWorkerStarted && workerPid === undefined) {
+    child.kill("SIGKILL");
+    await completion.catch(() => undefined);
+    throw new Error("Target worker did not receive a process ID.");
+  }
+
+  if (workerPid !== undefined && onWorkerStarted) {
+    registration = Promise.resolve(onWorkerStarted(workerPid)).then(() => {
+      registered = true;
+    });
+    try {
+      await registration;
+    } catch (error) {
+      child.kill("SIGKILL");
+      await completion.catch(() => undefined);
+      throw error;
+    }
+  }
 
   const write = createWorkerWriter(child.stdin);
 
@@ -155,17 +197,26 @@ function isBrokenPipeError(error) {
  *   targetWorkerArgs: string[],
  *   targetWorkerPath: string,
  *   stream: (write: (message: unknown) => Promise<void>) => Promise<SourceResult>,
+ *   targetWorkerLifecycle?: {
+ *     onWorkerStarted: (pid: number) => Promise<void> | void,
+ *     onWorkerStopped: (pid: number) => Promise<void> | void,
+ *   },
  * }} options
  * @returns {Promise<{sourceResult: SourceResult, targetResult: TargetResult}>}
  */
 export async function streamToTargetWorker({
   targetWorkerArgs,
+  targetWorkerLifecycle,
   targetWorkerPath,
   stream,
 }) {
   if (!targetWorkerPath) throw new Error("targetWorkerPath is required.");
 
-  const worker = startTargetWorker({ targetWorkerArgs, targetWorkerPath });
+  const worker = await startTargetWorker({
+    ...targetWorkerLifecycle,
+    targetWorkerArgs,
+    targetWorkerPath,
+  });
   let completedInput = false;
 
   try {

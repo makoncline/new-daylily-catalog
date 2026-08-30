@@ -5,20 +5,24 @@ import type {
 } from "@/types/storefront";
 
 const UPDATED_AT = "2026-08-29T12:00:00.000Z";
-const LISTING_IMAGE_NAMES = ["daylily-1", "daylily-2", "daylily-3"] as const;
+const LISTING_IMAGE_BASE_URLS = [
+  "https://media.daylilycatalog.com/users/3/listing-images/4839/cm6jw627d01i7n5lbkstrkmk4",
+  "https://media.daylilycatalog.com/users/3/listing-images/3438/cm6jw60zk0001n5lbm20whcqn",
+  "https://media.daylilycatalog.com/users/3/listing-images/3433/cm6jw631v02gdn5lbtdg87sfm",
+] as const;
 
 function getFixtureImage(id: string) {
   const index = Array.from(id).reduce(
     (total, character) => total + character.charCodeAt(0),
     0,
   );
-  const name = LISTING_IMAGE_NAMES[index % LISTING_IMAGE_NAMES.length]!;
-  const baseUrl = "https://images.daylilycatalog.com/fixtures";
+  const baseUrl =
+    LISTING_IMAGE_BASE_URLS[index % LISTING_IMAGE_BASE_URLS.length]!;
 
   return {
-    url: `${baseUrl}/${name}-display-800.webp`,
-    thumbUrl: `${baseUrl}/${name}-thumb-200.webp`,
-    blurUrl: `${baseUrl}/${name}-blur-20.webp`,
+    url: `${baseUrl}/display-800.webp`,
+    thumbUrl: `${baseUrl}/thumb-200.webp`,
+    blurUrl: `${baseUrl}/blur-20.webp`,
   };
 }
 

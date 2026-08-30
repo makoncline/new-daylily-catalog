@@ -38,6 +38,19 @@ function addBoth(affected) {
   affected.add(APP_STOREFRONT);
 }
 
+function isNonRuntimeAppDocumentation(filePath) {
+  const match = /^apps\/(?:main|storefront)\/(.+)$/u.exec(filePath);
+  if (!match) {
+    return false;
+  }
+
+  const appRelativePath = match[1];
+  return (
+    appRelativePath.startsWith("docs/") ||
+    (appRelativePath.endsWith(".md") && !appRelativePath.startsWith("public/"))
+  );
+}
+
 export function classifyChangedFiles(filePaths, affectedPackageNames = []) {
   const affected = new Set();
 
@@ -52,6 +65,10 @@ export function classifyChangedFiles(filePaths, affectedPackageNames = []) {
       filePath.startsWith(".github/scripts/affected-apps")
     ) {
       addBoth(affected);
+      continue;
+    }
+
+    if (isNonRuntimeAppDocumentation(filePath)) {
       continue;
     }
 
@@ -249,8 +266,13 @@ function runCli() {
   }
 
   if (options.vercelIgnore) {
-    options.base = process.env.VERCEL_GIT_PREVIOUS_SHA || "HEAD^";
-    options.head = process.env.VERCEL_GIT_COMMIT_SHA || "HEAD";
+    options.base = process.env.VERCEL_GIT_PREVIOUS_SHA;
+    options.head = process.env.VERCEL_GIT_COMMIT_SHA;
+    if (!options.base || !options.head) {
+      throw new Error(
+        "VERCEL_GIT_PREVIOUS_SHA and VERCEL_GIT_COMMIT_SHA are required for an affected-build decision.",
+      );
+    }
     options.mergeBase = false;
   }
 

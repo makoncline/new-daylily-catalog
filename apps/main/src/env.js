@@ -26,6 +26,7 @@ export const env = createEnv({
     PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS: z.string().optional(),
     PUBLIC_STOREFRONT_ARTIFACT_ROOT: z.string().min(1).optional(),
     PUBLIC_STOREFRONT_SELLER_IDS: z.string().min(1).optional(),
+    STOREFRONT_ARTIFACT_REFRESH_TOKEN: z.string().optional(),
     VERCEL_AUTOMATION_BYPASS_SECRET: z.string().optional(),
     CLERK_SECRET_KEY: z.string().optional(),
     CLERK_WEBHOOK_SECRET: z.string().optional(),
@@ -62,6 +63,8 @@ export const env = createEnv({
     PUBLIC_STOREFRONT_ARTIFACT_ROOT:
       process.env.PUBLIC_STOREFRONT_ARTIFACT_ROOT,
     PUBLIC_STOREFRONT_SELLER_IDS: process.env.PUBLIC_STOREFRONT_SELLER_IDS,
+    STOREFRONT_ARTIFACT_REFRESH_TOKEN:
+      process.env.STOREFRONT_ARTIFACT_REFRESH_TOKEN,
     VERCEL_AUTOMATION_BYPASS_SECRET:
       process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
     CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY,

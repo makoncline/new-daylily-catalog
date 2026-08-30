@@ -1,8 +1,13 @@
 import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { isIP } from "node:net";
+import {
+  inquiryReceiptSchema,
+  inquirySchema,
+  type Inquiry,
+  type InquiryReceipt,
+} from "@daylily-catalog/storefront-contract";
 import { TRPCError } from "@trpc/server";
 import { getHTTPStatusCodeFromError } from "@trpc/server/http";
-import { z } from "zod";
 import type {
   SendPublicInquiryInput,
   SendPublicInquiryOptions,
@@ -12,56 +17,13 @@ import { storefrontSellerIdSchema } from "@/server/services/storefront-inquiry-c
 
 export const STOREFRONT_CLIENT_IP_HEADER = "x-storefront-client-ip";
 
-const inquiryPersonSchema = z
-  .object({
-    name: z.string().trim().min(1).max(120),
-    email: z.string().trim().email().max(254),
-    message: z.string().trim().max(5_000).default(""),
-    website: z.string().max(500).optional().default(""),
-    openedAt: z.iso.datetime({ offset: true }),
-  })
-  .strict();
-
-const cartLineSchema = z
-  .object({
-    listingId: z.string().min(1).max(100),
-    slug: z.string().min(1).max(200),
-    title: z.string().min(1).max(300),
-    quantity: z.number().int().positive().max(100),
-    unitPrice: z.number().positive(),
-  })
-  .strict();
-
-export const storefrontInquirySchema = z.discriminatedUnion("kind", [
-  inquiryPersonSchema
-    .extend({
-      kind: z.literal("contact"),
-      message: z.string().trim().min(1).max(5_000),
-    })
-    .strict(),
-  inquiryPersonSchema
-    .extend({
-      kind: z.literal("cart"),
-      lines: z.array(cartLineSchema).min(1).max(100),
-      subtotal: z.number().nonnegative(),
-      shipping: z.number().nonnegative(),
-      total: z.number().positive(),
-    })
-    .strict(),
-]);
-
-interface InquiryReceipt {
-  id: string;
-  acceptedAt: string;
-}
-
 type SendInquiry = (
   input: SendPublicInquiryInput,
   options?: SendPublicInquiryOptions,
 ) => Promise<unknown>;
 
 export interface StorefrontInquiryHandlerDependencies {
-  createReceipt?: () => InquiryReceipt;
+  createReceipt?: () => unknown;
   getToken: (
     sellerId: string,
   ) => string | undefined | Promise<string | undefined>;
@@ -118,7 +80,7 @@ function getRateLimitHeaders(requestHeaders: Headers) {
 
 function toServiceInput(
   sellerId: string,
-  inquiry: z.infer<typeof storefrontInquirySchema>,
+  inquiry: Inquiry,
 ): SendPublicInquiryInput {
   const baseInput = {
     userId: sellerId,
@@ -215,7 +177,7 @@ export function createStorefrontInquiryHandler(
       return privateJson({ error: "invalid_json" }, 400);
     }
 
-    const inquiryResult = storefrontInquirySchema.safeParse(value);
+    const inquiryResult = inquirySchema.safeParse(value);
     if (!inquiryResult.success) {
       return privateJson(
         {
@@ -227,16 +189,19 @@ export function createStorefrontInquiryHandler(
     }
 
     try {
-      await dependencies.sendInquiry(
-        toServiceInput(sellerIdResult.data, inquiryResult.data),
-        { headers: rateLimitHeaders.headers },
+      const receipt = inquiryReceiptSchema.parse(
+        (dependencies.createReceipt ?? defaultReceipt)(),
       );
 
-      const receipt = (dependencies.createReceipt ?? defaultReceipt)();
-      return privateJson(
-        { id: receipt.id, acceptedAt: receipt.acceptedAt },
-        202,
+      await dependencies.sendInquiry(
+        toServiceInput(sellerIdResult.data, inquiryResult.data),
+        {
+          headers: rateLimitHeaders.headers,
+          rejectCartChanges: true,
+        },
       );
+
+      return privateJson(receipt, 202);
     } catch (error) {
       if (error instanceof TRPCError) {
         const status = getHTTPStatusCodeFromError(error);
@@ -251,7 +216,10 @@ export function createStorefrontInquiryHandler(
             : undefined;
         return privateJson(
           {
-            error: error.code.toLowerCase(),
+            error:
+              error.code === "CONFLICT"
+                ? "cart_changed"
+                : error.code.toLowerCase(),
             message: isServerError
               ? "The inquiry could not be delivered."
               : error.message,

@@ -28,10 +28,10 @@ Embedded Turso replica:
 - `PUBLIC_STOREFRONT_ARTIFACT_ROOT` is the published storefront artifact root.
 - `PUBLIC_STOREFRONT_SELLER_IDS` is the comma-separated, main-owned seller publication allowlist. It must contain unique, nonempty user IDs and must never be populated by database discovery.
 
-The image does not install a storefront scheduler. Run the initial container
-one-shot and the future 24-hour operation as specified in
-`apps/main/docs/public-storefront-api.md`. The operation must publish successfully before
-it purges the API and storefront cache tags.
+The image contains the protected refresh route, target-only artifact worker,
+and ordered purge command. The repository does not install or enable the
+systemd templates. Run the initial one-shot and enable the 24-hour timer only
+after the owner gate below. Publication must succeed before any cache purge.
 
 Config sync:
 
@@ -50,34 +50,53 @@ Content-Type: application/json
 
 ## Storefront artifact refresh
 
-The artifact implementation has not set its final command. The service template uses `/srv/stacks/daylilycatalog/bin/storefront-artifact-refresh` as the integration point. Do not create a local replacement for this command. Do not install the service or timer until the implementation adds a source-controlled one-shot command and the owner approves it.
+The source-controlled command is
+`apps/main/scripts/refresh-public-storefront-artifacts.mjs`. The disabled
+service template runs this command inside the existing `app` container. The
+command calls a bearer-protected fixed loopback route. That route syncs the one
+embedded libSQL replica, streams bounded seller pages to a target-only Node 20
+worker, validates the shared storefront schema, and commits the atomic
+artifact manifest. The command then purges the API tag and each site tag in
+order. Do not install the service or timer until the owner approves it.
 
-The service template supplies this fixed input:
+Set `STOREFRONT_ARTIFACT_REFRESH_TOKEN` in the main stack `.env`. The same
+value protects the loopback route and is passed to the short-lived command.
+`openssl rand -hex 32` creates an accepted token. Keep Cloudflare credentials
+only in the mode-`0600` refresh environment. They are passed to the one-shot
+container process and are not part of the long-lived app environment.
 
-- `STOREFRONT_DATA_CACHE_TAG=daylily-storefront-data`
-
-This tag belongs to the main catalog artifact endpoint in the API zone. Cacheable responses on each storefront hostname use that site's `daylily-storefront-public-html` tag instead.
+`daylily-storefront-data` belongs to the main catalog API zone. Cacheable
+responses on each storefront hostname use
+`daylily-storefront-public-html` instead.
 
 The service loads `PUBLIC_STOREFRONT_SELLER_IDS` from the main stack's `/srv/stacks/daylilycatalog/.env`. Do not duplicate the allowlist in the systemd unit or refresh environment. It is separate from `STOREFRONT_SELLER_ID` in each site stack. Do not discover all users. A new site needs both an allowlisted artifact and an approved site definition, service, domain, and Cloudflare cache rule.
 
 The mode-`0600` refresh environment defines two purge boundaries:
 
 - `STOREFRONT_API_CLOUDFLARE_ZONE_ID` and `STOREFRONT_API_CLOUDFLARE_CACHE_PURGE_TOKEN` apply only to the main API zone.
-- `STOREFRONT_SITE_CLOUDFLARE_PURGE_TARGETS_JSON` maps each approved site key to its active hostname, zone ID, distinct purge token, and HTML cache tag. The initial map contains only `rolling-oaks` and `rolling-oaks-daylilies.makon.dev`.
+- `STOREFRONT_SITE_CLOUDFLARE_PURGE_TARGETS_JSON` is an array that maps each approved site key and seller ID to its active hostname, zone ID, distinct purge token, and HTML cache tag. The initial array contains only seller `3`, `rolling-oaks`, and `rolling-oaks-daylilies.makon.dev`.
 
 Do not reuse the API token as a site token. Do not reuse one site's token for another site.
 
-The one-shot command must do these steps in this order:
+The one-shot command does these steps in this order:
 
-1. Take an exclusive refresh lock. A second run must not start.
-2. Read the seller allowlist from the main stack environment. Resolve every seller to one approved site key and one active site purge target. Require nonempty API and site zone IDs and tokens. Fail before the build if any value is missing, duplicated, extra, or inconsistent.
-3. Build seller `3` from the main embedded replica into a temporary file in `/srv/stacks/daylilycatalog/data/storefronts`. The main container sees this path as `/data/storefronts`.
-4. Validate the complete artifact. Publish it with an atomic rename in the same file system. Commit the new manifest last.
+1. Read the seller allowlist from the main stack environment. Resolve every seller to one version-controlled approved site identity and one active purge target. Require nonempty API and site zone IDs and tokens. Fail before refresh if any value is missing, duplicated, extra, unapproved, or inconsistent.
+2. Authenticate to the fixed loopback route before artifact work starts.
+3. Sync the existing embedded replica. Page seller `3` through the singleton Prisma client and stream bounded public rows to the target worker. The target never opens the replica.
+4. Validate the complete artifact with `@daylily-catalog/storefront-contract`. Publish immutable data with atomic renames in `/data/storefronts`. Commit the manifest last.
 5. Purge `daylily-storefront-data` in the API zone only after the manifest commit succeeds.
 6. After the API purge succeeds, purge `daylily-storefront-public-html` in each affected site's own zone with that site's token.
-7. Return a nonzero status if a build, publication, target validation, or purge step fails. Do not start a site purge after an API purge failure.
+7. Return a nonzero status if authentication, sync, build, publication, target validation, or purge fails. Do not start a later purge after an earlier failure.
 
-The example service retries a failed run after 15 minutes. It stops after four starts in six hours. A purge failure must cause a retry. Connect the final service failure to deployment alerting before enablement. Do not accept a failed purge as a successful refresh. The seven-day stale window can otherwise serve data that is almost nine days old.
+The operation gives the loopback refresh 15 minutes and each Cloudflare purge 30 seconds. The example service stops the complete run after 30 minutes. It retries a failed run after 15 minutes and stops after four starts in six hours. A timeout or purge failure must cause a retry. Connect the final service failure to deployment alerting before enablement. Do not accept a failed purge as a successful refresh. The seven-day stale window can otherwise serve data that is almost nine days old.
+
+The image runs `tini` as container PID 1. The Node app is its child. An
+internal 14-minute watchdog can therefore stop a hung replica sync before the
+loopback deadline. If a target worker exists, the watchdog stops that worker
+before it stops the Node app. `tini` then exits, and the Compose
+`restart: unless-stopped` policy starts a clean app process. The next systemd
+retry can start new refresh work. Do not run Node as container PID 1. A process
+in the same Linux PID namespace cannot send `SIGKILL` to PID 1.
 
 The example timer runs daily and permits up to two hours of jitter. Storefront health must degrade when its serving artifact is more than 26 hours old. The live Cloudflare file must have mode `0600`. It contains separate API and per-site purge credentials.
 
@@ -85,11 +104,11 @@ The main stack receives `STOREFRONT_INQUIRY_TOKENS_JSON`. It maps each approved 
 
 Owner gate:
 
-1. Merge the artifact builder, the API endpoint, the fixed seller allowlist, the exclusive lock, and atomic publication.
-2. Add the source-controlled one-shot command at the template integration point, or update the template to its final reviewed path.
-3. Prove the API-zone data purge followed by per-site-zone HTML purges with distinct stub credentials.
-4. Prove that a missing target or failed purge stops later purges, returns a nonzero status, retries, and sends an alert.
-5. Build the initial seller `3` artifact. Verify the API and the 26-hour health threshold.
-6. Get separate owner approval to install and enable the timer and to add the live Cloudflare inputs.
+1. Review and merge the artifact builder, API endpoint, fixed seller allowlist, protected loopback route, one-shot command, and atomic publication.
+2. Prove the API-zone data purge followed by per-site-zone HTML purges with distinct stub credentials.
+3. Prove that a missing target or failed purge stops later purges, returns a nonzero status, retries, and sends an alert.
+4. Build the initial seller `3` artifact. Verify the API and the 26-hour storefront health threshold.
+5. Add the live loopback token and distinct Cloudflare inputs.
+6. Get separate owner approval to install and enable the service and timer.
 
 These templates do not enable a timer, call Cloudflare, add a token, or change production.

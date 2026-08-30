@@ -14,6 +14,7 @@ import {
   storefrontListSchema,
   storefrontSellerProfileSchema,
   storefrontSellerSchema,
+  storefrontSiteIdentities,
   storefrontSnapshotSchema,
 } from "./runtime.js";
 
@@ -32,6 +33,7 @@ export type StorefrontSellerProfile = z.infer<
 >;
 export type StorefrontSeller = z.infer<typeof storefrontSellerSchema>;
 export type StorefrontSnapshot = z.infer<typeof storefrontSnapshotSchema>;
+export type StorefrontSiteIdentity = (typeof storefrontSiteIdentities)[number];
 export type InquiryCartLine = z.infer<typeof inquiryCartLineSchema>;
 export type ContactInquiry = z.infer<typeof contactInquirySchema>;
 export type CartInquiry = z.infer<typeof cartInquirySchema>;

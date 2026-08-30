@@ -2,9 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   inquiryReceiptSchema,
   inquirySchema,
+  isCanonicalStorefrontBearerToken,
+  storefrontSiteIdentities,
   storefrontSnapshotSchema,
   type StorefrontSnapshot,
 } from "../src/index";
+
+const INQUIRY_TOKEN = "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE";
 
 function getSnapshot(): StorefrontSnapshot {
   return {
@@ -89,6 +93,34 @@ function getSnapshot(): StorefrontSnapshot {
     ],
   };
 }
+
+describe("approved storefront site identities", () => {
+  it("approves only the Rolling Oaks seller and hosts", () => {
+    expect(storefrontSiteIdentities).toEqual([
+      {
+        siteKey: "rolling-oaks",
+        expectedSellerId: "3",
+        canonicalUrl: "https://rollingoaksdaylilies.com",
+        hostnames: [
+          "rollingoaksdaylilies.com",
+          "www.rollingoaksdaylilies.com",
+          "rolling-oaks-daylilies.makon.dev",
+        ],
+      },
+    ]);
+  });
+});
+
+describe("storefront bearer token contract", () => {
+  it("accepts only canonical unpadded base64url with at least 32 bytes", () => {
+    expect(isCanonicalStorefrontBearerToken(INQUIRY_TOKEN)).toBe(true);
+    expect(isCanonicalStorefrontBearerToken("test-token")).toBe(false);
+    expect(isCanonicalStorefrontBearerToken(`${INQUIRY_TOKEN}=`)).toBe(false);
+    expect(
+      isCanonicalStorefrontBearerToken(`${INQUIRY_TOKEN.slice(0, -1)}B`),
+    ).toBe(false);
+  });
+});
 
 describe("storefront snapshot contract", () => {
   it("accepts the canonical v1 snapshot with image variants", () => {

@@ -4,6 +4,7 @@ import { isIP } from "node:net";
 
 import {
   inquiryReceiptSchema,
+  isCanonicalStorefrontBearerToken,
   type Inquiry,
   type InquiryReceipt,
 } from "@daylily-catalog/storefront-contract";
@@ -152,6 +153,11 @@ function getInquiryAdapterConfiguration(): InquiryAdapterConfiguration {
   if (!token) {
     throw new InquiryConfigurationError(
       "STOREFRONT_INQUIRY_TOKEN is required for remote inquiries.",
+    );
+  }
+  if (!isCanonicalStorefrontBearerToken(token)) {
+    throw new InquiryConfigurationError(
+      "STOREFRONT_INQUIRY_TOKEN must be canonical unpadded base64url for at least 32 bytes.",
     );
   }
 

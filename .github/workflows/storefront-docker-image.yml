@@ -112,17 +112,67 @@ jobs:
           cache-from: type=gha,scope=storefront
           cache-to: ${{ steps.meta.outputs.cache_to }}
 
+      - name: Start production-contract fixture API
+        env:
+          STOREFRONT_FIXTURE_INQUIRY_TOKEN: AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE
+        run: |
+          fixture_tls="$RUNNER_TEMP/storefront-fixture-tls"
+          mkdir --parents "$fixture_tls"
+          openssl req -x509 -newkey rsa:2048 -nodes -sha256 -days 1 \
+            -subj "/CN=127.0.0.1" \
+            -addext "subjectAltName = IP:127.0.0.1" \
+            -keyout "$fixture_tls/private-key.pem" \
+            -out "$fixture_tls/certificate.pem"
+          chmod 0600 "$fixture_tls/private-key.pem"
+
+          STOREFRONT_FIXTURE_CERTIFICATE_PATH=/certs/certificate.pem \
+          STOREFRONT_FIXTURE_PRIVATE_KEY_PATH=/certs/private-key.pem \
+          docker run --detach --rm \
+            --name daylily-storefront-api-fixture-ci \
+            --network host \
+            --volume "$GITHUB_WORKSPACE:/workspace:ro" \
+            --volume "$fixture_tls:/certs:ro" \
+            --env STOREFRONT_FIXTURE_CERTIFICATE_PATH \
+            --env STOREFRONT_FIXTURE_INQUIRY_TOKEN \
+            --env STOREFRONT_FIXTURE_PRIVATE_KEY_PATH \
+            node:24-bookworm-slim \
+            node --experimental-strip-types /workspace/apps/storefront/tests/support/storefront-api-fixture-server.mjs
+
+          for attempt in {1..30}; do
+            if curl --fail --silent --show-error \
+              --cacert "$fixture_tls/certificate.pem" \
+              https://127.0.0.1:3443/health; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs daylily-storefront-api-fixture-ci
+          exit 1
+
       - name: Start storefront container
         env:
           IMAGE_REF: ${{ steps.meta.outputs.image_ref }}
-          STOREFRONT_DATA_SOURCE: fixture
-          STOREFRONT_INQUIRY_ADAPTER: stub
+          NODE_EXTRA_CA_CERTS: /certs/certificate.pem
+          STOREFRONT_API_BASE_URL: https://127.0.0.1:3443
+          STOREFRONT_DATA_SOURCE: remote
+          STOREFRONT_HOSTNAME: rolling-oaks-daylilies.makon.dev
+          STOREFRONT_INQUIRY_ADAPTER: remote
+          STOREFRONT_INQUIRY_TOKEN: AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE
+          STOREFRONT_SELLER_ID: "3"
+          STOREFRONT_SITE_KEY: rolling-oaks
         run: |
           docker run --detach --rm \
             --name daylily-storefront-ci \
-            --publish 3000:3000 \
+            --network host \
+            --volume "$RUNNER_TEMP/storefront-fixture-tls:/certs:ro" \
+            --env NODE_EXTRA_CA_CERTS \
+            --env STOREFRONT_API_BASE_URL \
             --env STOREFRONT_DATA_SOURCE \
+            --env STOREFRONT_HOSTNAME \
             --env STOREFRONT_INQUIRY_ADAPTER \
+            --env STOREFRONT_INQUIRY_TOKEN \
+            --env STOREFRONT_SELLER_ID \
+            --env STOREFRONT_SITE_KEY \
             "$IMAGE_REF"
 
       - name: Wait for storefront health
@@ -149,9 +199,9 @@ jobs:
           name: storefront-playwright-report
           path: apps/storefront/playwright-report
           retention-days: 30
-      - name: Stop storefront container
+      - name: Stop storefront test containers
         if: always()
-        run: docker rm --force daylily-storefront-ci || true
+        run: docker rm --force daylily-storefront-ci daylily-storefront-api-fixture-ci || true
 
       - name: Log in to GHCR
         if: steps.meta.outputs.should_push == 'true'

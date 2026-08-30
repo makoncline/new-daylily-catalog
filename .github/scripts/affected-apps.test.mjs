@@ -263,6 +263,28 @@ describe("affected app classification", () => {
       main: false,
       storefront: false,
     });
+    for (const filePath of [
+      "apps/main/README.md",
+      "apps/main/CLAUDE.md",
+      "apps/main/docs/public-storefront-api.md",
+      "apps/main/docs/ahs-v2-migration-todo.json",
+      "apps/main/deploy/vps/README.md",
+      "apps/main/scripts/storefront/README.md",
+      "apps/storefront/AGENTS.md",
+      "apps/storefront/docs/cloudflare-public-html-cache.md",
+      "apps/storefront/deploy/vps/README.md",
+    ]) {
+      assert.deepEqual(classifyChangedFiles([filePath]), {
+        main: false,
+        storefront: false,
+      });
+    }
+    assert.deepEqual(
+      classifyChangedFiles([
+        "apps/storefront/public/.well-known/agent-skills/catalog-navigation/SKILL.md",
+      ]),
+      { main: false, storefront: true },
+    );
   });
 
   it("writes outputs that GitHub Actions can consume", () => {
@@ -760,6 +782,21 @@ describe("affected app classification", () => {
       );
       assert.equal(unknownBase.status, 1);
       assert.match(unknownBase.stderr, /failed|unknown|ambiguous|revision/i);
+
+      const missingPreviousDeployment = runClassifier(
+        path.join(directory, "apps/main"),
+        ["--vercel-ignore", "main"],
+        {
+          VERCEL: "1",
+          VERCEL_GIT_PREVIOUS_SHA: "",
+          VERCEL_GIT_COMMIT_SHA: mainHead,
+        },
+      );
+      assert.equal(missingPreviousDeployment.status, 1);
+      assert.match(
+        missingPreviousDeployment.stderr,
+        /VERCEL_GIT_PREVIOUS_SHA.*required/u,
+      );
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
@@ -864,13 +901,34 @@ describe("affected app classification", () => {
       storefrontWorkflow,
       /ghcr\.io\/makoncline\/daylily-storefront/,
     );
-    assert.match(storefrontWorkflow, /STOREFRONT_DATA_SOURCE: fixture/);
-    assert.match(storefrontWorkflow, /STOREFRONT_INQUIRY_ADAPTER: stub/);
+    assert.match(storefrontWorkflow, /STOREFRONT_DATA_SOURCE: remote/);
+    assert.match(storefrontWorkflow, /STOREFRONT_INQUIRY_ADAPTER: remote/);
+    assert.match(storefrontWorkflow, /STOREFRONT_SITE_KEY: rolling-oaks/);
+    assert.match(
+      storefrontWorkflow,
+      /STOREFRONT_HOSTNAME: rolling-oaks-daylilies\.makon\.dev/,
+    );
+    assert.match(storefrontWorkflow, /STOREFRONT_SELLER_ID: "3"/);
+    assert.match(
+      storefrontWorkflow,
+      /STOREFRONT_API_BASE_URL: https:\/\/127\.0\.0\.1:3443/,
+    );
+    assert.match(
+      storefrontWorkflow,
+      /NODE_EXTRA_CA_CERTS: \/certs\/certificate\.pem/,
+    );
+    assert.match(
+      storefrontWorkflow,
+      /tests\/support\/storefront-api-fixture-server\.mjs/,
+    );
+    assert.doesNotMatch(storefrontWorkflow, /STOREFRONT_DATA_SOURCE: fixture/);
+    assert.doesNotMatch(storefrontWorkflow, /STOREFRONT_INQUIRY_ADAPTER: stub/);
+    assert.doesNotMatch(storefrontWorkflow, /NODE_ENV: (?:development|test)/);
     assert.match(storefrontWorkflow, /BASE_URL: http:\/\/127\.0\.0\.1:3000/);
     assert.match(storefrontWorkflow, /--fail-if-no-match/);
     assert.doesNotMatch(
       storefrontWorkflow,
-      /TURSO_|PUBLIC_SNAPSHOT|STOREFRONT_SELLER_ID|TEST_BASE_URL/,
+      /TURSO_|PUBLIC_SNAPSHOT|TEST_BASE_URL/,
     );
     assert.doesNotMatch(
       storefrontWorkflow,
@@ -1003,10 +1061,20 @@ describe("affected app classification", () => {
       artifactRefreshService,
       /Environment=PUBLIC_STOREFRONT_SELLER_IDS/,
     );
+    assert.doesNotMatch(artifactRefreshService, /STOREFRONT_DATA_CACHE_TAG=/);
     assert.match(
       artifactRefreshService,
-      /STOREFRONT_DATA_CACHE_TAG=daylily-storefront-data/,
+      /apps\/main\/scripts\/refresh-public-storefront-artifacts\.mjs/,
     );
+    for (const name of [
+      "PUBLIC_STOREFRONT_SELLER_IDS",
+      "STOREFRONT_ARTIFACT_REFRESH_TOKEN",
+      "STOREFRONT_API_CLOUDFLARE_ZONE_ID",
+      "STOREFRONT_API_CLOUDFLARE_CACHE_PURGE_TOKEN",
+      "STOREFRONT_SITE_CLOUDFLARE_PURGE_TARGETS_JSON",
+    ]) {
+      assert.match(artifactRefreshService, new RegExp(`--env ${name}`));
+    }
     assert.match(
       artifactRefreshEnvironment,
       /^STOREFRONT_API_CLOUDFLARE_ZONE_ID=/mu,
@@ -1029,15 +1097,18 @@ describe("affected app classification", () => {
       purgeTargetsLine.indexOf("=") + 1,
     );
     const purgeTargets = JSON.parse(purgeTargetsValue.slice(1, -1));
-    assert.deepEqual(purgeTargets, {
-      "rolling-oaks": {
+    assert.deepEqual(purgeTargets, [
+      {
+        siteKey: "rolling-oaks",
+        sellerId: "3",
         hostname: "rolling-oaks-daylilies.makon.dev",
         zoneId: "",
         cachePurgeToken: "",
         cacheTag: "daylily-storefront-public-html",
       },
-    });
+    ]);
     assert.match(artifactRefreshService, /Restart=on-failure/);
+    assert.match(artifactRefreshService, /TimeoutStartSec=30m/);
     assert.match(artifactRefreshTimer, /OnCalendar=daily/);
     assert.match(artifactRefreshTimer, /RandomizedDelaySec=2h/);
     assert.match(
@@ -1100,10 +1171,8 @@ describe("affected app classification", () => {
     assert.match(deploymentGuide, /select exactly one allowed triple/);
     assert.doesNotMatch(storefrontEnvironment, /STOREFRONT_INQUIRY_URL/);
     assert.match(storefrontEnvironment, /STOREFRONT_INQUIRY_TOKEN=/);
-    assert.match(
-      mainEnvironment,
-      /STOREFRONT_INQUIRY_TOKENS_JSON='\{"3":""\}'/,
-    );
+    assert.match(mainEnvironment, /STOREFRONT_INQUIRY_TOKENS_JSON='\{\}'/);
+    assert.match(mainEnvironment, /STOREFRONT_ARTIFACT_REFRESH_TOKEN=/);
     assert.doesNotMatch(mainEnvironment, /^STOREFRONT_INQUIRY_TOKEN=/mu);
     assert.match(deploymentGuide, /distinct bearer tokens/);
   });

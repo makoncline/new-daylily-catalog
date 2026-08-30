@@ -71,17 +71,20 @@ describe("public inquiry cart validation", () => {
     mocks.sendEmail.mockResolvedValue({});
   });
 
-  it("uses current listing titles and prices in inquiry emails", async () => {
+  it("accepts a storefront cart when its listing price is current", async () => {
     mocks.findListings.mockResolvedValue([
       { id: "listing-1", title: "Database title", price: 25 },
     ]);
 
-    await sendPublicInquiry({
-      userId: "seller-1",
-      customerEmail: "buyer@example.com",
-      message: "",
-      items: [baseItem],
-    });
+    await sendPublicInquiry(
+      {
+        userId: "seller-1",
+        customerEmail: "buyer@example.com",
+        message: "",
+        items: [{ ...baseItem, price: 25 }],
+      },
+      { rejectCartChanges: true },
+    );
 
     expect(mocks.findListings).toHaveBeenCalledWith({
       where: {
@@ -95,6 +98,74 @@ describe("public inquiry cart validation", () => {
     expect(emailBody(0)).toContain("Subtotal: $50.00");
     expect(emailBody(0)).not.toContain("Client title");
   });
+
+  it("rejects a storefront cart when a listing price changed", async () => {
+    mocks.findListings.mockResolvedValue([
+      { id: "listing-1", title: "Database title", price: 25 },
+    ]);
+
+    await expect(
+      sendPublicInquiry(
+        {
+          userId: "seller-1",
+          customerEmail: "buyer@example.com",
+          message: "",
+          items: [baseItem],
+        },
+        { rejectCartChanges: true },
+      ),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+    expect(mocks.sendEmail).not.toHaveBeenCalled();
+  });
+
+  it("rejects a storefront cart when a listing is hidden or missing", async () => {
+    mocks.findListings.mockResolvedValue([
+      { id: "listing-1", title: "Database title", price: 25 },
+    ]);
+
+    await expect(
+      sendPublicInquiry(
+        {
+          userId: "seller-1",
+          customerEmail: "buyer@example.com",
+          message: "",
+          items: [
+            { ...baseItem, price: 25 },
+            {
+              ...baseItem,
+              id: "cart-2",
+              listingId: "unavailable-listing",
+              price: 30,
+            },
+          ],
+        },
+        { rejectCartChanges: true },
+      ),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+    expect(mocks.sendEmail).not.toHaveBeenCalled();
+  });
+
+  it.each([null, 0, -1])(
+    "rejects a storefront cart when a listing price is %s",
+    async (price) => {
+      mocks.findListings.mockResolvedValue([
+        { id: "listing-1", title: "Database title", price },
+      ]);
+
+      await expect(
+        sendPublicInquiry(
+          {
+            userId: "seller-1",
+            customerEmail: "buyer@example.com",
+            message: "",
+            items: [baseItem],
+          },
+          { rejectCartChanges: true },
+        ),
+      ).rejects.toMatchObject({ code: "CONFLICT" });
+      expect(mocks.sendEmail).not.toHaveBeenCalled();
+    },
+  );
 
   it("omits invalid items and discloses the omission in both emails", async () => {
     mocks.findListings.mockResolvedValue([

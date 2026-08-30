@@ -1,10 +1,10 @@
+// @ts-nocheck -- Artifact source mapper, contract-tested by Vitest.
+
 import { Prisma } from "@prisma/client";
 import { HTMLElement, NodeType, parse } from "node-html-parser";
 
 const HIDDEN_STATUS = "HIDDEN";
 const LISTING_BATCH_SIZE = 200;
-const reservedPublicListSlugs = new Set(["all", "for-sale", "search"]);
-const unsafePublicListSlugPattern = /[/?#%]/;
 
 const imageAssetUrlSelect = {
   id: true,
@@ -92,30 +92,6 @@ const v2AhsCultivarDisplaySelect = {
   rebloom: true,
 };
 
-const legacyAhsDisplaySelect = {
-  id: true,
-  name: true,
-  hybridizer: true,
-  year: true,
-  scapeHeight: true,
-  bloomSize: true,
-  bloomSeason: true,
-  ploidy: true,
-  foliageType: true,
-  bloomHabit: true,
-  seedlingNum: true,
-  color: true,
-  form: true,
-  parentage: true,
-  ahsImageUrl: true,
-  fragrance: true,
-  budcount: true,
-  branches: true,
-  sculpting: true,
-  foliage: true,
-  flower: true,
-};
-
 const publicStorefrontListingSelect = {
   id: true,
   slug: true,
@@ -138,9 +114,6 @@ const publicStorefrontListingSelect = {
       normalizedName: true,
       v2AhsCultivar: {
         select: v2AhsCultivarDisplaySelect,
-      },
-      ahsListing: {
-        select: legacyAhsDisplaySelect,
       },
       imageAssets: publicCultivarImageAssetInclude,
     },
@@ -481,33 +454,6 @@ function mapV2AhsCultivarToDisplayDetails(cultivar) {
   };
 }
 
-function mapLegacyAhsListingToDisplayDetails(cultivar) {
-  return {
-    id: cultivar.id,
-    name: toNonEmptyDisplayValue(cultivar.name),
-    ahsImageUrl: toNonEmptyDisplayValue(cultivar.ahsImageUrl),
-    hybridizer: toNonEmptyDisplayValue(cultivar.hybridizer),
-    year: toNonEmptyDisplayValue(cultivar.year),
-    seedlingNum: toNonEmptyDisplayValue(cultivar.seedlingNum),
-    scapeHeight: toNonEmptyDisplayValue(cultivar.scapeHeight),
-    bloomSize: toNonEmptyDisplayValue(cultivar.bloomSize),
-    bloomSeason: toNonEmptyDisplayValue(cultivar.bloomSeason),
-    ploidy: toNonEmptyDisplayValue(cultivar.ploidy),
-    foliageType: toNonEmptyDisplayValue(cultivar.foliageType),
-    bloomHabit: toNonEmptyDisplayValue(cultivar.bloomHabit),
-    color: toNonEmptyDisplayValue(cultivar.color),
-    form: toNonEmptyDisplayValue(cultivar.form),
-    parentage: toNonEmptyDisplayValue(cultivar.parentage),
-    fragrance: toNonEmptyDisplayValue(cultivar.fragrance),
-    budcount: toNonEmptyDisplayValue(cultivar.budcount),
-    branches: toNonEmptyDisplayValue(cultivar.branches),
-    sculpting: toNonEmptyDisplayValue(cultivar.sculpting),
-    foliage: toNonEmptyDisplayValue(cultivar.foliage),
-    flower: toNonEmptyDisplayValue(cultivar.flower),
-    rebloom: null,
-  };
-}
-
 function isTrustedLegacyImageUrl(source) {
   try {
     return (
@@ -565,10 +511,12 @@ function resolveUploadedPublicImages(images, imageAssets) {
     .map((asset) => toPublicAssetImage(asset))
     .filter(Boolean);
 
-  return [...legacyImages, ...directAssetImages].sort(
-    (left, right) =>
-      left.order - right.order || left.id.localeCompare(right.id),
-  );
+  return [...legacyImages, ...directAssetImages]
+    .sort(
+      (left, right) =>
+        left.order - right.order || left.id.localeCompare(right.id),
+    )
+    .map((image, order) => ({ ...image, order }));
 }
 
 function resolveCultivarFallbackImage(listingId, assets, fallbackUrl) {
@@ -593,9 +541,7 @@ function toPublicListing(listing) {
   const cultivar = listing.cultivarReference;
   const details = cultivar?.v2AhsCultivar
     ? mapV2AhsCultivarToDisplayDetails(cultivar.v2AhsCultivar)
-    : cultivar?.ahsListing
-      ? mapLegacyAhsListingToDisplayDetails(cultivar.ahsListing)
-      : null;
+    : null;
   const listingImages = resolveUploadedPublicImages(
     listing.images,
     listing.imageAssets,
@@ -628,39 +574,11 @@ function toPublicListing(listing) {
   };
 }
 
-async function getPublicListings(database, sellerId, listingIds) {
-  const listings = [];
-
-  for (
-    let offset = 0;
-    offset < listingIds.length;
-    offset += LISTING_BATCH_SIZE
-  ) {
-    const batchIds = listingIds.slice(offset, offset + LISTING_BATCH_SIZE);
-    const batch = await database.listing.findMany({
-      where: {
-        id: { in: batchIds },
-        userId: sellerId,
-        OR: [{ status: null }, { NOT: { status: HIDDEN_STATUS } }],
-      },
-      select: publicStorefrontListingSelect,
-    });
-    const publicListingById = new Map(
-      batch.map((listing) => [listing.id, toPublicListing(listing)]),
-    );
-
-    for (const listingId of batchIds) {
-      const listing = publicListingById.get(listingId);
-      if (listing) {
-        listings.push(listing);
-      }
-    }
+async function getPublicListMemberships(database, sellerId, listingIds) {
+  if (listingIds.length === 0) {
+    return [];
   }
 
-  return listings;
-}
-
-async function getPublicListMemberships(database, sellerId) {
   return database.$queryRaw(Prisma.sql`
     SELECT
       relation."A" AS "listId",
@@ -672,144 +590,188 @@ async function getPublicListMemberships(database, sellerId) {
       AND (list."status" IS NULL OR list."status" <> ${HIDDEN_STATUS})
       AND listing."userId" = ${sellerId}
       AND (listing."status" IS NULL OR listing."status" <> ${HIDDEN_STATUS})
+      AND listing."id" IN (${Prisma.join(listingIds)})
     ORDER BY
-      list."title" ASC,
-      list."id" ASC,
       listing."title" ASC,
-      listing."id" ASC
+      listing."id" ASC,
+      list."title" ASC,
+      list."id" ASC
   `);
 }
 
-function getListingIdsByListId(memberships, publicListingIds) {
-  const listingIdsByListId = new Map();
+function getListIdsByListingId(memberships) {
+  const listIdsByListingId = new Map();
 
   for (const membership of memberships) {
-    if (!publicListingIds.has(membership.listingId)) {
-      continue;
-    }
-
-    const listingIds = listingIdsByListId.get(membership.listId) ?? [];
-    listingIds.push(membership.listingId);
-    listingIdsByListId.set(membership.listId, listingIds);
+    const listIds = listIdsByListingId.get(membership.listingId) ?? [];
+    listIds.push(membership.listId);
+    listIdsByListingId.set(membership.listingId, listIds);
   }
 
-  return listingIdsByListId;
+  return listIdsByListingId;
 }
 
 function getPublicListSlug(title) {
   return title.toLowerCase().replace(/\s+/g, "-");
 }
 
-function getPublicListSlugs(lists, sellerId) {
-  const listIdBySlug = new Map();
-  const slugByListId = new Map();
-
-  for (const list of lists) {
-    const slug = getPublicListSlug(list.title);
-    if (reservedPublicListSlugs.has(slug)) {
-      throw new Error(
-        `Reserved public list slug "${slug}" for seller "${sellerId}".`,
-      );
-    }
-    if (
-      slug.length === 0 ||
-      slug === "." ||
-      slug === ".." ||
-      unsafePublicListSlugPattern.test(slug)
-    ) {
-      throw new Error(
-        `Unsafe public list slug "${slug}" for seller "${sellerId}".`,
-      );
-    }
-    const existingListId = listIdBySlug.get(slug);
-    if (existingListId) {
-      throw new Error(
-        `Duplicate public list slug "${slug}" for seller "${sellerId}". Lists "${existingListId}" and "${list.id}" generate the same slug.`,
-      );
-    }
-
-    listIdBySlug.set(slug, list.id);
-    slugByListId.set(list.id, slug);
-  }
-
-  return slugByListId;
+function getPublicListingWhere(sellerId, cursor) {
+  return {
+    userId: sellerId,
+    OR: [{ status: null }, { NOT: { status: HIDDEN_STATUS } }],
+    ...(cursor
+      ? {
+          AND: [
+            {
+              OR: [
+                { title: { gt: cursor.title } },
+                { title: cursor.title, id: { gt: cursor.id } },
+              ],
+            },
+          ],
+        }
+      : {}),
+  };
 }
 
-export async function getPublicStorefrontSnapshot(
-  database,
-  sellerId,
-  generatedAt,
-) {
-  const user = await database.user.findUnique({
-    where: { id: sellerId },
-    select: publicStorefrontUserSelect,
-  });
-  if (!user) {
-    return null;
-  }
-
-  const [lists, listingIdRows, memberships] = await Promise.all([
-    database.list.findMany({
-      where: {
-        userId: sellerId,
-        OR: [{ status: null }, { NOT: { status: HIDDEN_STATUS } }],
-      },
-      select: publicStorefrontListSelect,
-      orderBy: [{ title: "asc" }, { id: "asc" }],
-    }),
-    database.listing.findMany({
-      where: {
-        userId: sellerId,
-        OR: [{ status: null }, { NOT: { status: HIDDEN_STATUS } }],
-      },
-      select: { id: true },
-      orderBy: [{ title: "asc" }, { id: "asc" }],
-    }),
-    getPublicListMemberships(database, sellerId),
-  ]);
-  const listSlugs = getPublicListSlugs(lists, sellerId);
-  const listings = await getPublicListings(
-    database,
-    sellerId,
-    listingIdRows.map((listing) => listing.id),
-  );
-  const listingIdsByListId = getListingIdsByListId(
-    memberships,
-    new Set(listings.map((listing) => listing.id)),
-  );
+function toPublicSeller(user) {
   const profile = user.profile;
 
   return {
-    version: 1,
-    generatedAt,
-    seller: {
-      id: user.id,
-      profile: profile
-        ? {
-            slug: profile.slug,
-            title: profile.title,
-            description: profile.description,
-            content: getPublicProfileContent(
-              profile.content,
-              profile.updatedAt,
-            ),
-            location: profile.location,
-            images: resolveUploadedPublicImages(
-              profile.images,
-              profile.imageAssets,
-            ),
-            updatedAt: profile.updatedAt.toISOString(),
-          }
-        : null,
-    },
-    lists: lists.map((list) => ({
-      id: list.id,
-      slug: listSlugs.get(list.id),
-      title: list.title,
-      description: list.description,
-      listingIds: listingIdsByListId.get(list.id) ?? [],
-      updatedAt: list.updatedAt.toISOString(),
-    })),
-    listings,
+    id: user.id,
+    profile: profile
+      ? {
+          slug: profile.slug,
+          title: profile.title,
+          description: profile.description,
+          content: getPublicProfileContent(profile.content, profile.updatedAt),
+          location: profile.location,
+          images: resolveUploadedPublicImages(
+            profile.images,
+            profile.imageAssets,
+          ),
+          updatedAt: profile.updatedAt.toISOString(),
+        }
+      : null,
   };
+}
+
+function toPublicList(list) {
+  return {
+    id: list.id,
+    slug: getPublicListSlug(list.title),
+    title: list.title,
+    description: list.description,
+    updatedAt: list.updatedAt.toISOString(),
+  };
+}
+
+async function getPublicListingPage(database, sellerId, cursor) {
+  const rows = await database.listing.findMany({
+    where: getPublicListingWhere(sellerId, cursor),
+    select: publicStorefrontListingSelect,
+    orderBy: [{ title: "asc" }, { id: "asc" }],
+    take: LISTING_BATCH_SIZE,
+  });
+  if (rows.length === 0) {
+    return { items: [], nextCursor: null };
+  }
+
+  const memberships = await getPublicListMemberships(
+    database,
+    sellerId,
+    rows.map((listing) => listing.id),
+  );
+  const listIdsByListingId = getListIdsByListingId(memberships);
+  const lastRow = rows.at(-1);
+  const nextCursor = lastRow ? { id: lastRow.id, title: lastRow.title } : null;
+
+  return {
+    items: rows.map((listing) => ({
+      listing: toPublicListing(listing),
+      listIds: listIdsByListingId.get(listing.id) ?? [],
+    })),
+    nextCursor,
+  };
+}
+
+/**
+ * Stream bounded, public seller data from the already-synced replica.
+ *
+ * @param {{
+ *   database: import("@prisma/client").PrismaClient,
+ *   sellerIds: string[],
+ *   write: (message: unknown) => Promise<void>,
+ * }} options
+ */
+export async function streamPublicStorefrontSource({
+  database,
+  sellerIds,
+  write,
+}) {
+  const sellerResults = [];
+
+  for (const sellerId of sellerIds) {
+    const [user, lists] = await Promise.all([
+      database.user.findUnique({
+        where: { id: sellerId },
+        select: publicStorefrontUserSelect,
+      }),
+      database.list.findMany({
+        where: {
+          userId: sellerId,
+          OR: [{ status: null }, { NOT: { status: HIDDEN_STATUS } }],
+        },
+        select: publicStorefrontListSelect,
+        orderBy: [{ title: "asc" }, { id: "asc" }],
+      }),
+    ]);
+    if (!user) {
+      throw new Error(
+        `Configured storefront seller was not found: ${sellerId}`,
+      );
+    }
+
+    await write({
+      type: "seller_start",
+      sellerId,
+      seller: toPublicSeller(user),
+      lists: lists.map(toPublicList),
+    });
+
+    let cursor = null;
+    let listingCount = 0;
+    while (true) {
+      const page = await getPublicListingPage(database, sellerId, cursor);
+      if (page.items.length === 0) {
+        break;
+      }
+
+      await write({
+        type: "listing_page",
+        sellerId,
+        items: page.items,
+      });
+      listingCount += page.items.length;
+
+      if (
+        !page.nextCursor ||
+        (cursor &&
+          (page.nextCursor.title < cursor.title ||
+            (page.nextCursor.title === cursor.title &&
+              page.nextCursor.id <= cursor.id)))
+      ) {
+        throw new Error(`Invalid listing cursor for seller ${sellerId}.`);
+      }
+      cursor = page.nextCursor;
+      if (page.items.length < LISTING_BATCH_SIZE) {
+        break;
+      }
+    }
+
+    await write({ type: "seller_complete", sellerId, listingCount });
+    sellerResults.push({ id: sellerId, listingCount });
+  }
+
+  return { sellers: sellerResults };
 }

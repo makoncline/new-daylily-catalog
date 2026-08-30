@@ -5,6 +5,49 @@ const nonEmptyStringSchema = z
   .string()
   .min(1)
   .refine((value) => value.trim().length > 0, "Must not be blank.");
+const base64urlAlphabet =
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+
+/** @param {unknown} value */
+export function isCanonicalStorefrontBearerToken(value) {
+  if (typeof value !== "string" || !/^[A-Za-z0-9_-]+$/u.test(value)) {
+    return false;
+  }
+
+  const remainder = value.length % 4;
+  if (remainder === 1 || Math.floor((value.length * 6) / 8) < 32) {
+    return false;
+  }
+
+  const finalValue = base64urlAlphabet.indexOf(value.charAt(value.length - 1));
+  if (remainder === 2) {
+    return finalValue % 16 === 0;
+  }
+  if (remainder === 3) {
+    return finalValue % 4 === 0;
+  }
+  return true;
+}
+
+export const storefrontBearerTokenSchema = z
+  .string()
+  .refine(isCanonicalStorefrontBearerToken, {
+    message:
+      "Must be canonical unpadded base64url that decodes to at least 32 bytes.",
+  });
+
+export const storefrontSiteIdentities = Object.freeze([
+  Object.freeze({
+    siteKey: "rolling-oaks",
+    expectedSellerId: "3",
+    canonicalUrl: "https://rollingoaksdaylilies.com",
+    hostnames: Object.freeze([
+      "rollingoaksdaylilies.com",
+      "www.rollingoaksdaylilies.com",
+      "rolling-oaks-daylilies.makon.dev",
+    ]),
+  }),
+]);
 
 export const storefrontRemoteImageHostnames = [
   "daylilycatalog.com",

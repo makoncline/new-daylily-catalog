@@ -8,9 +8,9 @@ StartLimitBurst=4
 
 [Service]
 Type=oneshot
-Environment=STOREFRONT_DATA_CACHE_TAG=daylily-storefront-data
+TimeoutStartSec=30m
 EnvironmentFile=/srv/stacks/daylilycatalog/.env
 EnvironmentFile=/srv/stacks/daylilycatalog/storefront-artifact-refresh.env
-ExecStart=/srv/stacks/daylilycatalog/bin/storefront-artifact-refresh
+ExecStart=/usr/bin/docker compose --project-directory /srv/stacks/daylilycatalog exec -T --env PUBLIC_STOREFRONT_SELLER_IDS --env STOREFRONT_ARTIFACT_REFRESH_TOKEN --env STOREFRONT_API_CLOUDFLARE_ZONE_ID --env STOREFRONT_API_CLOUDFLARE_CACHE_PURGE_TOKEN --env STOREFRONT_SITE_CLOUDFLARE_PURGE_TARGETS_JSON app node apps/main/scripts/refresh-public-storefront-artifacts.mjs
 Restart=on-failure
 RestartSec=15m

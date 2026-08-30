@@ -19,6 +19,11 @@ apps/*/temp_pages
 apps/*/temp_pages_*
 apps/*/node_modules
 apps/*/tests
+!apps/main/tests/
+apps/main/tests/*
+!apps/main/tests/fixtures/
+apps/main/tests/fixtures/*
+!apps/main/tests/fixtures/storefront-refresh-watchdog-container-hang.mjs
 apps/*/docs
 apps/*/.server-deploy
 *.log

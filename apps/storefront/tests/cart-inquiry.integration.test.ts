@@ -11,6 +11,8 @@ import {
 import { createInquiryHandler } from "@/server/inquiries/inquiry-handler";
 import { validateCartInquiry } from "@/server/inquiries/validate-cart-inquiry";
 
+const INQUIRY_TOKEN = "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE";
+
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
@@ -78,6 +80,23 @@ describe("inquiry integration", () => {
     });
 
     vi.stubEnv("STOREFRONT_INQUIRY_TOKEN", "test-token");
+    vi.stubEnv("STOREFRONT_API_BASE_URL", "https://daylilycatalog.com");
+
+    const malformedTokenResponse = await postForm(
+      postJson({
+        kind: "contact",
+        name: "Garden Visitor",
+        email: "visitor@example.com",
+        message: "Can I plan a garden visit?",
+        website: "",
+        openedAt: openedAt(),
+      }),
+    );
+
+    expect(malformedTokenResponse.status).toBe(503);
+    expect(fetchImplementation).not.toHaveBeenCalled();
+
+    vi.stubEnv("STOREFRONT_INQUIRY_TOKEN", INQUIRY_TOKEN);
     vi.stubEnv("STOREFRONT_API_BASE_URL", "not-an-absolute-url");
 
     const invalidUrlResponse = await postForm(

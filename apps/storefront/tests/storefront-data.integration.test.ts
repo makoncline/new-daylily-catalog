@@ -28,6 +28,8 @@ import {
   getStorefrontSearchResult,
 } from "@/types/storefront-query";
 
+const INQUIRY_TOKEN = "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE";
+
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
@@ -568,7 +570,7 @@ describe("storefront data integration", () => {
     expect(body).not.toHaveProperty("sellerId");
 
     vi.stubEnv("STOREFRONT_INQUIRY_ADAPTER", "remote");
-    vi.stubEnv("STOREFRONT_INQUIRY_TOKEN", "test-token");
+    vi.stubEnv("STOREFRONT_INQUIRY_TOKEN", INQUIRY_TOKEN);
     vi.stubEnv("NODE_ENV", "development");
 
     const readyResponse = await getHealth();

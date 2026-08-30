@@ -26,6 +26,7 @@ describe("Docker build cache and observability boundaries", () => {
     for (const name of [
       "PUBLIC_STOREFRONT_ARTIFACT_ROOT",
       "PUBLIC_STOREFRONT_SELLER_IDS",
+      "STOREFRONT_ARTIFACT_REFRESH_TOKEN",
     ]) {
       expect(envSource).toContain(`${name}: z.string()`);
       expect(envSource).toContain(`process.env.${name}`);
@@ -130,6 +131,10 @@ describe("Docker build cache and observability boundaries", () => {
       path.join(repoRoot, "apps/main/Dockerfile"),
       "utf8",
     );
+    const dockerignore = readFileSync(
+      path.join(repoRoot, ".dockerignore"),
+      "utf8",
+    );
     const appPackage = JSON.parse(
       readFileSync(path.join(repoRoot, "apps/main/package.json"), "utf8"),
     );
@@ -164,6 +169,15 @@ describe("Docker build cache and observability boundaries", () => {
     expect(dockerfile).toContain(
       "build-public-parentage-index.mjs ./apps/main/scripts/build-public-parentage-index.mjs",
     );
+    expect(dockerfile).toContain(
+      "build-public-storefront-artifacts-target.mjs ./apps/main/scripts/build-public-storefront-artifacts-target.mjs",
+    );
+    expect(dockerfile).toContain(
+      "storefront-artifact-refresh-watchdog.mjs ./apps/main/scripts/storefront-artifact-refresh-watchdog.mjs",
+    );
+    expect(dockerfile).toContain(
+      "refresh-public-storefront-artifacts.mjs ./apps/main/scripts/refresh-public-storefront-artifacts.mjs",
+    );
     expect(dockerfile).not.toContain(
       "/runtime/node_modules ./apps/main/node_modules",
     );
@@ -177,7 +191,7 @@ describe("Docker build cache and observability boundaries", () => {
       'const storefrontBuilderRequire = createRequire("/app/apps/main/scripts/build-public-storefront-artifacts.mjs")',
     );
     expect(dockerfile).toContain(
-      'for (const dependency of ["@prisma/adapter-better-sqlite3", "node-html-parser"]) storefrontBuilderRequire(dependency)',
+      'for (const dependency of ["@daylily-catalog/storefront-contract", "node-html-parser"]) storefrontBuilderRequire(dependency)',
     );
     expect(dockerfile).toContain(
       'await import("file:///app/apps/main/scripts/build-public-storefront-artifacts.mjs")',
@@ -195,8 +209,37 @@ describe("Docker build cache and observability boundaries", () => {
     expect(dockerfile).toContain(
       'cp -a "$source_modules/.prisma" "$runtime_modules/.prisma"',
     );
+    expect(dockerfile).toContain("openssl ca-certificates sqlite3 tini");
+    expect(dockerfile).toContain('ENTRYPOINT ["/usr/bin/tini", "--"]');
+    expect(dockerfile).toContain(
+      "FROM base AS storefront-refresh-watchdog-test",
+    );
+    expect(dockerfile).toContain(
+      "storefront-refresh-watchdog-container-hang.mjs",
+    );
+    const compose = readFileSync(
+      path.join(repoRoot, "apps/main/deploy/vps/compose.yaml"),
+      "utf8",
+    );
+    expect(compose).toContain("restart: unless-stopped");
+    const workflow = readFileSync(
+      path.join(repoRoot, ".github/workflows/pr-docker-image.yml"),
+      "utf8",
+    );
+    expect(workflow).toContain("--target storefront-refresh-watchdog-test");
+    expect(workflow).toContain(
+      'if [ "$watchdog_elapsed_seconds" -ge 5 ]; then',
+    );
+    expect(workflow).toContain('if [ "$watchdog_status" -eq 124 ]; then');
+    expect(workflow).toContain('if [ "$watchdog_status" -ne 137 ]; then');
+    expect(workflow).toContain("trap cleanup_watchdog_container EXIT");
+    expect(dockerignore).toContain(
+      "!apps/main/tests/fixtures/storefront-refresh-watchdog-container-hang.mjs",
+    );
     expect(runtimePackage.dependencies).toEqual({
       "@aws-sdk/client-s3": appPackage.dependencies["@aws-sdk/client-s3"],
+      "@daylily-catalog/storefront-contract":
+        appPackage.dependencies["@daylily-catalog/storefront-contract"],
       "@libsql/client": appPackage.dependencies["@libsql/client"],
       "@prisma/adapter-better-sqlite3":
         appPackage.dependencies["@prisma/adapter-better-sqlite3"],

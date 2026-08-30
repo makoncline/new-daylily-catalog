@@ -23,6 +23,7 @@ const nonDocumentPaths = new Set([
   "/robots.txt",
   "/sitemap.xml",
 ]);
+const proxyOwnedTaggedPaths = new Set(["/favicon.ico", "/icon", "/robots.txt"]);
 
 function acceptsMarkdown(request: NextRequest) {
   const accept = request.headers.get("accept");
@@ -81,11 +82,20 @@ function isPublicDocumentPath(pathname: string) {
   return !firstSegment || !uncachedFirstSegments.has(firstSegment);
 }
 
+function hasRouteOwnedPublicCachePolicy(pathname: string) {
+  if (nonDocumentPaths.has(pathname)) {
+    return true;
+  }
+
+  const [firstSegment] = pathname.split("/").filter(Boolean);
+  return firstSegment === ".well-known";
+}
+
 function isCanonicalAgentSkillPath(pathname: string) {
   return /^\/\.well-known\/agent-skills\/[^/]+\/SKILL\.md$/u.test(pathname);
 }
 
-function uncachedRscResponse() {
+function uncachedResponse() {
   const response = NextResponse.next();
   response.headers.set("Cache-Control", "no-store");
   response.headers.set(PUBLIC_CLOUDFLARE_CACHE_CONTROL_HEADER, "no-store");
@@ -105,8 +115,7 @@ function varyOnAccept(response: NextResponse) {
 }
 
 function uncachedNegotiatedResponse() {
-  const response = NextResponse.next();
-  response.headers.set("Cache-Control", "no-store");
+  const response = uncachedResponse();
   return varyOnAccept(response);
 }
 
@@ -128,6 +137,7 @@ async function markdownResponse(request: NextRequest) {
         status: representation.status,
         headers: {
           "Cache-Control": "no-store",
+          [PUBLIC_CLOUDFLARE_CACHE_CONTROL_HEADER]: "no-store",
           "Content-Type": "text/markdown; charset=utf-8",
           Vary: "Accept",
         },
@@ -142,6 +152,7 @@ async function markdownResponse(request: NextRequest) {
         status: 503,
         headers: {
           "Cache-Control": "no-store",
+          [PUBLIC_CLOUDFLARE_CACHE_CONTROL_HEADER]: "no-store",
           "Content-Type": "text/markdown; charset=utf-8",
           Vary: "Accept",
         },
@@ -165,7 +176,7 @@ export function proxy(
   request: NextRequest,
 ): NextResponse | Promise<NextResponse> {
   if (isAppRouterRscRequest(request)) {
-    return uncachedRscResponse();
+    return uncachedResponse();
   }
 
   if (acceptsMarkdown(request)) {
@@ -199,7 +210,25 @@ export function proxy(
     return cachedPublicDocumentResponse();
   }
 
-  return NextResponse.next();
+  if (
+    (request.method === "GET" || request.method === "HEAD") &&
+    proxyOwnedTaggedPaths.has(request.nextUrl.pathname) &&
+    !hasRequestCredentials(request) &&
+    !isPrefetchRequest(request)
+  ) {
+    return cachedPublicDocumentResponse();
+  }
+
+  if (
+    (request.method === "GET" || request.method === "HEAD") &&
+    hasRouteOwnedPublicCachePolicy(request.nextUrl.pathname) &&
+    !hasRequestCredentials(request) &&
+    !isPrefetchRequest(request)
+  ) {
+    return NextResponse.next();
+  }
+
+  return uncachedResponse();
 }
 
 export default proxy;

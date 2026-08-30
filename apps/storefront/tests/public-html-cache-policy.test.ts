@@ -77,26 +77,60 @@ describe("public HTML cache policy", () => {
     "/thanks?from=cart",
     "/api/catalogs",
     "/api/health",
+    "/brands/rolling-oaks/logo.svg",
+  ])(
+    "explicitly bypasses the HTML cache for another route class: %s",
+    (path) => {
+      const response = proxy(request(path));
+
+      expect(response.headers.get(PUBLIC_CLOUDFLARE_CACHE_CONTROL_HEADER)).toBe(
+        "no-store",
+      );
+      expect(response.headers.get("cache-control")).toBe("no-store");
+      expect(response.headers.get("cache-tag")).toBeNull();
+    },
+  );
+
+  it.each([
+    "/llms.txt",
     "/openapi.json",
     "/sitemap.xml",
-    "/brands/rolling-oaks/logo.svg",
-  ])("does not apply the HTML policy to another route class: %s", (path) => {
+    "/.well-known/api-catalog",
+    "/.well-known/agent-skills/index.json",
+    "/.well-known/agent-skills/catalog-navigation/SKILL.md",
+  ])("preserves the route-owned public cache policy: %s", (path) => {
     const response = proxy(request(path));
 
     expect(
       response.headers.get(PUBLIC_CLOUDFLARE_CACHE_CONTROL_HEADER),
     ).toBeNull();
+    expect(response.headers.get("cache-control")).toBeNull();
     expect(response.headers.get("cache-tag")).toBeNull();
   });
+
+  it.each(["/favicon.ico", "/icon", "/robots.txt"])(
+    "marks a proxy-owned metadata response for Cloudflare: %s",
+    (path) => {
+      const response = proxy(request(path));
+
+      expect(response.headers.get(PUBLIC_CLOUDFLARE_CACHE_CONTROL_HEADER)).toBe(
+        PUBLIC_CLOUDFLARE_CACHE_CONTROL,
+      );
+      expect(response.headers.get("cache-tag")).toBe(
+        PUBLIC_CLOUDFLARE_CACHE_TAG,
+      );
+    },
+  );
 
   it.each(privateRequestCases)(
     "does not mark a private or non-document request",
     (init) => {
       const response = proxy(request("/catalog/all", init));
 
-      expect(
-        response.headers.get(PUBLIC_CLOUDFLARE_CACHE_CONTROL_HEADER),
-      ).toBeNull();
+      expect(response.headers.get(PUBLIC_CLOUDFLARE_CACHE_CONTROL_HEADER)).toBe(
+        "no-store",
+      );
+      expect(response.headers.get("cache-control")).toBe("no-store");
       expect(response.headers.get("cache-tag")).toBeNull();
     },
   );
