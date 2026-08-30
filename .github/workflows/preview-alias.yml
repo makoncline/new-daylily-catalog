@@ -52,6 +52,18 @@ jobs:
           HEAD_SHA: ${{ github.event.deployment.sha }}
         working-directory: candidate
         run: |
+          for trusted_tool in \
+            affected-apps.mjs \
+            preview-candidate-provenance.mjs \
+            vercel-preview-origin.mjs
+          do
+            if [ ! -f "$GITHUB_WORKSPACE/trusted/.github/scripts/$trusted_tool" ]; then
+              echo "main=false" >> "$GITHUB_OUTPUT"
+              echo "Trusted preview tools are not installed on the default branch yet. Skip this bootstrap preview."
+              exit 0
+            fi
+          done
+
           git rev-parse --verify "origin/$DEFAULT_BRANCH^{commit}"
           node "$GITHUB_WORKSPACE/trusted/.github/scripts/affected-apps.mjs" --base "origin/$DEFAULT_BRANCH" --head "$HEAD_SHA" --merge-base
       - name: Verify same-repository candidate

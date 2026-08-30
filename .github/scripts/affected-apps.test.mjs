@@ -999,6 +999,11 @@ describe("affected app classification", () => {
       /github\.event\.deployment\.environment == 'Preview'/,
     );
     assert.doesNotMatch(previewAliasWorkflow, /contains\([^\n]*vercel\.app/u);
+    assert.match(previewAliasWorkflow, /echo "main=false"/);
+    assert.match(
+      previewAliasWorkflow,
+      /Trusted preview tools are not installed on the default branch yet/,
+    );
     assert.doesNotMatch(
       aliasJob,
       /\$\{\{ github\.event\.(?:deployment_status\.(?:environment_url|target_url)|inputs\.url)/u,
