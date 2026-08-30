@@ -30,7 +30,7 @@ import * as React from "react";
 
 import { formatCurrency } from "@/lib/format";
 
-import { useCart } from "./cart-provider";
+import { canIncrementCartQuantity, useCart } from "./cart-provider";
 
 export function CartPageClient({ minimumOrder }: { minimumOrder: number }) {
   const cart = useCart();
@@ -194,6 +194,7 @@ export function CartPageClient({ minimumOrder }: { minimumOrder: number }) {
                       variant="outline"
                       size="icon"
                       aria-label={`Add one ${line.title}`}
+                      disabled={!canIncrementCartQuantity(line.quantity)}
                       onClick={() =>
                         cart.setQuantity(line.id, line.quantity + 1)
                       }

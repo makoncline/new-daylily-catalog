@@ -4,6 +4,7 @@ import { createClient } from "@libsql/client";
 import { streamToTargetWorker } from "../target-worker-stream.js";
 
 const SOURCE_BATCH_SIZE = 1_000;
+const SOURCE_READ_TRANSACTION_TIMEOUT_MS = 5 * 60 * 1_000;
 const SEARCH_INDEX_SCHEMA_VERSION = "13";
 
 /** @typedef {import("@libsql/client").Client} LibSqlClient */
@@ -809,7 +810,11 @@ export async function buildPublicSearchIndex({
         sourceLabel,
       ],
       targetWorkerPath,
-      stream: (write) => streamSourceRows(sourceDb, write),
+      stream: (write) =>
+        sourceDb.$transaction(
+          (transaction) => streamSourceRows(transaction, write),
+          { timeout: SOURCE_READ_TRANSACTION_TIMEOUT_MS },
+        ),
     });
 
   if (

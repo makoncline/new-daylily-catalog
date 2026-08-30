@@ -52,6 +52,7 @@ WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/main/node_modules ./apps/main/node_modules
+COPY --from=deps /app/packages/storefront-contract/node_modules ./packages/storefront-contract/node_modules
 COPY . .
 
 ARG BUILD_ENV_FINGERPRINT

@@ -1,5 +1,6 @@
 "use client";
 
+import { inquiryCartLineSchema } from "@daylily-catalog/storefront-contract";
 import * as React from "react";
 
 import { calculateShipping, type ShippingPolicy } from "@/lib/shipping";
@@ -36,6 +37,15 @@ type CartContextValue = {
 };
 
 const CartContext = React.createContext<CartContextValue | null>(null);
+const inquiryQuantitySchema = inquiryCartLineSchema.shape.quantity;
+
+export function canIncrementCartQuantity(quantity: number): boolean {
+  return inquiryQuantitySchema.safeParse(quantity + 1).success;
+}
+
+function isInquiryCartQuantity(quantity: number): boolean {
+  return inquiryQuantitySchema.safeParse(quantity).success;
+}
 
 function isStoredCart(value: unknown): value is StoredCart {
   if (!value || typeof value !== "object") return false;
@@ -68,8 +78,7 @@ export function CartProvider({
                 line.isForSale &&
                 Number.isFinite(line.price) &&
                 line.price > 0 &&
-                Number.isInteger(line.quantity) &&
-                line.quantity > 0,
+                isInquiryCartQuantity(line.quantity),
             ),
           );
         }
@@ -110,7 +119,12 @@ export function CartProvider({
       if (!existing) return [...current, { ...product, quantity: 1 }];
       return current.map((line) =>
         line.id === product.id
-          ? { ...product, quantity: line.quantity + 1 }
+          ? {
+              ...product,
+              quantity: canIncrementCartQuantity(line.quantity)
+                ? line.quantity + 1
+                : line.quantity,
+            }
           : line,
       );
     });
@@ -127,6 +141,7 @@ export function CartProvider({
         setLines((current) => current.filter((line) => line.id !== productId));
         return;
       }
+      if (!isInquiryCartQuantity(quantity)) return;
       setLines((current) =>
         current.map((line) =>
           line.id === productId ? { ...line, quantity } : line,

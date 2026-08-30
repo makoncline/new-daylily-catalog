@@ -6,12 +6,17 @@ import { DatabaseSync } from "node:sqlite";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { buildPublicSearchIndex } from "../src/server/search/build-public-search-index.js";
 
 const execFileAsync = promisify(execFile);
 const buildScriptPath = path.join(
   process.cwd(),
   "scripts/build-public-search-index.mjs",
+);
+const targetWorkerPath = path.join(
+  process.cwd(),
+  "scripts/build-public-search-index-target.mjs",
 );
 
 async function runBuildScript(args: string[], env: Partial<NodeJS.ProcessEnv>) {
@@ -161,6 +166,59 @@ function createAuthoritativeFlowerShowSource(sourcePath: string) {
 }
 
 describe("build-public-search-index", () => {
+  it("streams cultivars and listings in one source read transaction", async () => {
+    const tempDirectory = mkdtempSync(
+      path.join(tmpdir(), "public-search-source-transaction-"),
+    );
+    const targetPath = path.join(tempDirectory, "target.sqlite");
+    const directQuery = vi.fn(() => {
+      throw new Error("Source reads must use the transaction client.");
+    });
+    const transactionQuery = vi.fn(
+      async (_sql: string, ..._args: unknown[]) => [],
+    );
+    const transaction = { $queryRawUnsafe: transactionQuery };
+    const sourceDb = {
+      $queryRawUnsafe: directQuery,
+      $transaction: vi.fn(
+        async (
+          callback: (client: typeof transaction) => Promise<unknown>,
+          _options: { timeout: number },
+        ) => callback(transaction),
+      ),
+    };
+
+    try {
+      await expect(
+        buildPublicSearchIndex({
+          sourceDb: sourceDb as never,
+          sourceLabel: "transaction-test",
+          targetPath,
+          targetWorkerPath,
+        }),
+      ).resolves.toMatchObject({
+        cultivars: 0,
+        linkedListings: 0,
+        quickCheck: "ok",
+      });
+
+      expect(sourceDb.$transaction).toHaveBeenCalledTimes(1);
+      expect(sourceDb.$transaction).toHaveBeenCalledWith(expect.any(Function), {
+        timeout: 5 * 60 * 1_000,
+      });
+      expect(transactionQuery).toHaveBeenCalledTimes(2);
+      expect(transactionQuery.mock.calls[0]?.[0]).toContain(
+        "WITH cultivar_ids AS",
+      );
+      expect(transactionQuery.mock.calls[1]?.[0]).toContain(
+        "WITH listing_ids AS",
+      );
+      expect(directQuery).not.toHaveBeenCalled();
+    } finally {
+      rmSync(tempDirectory, { force: true, recursive: true });
+    }
+  });
+
   it("indexes authoritative flower_show without deriving a replacement", async () => {
     const tempDirectory = mkdtempSync(
       path.join(tmpdir(), "public-search-flower-show-"),

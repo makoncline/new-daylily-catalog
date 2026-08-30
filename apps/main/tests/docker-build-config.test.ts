@@ -96,6 +96,24 @@ describe("Docker build cache and observability boundaries", () => {
     ).toContain("apps/*/Dockerfile");
   });
 
+  it("keeps package-local storefront contract dependencies in clean builder stages", () => {
+    const dockerfile = readFileSync(
+      path.join(repoRoot, "apps/main/Dockerfile"),
+      "utf8",
+    );
+    const contractPackage = JSON.parse(
+      readFileSync(
+        path.join(repoRoot, "packages/storefront-contract/package.json"),
+        "utf8",
+      ),
+    );
+
+    expect(contractPackage.dependencies).toHaveProperty("zod");
+    expect(dockerfile).toContain(
+      "COPY --from=deps /app/packages/storefront-contract/node_modules ./packages/storefront-contract/node_modules",
+    );
+  });
+
   it("keeps Sentry build environments distinct and disables sourcemaps only for non-deployed PR images", () => {
     const workflow = readFileSync(
       path.join(repoRoot, ".github/workflows/pr-docker-image.yml"),
