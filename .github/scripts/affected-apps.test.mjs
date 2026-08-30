@@ -1033,6 +1033,12 @@ describe("affected app classification", () => {
       previewE2eWorkflow,
       /needs\.scope\.outputs\.trusted_candidate == 'true'/,
     );
+    assert.match(previewE2eWorkflow, /echo "main=false"/);
+    assert.match(previewE2eWorkflow, /echo "trusted_tools=false"/);
+    assert.match(
+      previewE2eWorkflow,
+      /steps\.affected\.outputs\.trusted_tools == 'true'/,
+    );
     assert.equal(
       mainVercel.ignoreCommand,
       "node ../../.github/scripts/affected-apps.mjs --vercel-ignore main",
