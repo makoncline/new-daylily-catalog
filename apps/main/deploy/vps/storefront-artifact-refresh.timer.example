@@ -1,0 +1,12 @@
+# This example is inert. Do not install or enable it until the owner gate in README.md passes.
+[Unit]
+Description=Refresh Daylily storefront artifacts every 24 hours
+
+[Timer]
+OnCalendar=daily
+RandomizedDelaySec=2h
+Persistent=true
+Unit=storefront-artifact-refresh.service
+
+[Install]
+WantedBy=timers.target

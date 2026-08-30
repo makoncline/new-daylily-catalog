@@ -58,6 +58,7 @@ export function classifyChangedFiles(filePaths, affectedPackageNames = []) {
     if (
       filePath.startsWith("apps/main/") ||
       filePath.startsWith("packages/standalone-runtime/") ||
+      filePath.startsWith(".github/scripts/preview-candidate-provenance") ||
       mainWorkflowFiles.has(filePath)
     ) {
       affected.add(APP_MAIN);

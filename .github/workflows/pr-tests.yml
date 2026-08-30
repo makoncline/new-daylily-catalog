@@ -8,6 +8,9 @@ concurrency:
   group: pr-tests-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   scope:
     name: Detect affected apps
@@ -34,6 +37,31 @@ jobs:
           else
             node .github/scripts/affected-apps.mjs --base "$BASE_SHA" --head "$HEAD_SHA" --merge-base
           fi
+
+  storefront-contract:
+    name: Storefront contract tests
+    runs-on: ubuntu-latest
+    needs: scope
+    if: needs.scope.outputs.main == 'true' || needs.scope.outputs.storefront == 'true'
+    steps:
+      - name: Enable corepack
+        run: corepack enable
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm fetch
+      - run: pnpm install --frozen-lockfile --prefer-offline
+      - name: Verify storefront contract package exists
+        run: pnpm --filter @daylily-catalog/storefront-contract --fail-if-no-match exec node --version
+      - name: Typecheck storefront contract
+        run: pnpm --filter @daylily-catalog/storefront-contract --fail-if-no-match typecheck
+      - name: Test storefront contract
+        run: pnpm --filter @daylily-catalog/storefront-contract --fail-if-no-match test
 
   quality:
     name: Lint and typecheck

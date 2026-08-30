@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -18,6 +19,9 @@ import { classifyChangedFiles } from "./affected-apps.mjs";
 
 const scriptPath = fileURLToPath(
   new URL("./affected-apps.mjs", import.meta.url),
+);
+const provenanceScriptPath = fileURLToPath(
+  new URL("./preview-candidate-provenance.mjs", import.meta.url),
 );
 const repositoryRoot = path.resolve(path.dirname(scriptPath), "../..");
 
@@ -83,6 +87,9 @@ function createGitFixture() {
   mkdirSync(path.join(directory, "apps/main/src"), { recursive: true });
   mkdirSync(path.join(directory, "apps/storefront/src"), { recursive: true });
   mkdirSync(path.join(directory, "packages/config/src"), { recursive: true });
+  mkdirSync(path.join(directory, "packages/storefront-contract/src"), {
+    recursive: true,
+  });
   mkdirSync(path.join(directory, "packages/ui/src"), { recursive: true });
   writeFileSync(
     path.join(directory, "package.json"),
@@ -98,7 +105,10 @@ function createGitFixture() {
     `${JSON.stringify(
       {
         name: "@daylily-catalog/main",
-        dependencies: { "@daylily-catalog/config": "workspace:*" },
+        dependencies: {
+          "@daylily-catalog/config": "workspace:*",
+          "@daylily-catalog/storefront-contract": "workspace:*",
+        },
       },
       null,
       2,
@@ -111,6 +121,7 @@ function createGitFixture() {
         name: "@daylily-catalog/storefront",
         dependencies: {
           "@daylily-catalog/config": "workspace:*",
+          "@daylily-catalog/storefront-contract": "workspace:*",
           "@daylily-catalog/ui": "workspace:*",
           "example-dependency": "*",
         },
@@ -124,6 +135,10 @@ function createGitFixture() {
     '{"name":"@daylily-catalog/config"}\n',
   );
   writeFileSync(
+    path.join(directory, "packages/storefront-contract/package.json"),
+    '{"name":"@daylily-catalog/storefront-contract"}\n',
+  );
+  writeFileSync(
     path.join(directory, "packages/ui/package.json"),
     '{"name":"@daylily-catalog/ui"}\n',
   );
@@ -134,6 +149,10 @@ function createGitFixture() {
   );
   writeFileSync(
     path.join(directory, "packages/config/src/index.ts"),
+    "export {}\n",
+  );
+  writeFileSync(
+    path.join(directory, "packages/storefront-contract/src/index.ts"),
     "export {}\n",
   );
   writeFileSync(
@@ -150,6 +169,18 @@ function runClassifier(cwd, arguments_, environment = {}) {
     encoding: "utf8",
     env: { ...process.env, ...environment },
   });
+}
+
+function runProvenance(cwd, head, ref, outputPath) {
+  return spawnSync(
+    process.execPath,
+    [provenanceScriptPath, "--head", head, "--ref", ref],
+    {
+      cwd,
+      encoding: "utf8",
+      env: { ...process.env, GITHUB_OUTPUT: outputPath },
+    },
+  );
 }
 
 function realTurboEnvironment() {
@@ -171,6 +202,12 @@ describe("affected app classification", () => {
     });
     assert.deepEqual(
       classifyChangedFiles(["packages/standalone-runtime/package.json"]),
+      { main: true, storefront: false },
+    );
+    assert.deepEqual(
+      classifyChangedFiles([
+        ".github/scripts/preview-candidate-provenance.mjs",
+      ]),
       { main: true, storefront: false },
     );
   });
@@ -301,6 +338,22 @@ describe("affected app classification", () => {
         main: true,
         storefront: true,
       });
+
+      writeFileSync(
+        path.join(directory, "packages/storefront-contract/src/index.ts"),
+        "export const changed = true;\n",
+      );
+      const contractHead = commitAll(directory, "change storefront contract");
+      const contract = runClassifier(
+        directory,
+        ["--base", configHead, "--head", contractHead],
+        turboEnvironment,
+      );
+      assert.equal(contract.status, 0, contract.stderr);
+      assert.deepEqual(JSON.parse(contract.stdout).affected, {
+        main: true,
+        storefront: true,
+      });
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
@@ -337,6 +390,90 @@ describe("affected app classification", () => {
       assert.equal(unavailableTurbo.status, 1);
       assert.equal(unavailableTurbo.stdout, "");
       assert.match(unavailableTurbo.stderr, /ENOENT|spawnSync/);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("uses trusted Turbo instead of candidate-controlled tooling", () => {
+    const { base, directory } = createGitFixture();
+    const trustedDirectory = mkdtempSync(
+      path.join(tmpdir(), "affected-apps-trusted-turbo-"),
+    );
+    const markerPath = path.join(directory, "candidate-turbo-ran");
+    try {
+      const candidateTurbo = path.join(directory, "node_modules/.bin/turbo");
+      mkdirSync(path.dirname(candidateTurbo), { recursive: true });
+      writeFileSync(
+        candidateTurbo,
+        `#!/bin/sh\ntouch "${markerPath}"\nprintf '%s\\n' '{"data":{"affectedPackages":{"items":[{"name":"@daylily-catalog/main"}]}}}'\n`,
+      );
+      chmodSync(candidateTurbo, 0o755);
+      writeFileSync(
+        path.join(directory, ".npmrc"),
+        "registry=https://candidate.invalid/\n",
+      );
+      writeFileSync(
+        path.join(directory, "packages/ui/src/index.ts"),
+        "export const changed = true;\n",
+      );
+      const head = commitAll(directory, "add candidate-controlled tooling");
+
+      const trustedTurbo = path.join(trustedDirectory, "turbo");
+      writeFileSync(
+        trustedTurbo,
+        '#!/bin/sh\nprintf \'%s\\n\' \'{"data":{"affectedPackages":{"items":[{"name":"@daylily-catalog/storefront"}]}}}\'\n',
+      );
+      chmodSync(trustedTurbo, 0o755);
+
+      const command = runClassifier(
+        directory,
+        ["--base", base, "--head", head],
+        { AFFECTED_APPS_TURBO_BINARY: trustedTurbo },
+      );
+
+      assert.equal(command.status, 0, command.stderr);
+      const result = JSON.parse(command.stdout);
+      assert.deepEqual(result.affected, {
+        main: true,
+        storefront: true,
+      });
+      assert.deepEqual(result.affectedPackages, [
+        "@daylily-catalog/storefront",
+      ]);
+      assert.equal(existsSync(markerPath), false);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+      rmSync(trustedDirectory, { recursive: true, force: true });
+    }
+  });
+
+  it("skips a fork candidate that is not the head of an origin branch", () => {
+    const { base, directory } = createGitFixture();
+    const trustedOutput = path.join(directory, "trusted-output.txt");
+    const forkOutput = path.join(directory, "fork-output.txt");
+    try {
+      runGit(directory, ["update-ref", "refs/remotes/origin/feature", base]);
+      const trusted = runProvenance(directory, base, "feature", trustedOutput);
+      assert.equal(trusted.status, 0, trusted.stderr);
+      assert.deepEqual(JSON.parse(trusted.stdout), {
+        reason: "same-repository-ref",
+        trusted: true,
+      });
+      assert.match(readFileSync(trustedOutput, "utf8"), /trusted=true/);
+
+      writeFileSync(
+        path.join(directory, "apps/main/src/fork.ts"),
+        "export const fork = true;\n",
+      );
+      const forkHead = commitAll(directory, "simulate fork candidate");
+      const fork = runProvenance(directory, forkHead, "feature", forkOutput);
+      assert.equal(fork.status, 0, fork.stderr);
+      assert.deepEqual(JSON.parse(fork.stdout), {
+        reason: "not-origin-head",
+        trusted: false,
+      });
+      assert.match(readFileSync(forkOutput, "utf8"), /trusted=false/);
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
@@ -408,8 +545,30 @@ describe("affected app classification", () => {
       path.join(repositoryRoot, "apps/storefront/deploy/vps/.env.example"),
       "utf8",
     );
+    const mainEnvironment = readFileSync(
+      path.join(repositoryRoot, "apps/main/deploy/vps/.env.example"),
+      "utf8",
+    );
     const storefrontCompose = readFileSync(
       path.join(repositoryRoot, "apps/storefront/deploy/vps/compose.yaml"),
+      "utf8",
+    );
+    const storefrontCaddy = readFileSync(
+      path.join(repositoryRoot, "apps/storefront/deploy/vps/caddy-route.caddy"),
+      "utf8",
+    );
+    const artifactRefreshService = readFileSync(
+      path.join(
+        repositoryRoot,
+        "apps/main/deploy/vps/storefront-artifact-refresh.service.example",
+      ),
+      "utf8",
+    );
+    const artifactRefreshTimer = readFileSync(
+      path.join(
+        repositoryRoot,
+        "apps/main/deploy/vps/storefront-artifact-refresh.timer.example",
+      ),
       "utf8",
     );
     const deploymentGuide = readFileSync(
@@ -438,6 +597,22 @@ describe("affected app classification", () => {
     );
     assert.match(prWorkflow, /--fail-if-no-match lint/);
     assert.match(prWorkflow, /--fail-if-no-match test/);
+    assert.match(
+      prWorkflow,
+      /storefront-contract:[\s\S]*needs\.scope\.outputs\.main == 'true' \|\| needs\.scope\.outputs\.storefront == 'true'/,
+    );
+    assert.match(
+      prWorkflow,
+      /@daylily-catalog\/storefront-contract --fail-if-no-match typecheck/,
+    );
+    assert.match(
+      prWorkflow,
+      /@daylily-catalog\/storefront-contract --fail-if-no-match exec node --version/,
+    );
+    assert.match(
+      prWorkflow,
+      /@daylily-catalog\/storefront-contract --fail-if-no-match test/,
+    );
 
     assert.match(
       storefrontWorkflow,
@@ -453,7 +628,7 @@ describe("affected app classification", () => {
     assert.match(storefrontWorkflow, /--fail-if-no-match/);
     assert.doesNotMatch(
       storefrontWorkflow,
-      /TURSO_|PUBLIC_SNAPSHOT|TEST_BASE_URL/,
+      /TURSO_|PUBLIC_SNAPSHOT|STOREFRONT_SELLER_ID|TEST_BASE_URL/,
     );
     assert.doesNotMatch(
       storefrontWorkflow,
@@ -465,6 +640,46 @@ describe("affected app classification", () => {
     );
     assert.match(previewAliasWorkflow, /needs\.scope\.outputs\.main == 'true'/);
     assert.match(previewE2eWorkflow, /needs\.scope\.outputs\.main == 'true'/);
+
+    for (const workflow of [previewAliasWorkflow, previewE2eWorkflow]) {
+      const scope = workflow.split(/\n  (?:alias|e2e):/u)[0];
+      assert.match(
+        scope,
+        /ref: \$\{\{ github\.event\.repository\.default_branch \}\}/,
+      );
+      assert.match(scope, /path: trusted/);
+      assert.match(scope, /path: candidate/);
+      assert.match(scope, /persist-credentials: false/);
+      assert.match(scope, /working-directory: trusted/);
+      assert.match(scope, /turbo@2\.9\.6/);
+      assert.match(scope, /AFFECTED_APPS_TURBO_BINARY/);
+      assert.match(
+        scope,
+        /node "\$GITHUB_WORKSPACE\/trusted\/\.github\/scripts\/affected-apps\.mjs"/,
+      );
+      assert.doesNotMatch(scope, /issues: write|pull-requests: write/);
+    }
+
+    const aliasJob = previewAliasWorkflow
+      .split("\n  alias:")[1]
+      .split("\n  comment:")[0];
+    const commentJob = previewAliasWorkflow.split("\n  comment:")[1];
+    assert.doesNotMatch(aliasJob, /issues: write|pull-requests: write/);
+    assert.match(commentJob, /issues: write/);
+    assert.match(commentJob, /pull-requests: write/);
+    assert.doesNotMatch(commentJob, /actions\/checkout|\n\s+run:/);
+    assert.doesNotMatch(
+      previewE2eWorkflow,
+      /issues: write|pull-requests: write/,
+    );
+    assert.match(
+      previewE2eWorkflow,
+      /preview-candidate-provenance\.mjs.*--head "\$HEAD_SHA" --ref "\$CANDIDATE_REF"/,
+    );
+    assert.match(
+      previewE2eWorkflow,
+      /needs\.scope\.outputs\.trusted_candidate == 'true'/,
+    );
     assert.equal(
       mainVercel.ignoreCommand,
       "node ../../.github/scripts/affected-apps.mjs --vercel-ignore main",
@@ -474,9 +689,29 @@ describe("affected app classification", () => {
       storefrontEnvironment,
       /STOREFRONT_API_BASE_URL=https:\/\/daylilycatalog\.com/,
     );
-    assert.match(storefrontEnvironment, /STOREFRONT_SELLER_ID=/);
+    assert.match(storefrontEnvironment, /STOREFRONT_SITE_KEY=rolling-oaks/);
+    assert.match(
+      storefrontEnvironment,
+      /STOREFRONT_HOSTNAME=rolling-oaks-daylilies\.makon\.dev/,
+    );
+    assert.match(storefrontEnvironment, /STOREFRONT_SELLER_ID=3/);
     assert.doesNotMatch(storefrontEnvironment, /TURSO_|PUBLIC_SNAPSHOT|SMTP_/);
     assert.doesNotMatch(storefrontCompose, /public-data|\.public-data/);
+    assert.match(storefrontCaddy, /header_up X-Forwarded-Proto https/);
+    assert.match(storefrontCaddy, /header_up X-Forwarded-Host \{host\}/);
+    assert.match(storefrontCaddy, /header_up X-Forwarded-Port 443/);
+    assert.match(artifactRefreshService, /PUBLIC_STOREFRONT_SELLER_IDS=3/);
+    assert.match(
+      artifactRefreshService,
+      /STOREFRONT_DATA_CACHE_TAG=daylily-storefront-data/,
+    );
+    assert.match(
+      artifactRefreshService,
+      /STOREFRONT_HTML_CACHE_TAGS=daylily-storefront-public-html/,
+    );
+    assert.match(artifactRefreshService, /Restart=on-failure/);
+    assert.match(artifactRefreshTimer, /OnCalendar=daily/);
+    assert.match(artifactRefreshTimer, /RandomizedDelaySec=2h/);
     assert.match(
       deploymentGuide,
       /Cloudflare-CDN-Cache-Control: public, max-age=43200, stale-while-revalidate=604800, stale-if-error=86400/,
@@ -486,5 +721,32 @@ describe("affected app classification", () => {
     assert.match(deploymentGuide, /Accept: text\/markdown/);
     assert.match(deploymentGuide, /atomic rename/);
     assert.match(deploymentGuide, /every 24 hours/);
+    assert.match(deploymentGuide, /initial allowlist contains only `3`/);
+    assert.match(deploymentGuide, /one isolated service and container/);
+    assert.match(deploymentGuide, /Do not add a runtime host registry/);
+    assert.match(deploymentGuide, /mismatch must stop startup/);
+    assert.match(
+      deploymentGuide,
+      /purge `daylily-storefront-data`[\s\S]*then purge the affected `daylily-storefront-public-html` tags/,
+    );
+    assert.match(deploymentGuide, /more than 26 hours old/);
+    assert.match(deploymentGuide, /PUBLIC_STOREFRONT_SELLER_IDS/);
+    assert.match(deploymentGuide, /It is separate from each site stack's/);
+    assert.match(deploymentGuide, /\/api\/catalogs/);
+    assert.match(deploymentGuide, /\/api\/catalog\/\*/);
+    assert.match(deploymentGuide, /\/api\/listings\/\*/);
+    assert.match(deploymentGuide, /\/api\/forms/);
+    assert.match(deploymentGuide, /\/api\/health/);
+    assert.match(deploymentGuide, /\.well-known\/api-catalog/);
+    assert.match(deploymentGuide, /\.well-known\/agent-skills\/index\.json/);
+    assert.doesNotMatch(deploymentGuide, /Do not cache `\/api\/\*\*`/);
+    assert.doesNotMatch(storefrontEnvironment, /STOREFRONT_INQUIRY_URL/);
+    assert.match(storefrontEnvironment, /STOREFRONT_INQUIRY_TOKEN=/);
+    assert.match(
+      mainEnvironment,
+      /STOREFRONT_INQUIRY_TOKENS_JSON='\{"3":""\}'/,
+    );
+    assert.doesNotMatch(mainEnvironment, /^STOREFRONT_INQUIRY_TOKEN=/mu);
+    assert.match(deploymentGuide, /distinct bearer tokens/);
   });
 });

@@ -11,7 +11,7 @@ This directory is the deploy source of truth for the first Rolling Oaks storefro
 - Health path: `/api/health`
 - Initial host: `rolling-oaks-daylilies.makon.dev`
 
-The image is generic. The live `.env` file sets `STOREFRONT_SELLER_ID`. Do not put a seller ID in source, the Dockerfile, an image tag, or a workflow matrix.
+The image is generic and is not bound to one seller. It contains the version-controlled approved-site definitions. The first live `.env` file selects one definition with `STOREFRONT_SITE_KEY=rolling-oaks`, `STOREFRONT_HOSTNAME=rolling-oaks-daylilies.makon.dev`, and `STOREFRONT_SELLER_ID=3`. Keep seller IDs only in approved-site definitions and deployment configuration. Do not put them in the Dockerfile, image tag, or workflow matrix.
 
 The storefront has no database credentials and no local catalog snapshot. It reads `GET /api/v1/storefronts/{sellerId}` from `STOREFRONT_API_BASE_URL`.
 
@@ -24,6 +24,25 @@ The storefront has no database credentials and no local catalog snapshot. It rea
 
 The service joins the shared external `edge` network. Its service name is unique. Do not rename it to `app`. The main catalog already uses that network alias.
 
+## Multi-site server model
+
+Run one isolated service and container for each approved seller. All services can use the same generic image. Each service must have a unique stack directory, service name, live environment file, public hostname, Caddy matcher, Cloudflare cache rule, and deployment target. Do not select sellers from the request host in one shared process. Do not add a runtime host registry.
+
+The version-controlled approved-site definition must bind the site key, seller ID, and allowed hostnames. The service must compare `STOREFRONT_SITE_KEY`, `STOREFRONT_HOSTNAME`, and `STOREFRONT_SELLER_ID` with that definition at startup. A missing value or mismatch must stop startup. Rolling Oaks is the only initial definition: key `rolling-oaks`, seller ID `3`, and allowed hostname `rolling-oaks-daylilies.makon.dev`. The initial allowed-host set contains no other hostname.
+
+To add one approved site:
+
+1. Get owner approval for the site key, main catalog `User.id`, hostnames, brand, and inquiry destination.
+2. Add one version-controlled approved-site definition with that exact key, seller ID, and hostname set.
+3. Add only that seller ID to the main artifact job allowlist. Build and verify its first artifact.
+4. Create `/srv/stacks/<site-key>` with a unique `<site-key>-storefront` Compose service and live `.env` file.
+5. Set the image tag, site key, hostname, seller ID, remote API values, inquiry adapter, and bearer token in that `.env` file.
+6. Add an explicit Caddy host matcher for the unique service. Include the three forwarded HTTPS headers in this directory's Caddy route.
+7. Add explicit Tunnel and DNS routes only after separate owner approval. Do not use a wildcard.
+8. Add and verify one hostname-specific Cloudflare cache rule with the exclusions below.
+9. Verify health, seller identity, brand, canonical links, inquiry delivery, and cache behavior.
+10. Register separate config-sync and deploy targets. Keep automatic deployment disabled until the owner approves the cutover.
+
 ## Storefront artifact prerequisite
 
 The main catalog owns the source data and the storefront artifact builder. Before the storefront becomes available:
@@ -32,17 +51,21 @@ The main catalog owns the source data and the storefront artifact builder. Befor
 2. Build the first artifact from the main embedded replica.
 3. Write a new artifact to a temporary file in the same directory. Rename it to the live file only after a successful build.
 4. Run one refresh at a time every 24 hours. Do not run parallel refreshes.
-5. Make the main API endpoint serve only the last complete artifact.
+5. Use an explicit seller-ID allowlist. The initial allowlist contains only `3`. Do not discover all sellers from the database.
+6. Make the main API endpoint serve only the last complete artifact.
+7. After a manifest commit, purge `daylily-storefront-data`, then purge the affected `daylily-storefront-public-html` tags. A purge failure must return a failure, alert, and retry.
 
-This change does not add or enable a production scheduler. The first artifact, the serial refresh job, and its monitoring are owner-controlled deployment prerequisites.
+The disabled templates in `apps/main/deploy/vps` define the 24-hour service contract and its two-hour jitter. Storefront health must degrade when the serving artifact is more than 26 hours old. The artifact command is not final. Do not install or enable the templates until the owner gate in the main VPS runbook passes.
 
 ## Staged release
 
 The storefront workflow builds, tests, and publishes an immutable `main-<short-sha>` image when storefront or dependency-affected shared inputs change. It does not deploy the image. The image build uses fixture data and the stub inquiry adapter. It does not need seller or production data credentials.
 
+Production derives `POST /api/v1/storefronts/{sellerId}/inquiries` from `STOREFRONT_API_BASE_URL`. Do not configure a second inquiry URL. The main service maps seller `3` to one distinct token in `STOREFRONT_INQUIRY_TOKENS_JSON`. Give this site service only that token as `STOREFRONT_INQUIRY_TOKEN`. Do not reuse the token for another seller. Keep the real value out of source control.
+
 Before automatic deployment is enabled, the owner must:
 
-1. Remove any application default for `STOREFRONT_SELLER_ID`. Production must fail when this value is absent.
+1. Remove any application default for `STOREFRONT_SELLER_ID`. Production must fail when site identity is absent or does not match the approved-site definition.
 2. Complete the artifact prerequisites above.
 3. Install the stack files and live `.env` on the VPS.
 4. Register the `rolling-oaks-daylilies` config-sync and deploy targets in the deployment gateway.
@@ -74,7 +97,11 @@ Create a cache rule for the storefront hostname with these settings:
 
 The rule expression must bypass excluded requests even if Next sets an ordinary cacheable `Cache-Control` header. Do not use header omission as the only bypass control.
 
-Do not cache `/cart`, `/contact`, `/thanks`, `/api/**`, form, inquiry, health, error, authenticated, personalized, RSC, prefetch, or `Accept: text/markdown` responses. Do not cache methods other than `GET` and `HEAD`. The default cache key does not vary by `Accept`, so the Markdown bypass must occur before cache lookup. The main catalog and storefront use separate cache tags.
+Make only these API routes eligible for anonymous `GET` and `HEAD` caching: `/api/catalogs`, `/api/catalog/*`, and `/api/listings/*`. Store a response only when the origin sends an explicit `Cloudflare-CDN-Cache-Control` header. These API responses must use `Cache-Tag: daylily-storefront-data`. Keep the default full-URL key so filters, searches, and pagination remain separate.
+
+Apply the same explicit-header rule to these exact machine routes: `/sitemap.xml`, `/robots.txt`, `/openapi.json`, `/llms.txt`, `/.well-known/api-catalog`, `/.well-known/agent-skills/index.json`, `/.well-known/agent-skills/availability-inquiry/SKILL.md`, `/.well-known/agent-skills/catalog-navigation/SKILL.md`, `/.well-known/agent-skills/cultivar-reference/SKILL.md`, and `/.well-known/agent-skills/site-navigation/SKILL.md`. These responses must use `Cache-Tag: daylily-storefront-public-html`.
+
+Always bypass `/cart`, `/contact`, `/thanks`, `/api/forms`, `/api/health`, mutations, requests with cookies or authorization credentials, errors, personalized responses, RSC, prefetch, and `Accept: text/markdown`. Do not cache other `/api/` routes. Do not cache methods other than `GET` and `HEAD`. The default cache key does not vary by `Accept`, so the Markdown bypass must occur before cache lookup. The main catalog and storefront use separate cache tags.
 
 Before cutover, request one eligible page twice through Cloudflare. Verify `MISS` and then `HIT`, with a positive `Age` value. Verify that each excluded route bypasses cache and has no positive `Age` value.
 

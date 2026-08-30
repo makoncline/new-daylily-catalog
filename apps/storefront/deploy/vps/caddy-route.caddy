@@ -1,4 +1,8 @@
 @rolling_oaks_storefront host rolling-oaks-daylilies.makon.dev
 handle @rolling_oaks_storefront {
-  reverse_proxy rolling-oaks-storefront:3000
+  reverse_proxy rolling-oaks-storefront:3000 {
+    header_up X-Forwarded-Proto https
+    header_up X-Forwarded-Host {host}
+    header_up X-Forwarded-Port 443
+  }
 }

@@ -11,32 +11,58 @@ on:
 
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
 
 jobs:
   scope:
     name: Detect main changes
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       main: ${{ steps.affected.outputs.main }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out trusted classifier
+        uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.deployment.sha || github.sha }}
+          ref: ${{ github.event.repository.default_branch }}
           fetch-depth: 0
+          path: trusted
+          persist-credentials: false
+      - name: Check out preview candidate
+        if: github.event_name == 'deployment_status'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.deployment.sha }}
+          fetch-depth: 0
+          path: candidate
+          persist-credentials: false
+      - name: Set up trusted Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install trusted Turbo
+        id: trusted-turbo
+        working-directory: trusted
+        run: |
+          npm install --global --ignore-scripts turbo@2.9.6
+          turbo_binary="$(command -v turbo)"
+          test -x "$turbo_binary"
+          echo "path=$turbo_binary" >> "$GITHUB_OUTPUT"
       - name: Classify preview paths
         id: affected
         env:
+          AFFECTED_APPS_TURBO_BINARY: ${{ steps.trusted-turbo.outputs.path }}
           EVENT_NAME: ${{ github.event_name }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           HEAD_SHA: ${{ github.event.deployment.sha || github.sha }}
         run: |
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            cd "$GITHUB_WORKSPACE/trusted"
             node .github/scripts/affected-apps.mjs --force main --path .github/workflows/preview-alias.yml
           else
-            git fetch --no-tags origin "$DEFAULT_BRANCH"
-            node .github/scripts/affected-apps.mjs --base "origin/$DEFAULT_BRANCH" --head "$HEAD_SHA" --merge-base
+            cd "$GITHUB_WORKSPACE/candidate"
+            git rev-parse --verify "origin/$DEFAULT_BRANCH^{commit}"
+            node "$GITHUB_WORKSPACE/trusted/.github/scripts/affected-apps.mjs" --base "origin/$DEFAULT_BRANCH" --head "$HEAD_SHA" --merge-base
           fi
 
   alias:
@@ -50,6 +76,10 @@ jobs:
          (github.event.deployment_status.target_url != '' && contains(github.event.deployment_status.target_url, 'vercel.app')))))
     runs-on: ubuntu-latest
     environment: preview
+    permissions:
+      contents: read
+    outputs:
+      preview_hash: ${{ steps.vals.outputs.HASH }}
     steps:
       - name: Compute values
         id: vals
@@ -88,12 +118,20 @@ jobs:
           # alias within the correct team
           npx vercel alias set "$URL" "$ALIAS" --token "$VERCEL_TOKEN" --scope "$VERCEL_TEAM"
 
+  comment:
+    needs: alias
+    if: github.event_name == 'deployment_status' && needs.alias.outputs.preview_hash != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
       - name: Comment alias URL on PR
-        if: steps.vals.outputs.URL != ''
         uses: mshick/add-pr-comment@v2
         with:
           repo-token: ${{ github.token }}
           message-id: preview-alias-url
           message: |
             <!-- preview-alias-url -->
-            Preview alias is ready: https://${{ steps.vals.outputs.HASH }}.deploy-preview.daylilycatalog.com
+            Preview alias is ready: https://${{ needs.alias.outputs.preview_hash }}.deploy-preview.daylilycatalog.com
