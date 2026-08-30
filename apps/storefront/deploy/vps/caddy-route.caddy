@@ -1,0 +1,4 @@
+@rolling_oaks_storefront host rolling-oaks-daylilies.makon.dev
+handle @rolling_oaks_storefront {
+  reverse_proxy rolling-oaks-storefront:3000
+}

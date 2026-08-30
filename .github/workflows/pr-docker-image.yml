@@ -1,4 +1,4 @@
-name: Docker Image
+name: Main Docker Image
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: docker-image-${{ github.event.pull_request.number || github.ref }}
+  group: main-docker-image-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -16,10 +16,35 @@ permissions:
   packages: write
 
 jobs:
+  scope:
+    name: Detect main changes
+    runs-on: ubuntu-latest
+    outputs:
+      main: ${{ steps.affected.outputs.main }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Classify changed paths
+        id: affected
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            node .github/scripts/affected-apps.mjs --force main --path .github/workflows/pr-docker-image.yml
+          elif [ "$EVENT_NAME" = "pull_request" ]; then
+            node .github/scripts/affected-apps.mjs --base "$BASE_SHA" --head "$HEAD_SHA" --merge-base
+          else
+            node .github/scripts/affected-apps.mjs --base "$BASE_SHA" --head "$HEAD_SHA"
+          fi
+
   build-and-push:
     name: Build Docker Image
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork != true
+    needs: scope
+    if: needs.scope.outputs.main == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork != true)
     environment: ${{ github.event_name == 'pull_request' && 'preview' || 'production' }}
     outputs:
       image_repo: ${{ steps.meta.outputs.image_repo }}

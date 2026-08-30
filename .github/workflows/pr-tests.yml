@@ -9,9 +9,34 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  scope:
+    name: Detect affected apps
+    runs-on: ubuntu-latest
+    outputs:
+      main: ${{ steps.affected.outputs.main }}
+      storefront: ${{ steps.affected.outputs.storefront }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Classify changed paths
+        id: affected
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            node .github/scripts/affected-apps.mjs --force main --force storefront --path .github/workflows/pr-tests.yml
+          else
+            node .github/scripts/affected-apps.mjs --base "$BASE_SHA" --head "$HEAD_SHA" --merge-base
+          fi
+
   quality:
     name: Lint and typecheck
     runs-on: ubuntu-latest
+    needs: scope
+    if: needs.scope.outputs.main == 'true'
     steps:
       - name: Enable corepack
         run: corepack enable
@@ -38,6 +63,8 @@ jobs:
   vitest:
     name: Vitest unit and integration tests (shard ${{ matrix.shard }}/2)
     runs-on: ubuntu-latest
+    needs: scope
+    if: needs.scope.outputs.main == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -59,6 +86,8 @@ jobs:
   full-app-integration:
     name: Full-app integration tests
     runs-on: ubuntu-latest
+    needs: scope
+    if: needs.scope.outputs.main == 'true'
     steps:
       - name: Enable corepack
         run: corepack enable
@@ -93,7 +122,8 @@ jobs:
   e2e:
     name: Connected E2E tests (group ${{ matrix.group }}/3)
     runs-on: ubuntu-latest
-    if: github.event.pull_request.head.repo.fork != true
+    needs: scope
+    if: needs.scope.outputs.main == 'true' && github.event.pull_request.head.repo.fork != true
     environment: preview
     strategy:
       fail-fast: false
@@ -147,3 +177,24 @@ jobs:
           path: |
             apps/main/test-results
             apps/main/playwright-report
+
+  storefront-checks:
+    name: Storefront lint and unit tests
+    runs-on: ubuntu-latest
+    needs: scope
+    if: needs.scope.outputs.storefront == 'true'
+    steps:
+      - name: Enable corepack
+        run: corepack enable
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm fetch
+      - run: pnpm install --frozen-lockfile --prefer-offline
+      - name: Lint storefront
+        run: pnpm --filter @daylily-catalog/storefront lint
+      - name: Run storefront unit tests
+        run: pnpm --filter @daylily-catalog/storefront test:unit

@@ -15,13 +15,39 @@ permissions:
   pull-requests: write
 
 jobs:
+  scope:
+    name: Detect main changes
+    runs-on: ubuntu-latest
+    outputs:
+      main: ${{ steps.affected.outputs.main }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.deployment.sha || github.sha }}
+          fetch-depth: 0
+      - name: Classify preview paths
+        id: affected
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          HEAD_SHA: ${{ github.event.deployment.sha || github.sha }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            node .github/scripts/affected-apps.mjs --force main --path .github/workflows/preview-alias.yml
+          else
+            git fetch --no-tags origin "$DEFAULT_BRANCH"
+            node .github/scripts/affected-apps.mjs --base "origin/$DEFAULT_BRANCH" --head "$HEAD_SHA" --merge-base
+          fi
+
   alias:
+    needs: scope
     if: >
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.deployment_status.state == 'success' &&
-       (github.event.deployment.environment == 'Preview' || github.event.deployment.environment == 'preview') &&
-       ((github.event.deployment_status.environment_url != '' && contains(github.event.deployment_status.environment_url, 'vercel.app')) ||
-        (github.event.deployment_status.target_url != '' && contains(github.event.deployment_status.target_url, 'vercel.app'))))
+      needs.scope.outputs.main == 'true' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.deployment_status.state == 'success' &&
+        (github.event.deployment.environment == 'Preview' || github.event.deployment.environment == 'preview') &&
+        ((github.event.deployment_status.environment_url != '' && contains(github.event.deployment_status.environment_url, 'vercel.app')) ||
+         (github.event.deployment_status.target_url != '' && contains(github.event.deployment_status.target_url, 'vercel.app')))))
     runs-on: ubuntu-latest
     environment: preview
     steps:

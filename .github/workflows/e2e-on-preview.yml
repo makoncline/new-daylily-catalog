@@ -10,20 +10,45 @@ on:
         type: string
 
 concurrency:
-  # GitHub emits a run before evaluating the job condition. Only eligible
-  # Vercel preview events share the cancellation key, so irrelevant deployment
-  # events cannot cancel the real smoke test for this SHA.
-  group: preview-smoke-${{ github.event.deployment.sha || github.event.inputs.commit_sha }}-${{ (github.event_name == 'workflow_dispatch' || (github.event.deployment_status.state == 'success' && github.event.deployment_status.creator.login == 'vercel[bot]' && github.event.deployment_status.environment_url != '' && (github.event.deployment.environment == 'Preview' || github.event.deployment.environment == 'preview'))) && 'eligible' || github.run_id }}
+  # A second Vercel deployment for the same commit must not cancel the main
+  # preview before the affected-path check identifies the app.
+  group: main-preview-smoke-${{ github.event.deployment.id || github.event.inputs.commit_sha || github.run_id }}
   cancel-in-progress: true
 
 jobs:
+  scope:
+    name: Detect main changes
+    runs-on: ubuntu-latest
+    outputs:
+      main: ${{ steps.affected.outputs.main }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.deployment.sha || github.sha }}
+          fetch-depth: 0
+      - name: Classify preview paths
+        id: affected
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          HEAD_SHA: ${{ github.event.deployment.sha || github.sha }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            node .github/scripts/affected-apps.mjs --force main --path .github/workflows/e2e-on-preview.yml
+          else
+            git fetch --no-tags origin "$DEFAULT_BRANCH"
+            node .github/scripts/affected-apps.mjs --base "origin/$DEFAULT_BRANCH" --head "$HEAD_SHA" --merge-base
+          fi
+
   e2e:
+    needs: scope
     if: >
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.deployment_status.state == 'success' &&
-       github.event.deployment_status.creator.login == 'vercel[bot]' &&
-       github.event.deployment_status.environment_url != '' &&
-       (github.event.deployment.environment == 'Preview' || github.event.deployment.environment == 'preview'))
+      needs.scope.outputs.main == 'true' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.deployment_status.state == 'success' &&
+        github.event.deployment_status.creator.login == 'vercel[bot]' &&
+        github.event.deployment_status.environment_url != '' &&
+        (github.event.deployment.environment == 'Preview' || github.event.deployment.environment == 'preview')))
     runs-on: ubuntu-latest
     environment: preview
     env:
