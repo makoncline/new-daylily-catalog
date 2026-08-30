@@ -128,6 +128,7 @@ Cache successful responses from these public read APIs, keyed by the full URL:
 
 - `/api/v1/cultivars/search`
 - `/api/v1/cultivars/facets`
+- `/api/v1/storefronts/*`
 
 Leave these out of this rollout:
 
