@@ -14,8 +14,8 @@ search responses. The app renders deterministic responses on an origin miss,
 and Cloudflare serves the cached response for normal traffic and crawler
 traffic.
 
-The successful-response TTL lives in one app constant and is sent as a
-Cloudflare-only response header:
+The standard successful-response TTL lives in one app constant and is sent as
+a Cloudflare-only response header:
 
 ```http
 Cloudflare-CDN-Cache-Control: public, max-age=43200, stale-while-revalidate=604800, stale-if-error=86400
@@ -30,6 +30,26 @@ That means:
 - The normal `Cache-Control` header can stay controlled by Next. For these
   dynamic App Router routes, Next still emits browser/origin-safe no-store
   directives.
+
+The public storefront snapshot API is an explicit daily-freshness exception. It
+owns these headers for successful `200` and `304` responses:
+
+```http
+Cache-Control: public, max-age=0, must-revalidate
+Cloudflare-CDN-Cache-Control: public, max-age=86400, stale-while-revalidate=604800, stale-if-error=86400
+ETag: W/"<sha-256-base64url>"
+```
+
+The fresh window is 24 hours. The established seven-day revalidation window and
+one-day origin-error window stay unchanged. The request route reads only the
+last atomically published storefront artifact. A separate one-shot process
+builds that artifact from the dedicated synced source replica at least every 24
+hours. An initial build is required before the route can return `200`.
+
+Artifact age and edge age are independent. A 24-hour build interval plus a
+24-hour edge TTL can make data almost 48 hours old. Purge the storefront API URL
+after publication, or run the builder more frequently, when the product needs a
+strict 24-hour maximum age.
 
 Cloudflare still owns request eligibility. It decides which requests may use the
 app's CDN cache directive: anonymous public document requests only. This keeps
@@ -102,8 +122,9 @@ In the app:
   responses use the same app-owned CDN policy. Cloudflare's default full-URL
   key keeps each query-string combination separate.
 
-The public read path still uses `replicaDb` where the read model supports it, so
-origin misses stay cheap and do not hit live Turso for normal public reads.
+Most public read paths still use `replicaDb` where the read model supports it.
+The storefront API is different: origin misses read a published file and never
+query Prisma or Turso.
 
 ## Routes In Scope
 

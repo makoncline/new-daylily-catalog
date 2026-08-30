@@ -1,14 +1,12 @@
-import { createHash } from "node:crypto";
-import type { PublicStorefrontSnapshot } from "@/server/storefront/public-storefront-read-model";
-
 export const PUBLIC_STOREFRONT_CLOUDFLARE_CACHE_CONTROL =
-  "public, max-age=86400";
+  "public, max-age=86400, stale-while-revalidate=604800, stale-if-error=86400";
 export const PUBLIC_STOREFRONT_BROWSER_CACHE_CONTROL =
   "public, max-age=0, must-revalidate";
 
-function toWeakEtag(body: string) {
-  const digest = createHash("sha256").update(body).digest("base64url");
-  return `W/"${digest}"`;
+export interface PublicStorefrontRepresentation {
+  body: string;
+  byteLength: number;
+  etag: string;
 }
 
 function toOpaqueTag(etag: string) {
@@ -39,13 +37,16 @@ function getCacheHeaders(etag: string) {
 
 export function getPublicStorefrontResponse(
   request: Request,
-  snapshot: PublicStorefrontSnapshot,
+  representation: PublicStorefrontRepresentation,
 ) {
-  const body = JSON.stringify(snapshot);
-  const etag = toWeakEtag(body);
-  const headers = getCacheHeaders(etag);
+  const headers = getCacheHeaders(representation.etag);
 
-  if (matchesIfNoneMatch(request.headers.get("If-None-Match"), etag)) {
+  if (
+    matchesIfNoneMatch(
+      request.headers.get("If-None-Match"),
+      representation.etag,
+    )
+  ) {
     return new Response(null, {
       status: 304,
       headers,
@@ -53,7 +54,8 @@ export function getPublicStorefrontResponse(
   }
 
   headers.set("Content-Type", "application/json; charset=utf-8");
-  return new Response(body, {
+  headers.set("Content-Length", String(representation.byteLength));
+  return new Response(representation.body, {
     status: 200,
     headers,
   });

@@ -80,6 +80,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/main/scripts/build-public-se
 COPY --from=builder --chown=nextjs:nodejs /app/apps/main/src/server/target-worker-stream.js ./apps/main/src/server/target-worker-stream.js
 COPY --from=builder --chown=nextjs:nodejs /app/apps/main/src/server/search/build-public-search-index.js ./apps/main/src/server/search/build-public-search-index.js
 COPY --from=builder --chown=nextjs:nodejs /app/apps/main/scripts/build-public-parentage-index.mjs ./apps/main/scripts/build-public-parentage-index.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/apps/main/scripts/build-public-storefront-artifacts.mjs ./apps/main/scripts/build-public-storefront-artifacts.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/apps/main/scripts/storefront/public-storefront-data.mjs ./apps/main/scripts/storefront/public-storefront-data.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/apps/main/scripts/set-feature-flag.mjs ./apps/main/scripts/set-feature-flag.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/apps/main/.next/standalone ./
 COPY --from=runtime-deps --chown=nextjs:nodejs /runtime/node_modules ./node_modules

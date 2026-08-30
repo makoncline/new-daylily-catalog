@@ -23,6 +23,7 @@
     "images:control": "node --disable-warning=ExperimentalWarning scripts/image-processing/v2-ahs-image-review/control-codex-native-worker.mjs",
     "search:index:build": "node scripts/build-public-search-index.mjs",
     "search:parentage:build": "node scripts/build-public-parentage-index.mjs",
+    "storefront:artifacts:build": "node scripts/build-public-storefront-artifacts.mjs",
     "migrate:generate": "npx prisma migrate dev",
     "browser-tools-server": "npx @agentdeskai/browser-tools-server@1.2.0",
     "test": "vitest run",
