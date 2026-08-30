@@ -119,8 +119,21 @@ describe("Docker build cache and observability boundaries", () => {
     expect(dockerfile).toContain(
       "COPY --from=runtime-deps --chown=nextjs:nodejs /runtime/node_modules ./node_modules",
     );
+    expect(dockerfile).not.toContain(
+      "build-public-search-index.mjs ./apps/main/scripts/build-public-search-index.mjs",
+    );
     expect(dockerfile).toContain(
-      "sync-public-search-source-replica.mjs ./apps/main/scripts/sync-public-search-source-replica.mjs",
+      "build-public-search-index-target.mjs ./apps/main/scripts/build-public-search-index-target.mjs",
+    );
+    expect(dockerfile).toContain(
+      "target-worker-stream.js ./apps/main/src/server/target-worker-stream.js",
+    );
+    expect(dockerfile).toContain(
+      "build-public-search-index.js ./apps/main/src/server/search/build-public-search-index.js",
+    );
+    expect(dockerfile).not.toContain("sync-public-search-source-replica.mjs");
+    expect(dockerfile).toContain(
+      "build-public-parentage-index.mjs ./apps/main/scripts/build-public-parentage-index.mjs",
     );
     expect(dockerfile).not.toContain(
       "/runtime/node_modules ./apps/main/node_modules",

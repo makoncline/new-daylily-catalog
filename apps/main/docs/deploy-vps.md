@@ -55,7 +55,8 @@ Required environment setup:
 - Internal app port: `3000`
 - Container start command: `node server.js`
 - Container bind address: `0.0.0.0`
-- Recommended database mode: Turso (`DATABASE_URL=libsql://...`)
+- Database mode: Turso primary plus one embedded replica
+- Persistent data path: `/data`
 
 ## Hostname Strategy
 
@@ -80,7 +81,10 @@ Non-secrets:
 - `NEXT_PUBLIC_CLOUDFLARE_URL`
 - `AWS_REGION`
 - `AWS_BUCKET_NAME`
-- `DATABASE_URL`
+- `DATABASE_URL` set to the remote `libsql://...` Turso URL
+- `TURSO_EMBEDDED_REPLICA_URL` set to `file:/data/turso-replica.db`
+- `TURSO_EMBEDDED_REPLICA_SYNC_INTERVAL_SECONDS`
+- `PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS`
 - `NEXT_PUBLIC_SENTRY_ENABLED`
 - `SENTRY_ENVIRONMENT` set to `production`
 - `NEXT_PUBLIC_POSTHOG_KEY`
@@ -119,14 +123,6 @@ it. Then configure its yearly upsell. To change only the yearly amount, create a
 new yearly price and select it as the monthly price's upsell. Existing
 subscriptions stay on their current prices.
 
-### Optional local SQLite runtime mode
-
-If you choose local SQLite instead of Turso, set:
-
-- `DATABASE_URL=file:/data/daylilycatalog.sqlite`
-
-And mount a persistent volume at `/data`.
-
 ## Reverse Proxy Notes
 
 The app now uses two URL-generation modes:
@@ -161,13 +157,17 @@ Caddy should terminate HTTPS and proxy plain HTTP to the container on port `3000
 ## Volumes
 
 - Persistent Next.js runtime cache:
-  - `./next-cache:/app/.next/cache`
-- Optional local SQLite deployment: mount a persistent volume to `/data`
+  - `./next-cache:/app/apps/main/.next/cache`
+- Persistent embedded Turso replica and search indexes:
+  - `./data:/data`
 
-Create the cache directory on the server before first deploy so the non-root app user can write to it:
+Create both directories on the server before first deploy. The container runs as
+UID and GID 1001 and must be able to write to both mounts.
 
 ```sh
-install -d -o 1001 -g 1001 /srv/stacks/daylilycatalog/next-cache
+install -d -o 1001 -g 1001 \
+  /srv/stacks/daylilycatalog/data \
+  /srv/stacks/daylilycatalog/next-cache
 ```
 
 ## External Dependencies
@@ -236,7 +236,8 @@ services:
     env_file:
       - .env
     volumes:
-      - ./next-cache:/app/.next/cache
+      - ./data:/data
+      - ./next-cache:/app/apps/main/.next/cache
     networks:
       - edge
 
@@ -246,13 +247,6 @@ networks:
 ```
 
 Committed source: `deploy/vps/compose.yaml`
-
-If you run local SQLite instead of Turso, add:
-
-```yaml
-    volumes:
-      - ./data:/data
-```
 
 ## Caddy Route
 
@@ -275,10 +269,12 @@ Use the canonical [production-like local Docker smoke workflow](./prod-like-loca
 ## Deploy Steps
 
 1. Place the repo or deployment files at `/srv/stacks/daylilycatalog`.
-2. Create the cache directory:
+2. Create the persistent data and cache directories:
 
 ```sh
-install -d -o 1001 -g 1001 /srv/stacks/daylilycatalog/next-cache
+install -d -o 1001 -g 1001 \
+  /srv/stacks/daylilycatalog/data \
+  /srv/stacks/daylilycatalog/next-cache
 ```
 
 3. Copy `deploy/vps/compose.yaml` to `/srv/stacks/daylilycatalog/compose.yaml`.
@@ -308,7 +304,7 @@ Rollback is just an image tag change:
 
 ## Cache Notes
 
-`./next-cache:/app/.next/cache` keeps ISR and other Next runtime cache data across container recreations.
+`./next-cache:/app/apps/main/.next/cache` keeps ISR and other Next runtime cache data across container recreations.
 
 Caveats:
 

@@ -164,7 +164,6 @@ function buildRuntimeEnv(source, { tunnelHost }) {
   commentOutEnvValue(lines, "SENTRY_AUTH_TOKEN");
   commentOutEnvValue(lines, "TURSO_EMBEDDED_REPLICA_URL");
   commentOutEnvValue(lines, "TURSO_EMBEDDED_REPLICA_SYNC_INTERVAL_SECONDS");
-  commentOutEnvValue(lines, "TURSO_EMBEDDED_REPLICA_SYNC_URL");
 
   return `${lines.join("\n").replace(/\n*$/, "")}\n`;
 }
@@ -242,10 +241,7 @@ function updateTunnelConfig({ tunnelHost, localPort }) {
     const serviceLine = `${entryIndent}  service: http://127.0.0.1:${localPort}`;
     const nextEntryPattern = new RegExp(`^${escapeRegExp(entryIndent)}-\\s+`);
     let blockEnd = i + 1;
-    while (
-      blockEnd < lines.length &&
-      !nextEntryPattern.test(lines[blockEnd])
-    ) {
+    while (blockEnd < lines.length && !nextEntryPattern.test(lines[blockEnd])) {
       blockEnd++;
     }
 

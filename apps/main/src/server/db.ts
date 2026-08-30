@@ -1,13 +1,34 @@
 import { PrismaClient } from "@prisma/client";
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import { PrismaLibSql } from "@prisma/adapter-libsql";
-import { type Config as LibSqlConfig } from "@libsql/client";
+import {
+  type Client as LibSqlClient,
+  type Config as LibSqlConfig,
+} from "@libsql/client";
 import { env, isFileDatabaseUrl, isLibsqlDatabaseUrl, requireEnv } from "@/env";
 import { type Prisma } from "@prisma/client";
 import { attachLocalQueryProfiler } from "@/server/db/local-query-profiler";
 
 const databaseUrl = requireEnv("DATABASE_URL", env.DATABASE_URL);
 const embeddedReplicaUrl = getEmbeddedReplicaUrl();
+
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined;
+  replicaLibSqlClient: LibSqlClient | undefined;
+  replicaPrisma: PrismaClient | undefined;
+};
+
+class EmbeddedReplicaPrismaLibSql extends PrismaLibSql {
+  override createClient(config: LibSqlConfig): LibSqlClient {
+    const client = super.createClient(config);
+
+    if (config.url === embeddedReplicaUrl) {
+      globalForPrisma.replicaLibSqlClient = client;
+    }
+
+    return client;
+  }
+}
 
 function getReplicaSyncIntervalSeconds(): number | undefined {
   if (!env.TURSO_EMBEDDED_REPLICA_SYNC_INTERVAL_SECONDS) return undefined;
@@ -78,8 +99,14 @@ function createFilePrismaClient() {
   );
 }
 
-function createLibSqlPrismaClient(libsqlConfig: LibSqlConfig) {
-  const adapter = new PrismaLibSql(libsqlConfig, {
+function createLibSqlPrismaClient(
+  libsqlConfig: LibSqlConfig,
+  isEmbeddedReplica = false,
+) {
+  const Adapter = isEmbeddedReplica
+    ? EmbeddedReplicaPrismaLibSql
+    : PrismaLibSql;
+  const adapter = new Adapter(libsqlConfig, {
     // Existing SQLite/Turso data was written with Prisma's legacy unixepoch format.
     timestampFormat: "unixepoch-ms",
   });
@@ -115,23 +142,45 @@ const createReplicaPrismaClient = () => {
     throw new Error(`Unsupported DATABASE_URL: ${databaseUrl}`);
   }
 
-  return createLibSqlPrismaClient({
-    url: embeddedReplicaUrl,
-    syncUrl: databaseUrl,
-    syncInterval: getReplicaSyncIntervalSeconds(),
-    authToken: env.TURSO_DATABASE_AUTH_TOKEN,
-  });
-};
-
-const globalForPrisma = globalThis as unknown as {
-  prisma: ReturnType<typeof createPrismaClient> | undefined;
-  replicaPrisma: ReturnType<typeof createReplicaPrismaClient> | undefined;
+  return createLibSqlPrismaClient(
+    {
+      url: embeddedReplicaUrl,
+      syncUrl: databaseUrl,
+      syncInterval: getReplicaSyncIntervalSeconds(),
+      authToken: env.TURSO_DATABASE_AUTH_TOKEN,
+    },
+    true,
+  );
 };
 
 export const db = globalForPrisma.prisma ?? createPrismaClient();
 export const replicaDb =
   globalForPrisma.replicaPrisma ?? createReplicaPrismaClient();
 export const hasEmbeddedReplica = Boolean(embeddedReplicaUrl);
+
+/**
+ * Sync the normal embedded replica and return the exact Prisma singleton that
+ * owns that libSQL client. Production producers must not fall back to Turso.
+ */
+export async function syncEmbeddedReplica() {
+  if (!embeddedReplicaUrl) {
+    if (env.NODE_ENV === "production") {
+      throw new Error("Embedded Turso replica is required in production.");
+    }
+
+    return replicaDb;
+  }
+
+  await replicaDb.$connect();
+
+  const replicaLibSqlClient = globalForPrisma.replicaLibSqlClient;
+  if (!replicaLibSqlClient) {
+    throw new Error("Embedded replica libSQL client was not created.");
+  }
+
+  await replicaLibSqlClient.sync();
+  return replicaDb;
+}
 
 globalForPrisma.prisma = db;
 globalForPrisma.replicaPrisma = replicaDb;

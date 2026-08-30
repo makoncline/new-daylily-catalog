@@ -15,10 +15,13 @@ Server paths:
 Embedded Turso replica:
 
 - Leave `DATABASE_URL` set to the remote `libsql://...` Turso URL.
-- Set `TURSO_EMBEDDED_REPLICA_URL=file:/data/turso-replica.db` on the VPS to serve public page reads from the local replica while dashboard reads and all writes continue to go to Turso.
-- `TURSO_EMBEDDED_REPLICA_SYNC_INTERVAL_SECONDS` controls periodic pull sync; the template uses 600 seconds because only public pages read from the replica.
-- `PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS` controls the public search source-replica sync/rebuild cadence; set it to `0` to stop search index rebuilds without rebuilding the image.
-- `compose.yaml` mounts `/srv/stacks/daylilycatalog/data` at `/data` so the replica file survives container replacement.
+- Set `TURSO_EMBEDDED_REPLICA_URL=file:/data/turso-replica.db` on the VPS. This is the only embedded replica. It serves public page reads and search index builds. Dashboard reads and all writes continue to use Turso.
+- `TURSO_EMBEDDED_REPLICA_SYNC_INTERVAL_SECONDS` controls periodic pull sync. The template uses 600 seconds. Search rebuilds also sync the replica explicitly before source reads.
+- Before each search index rebuild, the app explicitly syncs this replica. The app pages source rows through its singleton `replicaDb` connection and streams bounded pages to a target-only child. The child never opens the replica. Stock SQLite never opens or copies the replica file. The app server stays responsive while the child builds the local index.
+- `PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS` controls the public search index rebuild cadence. Set it to `0` to stop rebuilds without rebuilding the image.
+- Each build writes and validates `/data/search/public-search.sqlite.next`. A valid build replaces the serving index atomically, and the old serving index becomes `/data/search/public-search.sqlite.previous`.
+- `compose.yaml` mounts `/srv/stacks/daylilycatalog/data` at `/data` so the replica and last-known-good search indexes survive container replacement.
+- Before the first start, create both `data` and `next-cache` with UID and GID 1001 ownership. The active runbook has the exact `install -d` command.
 
 Config sync:
 

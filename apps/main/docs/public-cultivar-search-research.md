@@ -27,13 +27,14 @@ model, and MusicBrainz's explicit relationship graph:
   connected entities or evidence around the record.
 
 The repository is already unusually close to supporting this. The current
-development search index contains 104,387 cultivars in an 81 MB SQLite file,
-including 71,568 cultivars with an image, 3,941 with a linked public catalog
-listing, and 1,159 with a for-sale listing. The production code already builds
-the index atomically from a dedicated embedded source replica and can refresh
-it hourly without putting per-keystroke traffic on Turso. The correct first
-release is therefore a thin, fast search product over this existing system—not
-a new service or a second database architecture.
+development search index contains 104,486 cultivars in a 136 MB SQLite file,
+including 71,669 cultivars with an image, 4,030 with a linked public catalog
+listing, and 1,168 with a for-sale listing. The production code already builds
+the index atomically from the normal embedded replica. Each rebuild explicitly
+syncs the replica and pages source rows through libSQL and Prisma. It can
+refresh hourly without putting per-keystroke traffic on Turso. The correct
+first release is therefore a thin, fast search product over this existing
+system, not a new service or a second database architecture.
 
 The primary recommendation is:
 
@@ -252,24 +253,31 @@ The current architecture is a strong fit for the cheap Hetzner constraint:
 
 ```mermaid
 flowchart LR
-    P["Turso primary\nDashboard writes"] --> R["Dedicated embedded source replica\nIndex refresh only"]
-    R --> I["SQLite FTS search index\nAtomic hourly replacement"]
+    P["Turso primary\nDashboard writes"] --> R["Embedded replica\nPublic reads"]
+    R -->|"Explicit sync, then Prisma pages"| I["SQLite FTS search index\nValidated atomic replacement"]
     I --> A["Public cultivar search API"]
     A --> S["/cultivars search UI"]
-    D["Embedded read replica\nPublic detail reads"] --> C["/cultivar/{name}"]
+    R --> C["/cultivar/{name}"]
     O["Cloudflare R2 image variants"] --> S
     O --> C
     E["Cloudflare HTML cache"] --> C
 ```
 
 - `src/server/search/public-search-index.ts` manages a production-local search
-  index, atomic refresh lock, hourly freshness target, and 24-hour maximum
-  staleness.
-- Production index builds sync a dedicated source replica at
-  `/data/search/public-search-source-replica.sqlite`. They do not ask the live
-  application replica or remote primary to serve every search.
-- `scripts/build-public-search-index.mjs` builds the cultivar and linked-listing
-  tables plus an FTS5 index.
+  index, single-process refresh coalescing, hourly freshness target, and
+  last-known-good serving behavior.
+- Production has one embedded replica. Before each index rebuild, the app
+  explicitly syncs its normal replica client. The app pages source rows through
+  its singleton `replicaDb` connection and streams bounded pages to a
+  target-only child. The child never opens the replica. Stock SQLite never opens
+  or copies the libSQL-managed replica file.
+- Other one-shot producers can reuse the same source and transport seam in
+  [`replica-target-builders.md`](./replica-target-builders.md). They keep their
+  own keyset query, target schema, validation, and promotion rules.
+- The builder writes the cultivar, linked-listing, and FTS5 tables to
+  `/data/search/public-search.sqlite.next`. It validates that local target,
+  replaces the serving index atomically, and keeps the old valid index at
+  `/data/search/public-search.sqlite.previous`.
 - `src/server/search/cultivar-search.ts` already supports name, hybridizer,
   color, parentage, year, height, bloom size, season, habit, form, ploidy,
   foliage, fragrance, bud count, branching, listing text, price, availability,
@@ -288,17 +296,13 @@ Current local index inventory:
 
 | Measure                             |  Current value |
 | ----------------------------------- | -------------: |
-| Cultivar records                    |        104,387 |
-| Index file size                     |          81 MB |
-| Cultivars with an indexed image     | 71,568 (68.6%) |
-| Generated cultivar image records    |          8,453 |
-| Cultivars linked to public catalogs |          3,941 |
-| Cultivars with a for-sale listing   |          1,159 |
+| Cultivar records                    |        104,486 |
+| Index file size                     |         136 MB |
+| Cultivars with an indexed image     | 71,669 (68.6%) |
+| Generated cultivar image records    |         71,589 |
+| Cultivars linked to public catalogs |          4,030 |
+| Cultivars with a for-sale listing   |          1,168 |
 | Registration-year range             |      1762–2027 |
-
-The AHS live count observed during research was 90 records higher than the
-current local index. That difference should become a monitored freshness/data
-quality signal rather than an assumed error in either source.
 
 ### Gaps before this is a public search product
 
@@ -506,9 +510,11 @@ Keep the hot request entirely local to the VPS:
 6. No Prisma, remote Turso, parentage-tree expansion, or per-result database
    request occurs on the typeahead path.
 
-Use the embedded read replica for detail-page origin renders and for deliberate
-index/source refreshes. Keep the live Turso primary for dashboard/user-owned
-writes. This preserves the project's existing ownership boundary.
+Use the one embedded replica for detail-page origin renders and index source
+reads. Explicitly sync it before each rebuild. Page source rows through
+`replicaDb`; never open or copy its file with stock SQLite. Keep the live Turso
+primary for dashboard and user-owned writes. This preserves the project's
+existing ownership boundary.
 
 ### API changes
 
@@ -793,8 +799,9 @@ Build the smallest version that establishes the durable model:
 3. Every entity page exposes a few real connections and current availability.
 4. Google can discover the corpus through a sharded sitemap and crawlable
    internal links without being invited into infinite search facets.
-5. The hot path stays on local SQLite plus Cloudflare/R2; the embedded replica
-   serves detail misses; the remote primary remains out of public search.
+5. The hot path stays on local SQLite plus Cloudflare/R2. The embedded replica
+   serves detail misses and periodic index source reads. The remote primary
+   remains out of public search requests.
 
 That is enough to be meaningfully better than the incumbent search forms. The
 future moat comes from deepening the entity graph and contribution loop, not

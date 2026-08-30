@@ -12,7 +12,8 @@ it("removes filesystem paths from public search status", async () => {
   expect(
     toPublicSearchStatus({
       path: "/data/search/public-search.sqlite",
-      sourcePath: "/data/search/source.sqlite",
+      sourceLabel: "embedded-replica",
+      sourcePath: "/data/search/public-parentage.sqlite",
       status: "fresh",
     }),
   ).toEqual({ status: "fresh" });
