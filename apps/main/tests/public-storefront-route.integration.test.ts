@@ -15,6 +15,7 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { withTempAppDb } from "@/lib/test-utils/app-test-db";
@@ -42,13 +43,21 @@ interface PublishedStorefrontManifest {
 async function runBuilder(args: {
   outputRoot: string;
   sellerIds: string[];
+  sellerIdsFromEnv?: boolean;
   sourceUrl: string;
 }) {
   const sourcePath = args.sourceUrl.replace(/^file:/, "");
-  const sellerArgs = args.sellerIds.flatMap((sellerId) => [
-    "--seller-id",
-    sellerId,
-  ]);
+  const sellerArgs = args.sellerIdsFromEnv
+    ? []
+    : args.sellerIds.flatMap((sellerId) => ["--seller-id", sellerId]);
+  const childEnv: NodeJS.ProcessEnv = {
+    ...process.env,
+    NEXT_PUBLIC_CLOUDFLARE_URL: "https://images.daylilycatalog.com",
+  };
+  delete childEnv.PUBLIC_STOREFRONT_SELLER_IDS;
+  if (args.sellerIdsFromEnv) {
+    childEnv.PUBLIC_STOREFRONT_SELLER_IDS = args.sellerIds.join(",");
+  }
 
   return execFileAsync(
     process.execPath,
@@ -62,10 +71,7 @@ async function runBuilder(args: {
     ],
     {
       cwd: process.cwd(),
-      env: {
-        ...process.env,
-        NEXT_PUBLIC_CLOUDFLARE_URL: "https://images.daylilycatalog.com",
-      },
+      env: childEnv,
       maxBuffer: 1024 * 1024,
     },
   );
@@ -120,19 +126,52 @@ describe("public storefront artifacts", () => {
               version: "2.30.0",
             }),
             images: {
-              create: {
-                id: "profile-image",
-                url: "https://example.com/profile.jpg",
-              },
+              create: [
+                {
+                  id: "unsafe-profile-image",
+                  url: "https://unsafe.example/profile.jpg",
+                  order: 1,
+                },
+                {
+                  id: "profile-image",
+                  url: "https://legacy.example/profile.jpg",
+                  order: 2,
+                },
+              ],
             },
             imageAssets: {
-              create: {
-                id: "profile-image-asset",
-                legacyImageId: "profile-image",
-                kind: "profile",
-                status: "ready",
-                displayUrl: "https://example.com/profile.jpg",
-              },
+              create: [
+                {
+                  id: "profile-image-asset",
+                  legacyImageId: "profile-image",
+                  kind: "profile",
+                  status: "ready",
+                  order: 8,
+                  originalUrl: "https://private.example/profile-original.jpg",
+                  displayUrl: "https://media.daylilycatalog.com/profile.jpg",
+                  thumbUrl:
+                    "https://media.daylilycatalog.com/profile-thumb.jpg",
+                  blurUrl: "https://media.daylilycatalog.com/profile-blur.jpg",
+                },
+                {
+                  id: "profile-direct-asset",
+                  kind: "profile",
+                  status: "ready",
+                  order: 3,
+                  displayUrl:
+                    "https://media.daylilycatalog.com/profile-direct.jpg",
+                  thumbUrl:
+                    "https://media.daylilycatalog.com/profile-direct-thumb.jpg",
+                },
+                {
+                  id: "profile-pending-asset",
+                  kind: "profile",
+                  status: "pending",
+                  order: 0,
+                  displayUrl:
+                    "https://media.daylilycatalog.com/profile-pending.jpg",
+                },
+              ],
             },
           },
         });
@@ -141,8 +180,12 @@ describe("public storefront artifacts", () => {
             id: "ahs-cultivar",
             post_title: "Public Cultivar",
             primary_hybridizer_name: "Hybridizer",
+            additional_hybridizers_names: "Partner Hybridizer",
             introduction_date: "2024-01-01",
+            seedling_number: "RO-2024-7",
             bloom_season_names: "Midseason",
+            flower_form_names: "Single",
+            unusual_forms_names: "Crispate",
             rebloom: 1,
             image_url: "https://example.com/cultivar.jpg",
           },
@@ -152,6 +195,21 @@ describe("public storefront artifacts", () => {
             id: "cultivar-reference",
             normalizedName: "public cultivar",
             v2AhsCultivarId: "ahs-cultivar",
+          },
+        });
+        await db.imageAsset.create({
+          data: {
+            id: "generated-cultivar-asset",
+            cultivarReferenceId: "cultivar-reference",
+            kind: "cultivar",
+            status: "ready",
+            order: 7,
+            displayUrl:
+              "https://media.daylilycatalog.com/generated-cultivar.jpg",
+            thumbUrl:
+              "https://media.daylilycatalog.com/generated-cultivar-thumb.jpg",
+            blurUrl:
+              "https://media.daylilycatalog.com/generated-cultivar-blur.jpg",
           },
         });
 
@@ -166,19 +224,50 @@ describe("public storefront artifacts", () => {
             price: 20,
             cultivarReferenceId: "cultivar-reference",
             images: {
-              create: {
-                id: "listing-image",
-                url: "https://example.com/listing.jpg",
-              },
+              create: [
+                {
+                  id: "unsafe-listing-image",
+                  url: "https://unsafe.example/listing.jpg",
+                  order: 1,
+                },
+                {
+                  id: "listing-image",
+                  url: "https://legacy.example/listing.jpg",
+                  order: 2,
+                },
+              ],
             },
             imageAssets: {
-              create: {
-                id: "listing-image-asset",
-                legacyImageId: "listing-image",
-                kind: "listing",
-                status: "ready",
-                displayUrl: "https://example.com/listing.jpg",
-              },
+              create: [
+                {
+                  id: "listing-image-asset",
+                  legacyImageId: "listing-image",
+                  kind: "listing",
+                  status: "ready",
+                  order: 9,
+                  originalUrl: "https://private.example/listing-original.jpg",
+                  displayUrl: "https://media.daylilycatalog.com/listing.jpg",
+                  thumbUrl:
+                    "https://media.daylilycatalog.com/listing-thumb.jpg",
+                  blurUrl: "https://media.daylilycatalog.com/listing-blur.jpg",
+                },
+                {
+                  id: "listing-direct-asset",
+                  kind: "listing",
+                  status: "ready",
+                  order: 3,
+                  displayUrl:
+                    "https://media.daylilycatalog.com/listing-direct.jpg",
+                },
+                {
+                  id: "listing-pending-asset",
+                  kind: "listing",
+                  status: "pending",
+                  order: 0,
+                  displayUrl:
+                    "https://media.daylilycatalog.com/listing-pending.jpg",
+                },
+              ],
             },
           },
         });
@@ -191,6 +280,29 @@ describe("public storefront artifacts", () => {
             cultivarReferenceId: null,
           },
         });
+        await db.v2AhsCultivar.create({
+          data: {
+            id: "ahs-only-cultivar",
+            post_title: "AHS Fallback Cultivar",
+            image_url: "https://example.com/ahs-only.jpg",
+          },
+        });
+        await db.cultivarReference.create({
+          data: {
+            id: "ahs-only-cultivar-reference",
+            normalizedName: "ahs fallback cultivar",
+            v2AhsCultivarId: "ahs-only-cultivar",
+          },
+        });
+        await db.listing.create({
+          data: {
+            id: "ahs-fallback-listing",
+            userId: user.id,
+            title: "AHS Fallback Cultivar",
+            slug: "ahs-fallback-cultivar",
+            cultivarReferenceId: "ahs-only-cultivar-reference",
+          },
+        });
         await db.listing.create({
           data: {
             id: "cultivar-fallback-listing",
@@ -198,6 +310,34 @@ describe("public storefront artifacts", () => {
             title: "Cultivar Fallback",
             slug: "cultivar-fallback",
             cultivarReferenceId: "cultivar-reference",
+          },
+        });
+        await db.ahsListing.create({
+          data: {
+            id: "legacy-ahs-cultivar",
+            name: "Legacy Cultivar",
+            hybridizer: "Legacy Hybridizer",
+            year: "1999",
+            seedlingNum: "LEG-99",
+            form: "Double",
+            flower: "Double",
+            ahsImageUrl: "https://example.com/legacy-ahs.jpg",
+          },
+        });
+        await db.cultivarReference.create({
+          data: {
+            id: "legacy-cultivar-reference",
+            normalizedName: "legacy cultivar",
+            ahsId: "legacy-ahs-cultivar",
+          },
+        });
+        await db.listing.create({
+          data: {
+            id: "legacy-cultivar-listing",
+            userId: user.id,
+            title: "Legacy Cultivar",
+            slug: "legacy-cultivar",
+            cultivarReferenceId: "legacy-cultivar-reference",
           },
         });
 
@@ -259,12 +399,33 @@ describe("public storefront artifacts", () => {
             },
           },
         });
+        await db.list.createMany({
+          data: [
+            {
+              id: "general-list",
+              userId: user.id,
+              title: "General Listing ",
+            },
+            {
+              id: "introductions-list",
+              userId: user.id,
+              title: "Kay Cline's Introductions",
+            },
+          ],
+        });
 
         const configuredSellerIds = [user.id, otherSeller.id];
-        await runBuilder({
+        const initialBuild = await runBuilder({
           outputRoot,
           sellerIds: configuredSellerIds,
+          sellerIdsFromEnv: true,
           sourceUrl,
+        });
+        const initialResult: unknown = JSON.parse(initialBuild.stdout);
+        expect(initialResult).toMatchObject({
+          ready: true,
+          sellers: [{ id: user.id }, { id: otherSeller.id }],
+          warnings: [],
         });
 
         const published = await readManifest(outputRoot);
@@ -315,6 +476,9 @@ describe("public storefront artifacts", () => {
         expect(response.headers.get("Cloudflare-CDN-Cache-Control")).toBe(
           "public, max-age=86400, stale-while-revalidate=604800, stale-if-error=86400",
         );
+        expect(response.headers.get("Cache-Tag")).toBe(
+          "daylily-storefront-data",
+        );
         expect(response.headers.get("ETag")).toBe(artifactEntry.etag);
         expect(response.headers.get("Content-Length")).toBe(
           String(artifactEntry.byteLength),
@@ -330,6 +494,13 @@ describe("public storefront artifacts", () => {
             id: string;
             profile: {
               content: { blocks: Array<{ data: { text: string } }> } | null;
+              images: Array<{
+                id: string;
+                url: string;
+                thumbUrl: string | null;
+                blurUrl: string | null;
+                order: number;
+              }>;
             } | null;
           };
           lists: Array<{ id: string; listingIds: string[] }>;
@@ -339,10 +510,20 @@ describe("public storefront artifacts", () => {
             cultivar: {
               details: {
                 ahsImageUrl: string | null;
+                flower: string | null;
+                form: string | null;
+                hybridizer: string | null;
                 rebloom: boolean | null;
+                seedlingNum: string | null;
               } | null;
             } | null;
-            images: Array<{ id: string; url: string }>;
+            images: Array<{
+              id: string;
+              url: string;
+              thumbUrl: string | null;
+              blurUrl: string | null;
+              order: number;
+            }>;
           }>;
         };
         expect(body.version).toBe(1);
@@ -351,16 +532,50 @@ describe("public storefront artifacts", () => {
         expect(body.seller.profile?.content?.blocks[0]?.data.text).toBe(
           "Welcome<strong>friend</strong>",
         );
+        expect(body.seller.profile?.images).toEqual([
+          {
+            id: "profile-image",
+            url: "https://media.daylilycatalog.com/profile.jpg",
+            thumbUrl: "https://media.daylilycatalog.com/profile-thumb.jpg",
+            blurUrl: "https://media.daylilycatalog.com/profile-blur.jpg",
+            order: 2,
+          },
+          {
+            id: "profile-direct-asset",
+            url: "https://media.daylilycatalog.com/profile-direct.jpg",
+            thumbUrl:
+              "https://media.daylilycatalog.com/profile-direct-thumb.jpg",
+            blurUrl: null,
+            order: 3,
+          },
+        ]);
         expect(body.lists).toEqual([
           {
             id: "public-list",
+            slug: "available-plants",
             title: "Available Plants",
             description: null,
             listingIds: ["linked-listing"],
             updatedAt: expect.any(String),
           },
+          {
+            id: "general-list",
+            slug: "general-listing-",
+            title: "General Listing ",
+            description: null,
+            listingIds: [],
+            updatedAt: expect.any(String),
+          },
+          {
+            id: "introductions-list",
+            slug: "kay-cline's-introductions",
+            title: "Kay Cline's Introductions",
+            description: null,
+            listingIds: [],
+            updatedAt: expect.any(String),
+          },
         ]);
-        expect(body.listings).toHaveLength(scaleListingCount + 3);
+        expect(body.listings).toHaveLength(scaleListingCount + 5);
         expect(
           body.listings.find(({ id }) => id === "linked-listing"),
         ).toMatchObject({
@@ -369,13 +584,27 @@ describe("public storefront artifacts", () => {
           images: [
             {
               id: "listing-image",
-              url: "https://example.com/listing.jpg",
+              url: "https://media.daylilycatalog.com/listing.jpg",
+              thumbUrl: "https://media.daylilycatalog.com/listing-thumb.jpg",
+              blurUrl: "https://media.daylilycatalog.com/listing-blur.jpg",
+              order: 2,
+            },
+            {
+              id: "listing-direct-asset",
+              url: "https://media.daylilycatalog.com/listing-direct.jpg",
+              thumbUrl: "https://media.daylilycatalog.com/listing-direct.jpg",
+              blurUrl: null,
+              order: 3,
             },
           ],
           cultivar: {
             details: {
               ahsImageUrl: "https://example.com/cultivar.jpg",
+              flower: "Single",
+              form: "Crispate",
+              hybridizer: "Hybridizer, Partner Hybridizer",
               rebloom: true,
+              seedlingNum: "RO-2024-7",
             },
           },
         });
@@ -387,8 +616,51 @@ describe("public storefront artifacts", () => {
         ).toMatchObject({
           images: [
             {
-              id: "ahs-cultivar-fallback-listing",
-              url: "https://example.com/cultivar.jpg",
+              id: "generated-cultivar-asset",
+              url: "https://media.daylilycatalog.com/generated-cultivar.jpg",
+              thumbUrl:
+                "https://media.daylilycatalog.com/generated-cultivar-thumb.jpg",
+              blurUrl:
+                "https://media.daylilycatalog.com/generated-cultivar-blur.jpg",
+              order: 0,
+            },
+          ],
+        });
+        expect(
+          body.listings.find(({ id }) => id === "ahs-fallback-listing"),
+        ).toMatchObject({
+          images: [
+            {
+              id: "ahs-fallback-listing:cultivar-fallback",
+              url: "https://example.com/ahs-only.jpg",
+              thumbUrl: null,
+              blurUrl: null,
+              order: 0,
+            },
+          ],
+        });
+        expect(
+          body.listings.find(({ id }) => id === "legacy-cultivar-listing"),
+        ).toMatchObject({
+          cultivar: {
+            details: {
+              id: "legacy-ahs-cultivar",
+              name: "Legacy Cultivar",
+              hybridizer: "Legacy Hybridizer",
+              year: "1999",
+              seedlingNum: "LEG-99",
+              form: "Double",
+              flower: "Double",
+              rebloom: null,
+            },
+          },
+          images: [
+            {
+              id: "legacy-cultivar-listing:cultivar-fallback",
+              url: "https://example.com/legacy-ahs.jpg",
+              thumbUrl: null,
+              blurUrl: null,
+              order: 0,
             },
           ],
         });
@@ -396,6 +668,10 @@ describe("public storefront artifacts", () => {
         expect(responseText).not.toContain("hidden-listing");
         expect(responseText).not.toContain("hidden-list");
         expect(responseText).not.toContain("other-listing");
+        expect(responseText).not.toContain("unsafe.example");
+        expect(responseText).not.toContain("pending-asset");
+        expect(responseText).not.toContain("private.example");
+        expect(responseText).not.toContain("/cdn-cgi/image/");
 
         const notModified = await GET(
           new Request(
@@ -411,6 +687,9 @@ describe("public storefront artifacts", () => {
         expect(notModified.status).toBe(304);
         expect(await notModified.text()).toBe("");
         expect(notModified.headers.get("ETag")).toBe(artifactEntry.etag);
+        expect(notModified.headers.get("Cache-Tag")).toBe(
+          "daylily-storefront-data",
+        );
 
         const unknownResponse = await GET(
           new Request(
@@ -581,6 +860,132 @@ describe("public storefront artifacts", () => {
     }
   }, 30_000);
 
+  it("rejects duplicate, reserved, and unsafe public list slugs before publication", async () => {
+    const outputRoot = await mkdtemp(
+      path.join(tmpdir(), "public-storefront-slug-collision-"),
+    );
+
+    try {
+      await withTempAppDb(async ({ user }) => {
+        const { db } = await import("@/server/db");
+        await db.list.createMany({
+          data: [
+            {
+              id: "first-collision-list",
+              userId: user.id,
+              title: "Duplicate List",
+            },
+            {
+              id: "second-collision-list",
+              userId: user.id,
+              title: "duplicate   list",
+            },
+          ],
+        });
+
+        await expect(
+          runBuilder({
+            outputRoot,
+            sellerIds: [user.id],
+            sourceUrl: process.env.DATABASE_URL!,
+          }),
+        ).rejects.toMatchObject({
+          stderr: expect.stringContaining(
+            `Duplicate public list slug "duplicate-list" for seller "${user.id}".`,
+          ),
+        });
+
+        await db.list.delete({ where: { id: "second-collision-list" } });
+        await db.list.update({
+          where: { id: "first-collision-list" },
+          data: { title: "All" },
+        });
+        await expect(
+          runBuilder({
+            outputRoot,
+            sellerIds: [user.id],
+            sourceUrl: process.env.DATABASE_URL!,
+          }),
+        ).rejects.toMatchObject({
+          stderr: expect.stringContaining(
+            `Reserved public list slug "all" for seller "${user.id}".`,
+          ),
+        });
+
+        await db.list.update({
+          where: { id: "first-collision-list" },
+          data: { title: "Bad/Path" },
+        });
+        await expect(
+          runBuilder({
+            outputRoot,
+            sellerIds: [user.id],
+            sourceUrl: process.env.DATABASE_URL!,
+          }),
+        ).rejects.toMatchObject({
+          stderr: expect.stringContaining(
+            `Unsafe public list slug "bad/path" for seller "${user.id}".`,
+          ),
+        });
+        await expect(
+          stat(path.join(outputRoot, "current", "manifest.json")),
+        ).rejects.toMatchObject({ code: "ENOENT" });
+      });
+    } finally {
+      await rm(outputRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("keeps a committed manifest active when post-publication housekeeping fails", async () => {
+    await withTempAppDb(async ({ user }) => {
+      const { buildPublicStorefrontArtifacts } = await import(
+        pathToFileURL(buildScriptPath).href
+      );
+      const housekeepingLabels = [
+        "Artifact retention cleanup failed",
+        "Prisma disconnect failed",
+        "Build lock release failed",
+      ];
+
+      for (const failedLabel of housekeepingLabels) {
+        const outputRoot = await mkdtemp(
+          path.join(tmpdir(), "public-storefront-housekeeping-"),
+        );
+
+        try {
+          const result = await buildPublicStorefrontArtifacts(
+            {
+              output: outputRoot,
+              sellerIds: [user.id],
+              source: process.env.DATABASE_URL!,
+            },
+            {
+              executeHousekeepingOperation: async (
+                label: string,
+                operation: () => Promise<unknown>,
+              ) => {
+                const value = await operation();
+                if (label === failedLabel) {
+                  throw new Error("simulated housekeeping failure");
+                }
+                return value;
+              },
+            },
+          );
+
+          expect(result.warnings).toEqual([
+            `${failedLabel}: simulated housekeeping failure`,
+          ]);
+          const published = await readManifest(outputRoot);
+          expect(published.manifest.sellers).toHaveLength(1);
+          expect(published.manifest.sellers[0]?.id).toBe(user.id);
+        } finally {
+          await rm(outputRoot, { force: true, recursive: true });
+        }
+      }
+    });
+  });
+
   it.each([
     {
       name: "query parameters",
@@ -618,6 +1023,28 @@ describe("public storefront artifacts", () => {
       name: "max-age zero",
       url: "https://daylilycatalog.com/api/v1/storefronts/seller-id",
       headers: new Headers({ "Cache-Control": "max-age=0" }),
+      message: "Cache bypass directives are not supported.",
+    },
+    {
+      name: "max-age zero with leading zeros",
+      url: "https://daylilycatalog.com/api/v1/storefronts/seller-id",
+      headers: new Headers({
+        "Cache-Control": "public, MAX-AGE = 00, must-revalidate",
+      }),
+      message: "Cache bypass directives are not supported.",
+    },
+    {
+      name: "quoted max-age zero",
+      url: "https://daylilycatalog.com/api/v1/storefronts/seller-id",
+      headers: new Headers({ "Cache-Control": 'public, max-age="0"' }),
+      message: "Cache bypass directives are not supported.",
+    },
+    {
+      name: "qualified no-cache",
+      url: "https://daylilycatalog.com/api/v1/storefronts/seller-id",
+      headers: new Headers({
+        "Cache-Control": 'public, No-Cache="Set-Cookie"',
+      }),
       message: "Cache bypass directives are not supported.",
     },
     {

@@ -25,6 +25,13 @@ Embedded Turso replica:
 - Each build writes and validates `/data/search/public-search.sqlite.next`. A valid build replaces the serving index atomically, and the old serving index becomes `/data/search/public-search.sqlite.previous`.
 - `compose.yaml` mounts `/srv/stacks/daylilycatalog/data` at `/data` so the replica and last-known-good search indexes survive container replacement.
 - Before the first start, create both `data` and `next-cache` with UID and GID 1001 ownership. The active runbook has the exact `install -d` command.
+- `PUBLIC_STOREFRONT_ARTIFACT_ROOT` is the published storefront artifact root.
+- `PUBLIC_STOREFRONT_SELLER_IDS` is the comma-separated, main-owned seller publication allowlist. It must contain unique, nonempty user IDs and must never be populated by database discovery.
+
+The image does not install a storefront scheduler. Run the initial container
+one-shot and the future 24-hour operation as specified in
+`apps/main/docs/public-storefront-api.md`. The operation must publish successfully before
+it purges the API and storefront cache tags.
 
 Config sync:
 

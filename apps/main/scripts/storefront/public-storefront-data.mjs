@@ -3,21 +3,28 @@ import { HTMLElement, NodeType, parse } from "node-html-parser";
 
 const HIDDEN_STATUS = "HIDDEN";
 const LISTING_BATCH_SIZE = 200;
+const reservedPublicListSlugs = new Set(["all", "for-sale", "search"]);
+const unsafePublicListSlugPattern = /[/?#%]/;
 
 const imageAssetUrlSelect = {
   id: true,
   legacyImageId: true,
-  status: true,
-  originalUrl: true,
+  order: true,
   displayUrl: true,
   thumbUrl: true,
   blurUrl: true,
 };
 
-const publicImageAssetInclude = {
-  select: imageAssetUrlSelect,
-  orderBy: [{ order: "asc" }, { id: "asc" }],
-};
+function getPublicImageAssetInclude(kind) {
+  return {
+    where: { kind, status: "ready" },
+    select: imageAssetUrlSelect,
+    orderBy: [{ order: "asc" }, { id: "asc" }],
+  };
+}
+
+const publicProfileImageAssetInclude = getPublicImageAssetInclude("profile");
+const publicListingImageAssetInclude = getPublicImageAssetInclude("listing");
 
 const publicCultivarImageAssetInclude = {
   where: {
@@ -43,10 +50,11 @@ const publicStorefrontUserSelect = {
         select: {
           id: true,
           url: true,
+          order: true,
         },
         orderBy: [{ order: "asc" }, { id: "asc" }],
       },
-      imageAssets: publicImageAssetInclude,
+      imageAssets: publicProfileImageAssetInclude,
     },
   },
 };
@@ -62,6 +70,7 @@ const v2AhsCultivarDisplaySelect = {
   id: true,
   post_title: true,
   introduction_date: true,
+  seedling_number: true,
   primary_hybridizer_name: true,
   hybridizer_code_legacy: true,
   additional_hybridizers_names: true,
@@ -83,6 +92,30 @@ const v2AhsCultivarDisplaySelect = {
   rebloom: true,
 };
 
+const legacyAhsDisplaySelect = {
+  id: true,
+  name: true,
+  hybridizer: true,
+  year: true,
+  scapeHeight: true,
+  bloomSize: true,
+  bloomSeason: true,
+  ploidy: true,
+  foliageType: true,
+  bloomHabit: true,
+  seedlingNum: true,
+  color: true,
+  form: true,
+  parentage: true,
+  ahsImageUrl: true,
+  fragrance: true,
+  budcount: true,
+  branches: true,
+  sculpting: true,
+  foliage: true,
+  flower: true,
+};
+
 const publicStorefrontListingSelect = {
   id: true,
   slug: true,
@@ -94,16 +127,20 @@ const publicStorefrontListingSelect = {
     select: {
       id: true,
       url: true,
+      order: true,
     },
     orderBy: [{ order: "asc" }, { id: "asc" }],
   },
-  imageAssets: publicImageAssetInclude,
+  imageAssets: publicListingImageAssetInclude,
   cultivarReference: {
     select: {
       id: true,
       normalizedName: true,
       v2AhsCultivar: {
         select: v2AhsCultivarDisplaySelect,
+      },
+      ahsListing: {
+        select: legacyAhsDisplaySelect,
       },
       imageAssets: publicCultivarImageAssetInclude,
     },
@@ -409,15 +446,22 @@ function getYearFromIntroductionDate(value) {
 }
 
 function mapV2AhsCultivarToDisplayDetails(cultivar) {
+  const unusualForm = toNonEmptyDisplayValue(cultivar.unusual_forms_names);
+  const flowerForm = toNonEmptyDisplayValue(cultivar.flower_form_names);
+
   return {
     id: cultivar.id,
     name: cultivar.post_title ?? null,
     ahsImageUrl: toNonEmptyDisplayValue(cultivar.image_url),
     hybridizer:
-      toNonEmptyDisplayValue(cultivar.primary_hybridizer_name) ??
+      joinDisplayValues([
+        cultivar.primary_hybridizer_name,
+        cultivar.additional_hybridizers_names,
+      ]) ??
       decodeLegacyHybridizerValue(cultivar.hybridizer_code_legacy) ??
       "unknown",
     year: getYearFromIntroductionDate(cultivar.introduction_date),
+    seedlingNum: cultivar.seedling_number ?? null,
     scapeHeight: formatInches(cultivar.scape_height_in),
     bloomSize: formatInches(cultivar.bloom_size_in),
     bloomSeason: cultivar.bloom_season_names ?? null,
@@ -425,104 +469,146 @@ function mapV2AhsCultivarToDisplayDetails(cultivar) {
     foliageType: cultivar.foliage_names ?? null,
     bloomHabit: cultivar.bloom_habit_names ?? null,
     color: cultivar.color ?? null,
-    form: joinDisplayValues([
-      cultivar.flower_form_names,
-      cultivar.unusual_forms_names,
-    ]),
+    form: unusualForm ?? flowerForm,
     parentage: cultivar.parentage ?? null,
     fragrance: cultivar.fragrance_names ?? null,
     budcount: formatInteger(cultivar.bud_count),
     branches: formatInteger(cultivar.branches),
     sculpting: cultivar.sculpted_type_names ?? null,
     foliage: null,
-    flower: null,
+    flower: unusualForm ? flowerForm : null,
     rebloom: cultivar.rebloom === null ? null : Boolean(cultivar.rebloom),
   };
 }
 
-function getOriginalCloudflareImageSource(source) {
-  try {
-    const url = new URL(source);
-    const marker = "/cdn-cgi/image/";
-    const markerIndex = url.pathname.indexOf(marker);
-    if (markerIndex < 0) {
-      return null;
-    }
-
-    const transformedPath = url.pathname.slice(markerIndex + marker.length);
-    const sourceIndex = transformedPath.indexOf("https://");
-    return sourceIndex < 0
-      ? null
-      : decodeURI(transformedPath.slice(sourceIndex));
-  } catch {
-    return null;
-  }
+function mapLegacyAhsListingToDisplayDetails(cultivar) {
+  return {
+    id: cultivar.id,
+    name: toNonEmptyDisplayValue(cultivar.name),
+    ahsImageUrl: toNonEmptyDisplayValue(cultivar.ahsImageUrl),
+    hybridizer: toNonEmptyDisplayValue(cultivar.hybridizer),
+    year: toNonEmptyDisplayValue(cultivar.year),
+    seedlingNum: toNonEmptyDisplayValue(cultivar.seedlingNum),
+    scapeHeight: toNonEmptyDisplayValue(cultivar.scapeHeight),
+    bloomSize: toNonEmptyDisplayValue(cultivar.bloomSize),
+    bloomSeason: toNonEmptyDisplayValue(cultivar.bloomSeason),
+    ploidy: toNonEmptyDisplayValue(cultivar.ploidy),
+    foliageType: toNonEmptyDisplayValue(cultivar.foliageType),
+    bloomHabit: toNonEmptyDisplayValue(cultivar.bloomHabit),
+    color: toNonEmptyDisplayValue(cultivar.color),
+    form: toNonEmptyDisplayValue(cultivar.form),
+    parentage: toNonEmptyDisplayValue(cultivar.parentage),
+    fragrance: toNonEmptyDisplayValue(cultivar.fragrance),
+    budcount: toNonEmptyDisplayValue(cultivar.budcount),
+    branches: toNonEmptyDisplayValue(cultivar.branches),
+    sculpting: toNonEmptyDisplayValue(cultivar.sculpting),
+    foliage: toNonEmptyDisplayValue(cultivar.foliage),
+    flower: toNonEmptyDisplayValue(cultivar.flower),
+    rebloom: null,
+  };
 }
 
-function shouldUseExistingImageTransform(source) {
+function isTrustedLegacyImageUrl(source) {
   try {
-    return new URL(source).hostname
-      .toLowerCase()
-      .startsWith("daylily-catalog-images");
+    return (
+      new URL(source).hostname.toLowerCase() === "media.daylilycatalog.com"
+    );
   } catch {
     return false;
   }
 }
 
-function getPublicImageUrl(source) {
-  const transformSource = getOriginalCloudflareImageSource(source) ?? source;
-  if (!shouldUseExistingImageTransform(transformSource)) {
-    return source;
+function toPublicAssetImage(asset, id = asset.id, order = asset.order) {
+  if (!asset.displayUrl) {
+    return null;
   }
 
-  const cloudflareUrl = process.env.NEXT_PUBLIC_CLOUDFLARE_URL;
-  if (!cloudflareUrl) {
-    throw new Error(
-      "NEXT_PUBLIC_CLOUDFLARE_URL is required to build storefront images.",
-    );
-  }
-
-  return `${cloudflareUrl}/cdn-cgi/image/width=800,fit=cover,format=auto,quality=90/${encodeURI(transformSource)}`;
+  return {
+    id,
+    url: asset.displayUrl,
+    thumbUrl: asset.thumbUrl ?? asset.displayUrl,
+    blurUrl: asset.blurUrl ?? null,
+    order,
+  };
 }
 
-function resolveLegacyImages(images, imageAssets) {
+function resolveUploadedPublicImages(images, imageAssets) {
   const assetsByLegacyImageId = new Map(
     imageAssets
       .filter((asset) => asset.legacyImageId)
       .map((asset) => [asset.legacyImageId, asset]),
   );
+  const legacyImages = images
+    .map((image) => {
+      const asset = assetsByLegacyImageId.get(image.id);
+      const assetImage = asset
+        ? toPublicAssetImage(asset, image.id, image.order)
+        : null;
+      if (assetImage) {
+        return assetImage;
+      }
+      if (!isTrustedLegacyImageUrl(image.url)) {
+        return null;
+      }
 
-  return images.map((image) => {
-    const asset = assetsByLegacyImageId.get(image.id);
-    const url = asset?.displayUrl ?? asset?.originalUrl ?? image.url;
-    return { id: image.id, url: getPublicImageUrl(url) };
-  });
+      return {
+        id: image.id,
+        url: image.url,
+        thumbUrl: null,
+        blurUrl: null,
+        order: image.order,
+      };
+    })
+    .filter(Boolean);
+  const directAssetImages = imageAssets
+    .filter((asset) => !asset.legacyImageId)
+    .map((asset) => toPublicAssetImage(asset))
+    .filter(Boolean);
+
+  return [...legacyImages, ...directAssetImages].sort(
+    (left, right) =>
+      left.order - right.order || left.id.localeCompare(right.id),
+  );
+}
+
+function resolveCultivarFallbackImage(listingId, assets, fallbackUrl) {
+  const generatedImage = assets[0] ? toPublicAssetImage(assets[0]) : null;
+  if (generatedImage) {
+    return { ...generatedImage, order: 0 };
+  }
+  if (!fallbackUrl) {
+    return null;
+  }
+
+  return {
+    id: `${listingId}:cultivar-fallback`,
+    url: fallbackUrl,
+    thumbUrl: null,
+    blurUrl: null,
+    order: 0,
+  };
 }
 
 function toPublicListing(listing) {
   const cultivar = listing.cultivarReference;
   const details = cultivar?.v2AhsCultivar
     ? mapV2AhsCultivarToDisplayDetails(cultivar.v2AhsCultivar)
-    : null;
-  const listingImages = resolveLegacyImages(
+    : cultivar?.ahsListing
+      ? mapLegacyAhsListingToDisplayDetails(cultivar.ahsListing)
+      : null;
+  const listingImages = resolveUploadedPublicImages(
     listing.images,
     listing.imageAssets,
   );
-  const generatedCultivarAsset = cultivar?.imageAssets[0] ?? null;
-  const cultivarImageUrl =
-    generatedCultivarAsset?.displayUrl ??
-    generatedCultivarAsset?.originalUrl ??
-    details?.ahsImageUrl ??
-    null;
+  const cultivarImage = resolveCultivarFallbackImage(
+    listing.id,
+    cultivar?.imageAssets ?? [],
+    details?.ahsImageUrl ?? null,
+  );
   const images =
-    listingImages.length > 0 || !cultivarImageUrl
+    listingImages.length > 0 || !cultivarImage
       ? listingImages
-      : [
-          {
-            id: `ahs-${listing.id}`,
-            url: getPublicImageUrl(cultivarImageUrl),
-          },
-        ];
+      : [cultivarImage];
 
   return {
     id: listing.id,
@@ -610,6 +696,45 @@ function getListingIdsByListId(memberships, publicListingIds) {
   return listingIdsByListId;
 }
 
+function getPublicListSlug(title) {
+  return title.toLowerCase().replace(/\s+/g, "-");
+}
+
+function getPublicListSlugs(lists, sellerId) {
+  const listIdBySlug = new Map();
+  const slugByListId = new Map();
+
+  for (const list of lists) {
+    const slug = getPublicListSlug(list.title);
+    if (reservedPublicListSlugs.has(slug)) {
+      throw new Error(
+        `Reserved public list slug "${slug}" for seller "${sellerId}".`,
+      );
+    }
+    if (
+      slug.length === 0 ||
+      slug === "." ||
+      slug === ".." ||
+      unsafePublicListSlugPattern.test(slug)
+    ) {
+      throw new Error(
+        `Unsafe public list slug "${slug}" for seller "${sellerId}".`,
+      );
+    }
+    const existingListId = listIdBySlug.get(slug);
+    if (existingListId) {
+      throw new Error(
+        `Duplicate public list slug "${slug}" for seller "${sellerId}". Lists "${existingListId}" and "${list.id}" generate the same slug.`,
+      );
+    }
+
+    listIdBySlug.set(slug, list.id);
+    slugByListId.set(list.id, slug);
+  }
+
+  return slugByListId;
+}
+
 export async function getPublicStorefrontSnapshot(
   database,
   sellerId,
@@ -642,6 +767,7 @@ export async function getPublicStorefrontSnapshot(
     }),
     getPublicListMemberships(database, sellerId),
   ]);
+  const listSlugs = getPublicListSlugs(lists, sellerId);
   const listings = await getPublicListings(
     database,
     sellerId,
@@ -668,13 +794,17 @@ export async function getPublicStorefrontSnapshot(
               profile.updatedAt,
             ),
             location: profile.location,
-            images: resolveLegacyImages(profile.images, profile.imageAssets),
+            images: resolveUploadedPublicImages(
+              profile.images,
+              profile.imageAssets,
+            ),
             updatedAt: profile.updatedAt.toISOString(),
           }
         : null,
     },
     lists: lists.map((list) => ({
       id: list.id,
+      slug: listSlugs.get(list.id),
       title: list.title,
       description: list.description,
       listingIds: listingIdsByListId.get(list.id) ?? [],

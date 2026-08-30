@@ -24,6 +24,8 @@ export const env = createEnv({
     TURSO_EMBEDDED_REPLICA_URL: z.string().optional(),
     TURSO_EMBEDDED_REPLICA_SYNC_INTERVAL_SECONDS: z.string().optional(),
     PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS: z.string().optional(),
+    PUBLIC_STOREFRONT_ARTIFACT_ROOT: z.string().min(1).optional(),
+    PUBLIC_STOREFRONT_SELLER_IDS: z.string().min(1).optional(),
     VERCEL_AUTOMATION_BYPASS_SECRET: z.string().optional(),
     CLERK_SECRET_KEY: z.string().optional(),
     CLERK_WEBHOOK_SECRET: z.string().optional(),
@@ -56,6 +58,9 @@ export const env = createEnv({
       process.env.TURSO_EMBEDDED_REPLICA_SYNC_INTERVAL_SECONDS,
     PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS:
       process.env.PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS,
+    PUBLIC_STOREFRONT_ARTIFACT_ROOT:
+      process.env.PUBLIC_STOREFRONT_ARTIFACT_ROOT,
+    PUBLIC_STOREFRONT_SELLER_IDS: process.env.PUBLIC_STOREFRONT_SELLER_IDS,
     VERCEL_AUTOMATION_BYPASS_SECRET:
       process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
     CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY,
@@ -167,6 +172,21 @@ if (!process.env.SKIP_ENV_VALIDATION) {
     ) {
       throw new Error(
         "PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS must be a non-negative integer.",
+      );
+    }
+  }
+
+  if (env.PUBLIC_STOREFRONT_SELLER_IDS) {
+    const sellerIds = env.PUBLIC_STOREFRONT_SELLER_IDS.split(",").map((value) =>
+      value.trim(),
+    );
+
+    if (
+      sellerIds.some((sellerId) => sellerId.length === 0) ||
+      new Set(sellerIds).size !== sellerIds.length
+    ) {
+      throw new Error(
+        "PUBLIC_STOREFRONT_SELLER_IDS must contain unique, nonempty comma-separated IDs.",
       );
     }
   }

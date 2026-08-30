@@ -37,27 +37,70 @@ function getErrorResponse(
   );
 }
 
-function hasCacheBypassDirective(request: Request) {
-  const cacheControl = request.headers.get("Cache-Control")?.toLowerCase();
-  if (cacheControl) {
-    const directives = cacheControl.split(",").map((value) => value.trim());
-    if (
-      directives.some(
-        (directive) =>
-          directive === "no-cache" ||
-          directive === "no-store" ||
-          /^max-age\s*=\s*0$/.test(directive),
-      )
-    ) {
-      return true;
+function splitCacheControlDirectives(value: string) {
+  const directives: string[] = [];
+  let directiveStart = 0;
+  let escaped = false;
+  let quoted = false;
+
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index];
+    if (escaped) {
+      escaped = false;
+    } else if (quoted && character === "\\") {
+      escaped = true;
+    } else if (character === '"') {
+      quoted = !quoted;
+    } else if (character === "," && !quoted) {
+      directives.push(value.slice(directiveStart, index));
+      directiveStart = index + 1;
     }
   }
 
-  return request.headers
-    .get("Pragma")
-    ?.toLowerCase()
-    .split(",")
-    .some((directive) => directive.trim() === "no-cache");
+  directives.push(value.slice(directiveStart));
+  return directives;
+}
+
+function parseCacheControlDirectiveValue(value: string | null) {
+  if (!value?.startsWith('"')) {
+    return value;
+  }
+  if (value.length < 2 || !value.endsWith('"')) {
+    return null;
+  }
+
+  return value.slice(1, -1).replace(/\\(.)/g, "$1");
+}
+
+function hasCacheBypassDirective(request: Request) {
+  const cacheControl = request.headers.get("Cache-Control");
+  if (cacheControl) {
+    for (const directive of splitCacheControlDirectives(cacheControl)) {
+      const separatorIndex = directive.indexOf("=");
+      const name = directive
+        .slice(0, separatorIndex < 0 ? undefined : separatorIndex)
+        .trim()
+        .toLowerCase();
+      const value = parseCacheControlDirectiveValue(
+        separatorIndex < 0 ? null : directive.slice(separatorIndex + 1).trim(),
+      );
+
+      if (name === "no-cache" || name === "no-store") {
+        return true;
+      }
+      if (name === "max-age" && value && /^0+$/.test(value)) {
+        return true;
+      }
+    }
+  }
+
+  return (
+    request.headers
+      .get("Pragma")
+      ?.toLowerCase()
+      .split(",")
+      .some((directive) => directive.trim() === "no-cache") ?? false
+  );
 }
 
 function hasClerkSessionCookie(cookieHeader: string | null) {

@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
+import { env } from "@/env";
 
 const contentAddressedArtifactPattern = /^[a-f0-9]{64}\.json$/;
 const weakSha256EtagPattern = /^W\/"[A-Za-z0-9_-]{43}"$/;
@@ -49,7 +50,7 @@ export type PublicStorefrontArtifactLoadResult =
   | { status: "unavailable" };
 
 function getArtifactRoot() {
-  const configuredRoot = process.env.PUBLIC_STOREFRONT_ARTIFACT_ROOT;
+  const configuredRoot = env.PUBLIC_STOREFRONT_ARTIFACT_ROOT;
   if (configuredRoot) {
     return path.resolve(configuredRoot);
   }

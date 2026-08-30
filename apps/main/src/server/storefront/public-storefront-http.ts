@@ -2,6 +2,7 @@ export const PUBLIC_STOREFRONT_CLOUDFLARE_CACHE_CONTROL =
   "public, max-age=86400, stale-while-revalidate=604800, stale-if-error=86400";
 export const PUBLIC_STOREFRONT_BROWSER_CACHE_CONTROL =
   "public, max-age=0, must-revalidate";
+export const PUBLIC_STOREFRONT_CACHE_TAG = "daylily-storefront-data";
 
 export interface PublicStorefrontRepresentation {
   body: string;
@@ -30,6 +31,7 @@ function matchesIfNoneMatch(value: string | null, etag: string) {
 function getCacheHeaders(etag: string) {
   return new Headers({
     "Cache-Control": PUBLIC_STOREFRONT_BROWSER_CACHE_CONTROL,
+    "Cache-Tag": PUBLIC_STOREFRONT_CACHE_TAG,
     "Cloudflare-CDN-Cache-Control": PUBLIC_STOREFRONT_CLOUDFLARE_CACHE_CONTROL,
     ETag: etag,
   });

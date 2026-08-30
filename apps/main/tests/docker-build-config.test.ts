@@ -6,6 +6,35 @@ import { describe, expect, it } from "vitest";
 const repoRoot = path.resolve(process.cwd(), "../..");
 
 describe("Docker build cache and observability boundaries", () => {
+  it("keeps the storefront artifact location and seller allowlist in the runtime contract", () => {
+    const envSource = readFileSync(
+      path.join(repoRoot, "apps/main/src/env.js"),
+      "utf8",
+    );
+    const localTemplate = readFileSync(
+      path.join(repoRoot, "apps/main/.env.example"),
+      "utf8",
+    );
+    const vpsTemplate = readFileSync(
+      path.join(repoRoot, "apps/main/deploy/vps/.env.example"),
+      "utf8",
+    );
+    const turboConfig = JSON.parse(
+      readFileSync(path.join(repoRoot, "turbo.json"), "utf8"),
+    );
+
+    for (const name of [
+      "PUBLIC_STOREFRONT_ARTIFACT_ROOT",
+      "PUBLIC_STOREFRONT_SELLER_IDS",
+    ]) {
+      expect(envSource).toContain(`${name}: z.string()`);
+      expect(envSource).toContain(`process.env.${name}`);
+      expect(localTemplate).toContain(`${name}=`);
+      expect(vpsTemplate).toContain(`${name}=`);
+      expect(turboConfig.globalPassThroughEnv).toContain(name);
+    }
+  });
+
   it("keeps standalone output for Docker and delegates Vercel builds", () => {
     const appRoot = path.join(repoRoot, "apps/main");
     const turboConfig = JSON.parse(
@@ -144,6 +173,15 @@ describe("Docker build cache and observability boundaries", () => {
     expect(dockerfile).toContain(
       'for (const dependency of ["@aws-sdk/client-s3", "@prisma/client", "@prisma/adapter-libsql", "@libsql/client"]) serverRequire(dependency)',
     );
+    expect(dockerfile).toContain(
+      'const storefrontBuilderRequire = createRequire("/app/apps/main/scripts/build-public-storefront-artifacts.mjs")',
+    );
+    expect(dockerfile).toContain(
+      'for (const dependency of ["@prisma/adapter-better-sqlite3", "node-html-parser"]) storefrontBuilderRequire(dependency)',
+    );
+    expect(dockerfile).toContain(
+      'await import("file:///app/apps/main/scripts/build-public-storefront-artifacts.mjs")',
+    );
     expect(dockerfile).toContain('const sharp = serverRequire("sharp")');
     expect(dockerfile).toContain("Object.keys(require.cache).find");
     expect(dockerfile).toContain("await sharp({ create:");
@@ -160,9 +198,12 @@ describe("Docker build cache and observability boundaries", () => {
     expect(runtimePackage.dependencies).toEqual({
       "@aws-sdk/client-s3": appPackage.dependencies["@aws-sdk/client-s3"],
       "@libsql/client": appPackage.dependencies["@libsql/client"],
+      "@prisma/adapter-better-sqlite3":
+        appPackage.dependencies["@prisma/adapter-better-sqlite3"],
       "@prisma/adapter-libsql":
         appPackage.dependencies["@prisma/adapter-libsql"],
       "@prisma/client": appPackage.dependencies["@prisma/client"],
+      "node-html-parser": appPackage.dependencies["node-html-parser"],
       sharp: appPackage.dependencies.sharp,
     });
   });
