@@ -18,7 +18,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
+      - name: Verify affected-path contract
+        run: node --test .github/scripts/affected-apps.test.mjs
       - name: Classify changed paths
         id: affected
         env:
@@ -189,12 +192,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 20
           cache: "pnpm"
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm fetch
       - run: pnpm install --frozen-lockfile --prefer-offline
       - name: Lint storefront
-        run: pnpm --filter @daylily-catalog/storefront lint
+        run: pnpm --filter @daylily-catalog/storefront --fail-if-no-match lint
       - name: Run storefront unit tests
-        run: pnpm --filter @daylily-catalog/storefront test:unit
+        run: pnpm --filter @daylily-catalog/storefront --fail-if-no-match test

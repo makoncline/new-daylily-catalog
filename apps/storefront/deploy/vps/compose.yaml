@@ -8,8 +8,6 @@ services:
       - .env
     environment:
       NODE_OPTIONS: --max-old-space-size=512
-    volumes:
-      - ./public-data:/app/.public-data
     networks:
       - edge
 

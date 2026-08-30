@@ -10,9 +10,10 @@ This directory is the deploy source of truth for the first Rolling Oaks storefro
 - Internal port: `3000`
 - Health path: `/api/health`
 - Initial host: `rolling-oaks-daylilies.makon.dev`
-- Persistent snapshot: `/srv/stacks/rolling-oaks-daylilies/public-data`
 
-The image is generic. Set `STOREFRONT_SELLER_ID` in the live stack `.env` file. Do not put the seller ID in source, the Dockerfile, an image tag, or a workflow matrix.
+The image is generic. The live `.env` file sets `STOREFRONT_SELLER_ID`. Do not put a seller ID in source, the Dockerfile, an image tag, or a workflow matrix.
+
+The storefront has no database credentials and no local catalog snapshot. It reads `GET /api/v1/storefronts/{sellerId}` from `STOREFRONT_API_BASE_URL`.
 
 ## Server paths
 
@@ -21,27 +22,69 @@ The image is generic. Set `STOREFRONT_SELLER_ID` in the live stack `.env` file. 
 - `apps/storefront/deploy/vps/.env.example` -> reference only
 - Live environment -> `/srv/stacks/rolling-oaks-daylilies/.env`
 
-Create the writable snapshot directory before the first container starts:
+The service joins the shared external `edge` network. Its service name is unique. Do not rename it to `app`. The main catalog already uses that network alias.
 
-```sh
-install -d -o 1001 -g 1001 /srv/stacks/rolling-oaks-daylilies/public-data
-```
+## Storefront artifact prerequisite
 
-The service joins the shared external `edge` network. Its service name is unique. Do not rename it to `app`; the main catalog already uses that network alias.
+The main catalog owns the source data and the storefront artifact builder. Before the storefront becomes available:
+
+1. Provision `/srv/stacks/daylilycatalog/data/storefront-artifacts` in the main stack data path. The main container sees this path as `/data/storefront-artifacts`.
+2. Build the first artifact from the main embedded replica.
+3. Write a new artifact to a temporary file in the same directory. Rename it to the live file only after a successful build.
+4. Run one refresh at a time every 24 hours. Do not run parallel refreshes.
+5. Make the main API endpoint serve only the last complete artifact.
+
+This change does not add or enable a production scheduler. The first artifact, the serial refresh job, and its monitoring are owner-controlled deployment prerequisites.
 
 ## Staged release
 
-The storefront workflow builds, tests, and publishes an immutable `main-<short-sha>` image when storefront or shared inputs change. It does not deploy the image.
+The storefront workflow builds, tests, and publishes an immutable `main-<short-sha>` image when storefront or dependency-affected shared inputs change. It does not deploy the image. The image build uses fixture data and the stub inquiry adapter. It does not need seller or production data credentials.
 
 Before automatic deployment is enabled, the owner must:
 
-1. Create the `storefront-preview` and `storefront-production` GitHub environments.
-2. Put `STOREFRONT_SELLER_ID`, Turso access, and only storefront secrets in those environments.
-3. Register the `rolling-oaks-daylilies` config-sync and deploy targets in the deployment gateway.
-4. Set the config-sync target to `CONFIG_SUBDIR=apps/storefront/deploy/vps`.
-5. Install the stack files and live `.env` on the VPS.
-6. Validate the initial Caddy route and Cloudflare Tunnel hostname.
-7. Get explicit owner approval before a workflow sends the deploy token or changes the running stack.
+1. Remove any application default for `STOREFRONT_SELLER_ID`. Production must fail when this value is absent.
+2. Complete the artifact prerequisites above.
+3. Install the stack files and live `.env` on the VPS.
+4. Register the `rolling-oaks-daylilies` config-sync and deploy targets in the deployment gateway.
+5. Set the config-sync target to `CONFIG_SUBDIR=apps/storefront/deploy/vps`.
+6. Provide and verify the HTTP inquiry endpoint. It must return `id` and `acceptedAt` for an accepted JSON request.
+7. Validate the initial Caddy route and Cloudflare Tunnel hostname.
+8. Configure and verify the Cloudflare cache rule below.
+9. Get explicit owner approval before a workflow sends a deploy token or changes the running stack.
+
+Webhook registration and workflow enablement are later cutover steps. This change does not add or call a production deployment webhook.
+
+## Cloudflare page cache
+
+The storefront application must set these headers only on successful, anonymous public HTML responses:
+
+```http
+Cloudflare-CDN-Cache-Control: public, max-age=43200, stale-while-revalidate=604800, stale-if-error=86400
+Cache-Tag: daylily-storefront-public-html
+```
+
+Create a cache rule for the storefront hostname with these settings:
+
+- Use a request expression that allows only anonymous public `GET` and `HEAD` document routes. Bypass all other requests.
+- Set the allowed routes to `Eligible for cache`.
+- Let the explicit origin header set the edge TTL. Do not add a catch-all edge TTL.
+- Keep the default full-URL cache key.
+- Let the browser respect the origin browser-cache headers.
+- Set status codes `400-599` to no-store with `value: -1`. Do not use `0`; that value permits storage and revalidation.
+
+The rule expression must bypass excluded requests even if Next sets an ordinary cacheable `Cache-Control` header. Do not use header omission as the only bypass control.
+
+Do not cache `/cart`, `/contact`, `/thanks`, `/api/**`, form, inquiry, health, error, authenticated, personalized, RSC, prefetch, or `Accept: text/markdown` responses. Do not cache methods other than `GET` and `HEAD`. The default cache key does not vary by `Accept`, so the Markdown bypass must occur before cache lookup. The main catalog and storefront use separate cache tags.
+
+Before cutover, request one eligible page twice through Cloudflare. Verify `MISS` and then `HIT`, with a positive `Age` value. Verify that each excluded route bypasses cache and has no positive `Age` value.
+
+A future successful storefront deployment can purge only `daylily-storefront-public-html`. Purge the storefront hostname once when the tagged cache policy first becomes available. This change does not create a purge token, cache rule, or purge call.
+
+Cloudflare references:
+
+- [Cloudflare CDN-Cache-Control](https://developers.cloudflare.com/cache/concepts/cdn-cache-control/)
+- [Cloudflare stale content and revalidation](https://developers.cloudflare.com/cache/concepts/revalidation/)
+- [Cloudflare cache keys](https://developers.cloudflare.com/cache/how-to/cache-keys/)
 
 ## Canonical-domain cutover
 
