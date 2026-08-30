@@ -58,7 +58,9 @@ export function classifyChangedFiles(filePaths, affectedPackageNames = []) {
     if (
       filePath.startsWith("apps/main/") ||
       filePath.startsWith("packages/standalone-runtime/") ||
+      filePath.startsWith(".github/scripts/alias-vercel-preview") ||
       filePath.startsWith(".github/scripts/preview-candidate-provenance") ||
+      filePath.startsWith(".github/scripts/vercel-preview-origin") ||
       mainWorkflowFiles.has(filePath)
     ) {
       affected.add(APP_MAIN);
@@ -199,7 +201,14 @@ function affectedPackagesFromTurbo({ base, head, repoRoot }) {
     {
       cwd: repoRoot,
       encoding: "utf8",
-      env: process.env,
+      env: {
+        ...process.env,
+        CI: "1",
+        TURBO_DAEMON: "false",
+        TURBO_TELEMETRY_DISABLED: "1",
+      },
+      killSignal: "SIGKILL",
+      timeout: 30_000,
     },
   );
   if (command.status !== 0) {

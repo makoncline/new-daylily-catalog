@@ -44,9 +44,11 @@ Deployment gateway registration, a protected deployment environment, and an auto
 
 The storefront has no database credentials and no local catalog snapshot. It reads `GET /api/v1/storefronts/{sellerId}` from `STOREFRONT_API_BASE_URL`. It derives `POST /api/v1/storefronts/{sellerId}/inquiries` from the same base URL. The main service receives `STOREFRONT_INQUIRY_TOKENS_JSON`, which maps approved seller IDs to distinct bearer tokens. Each approved site service receives only its own token as `STOREFRONT_INQUIRY_TOKEN`. Do not reuse one token for multiple sellers. Do not add `STOREFRONT_INQUIRY_URL`. Do not commit a token. The inquiry endpoint must accept the storefront JSON request and return `id` and `acceptedAt`. Do not add a seller build matrix.
 
-The main catalog owns the storefront artifact builder and storage. Provision `/srv/stacks/daylilycatalog/data/storefront-artifacts`, build the first artifact from the main embedded replica, and publish files with an atomic rename in that same directory. Run one refresh at a time every 24 hours. The main API must serve only the last complete artifact. `PUBLIC_STOREFRONT_SELLER_IDS` is the explicit main-owned publication allowlist. The initial allowlist contains only `3`. It is separate from each site stack's `STOREFRONT_SELLER_ID`. The artifact job must not discover and publish every seller in the database.
+The main catalog owns the storefront artifact builder and storage. Provision `/srv/stacks/daylilycatalog/data/storefronts`, which the main container sees as `/data/storefronts`. Build the first artifact from the main embedded replica, and publish files with an atomic rename in that same directory. Run one refresh at a time every 24 hours. The main API must serve only the last complete artifact. `PUBLIC_STOREFRONT_SELLER_IDS` is the explicit main-owned publication allowlist. The initial allowlist contains only `3`. It is separate from each site stack's `STOREFRONT_SELLER_ID`. The artifact job must not discover and publish every seller in the database.
 
-After the job commits the new manifest, it must purge `daylily-storefront-data`. It must then purge the affected `daylily-storefront-public-html` tags. A purge failure must make the run fail, alert, and retry. Storefront health must degrade when the serving artifact is more than 26 hours old. This limit permits two hours of timer jitter and detects a missed daily run before the stale cache windows hide it.
+The main stack environment is the only source for `PUBLIC_STOREFRONT_SELLER_IDS`; the systemd unit must not duplicate it. Before a build, the refresh command must resolve every allowlisted seller to one approved site and validate a nonempty API zone/token plus a distinct active zone/token target for every affected site. A missing, duplicated, extra, or inconsistent target must fail before publication.
+
+After the job commits the new manifest, it must purge `daylily-storefront-data` in the API zone with the API token. Only after that succeeds can it purge `daylily-storefront-public-html` in each affected site's own zone with that site's token. A missing target or failed purge must stop later purges, make the run fail, alert, and retry. Storefront health must degrade when the serving artifact is more than 26 hours old. This limit permits two hours of timer jitter and detects a missed daily run before the stale cache windows hide it.
 
 The disabled service and timer examples in `apps/main/deploy/vps` define the integration point. The final artifact command does not exist on this branch. Do not invent or install a replacement. Before enablement, the implementation must add a source-controlled one-shot command, an exclusive lock, atomic publication, ordered purge tests, retry behavior, alerting, and the initial seller `3` artifact. The owner must approve the final command, live purge inputs, service installation, and timer enablement. This repository change does not enable the production scheduler or call a purge.
 
@@ -64,8 +66,9 @@ Rolling Oaks is the only initial site:
 | Service                  | `rolling-oaks-storefront`                 |
 | Initial hostname         | `rolling-oaks-daylilies.makon.dev`        |
 | Later canonical hostname | `rollingoaksdaylilies.com` after approval |
+| Allowed hostnames        | staging, apex, and `www`                  |
 
-The version-controlled approved-site definition binds the site key, seller ID, and allowed hostnames. At startup, the service must verify that `STOREFRONT_SITE_KEY`, `STOREFRONT_HOSTNAME`, and `STOREFRONT_SELLER_ID` match one approved definition. A missing value or mismatch must stop startup. The initial Rolling Oaks allowed-host set contains only `rolling-oaks-daylilies.makon.dev`. Add `rollingoaksdaylilies.com` to the definition and configure its `www` redirect only in the separately approved canonical cutover. This prevents one approved seller from appearing under another seller's brand or domain.
+The version-controlled approved-site definition binds the site key `rolling-oaks` and seller ID `3` to `rolling-oaks-daylilies.makon.dev`, `rollingoaksdaylilies.com`, and `www.rollingoaksdaylilies.com`. At startup, one container must verify that `STOREFRONT_SITE_KEY`, `STOREFRONT_HOSTNAME`, and `STOREFRONT_SELLER_ID` select exactly one allowed triple. A missing value or mismatch must stop startup. The first environment selects only `rolling-oaks-daylilies.makon.dev`. Approval in the definition does not activate DNS, Caddy, or the canonical cutover. This prevents one approved seller from appearing under another seller's brand or domain.
 
 To add an approved site:
 
@@ -92,34 +95,36 @@ Vercel uses the pnpm workspace graph and lockfile to make its native affected de
 
 These controls prevent a storefront-only change from creating a main preview. The main preview alias and E2E workflows keep a second affected-path gate.
 
-For `deployment_status`, the scope jobs run the classifier and fixed Turbo binary from the trusted default-branch checkout. They use the candidate checkout only as Git and package-graph data. The alias comment runs in a later job that does not check out or execute candidate code. Before the E2E job gets preview secrets, the provenance gate requires the deployed SHA to be the exact head of the named branch in `origin`. A fork SHA, missing branch, stale branch head, tag, or raw SHA fails closed and skips E2E. `workflow_dispatch` remains an explicit owner action.
+For `deployment_status`, the scope jobs run the classifier and fixed Turbo binary from the trusted default-branch checkout. They use the candidate checkout only as Git and package-graph data. The alias comment runs in a later job that does not check out or execute candidate code. Before the E2E job gets preview secrets, the provenance gate requires the deployed SHA to be the exact head of the named branch in `origin`. A fork SHA, missing branch, stale branch head, tag, or raw SHA fails closed and skips E2E. E2E `workflow_dispatch` remains an explicit owner action.
 
-Keep Vercel connected only to `apps/main` for now. A generic `deployment_status` event does not give the existing workflows a reliable Vercel project identity. If the storefront later needs Vercel previews, create a separate project and preview domain. Add a project-identity gate before connection.
+The alias workflow has no manual dispatch. Its trusted default-branch script inspects the canonical deployment URL with Vercel `GET /v13/deployments/{idOrUrl}` before it assigns the alias. The response must match the candidate SHA, `READY` state, `target: null` default Preview target, owner, canonical URL, and main project. Set repository variables `VERCEL_ORG_ID` and `MAIN_VERCEL_PROJECT_ID`, and keep `VERCEL_TOKEN` in the protected `preview` environment. Until all three values exist, preview aliasing stays disabled and fails closed before assignment. A deployment mismatch also fails before assignment. The script uses the returned deployment ID with `POST /v2/deployments/{id}/aliases` and the same organization scope.
+
+Keep the storefront out of this Vercel project. If it later needs Vercel previews, create a separate project and preview domain. The API project check prevents a storefront deployment from receiving a main preview alias.
 
 Current Vercel references:
 
 - [Monorepos and Skip Unaffected Projects](https://vercel.com/docs/monorepos)
 - [Project configuration and ignoreCommand](https://vercel.com/docs/project-configuration/vercel-json)
 - [Ignored build step behavior](https://vercel.com/kb/guide/how-do-i-use-the-ignored-build-step-field-on-vercel)
+- [Get a deployment by ID or URL](https://vercel.com/docs/rest-api/reference/endpoints/deployments/get-a-deployment-by-id-or-url)
+- [Assign an alias](https://vercel.com/docs/rest-api/reference/endpoints/aliases/assign-an-alias)
 
 ## Cloudflare page cache
 
-The storefront gets its own hostname cache rule. Use a bypass-by-default request expression. Allow only anonymous public `GET` and `HEAD` document routes, and set those routes to `Eligible for cache`. The successful origin response must contain both of these headers:
+The storefront gets one cache rule for the exact hostname selected by `STOREFRONT_HOSTNAME`. Use a bypass-by-default request expression for anonymous `GET` and `HEAD` requests. The successful origin response must contain both of these headers:
 
 ```http
 Cloudflare-CDN-Cache-Control: public, max-age=43200, stale-while-revalidate=604800, stale-if-error=86400
 Cache-Tag: daylily-storefront-public-html
 ```
 
-Let the explicit origin header set the edge TTL. Do not add a catch-all edge TTL. Use the default full-URL cache key. Let browser caching respect the origin header. Set `400-599` responses to no-store with `value: -1`. Do not use `0`; that value permits storage and revalidation.
+Match only the selected hostname. Exclude an `Authorization` header and cookies named `__session` or starting with `__session_`; do not exclude every cookie. Exclude `_rsc`, `RSC: 1`, `Accept: text/x-component`, browser prefetch headers, and `Accept: text/markdown` before cache lookup. Set matching requests to `Eligible for cache`.
 
-The rule expression must bypass excluded requests even if Next sets an ordinary cacheable `Cache-Control` header. Do not use header omission as the only bypass control.
+Use the explicit origin cache header with `bypass_by_default`. A response without `Cloudflare-CDN-Cache-Control` must bypass cache. Do not add a catch-all edge TTL. Use the default full-URL cache key. Let browser caching respect the origin header. Set `400-599` responses to no-store with `value: -1`. Do not use `0`; that value permits storage and revalidation.
 
-Make only these API routes eligible for anonymous `GET` and `HEAD` caching: `/api/catalogs`, `/api/catalog/*`, and `/api/listings/*`. Store a response only when the origin sends an explicit `Cloudflare-CDN-Cache-Control` header. These API responses must use `Cache-Tag: daylily-storefront-data`. Keep the default full-URL key so filters, searches, and pagination remain separate.
+Do not add a route allowlist, API path list, dashboard exclusion list, or blanket cookie bypass to the edge rule. The origin owns the cache policy. Every cacheable response on the storefront hostname, including HTML, public read APIs, machine documents, and the sitemap, uses the explicit header and `daylily-storefront-public-html` tag. The main catalog artifact endpoint uses `daylily-storefront-data` in the separate API zone. Unsafe, private, form, health, and personalized responses must omit the cacheable origin directive or send `no-store`. The edge credential, RSC, prefetch, Markdown, and status guards are defense in depth.
 
-Apply the same explicit-header rule to these exact machine routes: `/sitemap.xml`, `/robots.txt`, `/openapi.json`, `/llms.txt`, `/.well-known/api-catalog`, `/.well-known/agent-skills/index.json`, `/.well-known/agent-skills/availability-inquiry/SKILL.md`, `/.well-known/agent-skills/catalog-navigation/SKILL.md`, `/.well-known/agent-skills/cultivar-reference/SKILL.md`, and `/.well-known/agent-skills/site-navigation/SKILL.md`. These responses must use `Cache-Tag: daylily-storefront-public-html`.
-
-Always bypass `/cart`, `/contact`, `/thanks`, `/api/forms`, `/api/health`, mutations, requests with cookies or authorization credentials, errors, personalized responses, RSC, prefetch, and `Accept: text/markdown`. Do not cache other `/api/` routes. Do not cache methods other than `GET` and `HEAD`. The default cache key does not vary by `Accept`, so the Markdown bypass must occur before cache lookup.
+The default full-URL key keeps every filtered API, search, and pagination query separate. It does not vary by `Accept`, so the Markdown bypass must occur before cache lookup.
 
 Before cutover, verify an eligible page through Cloudflare. The first request must be a cache `MISS`. The next request must be a `HIT` with a positive `Age` value. Verify that each excluded route bypasses cache and has no positive `Age` value.
 

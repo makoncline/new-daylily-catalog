@@ -28,7 +28,7 @@ The service joins the shared external `edge` network. Its service name is unique
 
 Run one isolated service and container for each approved seller. All services can use the same generic image. Each service must have a unique stack directory, service name, live environment file, public hostname, Caddy matcher, Cloudflare cache rule, and deployment target. Do not select sellers from the request host in one shared process. Do not add a runtime host registry.
 
-The version-controlled approved-site definition must bind the site key, seller ID, and allowed hostnames. The service must compare `STOREFRONT_SITE_KEY`, `STOREFRONT_HOSTNAME`, and `STOREFRONT_SELLER_ID` with that definition at startup. A missing value or mismatch must stop startup. Rolling Oaks is the only initial definition: key `rolling-oaks`, seller ID `3`, and allowed hostname `rolling-oaks-daylilies.makon.dev`. The initial allowed-host set contains no other hostname.
+The version-controlled approved-site definition must bind the site key, seller ID, and allowed hostnames. The service must compare `STOREFRONT_SITE_KEY`, `STOREFRONT_HOSTNAME`, and `STOREFRONT_SELLER_ID` with that definition at startup. A missing value or mismatch must stop startup. Rolling Oaks is the only initial definition: key `rolling-oaks`, seller ID `3`, and allowed hostnames `rolling-oaks-daylilies.makon.dev`, `rollingoaksdaylilies.com`, and `www.rollingoaksdaylilies.com`. One container selects exactly one allowed hostname. The first live environment selects `rolling-oaks-daylilies.makon.dev`.
 
 To add one approved site:
 
@@ -47,13 +47,13 @@ To add one approved site:
 
 The main catalog owns the source data and the storefront artifact builder. Before the storefront becomes available:
 
-1. Provision `/srv/stacks/daylilycatalog/data/storefront-artifacts` in the main stack data path. The main container sees this path as `/data/storefront-artifacts`.
+1. Provision `/srv/stacks/daylilycatalog/data/storefronts` in the main stack data path. The main container sees this path as `/data/storefronts`.
 2. Build the first artifact from the main embedded replica.
 3. Write a new artifact to a temporary file in the same directory. Rename it to the live file only after a successful build.
 4. Run one refresh at a time every 24 hours. Do not run parallel refreshes.
 5. Use an explicit seller-ID allowlist. The initial allowlist contains only `3`. Do not discover all sellers from the database.
 6. Make the main API endpoint serve only the last complete artifact.
-7. After a manifest commit, purge `daylily-storefront-data`, then purge the affected `daylily-storefront-public-html` tags. A purge failure must return a failure, alert, and retry.
+7. After a manifest commit, purge `daylily-storefront-data` in the API zone. Only after that succeeds, purge `daylily-storefront-public-html` in each affected site's own zone with its distinct token. A missing target or purge failure must stop later purges, return a failure, alert, and retry.
 
 The disabled templates in `apps/main/deploy/vps` define the 24-hour service contract and its two-hour jitter. Storefront health must degrade when the serving artifact is more than 26 hours old. The artifact command is not final. Do not install or enable the templates until the owner gate in the main VPS runbook passes.
 
@@ -86,22 +86,20 @@ Cloudflare-CDN-Cache-Control: public, max-age=43200, stale-while-revalidate=6048
 Cache-Tag: daylily-storefront-public-html
 ```
 
-Create a cache rule for the storefront hostname with these settings:
+Create one cache rule for the exact hostname selected by `STOREFRONT_HOSTNAME`. Use the same main-catalog rule shape:
 
-- Use a request expression that allows only anonymous public `GET` and `HEAD` document routes. Bypass all other requests.
-- Set the allowed routes to `Eligible for cache`.
-- Let the explicit origin header set the edge TTL. Do not add a catch-all edge TTL.
+- Match only that one hostname and anonymous `GET` and `HEAD` requests.
+- Exclude an `Authorization` header and cookies named `__session` or starting with `__session_`. Do not exclude every cookie.
+- Exclude `_rsc`, `RSC: 1`, `Accept: text/x-component`, browser prefetch headers, and `Accept: text/markdown` before cache lookup.
+- Set matching requests to `Eligible for cache`.
+- Use the explicit origin cache header and `bypass_by_default`. A response without `Cloudflare-CDN-Cache-Control` must bypass cache. Do not add a catch-all edge TTL.
 - Keep the default full-URL cache key.
 - Let the browser respect the origin browser-cache headers.
 - Set status codes `400-599` to no-store with `value: -1`. Do not use `0`; that value permits storage and revalidation.
 
-The rule expression must bypass excluded requests even if Next sets an ordinary cacheable `Cache-Control` header. Do not use header omission as the only bypass control.
+Do not add a route allowlist, API path list, dashboard exclusion list, or blanket cookie bypass to the Cloudflare rule. The origin owns the response cache policy. Every cacheable response on this storefront hostname, including HTML, public read APIs, machine documents, and the sitemap, uses the explicit Cloudflare header and `daylily-storefront-public-html` tag. The main catalog artifact endpoint uses `daylily-storefront-data` in its separate API zone. Unsafe, private, form, health, and personalized responses must omit the cacheable origin directive or send `no-store`. The edge credential, RSC, prefetch, Markdown, and status guards are defense in depth.
 
-Make only these API routes eligible for anonymous `GET` and `HEAD` caching: `/api/catalogs`, `/api/catalog/*`, and `/api/listings/*`. Store a response only when the origin sends an explicit `Cloudflare-CDN-Cache-Control` header. These API responses must use `Cache-Tag: daylily-storefront-data`. Keep the default full-URL key so filters, searches, and pagination remain separate.
-
-Apply the same explicit-header rule to these exact machine routes: `/sitemap.xml`, `/robots.txt`, `/openapi.json`, `/llms.txt`, `/.well-known/api-catalog`, `/.well-known/agent-skills/index.json`, `/.well-known/agent-skills/availability-inquiry/SKILL.md`, `/.well-known/agent-skills/catalog-navigation/SKILL.md`, `/.well-known/agent-skills/cultivar-reference/SKILL.md`, and `/.well-known/agent-skills/site-navigation/SKILL.md`. These responses must use `Cache-Tag: daylily-storefront-public-html`.
-
-Always bypass `/cart`, `/contact`, `/thanks`, `/api/forms`, `/api/health`, mutations, requests with cookies or authorization credentials, errors, personalized responses, RSC, prefetch, and `Accept: text/markdown`. Do not cache other `/api/` routes. Do not cache methods other than `GET` and `HEAD`. The default cache key does not vary by `Accept`, so the Markdown bypass must occur before cache lookup. The main catalog and storefront use separate cache tags.
+The default full-URL key keeps every filtered API, search, and pagination query separate. It does not vary by `Accept`, so the Markdown bypass must occur before cache lookup. The main catalog and storefront use separate cache tags.
 
 Before cutover, request one eligible page twice through Cloudflare. Verify `MISS` and then `HIT`, with a positive `Age` value. Verify that each excluded route bypasses cache and has no positive `Age` value.
 
@@ -115,14 +113,14 @@ Cloudflare references:
 
 ## Canonical-domain cutover
 
-Keep `rolling-oaks-daylilies.makon.dev` as the non-cutover target. The later public cutover can use `rollingoaksdaylilies.com` as the canonical host and redirect `www.rollingoaksdaylilies.com` to it.
+Keep `rolling-oaks-daylilies.makon.dev` as the selected non-cutover target. The approved-site definition already permits the later apex and `www` hostnames, but this does not route or activate them. The later public cutover can select `rollingoaksdaylilies.com` as the canonical host and redirect `www.rollingoaksdaylilies.com` to it.
 
 Use explicit hostname routes. One existing named Cloudflare Tunnel can route both the catalog and storefront hostnames to the shared Caddy origin. Each public hostname still needs its own DNS route to the tunnel. Keep the storefront Caddy matcher and Docker service separate from the catalog route.
 
 For the cutover:
 
 1. Add the apex and `www` DNS routes to the existing tunnel in the storefront domain zone.
-2. Add the apex to this Caddy host matcher and add a `www` redirect to the apex.
+2. Set `STOREFRONT_HOSTNAME=rollingoaksdaylilies.com`, validate the approved-site triple, add the apex to this Caddy host matcher, and add a `www` redirect to the apex.
 3. Validate the Cloudflare ingress order and final catch-all rule.
 4. Validate the Caddy configuration before reload.
 5. Confirm `/api/health` and the storefront smoke tests on the non-cutover host.

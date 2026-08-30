@@ -15,6 +15,7 @@ import path from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { aliasVercelPreview } from "./alias-vercel-preview.mjs";
 import { classifyChangedFiles } from "./affected-apps.mjs";
 
 const scriptPath = fileURLToPath(
@@ -22,6 +23,9 @@ const scriptPath = fileURLToPath(
 );
 const provenanceScriptPath = fileURLToPath(
   new URL("./preview-candidate-provenance.mjs", import.meta.url),
+);
+const vercelOriginScriptPath = fileURLToPath(
+  new URL("./vercel-preview-origin.mjs", import.meta.url),
 );
 const repositoryRoot = path.resolve(path.dirname(scriptPath), "../..");
 
@@ -183,6 +187,14 @@ function runProvenance(cwd, head, ref, outputPath) {
   );
 }
 
+function runVercelOrigin(environment, outputPath) {
+  return spawnSync(process.execPath, [vercelOriginScriptPath], {
+    cwd: repositoryRoot,
+    encoding: "utf8",
+    env: { ...process.env, ...environment, GITHUB_OUTPUT: outputPath },
+  });
+}
+
 function realTurboEnvironment() {
   const turboBinary = path.join(repositoryRoot, "node_modules/.bin/turbo");
   return existsSync(turboBinary)
@@ -208,6 +220,14 @@ describe("affected app classification", () => {
       classifyChangedFiles([
         ".github/scripts/preview-candidate-provenance.mjs",
       ]),
+      { main: true, storefront: false },
+    );
+    assert.deepEqual(
+      classifyChangedFiles([".github/scripts/vercel-preview-origin.mjs"]),
+      { main: true, storefront: false },
+    );
+    assert.deepEqual(
+      classifyChangedFiles([".github/scripts/alias-vercel-preview.mjs"]),
       { main: true, storefront: false },
     );
   });
@@ -422,7 +442,7 @@ describe("affected app classification", () => {
       const trustedTurbo = path.join(trustedDirectory, "turbo");
       writeFileSync(
         trustedTurbo,
-        '#!/bin/sh\nprintf \'%s\\n\' \'{"data":{"affectedPackages":{"items":[{"name":"@daylily-catalog/storefront"}]}}}\'\n',
+        '#!/bin/sh\ntest "$CI" = "1"\ntest "$TURBO_DAEMON" = "false"\ntest "$TURBO_TELEMETRY_DISABLED" = "1"\nprintf \'%s\\n\' \'{"data":{"affectedPackages":{"items":[{"name":"@daylily-catalog/storefront"}]}}}\'\n',
       );
       chmodSync(trustedTurbo, 0o755);
 
@@ -476,6 +496,221 @@ describe("affected app classification", () => {
       assert.match(readFileSync(forkOutput, "utf8"), /trusted=false/);
     } finally {
       rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("accepts only one exact HTTPS Vercel preview origin", () => {
+    const temporaryDirectory = mkdtempSync(
+      path.join(tmpdir(), "vercel-preview-origin-"),
+    );
+    const candidateSha = "0123456789abcdef0123456789abcdef01234567";
+    const validOutput = path.join(temporaryDirectory, "valid-output.txt");
+    const fallbackOutput = path.join(temporaryDirectory, "fallback-output.txt");
+    try {
+      const valid = runVercelOrigin(
+        {
+          DEPLOYMENT_SHA: candidateSha,
+          DEPLOYMENT_ENVIRONMENT_URL:
+            "https://daylily-catalog-git-feature-makoncline.vercel.app/",
+        },
+        validOutput,
+      );
+      assert.equal(valid.status, 0, valid.stderr);
+      assert.deepEqual(JSON.parse(valid.stdout), {
+        origin: "https://daylily-catalog-git-feature-makoncline.vercel.app",
+        sha: candidateSha,
+      });
+      assert.equal(
+        readFileSync(validOutput, "utf8"),
+        `origin=https://daylily-catalog-git-feature-makoncline.vercel.app\nsha=${candidateSha}\n`,
+      );
+
+      const fallback = runVercelOrigin(
+        {
+          DEPLOYMENT_SHA: candidateSha,
+          DEPLOYMENT_ENVIRONMENT_URL: "",
+          DEPLOYMENT_TARGET_URL:
+            "https://daylily-catalog-git-fallback-makoncline.vercel.app",
+        },
+        fallbackOutput,
+      );
+      assert.equal(fallback.status, 0, fallback.stderr);
+      assert.equal(
+        readFileSync(fallbackOutput, "utf8"),
+        `origin=https://daylily-catalog-git-fallback-makoncline.vercel.app\nsha=${candidateSha}\n`,
+      );
+
+      for (const invalidUrl of [
+        "http://preview.vercel.app",
+        "https://vercel.app",
+        "https://nested.preview.vercel.app",
+        "https://preview.vercel.app.evil.example",
+        "https://preview.vercel.app@evil.example",
+        "https://preview.vercel.app/path",
+        "https://preview.vercel.app?command=run",
+        "https://preview.vercel.app:443",
+        "https://preview.vercel.app/;touch-owned",
+        `https://${"a".repeat(64)}.vercel.app`,
+        " https://preview.vercel.app",
+      ]) {
+        const invalidOutput = path.join(
+          temporaryDirectory,
+          `invalid-output-${invalidUrl.length}.txt`,
+        );
+        const invalid = runVercelOrigin(
+          {
+            DEPLOYMENT_SHA: candidateSha,
+            DEPLOYMENT_ENVIRONMENT_URL: invalidUrl,
+            DEPLOYMENT_TARGET_URL: "https://valid-fallback.vercel.app",
+          },
+          invalidOutput,
+        );
+        assert.equal(invalid.status, 1, invalidUrl);
+        assert.equal(invalid.stdout, "", invalidUrl);
+        assert.match(invalid.stderr, /exact HTTPS Vercel origin/u);
+        assert.equal(existsSync(invalidOutput), false);
+      }
+
+      const invalidSha = runVercelOrigin(
+        {
+          DEPLOYMENT_SHA: "abc123",
+          DEPLOYMENT_ENVIRONMENT_URL: "https://preview.vercel.app",
+        },
+        path.join(temporaryDirectory, "invalid-sha-output.txt"),
+      );
+      assert.equal(invalidSha.status, 1);
+      assert.match(invalidSha.stderr, /full commit SHA/u);
+    } finally {
+      rmSync(temporaryDirectory, { recursive: true, force: true });
+    }
+  });
+
+  it("inspects the exact Vercel preview before it assigns an alias", async () => {
+    const temporaryDirectory = mkdtempSync(
+      path.join(tmpdir(), "vercel-preview-alias-"),
+    );
+    const outputPath = path.join(temporaryDirectory, "github-output.txt");
+    const candidateSha = "0123456789abcdef0123456789abcdef01234567";
+    const environment = {
+      CANDIDATE_SHA: candidateSha,
+      MAIN_VERCEL_PROJECT_ID: "prj_main",
+      PREVIEW_ORIGIN: "https://daylily-catalog-abc.vercel.app",
+      VERCEL_ORG_ID: "team_owner",
+      VERCEL_TOKEN: "test-token",
+    };
+    const deployment = {
+      id: "dpl_verified",
+      meta: { githubCommitSha: candidateSha },
+      ownerId: "team_owner",
+      projectId: "prj_main",
+      readyState: "READY",
+      target: null,
+      url: "daylily-catalog-abc.vercel.app",
+    };
+
+    try {
+      const requests = [];
+      const result = await aliasVercelPreview({
+        environment,
+        fetchImplementation: async (url, options) => {
+          requests.push({ options, url });
+          if (requests.length === 1) {
+            return new Response(JSON.stringify(deployment), { status: 200 });
+          }
+          return new Response(
+            JSON.stringify({
+              alias: "01234567.deploy-preview.daylilycatalog.com",
+              uid: "alias_verified",
+            }),
+            { status: 200 },
+          );
+        },
+        outputPath,
+      });
+
+      assert.deepEqual(result, {
+        alias: "01234567.deploy-preview.daylilycatalog.com",
+        deploymentId: "dpl_verified",
+      });
+      assert.equal(requests.length, 2);
+      assert.equal(
+        requests[0].url,
+        "https://api.vercel.com/v13/deployments/daylily-catalog-abc.vercel.app?teamId=team_owner&withGitRepoInfo=true",
+      );
+      assert.equal(requests[0].options.method, "GET");
+      assert.equal(
+        requests[0].options.headers.Authorization,
+        "Bearer test-token",
+      );
+      assert.equal(
+        requests[1].url,
+        "https://api.vercel.com/v2/deployments/dpl_verified/aliases?teamId=team_owner",
+      );
+      assert.equal(requests[1].options.method, "POST");
+      assert.deepEqual(JSON.parse(requests[1].options.body), {
+        alias: "01234567.deploy-preview.daylilycatalog.com",
+        redirect: null,
+      });
+      assert.equal(readFileSync(outputPath, "utf8"), "preview_hash=01234567\n");
+
+      for (const [field, value] of [
+        ["projectId", "prj_other"],
+        ["ownerId", "team_other"],
+        ["url", "other-preview.vercel.app"],
+        ["meta", { githubCommitSha: "f".repeat(40) }],
+        ["target", "production"],
+        ["readyState", "BUILDING"],
+      ]) {
+        let requestCount = 0;
+        await assert.rejects(
+          aliasVercelPreview({
+            environment,
+            fetchImplementation: async () => {
+              requestCount += 1;
+              return new Response(
+                JSON.stringify({ ...deployment, [field]: value }),
+                { status: 200 },
+              );
+            },
+          }),
+          /does not match/u,
+        );
+        assert.equal(requestCount, 1, field);
+      }
+
+      let missingVariableRequestCount = 0;
+      await assert.rejects(
+        aliasVercelPreview({
+          environment: { ...environment, MAIN_VERCEL_PROJECT_ID: "" },
+          fetchImplementation: async () => {
+            missingVariableRequestCount += 1;
+            return new Response();
+          },
+        }),
+        /MAIN_VERCEL_PROJECT_ID is required/u,
+      );
+      assert.equal(missingVariableRequestCount, 0);
+
+      for (const invalidOrigin of [
+        "http://preview.vercel.app",
+        "https://nested.preview.vercel.app",
+        "https://preview.vercel.app/path",
+      ]) {
+        let invalidOriginRequestCount = 0;
+        await assert.rejects(
+          aliasVercelPreview({
+            environment: { ...environment, PREVIEW_ORIGIN: invalidOrigin },
+            fetchImplementation: async () => {
+              invalidOriginRequestCount += 1;
+              return new Response();
+            },
+          }),
+          /exact HTTPS Vercel origin/u,
+        );
+        assert.equal(invalidOriginRequestCount, 0);
+      }
+    } finally {
+      rmSync(temporaryDirectory, { recursive: true, force: true });
     }
   });
 
@@ -564,6 +799,13 @@ describe("affected app classification", () => {
       ),
       "utf8",
     );
+    const artifactRefreshEnvironment = readFileSync(
+      path.join(
+        repositoryRoot,
+        "apps/main/deploy/vps/storefront-artifact-refresh.env.example",
+      ),
+      "utf8",
+    );
     const artifactRefreshTimer = readFileSync(
       path.join(
         repositoryRoot,
@@ -639,6 +881,7 @@ describe("affected app classification", () => {
       /ref: \$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/,
     );
     assert.match(previewAliasWorkflow, /needs\.scope\.outputs\.main == 'true'/);
+    assert.doesNotMatch(previewAliasWorkflow, /workflow_dispatch/);
     assert.match(previewE2eWorkflow, /needs\.scope\.outputs\.main == 'true'/);
 
     for (const workflow of [previewAliasWorkflow, previewE2eWorkflow]) {
@@ -665,6 +908,58 @@ describe("affected app classification", () => {
       .split("\n  comment:")[0];
     const commentJob = previewAliasWorkflow.split("\n  comment:")[1];
     assert.doesNotMatch(aliasJob, /issues: write|pull-requests: write/);
+    assert.match(
+      previewAliasWorkflow,
+      /preview-candidate-provenance\.mjs.*--head "\$HEAD_SHA" --ref "\$CANDIDATE_REF"/,
+    );
+    assert.match(
+      previewAliasWorkflow,
+      /node "\$GITHUB_WORKSPACE\/trusted\/\.github\/scripts\/vercel-preview-origin\.mjs"/,
+    );
+    assert.match(
+      previewAliasWorkflow,
+      /needs\.scope\.outputs\.trusted_candidate == 'true'/,
+    );
+    assert.match(
+      previewAliasWorkflow,
+      /github\.event\.deployment_status\.creator\.login == 'vercel\[bot\]'/,
+    );
+    assert.match(
+      previewAliasWorkflow,
+      /github\.event\.deployment_status\.state == 'success'/,
+    );
+    assert.match(
+      previewAliasWorkflow,
+      /needs\.scope\.outputs\.preview_origin != ''/,
+    );
+    assert.match(
+      previewAliasWorkflow,
+      /needs\.scope\.outputs\.candidate_sha == github\.event\.deployment\.sha/,
+    );
+    assert.match(
+      previewAliasWorkflow,
+      /github\.event\.deployment\.environment == 'Preview'/,
+    );
+    assert.doesNotMatch(previewAliasWorkflow, /contains\([^\n]*vercel\.app/u);
+    assert.doesNotMatch(
+      aliasJob,
+      /\$\{\{ github\.event\.(?:deployment_status\.(?:environment_url|target_url)|inputs\.url)/u,
+    );
+    assert.match(
+      aliasJob,
+      /PREVIEW_ORIGIN: \$\{\{ needs\.scope\.outputs\.preview_origin \}\}/,
+    );
+    assert.match(aliasJob, /MAIN_VERCEL_PROJECT_ID: \$\{\{ vars\./);
+    assert.match(aliasJob, /VERCEL_ORG_ID: \$\{\{ vars\./);
+    assert.match(aliasJob, /VERCEL_TOKEN: \$\{\{ secrets\./);
+    assert.match(aliasJob, /node \.github\/scripts\/alias-vercel-preview\.mjs/);
+    assert.match(
+      aliasJob,
+      /ref: \$\{\{ github\.event\.repository\.default_branch \}\}/,
+    );
+    assert.match(aliasJob, /persist-credentials: false/);
+    assert.doesNotMatch(aliasJob, /run:\s*[|>]/u);
+    assert.doesNotMatch(aliasJob, /\bnpx\b/);
     assert.match(commentJob, /issues: write/);
     assert.match(commentJob, /pull-requests: write/);
     assert.doesNotMatch(commentJob, /actions\/checkout|\n\s+run:/);
@@ -700,15 +995,48 @@ describe("affected app classification", () => {
     assert.match(storefrontCaddy, /header_up X-Forwarded-Proto https/);
     assert.match(storefrontCaddy, /header_up X-Forwarded-Host \{host\}/);
     assert.match(storefrontCaddy, /header_up X-Forwarded-Port 443/);
-    assert.match(artifactRefreshService, /PUBLIC_STOREFRONT_SELLER_IDS=3/);
+    assert.match(
+      artifactRefreshService,
+      /EnvironmentFile=\/srv\/stacks\/daylilycatalog\/\.env/,
+    );
+    assert.doesNotMatch(
+      artifactRefreshService,
+      /Environment=PUBLIC_STOREFRONT_SELLER_IDS/,
+    );
     assert.match(
       artifactRefreshService,
       /STOREFRONT_DATA_CACHE_TAG=daylily-storefront-data/,
     );
     assert.match(
-      artifactRefreshService,
-      /STOREFRONT_HTML_CACHE_TAGS=daylily-storefront-public-html/,
+      artifactRefreshEnvironment,
+      /^STOREFRONT_API_CLOUDFLARE_ZONE_ID=/mu,
     );
+    assert.match(
+      artifactRefreshEnvironment,
+      /^STOREFRONT_API_CLOUDFLARE_CACHE_PURGE_TOKEN=/mu,
+    );
+    assert.doesNotMatch(
+      artifactRefreshEnvironment,
+      /^(?:CLOUDFLARE_ZONE_ID|CLOUDFLARE_CACHE_PURGE_TOKEN)=/mu,
+    );
+    const purgeTargetsLine = artifactRefreshEnvironment
+      .split("\n")
+      .find((line) =>
+        line.startsWith("STOREFRONT_SITE_CLOUDFLARE_PURGE_TARGETS_JSON="),
+      );
+    assert.ok(purgeTargetsLine);
+    const purgeTargetsValue = purgeTargetsLine.slice(
+      purgeTargetsLine.indexOf("=") + 1,
+    );
+    const purgeTargets = JSON.parse(purgeTargetsValue.slice(1, -1));
+    assert.deepEqual(purgeTargets, {
+      "rolling-oaks": {
+        hostname: "rolling-oaks-daylilies.makon.dev",
+        zoneId: "",
+        cachePurgeToken: "",
+        cacheTag: "daylily-storefront-public-html",
+      },
+    });
     assert.match(artifactRefreshService, /Restart=on-failure/);
     assert.match(artifactRefreshTimer, /OnCalendar=daily/);
     assert.match(artifactRefreshTimer, /RandomizedDelaySec=2h/);
@@ -720,26 +1048,56 @@ describe("affected app classification", () => {
     assert.match(deploymentGuide, /value: -1/);
     assert.match(deploymentGuide, /Accept: text\/markdown/);
     assert.match(deploymentGuide, /atomic rename/);
+    assert.match(
+      deploymentGuide,
+      /\/srv\/stacks\/daylilycatalog\/data\/storefronts/,
+    );
+    assert.match(deploymentGuide, /\/data\/storefronts/);
     assert.match(deploymentGuide, /every 24 hours/);
     assert.match(deploymentGuide, /initial allowlist contains only `3`/);
+    assert.match(
+      deploymentGuide,
+      /main stack environment is the only source for `PUBLIC_STOREFRONT_SELLER_IDS`/,
+    );
     assert.match(deploymentGuide, /one isolated service and container/);
     assert.match(deploymentGuide, /Do not add a runtime host registry/);
     assert.match(deploymentGuide, /mismatch must stop startup/);
     assert.match(
       deploymentGuide,
-      /purge `daylily-storefront-data`[\s\S]*then purge the affected `daylily-storefront-public-html` tags/,
+      /purge `daylily-storefront-data` in the API zone[\s\S]*Only after that succeeds can it purge `daylily-storefront-public-html` in each affected site's own zone/,
     );
     assert.match(deploymentGuide, /more than 26 hours old/);
     assert.match(deploymentGuide, /PUBLIC_STOREFRONT_SELLER_IDS/);
     assert.match(deploymentGuide, /It is separate from each site stack's/);
-    assert.match(deploymentGuide, /\/api\/catalogs/);
-    assert.match(deploymentGuide, /\/api\/catalog\/\*/);
-    assert.match(deploymentGuide, /\/api\/listings\/\*/);
-    assert.match(deploymentGuide, /\/api\/forms/);
-    assert.match(deploymentGuide, /\/api\/health/);
-    assert.match(deploymentGuide, /\.well-known\/api-catalog/);
-    assert.match(deploymentGuide, /\.well-known\/agent-skills\/index\.json/);
-    assert.doesNotMatch(deploymentGuide, /Do not cache `\/api\/\*\*`/);
+    assert.match(deploymentGuide, /bypass_by_default/);
+    assert.match(
+      deploymentGuide,
+      /exact hostname selected by `STOREFRONT_HOSTNAME`/,
+    );
+    assert.match(deploymentGuide, /anonymous `GET` and `HEAD`/);
+    assert.match(deploymentGuide, /Authorization/);
+    assert.match(deploymentGuide, /__session/);
+    assert.match(deploymentGuide, /__session_/);
+    assert.match(deploymentGuide, /do not exclude every cookie/);
+    assert.match(deploymentGuide, /_rsc/);
+    assert.match(deploymentGuide, /text\/x-component/);
+    assert.match(deploymentGuide, /prefetch/);
+    assert.match(deploymentGuide, /text\/markdown/);
+    assert.match(deploymentGuide, /default full-URL cache key/);
+    assert.match(deploymentGuide, /Do not add a route allowlist/);
+    assert.doesNotMatch(deploymentGuide, /Make only these API routes eligible/);
+    assert.match(
+      deploymentGuide,
+      /Every cacheable response on the storefront hostname,[\s\S]*uses the explicit header and `daylily-storefront-public-html` tag/,
+    );
+    assert.match(
+      deploymentGuide,
+      /main catalog artifact endpoint uses `daylily-storefront-data` in the separate API zone/,
+    );
+    assert.match(deploymentGuide, /rolling-oaks-daylilies\.makon\.dev/);
+    assert.match(deploymentGuide, /rollingoaksdaylilies\.com/);
+    assert.match(deploymentGuide, /www\.rollingoaksdaylilies\.com/);
+    assert.match(deploymentGuide, /select exactly one allowed triple/);
     assert.doesNotMatch(storefrontEnvironment, /STOREFRONT_INQUIRY_URL/);
     assert.match(storefrontEnvironment, /STOREFRONT_INQUIRY_TOKEN=/);
     assert.match(

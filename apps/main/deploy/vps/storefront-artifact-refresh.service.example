@@ -8,9 +8,8 @@ StartLimitBurst=4
 
 [Service]
 Type=oneshot
-Environment=PUBLIC_STOREFRONT_SELLER_IDS=3
 Environment=STOREFRONT_DATA_CACHE_TAG=daylily-storefront-data
-Environment=STOREFRONT_HTML_CACHE_TAGS=daylily-storefront-public-html
+EnvironmentFile=/srv/stacks/daylilycatalog/.env
 EnvironmentFile=/srv/stacks/daylilycatalog/storefront-artifact-refresh.env
 ExecStart=/srv/stacks/daylilycatalog/bin/storefront-artifact-refresh
 Restart=on-failure
