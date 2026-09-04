@@ -1,18 +1,81 @@
 // @vitest-environment node
 
 import { execFile, execFileSync } from "node:child_process";
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { PrismaLibSql } from "@prisma/adapter-libsql";
+import { PrismaClient } from "@prisma/client";
+
+const candidate = vi.hoisted(() => ({
+  errors: [] as unknown[],
+  env: {
+    SEARCH_INDEX_CANDIDATE_TOKEN:
+      "candidate-test-token-at-least-32-characters" as string | undefined,
+    PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS: "0",
+  },
+  sync: vi.fn(),
+  ensureServing: vi.fn(() => {
+    throw new Error("Candidate touched serving lifecycle");
+  }),
+}));
+vi.mock("server-only", () => ({}));
+vi.mock("@/env", () => ({ env: candidate.env }));
+vi.mock("@/server/db", () => ({ syncEmbeddedReplica: candidate.sync }));
+vi.mock("@/lib/error-utils", () => ({
+  reportError: ({ error }: { error: unknown }) => candidate.errors.push(error),
+}));
+vi.mock("@/lib/utils/getBaseUrl", () => ({
+  getCanonicalBaseUrl: () => "https://example.test",
+}));
+vi.mock("@/server/search/public-search-index", () => ({
+  ensurePublicSearchIndex: candidate.ensureServing,
+  getPublicSearchIndexPath: () => {
+    throw new Error("Candidate selected serving file");
+  },
+  isPublicSearchIndexUsable: () => true,
+  PublicSearchIndexUnavailableError: class extends Error {},
+}));
+
+import { GET, POST } from "@/app/api/internal/search-candidate/route";
 
 const execFileAsync = promisify(execFile);
 const buildScriptPath = path.join(
   process.cwd(),
   "scripts/build-public-search-index.mjs",
 );
+const appRoot = process.cwd();
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllEnvs();
+  candidate.sync.mockReset();
+  candidate.errors.length = 0;
+  candidate.ensureServing.mockClear();
+  candidate.env.SEARCH_INDEX_CANDIDATE_TOKEN =
+    "candidate-test-token-at-least-32-characters";
+  candidate.env.PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS = "0";
+});
+
+function candidateRequest(method: string, query = "") {
+  return new Request(`http://localhost/api/internal/search-candidate${query}`, {
+    method,
+    headers: {
+      authorization: `Bearer ${candidate.env.SEARCH_INDEX_CANDIDATE_TOKEN}`,
+    },
+  });
+}
 
 async function runBuildScript(args: string[], env: Partial<NodeJS.ProcessEnv>) {
   try {
@@ -157,6 +220,170 @@ function createFailingSourceCheckSqlite(binDirectory: string) {
   );
   chmodSync(wrapperPath, 0o755);
 }
+
+describe("candidate search index", () => {
+  it("requires its own token and paused old refreshes before any build", async () => {
+    for (const handler of [GET, POST]) {
+      expect(
+        (
+          await handler(
+            new Request("http://localhost/api/internal/search-candidate"),
+          )
+        ).status,
+      ).toBe(401);
+      candidate.env.SEARCH_INDEX_CANDIDATE_TOKEN = undefined;
+      expect((await handler(candidateRequest("GET"))).status).toBe(404);
+      candidate.env.SEARCH_INDEX_CANDIDATE_TOKEN =
+        "candidate-test-token-at-least-32-characters";
+    }
+    vi.stubEnv("VERCEL", "1");
+    expect((await POST(candidateRequest("POST"))).status).toBe(404);
+    vi.stubEnv("VERCEL", "");
+    vi.stubEnv("NODE_ENV", "production");
+    candidate.env.PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS = "3600";
+    expect((await POST(candidateRequest("POST"))).status).toBe(500);
+    expect(candidate.sync).not.toHaveBeenCalled();
+    expect(candidate.ensureServing).not.toHaveBeenCalled();
+  });
+
+  it("builds bounded replica pages, queries the candidate, and preserves both files on failure", async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), "search-candidate-"));
+    const sourcePath = path.join(directory, "source.sqlite");
+    const servingPath = path.join(directory, "serving.sqlite");
+    const targetPath = path.join(
+      directory,
+      ".tmp/search/public-search-candidate.sqlite",
+    );
+    let source: PrismaClient | undefined;
+    try {
+      createAuthoritativeFlowerShowSource(sourcePath);
+      const fixture = new DatabaseSync(sourcePath);
+      fixture.exec(`
+        WITH RECURSIVE n(value) AS (SELECT 1 UNION ALL SELECT value + 1 FROM n WHERE value < 1001)
+        INSERT INTO V2AhsCultivar(id, post_title, updatedAt)
+        SELECT 'page-' || printf('%04d', value), 'Page ' || value, '2026-07-16' FROM n;
+        INSERT INTO CultivarReference(id, v2AhsCultivarId, normalizedName, updatedAt)
+        SELECT id, id, lower(post_title), updatedAt FROM V2AhsCultivar WHERE id LIKE 'page-%';
+        INSERT INTO "User" VALUES ('paid', 'customer'), ('unpaid', NULL);
+        INSERT INTO KeyValue VALUES ('stripe:customer:customer', '{"status":"active"}');
+        INSERT INTO Listing(id, cultivarReferenceId, userId, title, price, updatedAt, status)
+        VALUES ('public', 'aerial-art', 'paid', 'Public Aerial Art', 25, '2026-07-16', NULL),
+               ('hidden', 'aerial-art', 'paid', 'Hidden', 50, '2026-07-16', 'HIDDEN'),
+               ('unpaid', 'aerial-art', 'unpaid', 'Unpaid', 20, '2026-07-16', NULL);
+        UPDATE V2AhsCultivar SET awards_json = '[{"name":"Stout"}]' WHERE id = '102174';
+      `);
+      fixture.close();
+      // The old builder runs only on this plain test fixture, never on a managed replica.
+      await execFileAsync(process.execPath, [
+        buildScriptPath,
+        "--source",
+        sourcePath,
+        "--target",
+        servingPath,
+      ]);
+      const originalServing = readFileSync(servingPath);
+      symlinkSync(
+        path.join(appRoot, "scripts"),
+        path.join(directory, "scripts"),
+      );
+      vi.spyOn(process, "cwd").mockReturnValue(directory);
+      source = new PrismaClient({
+        adapter: new PrismaLibSql({ url: `file:${sourcePath}` }),
+      });
+      const querySource = source.$queryRawUnsafe.bind(source);
+      const queries = vi
+        .spyOn(source, "$queryRawUnsafe")
+        .mockImplementation(querySource);
+      candidate.sync.mockResolvedValue(source);
+
+      expect((await GET(candidateRequest("GET"))).status).toBe(404);
+      expect(existsSync(targetPath)).toBe(false);
+      const [first, second] = await Promise.all([
+        POST(candidateRequest("POST")),
+        POST(candidateRequest("POST")),
+      ]);
+      expect(candidate.errors).toEqual([]);
+      expect(first.status).toBe(200);
+      expect(await first.json()).toMatchObject({
+        cultivars: 1003,
+        linkedListings: 1,
+        quickCheck: "ok",
+      });
+      expect(second.status).toBe(200);
+      expect(candidate.sync).toHaveBeenCalledOnce();
+      expect(queries.mock.calls.length).toBeGreaterThan(3);
+      expect(queries.mock.calls.every(([, , limit]) => limit === 1000)).toBe(
+        true,
+      );
+      expect(readFileSync(servingPath)).toEqual(originalServing);
+      expect(existsSync(targetPath + ".next")).toBe(false);
+      const check = await GET(candidateRequest("GET", "?q=aerial"));
+      expect(check.status).toBe(200);
+      expect(await check.json()).toMatchObject({
+        index: { exists: true, cultivars: 1003, linkedListings: 1 },
+        results: [
+          { name: "Aerial Art", traits: { flowerShow: "Unusual Form" } },
+        ],
+      });
+      const awardCheck = await GET(candidateRequest("GET", "?award=stout"));
+      expect(await awardCheck.json()).toMatchObject({
+        results: [{ name: "Aerial Art" }],
+      });
+      expect(
+        (await GET(candidateRequest("GET", "?path=/data/turso-replica.db")))
+          .status,
+      ).toBe(400);
+      expect(candidate.sync).toHaveBeenCalledOnce();
+      expect(candidate.ensureServing).not.toHaveBeenCalled();
+
+      // Compare complete projected rows and facets, excluding insertion-order IDs.
+      const oldIndex = new DatabaseSync(servingPath, { readOnly: true });
+      const newIndex = new DatabaseSync(targetPath, { readOnly: true });
+      try {
+        for (const table of [
+          "CultivarSearchIndex",
+          "CultivarListingSearchIndex",
+          "CultivarSearchFacetValue",
+        ]) {
+          const rows = (db: DatabaseSync) =>
+            db
+              .prepare(`SELECT * FROM ${table} ORDER BY 2`)
+              .all()
+              .map(({ id: _id, ...row }) => row);
+          expect(rows(newIndex)).toEqual(rows(oldIndex));
+        }
+      } finally {
+        oldIndex.close();
+        newIndex.close();
+      }
+
+      const originalCandidate = readFileSync(targetPath);
+      candidate.sync.mockRejectedValueOnce(new Error("sync failed"));
+      expect((await POST(candidateRequest("POST"))).status).toBe(500);
+      expect(readFileSync(targetPath)).toEqual(originalCandidate);
+      queries.mockImplementation((sql, ...args: unknown[]) => {
+        if (String(sql).includes("WITH listing_ids"))
+          throw new Error("source stream failed");
+        return querySource(sql, ...args);
+      });
+      expect((await POST(candidateRequest("POST"))).status).toBe(500);
+      expect(readFileSync(targetPath)).toEqual(originalCandidate);
+      expect(readFileSync(servingPath)).toEqual(originalServing);
+      expect(existsSync(targetPath + ".next")).toBe(false);
+      queries.mockImplementation(querySource);
+      expect((await POST(candidateRequest("POST"))).status).toBe(200);
+      expect(readFileSync(targetPath + ".previous")).toEqual(originalCandidate);
+      expect(readFileSync(servingPath)).toEqual(originalServing);
+      const goodCandidate = readFileSync(targetPath);
+      await source.$executeRawUnsafe("DELETE FROM CultivarReference");
+      expect((await POST(candidateRequest("POST"))).status).toBe(500);
+      expect(readFileSync(targetPath)).toEqual(goodCandidate);
+    } finally {
+      await source?.$disconnect();
+      rmSync(directory, { recursive: true, force: true });
+    }
+  }, 60_000);
+});
 
 describe("build-public-search-index source selection", () => {
   it("requires an explicit source in production", async () => {

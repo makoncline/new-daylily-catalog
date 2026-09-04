@@ -122,6 +122,16 @@ describe("Docker build cache and observability boundaries", () => {
     expect(dockerfile).toContain(
       "sync-public-search-source-replica.mjs ./apps/main/scripts/sync-public-search-source-replica.mjs",
     );
+    for (const relativePath of [
+      "scripts/public-search-index-sql.mjs",
+      "scripts/build-public-search-index-target.mjs",
+      "src/server/search/build-public-search-index.js",
+      "src/server/target-worker-stream.js",
+    ]) {
+      expect(dockerfile).toContain(
+        `/app/apps/main/${relativePath} ./apps/main/${relativePath}`,
+      );
+    }
     expect(dockerfile).not.toContain(
       "/runtime/node_modules ./apps/main/node_modules",
     );

@@ -603,14 +603,20 @@ async function getParentageTrees(args: {
   return parentageByCultivar;
 }
 
-export async function searchCultivars(args: CultivarSearchArgs) {
-  const searchIndexStatus = await ensurePublicSearchIndex();
-  if (!isPublicSearchIndexUsable(searchIndexStatus)) {
-    throw new PublicSearchIndexUnavailableError(searchIndexStatus);
+export async function searchCultivars(
+  args: CultivarSearchArgs,
+  indexPath?: string,
+) {
+  if (!indexPath) {
+    const searchIndexStatus = await ensurePublicSearchIndex();
+    if (!isPublicSearchIndexUsable(searchIndexStatus)) {
+      throw new PublicSearchIndexUnavailableError(searchIndexStatus);
+    }
+    indexPath = getPublicSearchIndexPath();
   }
 
   const client = createClient({
-    url: `file:${getPublicSearchIndexPath()}`,
+    url: `file:${indexPath}`,
   });
   const whereSql: string[] = [];
   const params: InValue[] = [];
