@@ -84,3 +84,37 @@ data or its replica to simulate failure.
 
 PR 2 adds the reader switch and schedule only after this manual path passes.
 PR 3 removes the old lifecycle and temporary rollout controls after acceptance.
+
+## Local production-container proof (2026-09-04)
+
+The production Dockerfile built and ran on local ARM64 with Node 20 and Next
+16.3. The runtime used a disposable libSQL server with the full sanitized
+dataset, TLS, and one app-owned embedded replica. No production credentials
+or production Turso connection were used. Unlike the auth-focused prod-like
+runbook, this test kept the embedded replica enabled.
+
+- The candidate contained 104,486 cultivars and 4,840 linked listings, with
+  schema 13 and `quick_check=ok`.
+- Exact/prefix, hybridizer, and award results matched the old builder's
+  full-size artifact. A source edit appeared after explicit sync, before the
+  normal ten-minute background sync interval.
+- With two CPUs and the VPS Compose limit of 1,400 MiB, a warm rebuild took
+  24.7 seconds. All 41 concurrent public-search checks returned unchanged
+  results: p95 290 ms, maximum 911 ms. Under concurrent local test load, a
+  rebuild took 52 seconds and p95 reached 731 ms.
+- The first replica download caused one 6.8-second public request. Rebuilds
+  are not latency-free; run the manual trial during low traffic and measure
+  the actual VPS before adding a schedule.
+- Peak container memory across the runs was about 840 MiB, including file
+  cache; no OOM events occurred. After restart, the measured peak was about
+  539 MiB.
+- Stopping the disposable source returned a bounded 500. Hashes proved that
+  candidate, `.previous`, and serving index were unchanged and still readable.
+- Killing the container during `.next` construction preserved those files.
+  Restart and manual retry completed successfully.
+
+All 772 Vitest tests passed with two workers, without timeout changes. The
+unrelated image-worker CI failure passed on an unchanged rerun. Final Codex
+review was clean. These results support merging the disabled-by-default manual
+trial; they do not approve switching public search to the candidate or replace
+the VPS trial required before PR 2.
