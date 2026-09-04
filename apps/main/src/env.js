@@ -24,6 +24,7 @@ export const env = createEnv({
     TURSO_EMBEDDED_REPLICA_URL: z.string().optional(),
     TURSO_EMBEDDED_REPLICA_SYNC_INTERVAL_SECONDS: z.string().optional(),
     PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS: z.string().optional(),
+    SEARCH_INDEX_CANDIDATE_TOKEN: z.string().min(32).optional(),
     VERCEL_AUTOMATION_BYPASS_SECRET: z.string().optional(),
     CLERK_SECRET_KEY: z.string().optional(),
     CLERK_WEBHOOK_SECRET: z.string().optional(),
@@ -56,6 +57,7 @@ export const env = createEnv({
       process.env.TURSO_EMBEDDED_REPLICA_SYNC_INTERVAL_SECONDS,
     PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS:
       process.env.PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS,
+    SEARCH_INDEX_CANDIDATE_TOKEN: process.env.SEARCH_INDEX_CANDIDATE_TOKEN,
     VERCEL_AUTOMATION_BYPASS_SECRET:
       process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
     CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY,
