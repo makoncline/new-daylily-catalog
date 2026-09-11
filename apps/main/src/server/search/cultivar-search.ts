@@ -8,7 +8,6 @@ import {
 } from "@/server/search/public-parentage-index";
 import {
   ensurePublicSearchIndex,
-  getPublicSearchIndexPath,
   isPublicSearchIndexUsable,
   PublicSearchIndexUnavailableError,
 } from "@/server/search/public-search-index";
@@ -612,7 +611,7 @@ export async function searchCultivars(
     if (!isPublicSearchIndexUsable(searchIndexStatus)) {
       throw new PublicSearchIndexUnavailableError(searchIndexStatus);
     }
-    indexPath = getPublicSearchIndexPath();
+    indexPath = searchIndexStatus.path;
   }
 
   const client = createClient({
@@ -1038,7 +1037,7 @@ export async function searchCultivarFacetValues(args: {
   }
 
   const client = createClient({
-    url: `file:${getPublicSearchIndexPath()}`,
+    url: `file:${searchIndexStatus.path}`,
   });
   const query = args.query?.trim().toLowerCase() ?? "";
   const limit = Math.min(Math.max(Math.trunc(args.limit ?? 50), 1), 100);

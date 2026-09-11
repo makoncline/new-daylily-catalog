@@ -12,7 +12,6 @@ import {
 import { normalizeCultivarName } from "@/lib/utils/cultivar-utils";
 import {
   ensurePublicSearchIndex,
-  getPublicSearchIndexPath,
   isPublicSearchIndexUsable,
   PublicSearchIndexUnavailableError,
 } from "@/server/search/public-search-index";
@@ -314,7 +313,7 @@ export async function matchCultivarNames({
     ),
   ];
   const client = createClient({
-    url: `file:${getPublicSearchIndexPath()}`,
+    url: `file:${searchIndexStatus.path}`,
   });
 
   try {

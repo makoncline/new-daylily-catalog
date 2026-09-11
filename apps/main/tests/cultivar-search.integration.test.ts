@@ -11,8 +11,10 @@ const searchIndexState = vi.hoisted(() => ({ path: "" }));
 vi.mock("server-only", () => ({}));
 
 vi.mock("@/server/search/public-search-index", () => ({
-  ensurePublicSearchIndex: async () => ({ status: "fresh" }),
-  getPublicSearchIndexPath: () => searchIndexState.path,
+  ensurePublicSearchIndex: async () => ({
+    status: "fresh",
+    path: searchIndexState.path,
+  }),
   isPublicSearchIndexUsable: () => true,
   PublicSearchIndexUnavailableError: class PublicSearchIndexUnavailableError extends Error {},
 }));

@@ -107,6 +107,7 @@ describe("runtime config route", () => {
         catalogImporterDiscovery: false,
         imageModerationEnforced: false,
         publicCultivarSearch: false,
+        candidateSearchIndex: false,
       },
     });
     expect(response.headers.get("Cache-Control")).toBe("no-store");

@@ -1,8 +1,9 @@
 # Search candidate: manual production trial
 
-This is PR 1 of the search rollout. Public search, facets, importer matching,
-and parentage still use the old index. There is no candidate reader flag or
-schedule yet.
+The candidate is built separately from the old index. The default-off
+`candidateSearchIndex` runtime flag selects it for search, facets, importer
+matching, and future parentage builds. The optional VPS timer runs once daily.
+Deployment alone does not change the reader or install/enable the timer.
 
 The candidate is `/data/search/public-search-candidate.sqlite`. Its builder
 syncs the normal app replica, pages through the exact `replicaDb` singleton,
@@ -82,8 +83,8 @@ during a build. Verify failed-build preservation and a container restart.
 Use a controlled test source for failure injection; do not damage production
 data or its replica to simulate failure.
 
-PR 2 adds the reader switch and schedule only after this manual path passes.
-PR 3 removes the old lifecycle and temporary rollout controls after acceptance.
+The reader trial below follows acceptance of this manual path. PR 3 removes
+the old lifecycle and temporary rollout controls after reader acceptance.
 
 ## Local production-container proof (2026-09-04)
 
@@ -118,3 +119,109 @@ unrelated image-worker CI failure passed on an unchanged rerun. Final Codex
 review was clean. These results support merging the disabled-by-default manual
 trial; they do not approve switching public search to the candidate or replace
 the VPS trial required before PR 2.
+
+## Production manual trial (2026-09-04)
+
+The VPS agent reported two successful builds: 104,486 cultivars, 4,872 linked
+listings, schema 13, and `quick_check=ok`. All 54 origin probes returned HTTP
+200 with the baseline response hash. Exact/prefix, hybridizer and award checks
+matched all 25 baseline IDs in order. The serving file checksum did not change.
+
+Builds took about 44 and 39 seconds, with peak container memory of 731 and
+828 MiB. Host swap-out was about 97 and 41 MiB. First-build origin p95/max was
+1.162/2.981 seconds; second-build p95/max was 352/552 ms. There were no build-time
+5xx or OOM events. Configuration was restored after the trial. These results
+support an off-peak daily build, not request-triggered or frequent rebuilds.
+
+## Reader trial (PR 2)
+
+Activation and timer installation require owner approval. Keep the trial short:
+the old artifact is the rollback copy and does not refresh while paused.
+
+1. Confirm the deployed commit, a usable old index, host memory headroom, and
+   the absence of competing jobs. Capture representative origin responses.
+2. Set the old refresh interval to `0`, configure the dedicated token, and
+   recreate the app as described above. Leave the reader flag off.
+3. Build and validate a fresh candidate through the loopback POST/GET commands.
+   Compare exact/prefix searches, filters, facets, importer matches and full
+   responses with listing samples. Investigate differences due to source age.
+4. Enable the reader without restarting the app:
+
+   ```sh
+   cd /srv/stacks/daylilycatalog
+   docker compose exec -T app node apps/main/scripts/set-feature-flag.mjs candidateSearchIndex true
+   ```
+
+5. Repeat origin checks and browser checks for `/cultivars` and importer matching.
+   Confirm the effective flag in `/api/runtime-config` and validate the candidate
+   through GET. Let any initial parentage build finish before comparing full
+   responses; that separate background build can change null trees to results.
+   CDN-cached responses can predate the switch; use loopback for source proof.
+   Confirm parentage reads remain available. Existing parentage artifacts are
+   not rebuilt merely because this flag changes.
+6. Run one manual build while the candidate serves requests. Check continuous
+   availability, result correctness, memory/swap pressure and latency. A build
+   failure must leave the last validated candidate available.
+7. Only after these checks pass, install the two unit files from this deployed
+   revision's `apps/main/deploy/vps/` into `/etc/systemd/system/` as root-owned,
+   mode 0644 files. Config sync alone does not install or activate these units.
+
+   ```sh
+   sudo systemd-analyze verify /etc/systemd/system/daylily-search-candidate.service /etc/systemd/system/daylily-search-candidate.timer
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now daylily-search-candidate.timer
+   systemctl list-timers daylily-search-candidate.timer
+   ```
+
+The timer calls the same authenticated endpoint at 05:30 UTC daily, based on the
+VPS traffic audit. It does not replay missed runs after boot. Recheck competing
+jobs before activation. The token remains inside the app environment; the unit
+does not contain it. Keep old refreshes at `0` throughout the reader trial.
+
+Inspect each run with `journalctl -u daylily-search-candidate.service` and check
+candidate age. After 24 hours the candidate status is stale but remains usable;
+requests never build or sync it. A missing or incompatible candidate fails
+explicitly, without an automatic old-index fallback. The five-minute service
+timeout bounds the caller, not the in-app build; do not assume stopping the
+service cancels a build. Do not start repeated retries after a timeout.
+
+### Rollback
+
+Disable the timer first with `sudo systemctl disable --now daylily-search-candidate.timer`.
+Then use the same flag command with `candidateSearchIndex false`. This restores
+old-index reads without restarting the app. Confirm origin search, facets,
+importer matching and app health. An in-flight candidate build may finish, but
+cannot replace the old serving artifact.
+
+After the build settles, restore the original refresh interval and remove the
+trial token, then recreate the app and verify health. This resumes the legacy
+builder with its known source-replica design risk; it is not the final solution.
+Leave the candidate and `.previous` artifacts intact.
+
+Observe at least one scheduled build and an approved normal restart before
+accepting PR 2. Do not inject production failures. PR 3 removes the old builder,
+its second-replica lifecycle, and the temporary reader flag after acceptance.
+
+## Local reader proof (2026-09-11)
+
+All 775 tests passed. Typecheck, changed-code lint, and the production Docker
+build passed. The compiled app used the retained sanitized libSQL fixture and
+its normal embedded replica, limited to two CPUs and 1,400 MiB.
+
+- Six HTTP cases matched the baseline: exact/prefix text, hybridizer, award,
+  facets, and full search. A temporary name marker in the disposable candidate
+  appeared only with the flag on, proving reader selection. The marker was restored.
+- With the candidate serving requests, a rebuild completed in 20.4 seconds:
+  104,486 cultivars, 4,840 linked listings, schema 13, integrity OK. All 35
+  concurrent origin probes matched; p95 was 165 ms and maximum 275 ms.
+- The baseline checksum stayed unchanged, and the prior candidate was retained.
+  A missing candidate returned 503; switching the flag off restored baseline
+  reads without a restart. Restoring the candidate and restarting the local
+  container preserved the enabled flag and successful search.
+- The integration test also exercised real importer matches and a parentage
+  build from the selected candidate. Full HTTP comparisons waited for the
+  separate initial parentage build to finish.
+- Debian systemd validated both units and the 05:30 UTC calendar expression.
+  No host timer was installed or enabled.
+
+This verifies the local implementation, not PR 2 deployment or VPS activation.
