@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily off-peak Daylily search candidate build
+
+[Timer]
+OnCalendar=*-*-* 05:30:00 UTC
+Persistent=false
+Unit=daylily-search-candidate.service
+
+[Install]
+WantedBy=timers.target

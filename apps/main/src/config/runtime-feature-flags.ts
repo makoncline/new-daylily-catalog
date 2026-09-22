@@ -2,6 +2,7 @@ export const DISABLED_RUNTIME_FEATURE_FLAGS = {
   catalogImporterDiscovery: false,
   imageModerationEnforced: false,
   publicCultivarSearch: false,
+  candidateSearchIndex: false,
 };
 
 export type RuntimeFeatureFlags = typeof DISABLED_RUNTIME_FEATURE_FLAGS;
@@ -17,5 +18,6 @@ export function parseRuntimeFeatureFlags(value: unknown): RuntimeFeatureFlags {
     catalogImporterDiscovery: flags.catalogImporterDiscovery === true,
     imageModerationEnforced: flags.imageModerationEnforced === true,
     publicCultivarSearch: flags.publicCultivarSearch === true,
+    candidateSearchIndex: flags.candidateSearchIndex === true,
   };
 }

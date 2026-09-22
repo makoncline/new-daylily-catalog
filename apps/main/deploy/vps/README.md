@@ -3,6 +3,9 @@
 - `compose.yaml`: stack file for `/srv/stacks/daylilycatalog`
 - `caddy-route.caddy`: Caddy route for `daylilycatalog.com`, `www.daylilycatalog.com`, and `prod.daylilycatalog.com`
 - `.env.example`: runtime env contract for the stack
+- `daylily-search-candidate.service` and `.timer`: optional daily candidate
+  rebuild through the running app; require separate approved installation.
+  See [the reader rollout](../../docs/search-candidate-rollout.md#reader-trial-pr-2).
 
 These files are the deploy source of truth. Copy them directly to the server stack paths below.
 

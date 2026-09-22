@@ -7,7 +7,8 @@ import { promisify } from "node:util";
 import { createClient } from "@libsql/client";
 import {
   ensurePublicSearchIndex,
-  getPublicSearchIndexPath,
+  isPublicSearchIndexUsable,
+  PublicSearchIndexUnavailableError,
 } from "@/server/search/public-search-index";
 
 const execFileAsync = promisify(execFile);
@@ -273,7 +274,10 @@ function logParentageIndex(event: string, payload: Record<string, unknown> = {})
 
 async function refreshPublicParentageIndex(): Promise<PublicParentageIndexStatus> {
   globalForParentageIndex.publicParentageIndexRefreshPromise ??= (async () => {
-      await ensurePublicSearchIndex();
+      const source = await ensurePublicSearchIndex();
+      if (!isPublicSearchIndexUsable(source)) {
+        throw new PublicSearchIndexUnavailableError(source);
+      }
       const releaseLock = await acquireRefreshLock();
 
       if (!releaseLock) {
@@ -284,7 +288,7 @@ async function refreshPublicParentageIndex(): Promise<PublicParentageIndexStatus
       try {
         logParentageIndex("public_parentage_index_build_started", {
           path: getPublicParentageIndexPath(),
-          sourcePath: getPublicSearchIndexPath(),
+          sourcePath: source.path,
         });
 
         const { stdout, stderr } = await execFileAsync(
@@ -292,7 +296,7 @@ async function refreshPublicParentageIndex(): Promise<PublicParentageIndexStatus
           [
             getBuildScriptPath(),
             "--source",
-            getPublicSearchIndexPath(),
+            source.path,
             "--target",
             getPublicParentageIndexPath(),
           ],

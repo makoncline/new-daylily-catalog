@@ -6,6 +6,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { createClient } from "@libsql/client";
 import { z } from "zod";
+import { isCandidateSearchIndexEnabled } from "@/config/feature-flags";
 import { env, isLibsqlDatabaseUrl } from "@/env";
 
 const execFileAsync = promisify(execFile);
@@ -57,6 +58,7 @@ export class PublicSearchIndexUnavailableError extends Error {
 
 const globalForPublicSearchIndex = globalThis as unknown as {
   publicSearchIndexRefreshPromise: Promise<PublicSearchIndexStatus> | undefined;
+  publicSearchCandidateBuild: Promise<unknown> | undefined;
 };
 
 class SourceReplicaIntegrityError extends Error {
@@ -324,6 +326,7 @@ function isSearchIndexRefreshEnabled() {
 function getStatusFromAge(
   ageSeconds: number | null,
   schemaVersion: string | null,
+  refreshIntervalSeconds: number | null,
 ) {
   if (schemaVersion !== EXPECTED_SEARCH_INDEX_SCHEMA_VERSION) {
     return "expired" satisfies PublicSearchIndexStatus["status"];
@@ -333,7 +336,6 @@ function getStatusFromAge(
     return "expired" satisfies PublicSearchIndexStatus["status"];
   }
 
-  const refreshIntervalSeconds = getSearchIndexRefreshIntervalSeconds();
   if (refreshIntervalSeconds === null) {
     return "stale" satisfies PublicSearchIndexStatus["status"];
   }
@@ -409,8 +411,14 @@ async function hasActiveRefreshLock() {
   }
 }
 
-async function getPublicSearchIndexStatus(): Promise<PublicSearchIndexStatus> {
-  const dbPath = getPublicSearchIndexPath();
+async function getPublicSearchIndexStatus(
+  dbPath = getPublicSearchIndexPath(),
+): Promise<PublicSearchIndexStatus> {
+  const candidate = dbPath !== getPublicSearchIndexPath();
+  const refreshing = candidate
+    ? Boolean(globalForPublicSearchIndex.publicSearchCandidateBuild)
+    : Boolean(globalForPublicSearchIndex.publicSearchIndexRefreshPromise) ||
+      (await hasActiveRefreshLock());
 
   try {
     await stat(dbPath);
@@ -425,9 +433,7 @@ async function getPublicSearchIndexStatus(): Promise<PublicSearchIndexStatus> {
       counts: null,
       exists: false,
       path: dbPath,
-      refreshing:
-        Boolean(globalForPublicSearchIndex.publicSearchIndexRefreshPromise) ||
-        (await hasActiveRefreshLock()),
+      refreshing,
       schemaVersion: null,
       sourcePath: null,
       status: "missing",
@@ -443,12 +449,14 @@ async function getPublicSearchIndexStatus(): Promise<PublicSearchIndexStatus> {
     counts,
     exists: true,
     path: dbPath,
-    refreshing:
-      Boolean(globalForPublicSearchIndex.publicSearchIndexRefreshPromise) ||
-      (await hasActiveRefreshLock()),
+    refreshing,
     schemaVersion: meta.schemaVersion,
     sourcePath: meta.sourcePath,
-    status: getStatusFromAge(ageSeconds, meta.schemaVersion),
+    status: getStatusFromAge(
+      ageSeconds,
+      meta.schemaVersion,
+      candidate ? 24 * 60 * 60 : getSearchIndexRefreshIntervalSeconds(),
+    ),
   };
 }
 
@@ -657,6 +665,13 @@ async function refreshPublicSearchIndex(): Promise<PublicSearchIndexStatus> {
 }
 
 export async function ensurePublicSearchIndex() {
+  if (isCandidateSearchIndexEnabled()) {
+    const { getPublicSearchCandidatePath } = await import(
+      "@/server/search/public-search-candidate"
+    );
+    // The VPS timer owns builds. Requests only read the selected artifact.
+    return getPublicSearchIndexStatus(getPublicSearchCandidatePath());
+  }
   const status = await getPublicSearchIndexStatus();
 
   if (!isSearchIndexRefreshEnabled()) {

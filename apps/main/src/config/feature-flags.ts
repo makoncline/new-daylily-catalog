@@ -27,6 +27,10 @@ export function isPublicCultivarSearchEnabled() {
   return getRuntimeFeatureFlags().publicCultivarSearch;
 }
 
+export function isCandidateSearchIndexEnabled() {
+  return getRuntimeFeatureFlags().candidateSearchIndex;
+}
+
 export function isCatalogImporterDiscoveryEnabled() {
   return getRuntimeFeatureFlags().catalogImporterDiscovery;
 }
@@ -42,5 +46,6 @@ export function getRuntimeFeatureFlags(): RuntimeFeatureFlags {
     catalogImporterDiscovery: configured.catalogImporterDiscovery,
     imageModerationEnforced: configured.imageModerationEnforced,
     publicCultivarSearch: configured.publicCultivarSearch && !isVercel(),
+    candidateSearchIndex: configured.candidateSearchIndex && !isVercel(),
   };
 }
