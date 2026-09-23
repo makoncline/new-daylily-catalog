@@ -3,9 +3,9 @@
 - `compose.yaml`: stack file for `/srv/stacks/daylilycatalog`
 - `caddy-route.caddy`: Caddy route for `daylilycatalog.com`, `www.daylilycatalog.com`, and `prod.daylilycatalog.com`
 - `.env.example`: runtime env contract for the stack
-- `daylily-search-candidate.service` and `.timer`: optional daily candidate
+- `daylily-search-candidate.service` and `.timer`: optional scheduled candidate
   rebuild through the running app; require separate approved installation.
-  See [the reader rollout](../../docs/search-candidate-rollout.md#reader-trial-pr-2).
+  See [VPS operation](../../docs/search-candidate-rollout.md#vps-operation).
 
 These files are the deploy source of truth. Copy them directly to the server stack paths below.
 
@@ -20,7 +20,7 @@ Embedded Turso replica:
 - Leave `DATABASE_URL` set to the remote `libsql://...` Turso URL.
 - Set `TURSO_EMBEDDED_REPLICA_URL=file:/data/turso-replica.db` on the VPS to serve public page reads from the local replica while dashboard reads and all writes continue to go to Turso.
 - `TURSO_EMBEDDED_REPLICA_SYNC_INTERVAL_SECONDS` controls periodic pull sync; the template uses 600 seconds for lag-tolerant public reads.
-- The daily search timer explicitly syncs this same replica through the running app before building the search index. Disable `daylily-search-candidate.timer` to pause builds; requests keep using the last validated index.
+- The search timer explicitly syncs this same replica through the running app before building the search index. Disable `daylily-search-candidate.timer` to pause builds; requests keep using the last validated index.
 - `compose.yaml` mounts `/srv/stacks/daylilycatalog/data` at `/data` so the replica file survives container replacement.
 
 Config sync:
