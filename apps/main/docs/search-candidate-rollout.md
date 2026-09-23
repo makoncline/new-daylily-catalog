@@ -83,6 +83,8 @@ unsafe legacy builder. Do not delete old server artifacts as part of this PR.
 ## Local development
 
 `pnpm db:seed:prepare` builds the local search artifact through libSQL/Prisma.
+Without `--source`, `pnpm main search:index:build` reads the documented local
+production copy at `apps/main/prisma/local-prod-copy-daylily-catalog.db`.
 To rebuild it from an existing sanitized local database:
 
 ```sh

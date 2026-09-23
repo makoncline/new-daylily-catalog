@@ -327,6 +327,20 @@ describe("candidate search index", () => {
 });
 
 describe("build-public-search-index source selection", () => {
+  it("selects the documented production copy when no source is given", async () => {
+    const error = await runBuildScript([], {
+      TURSO_EMBEDDED_REPLICA_URL: `file:${path.join(appRoot, "prisma/local-prod-copy-daylily-catalog.db")}`,
+    });
+
+    // The source guard runs before opening the file, so this test needs no real snapshot.
+    expect(error).toHaveProperty(
+      "stderr",
+      expect.stringContaining(
+        "Refusing to build search index from live Turso embedded replica",
+      ),
+    );
+  });
+
   it("refuses CLI production builds", async () => {
     const error = await runBuildScript([], {
       NODE_ENV: "production",

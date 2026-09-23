@@ -24,7 +24,7 @@ function localPath(value) {
   return path.resolve(appRoot, value.replace(/^file:/, ""));
 }
 const sourcePath = localPath(
-  values.source ?? "local/realistic-data/realistic-data.sqlite",
+  values.source ?? "prisma/local-prod-copy-daylily-catalog.db",
 );
 const targetPath = localPath(
   values.target ?? ".tmp/search/public-search-candidate.sqlite",
