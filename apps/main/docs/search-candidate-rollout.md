@@ -9,7 +9,7 @@ operational names, not alternate code paths. No server file migration is needed.
 
 ## Build and read boundaries
 
-- The daily timer calls the running app over loopback. The app explicitly syncs
+- The scheduled timer calls the running app over loopback. The app explicitly syncs
   the normal embedded replica, then pages through the exact `replicaDb` singleton.
 - Source pages contain at most 1,000 rows. The target-only child has no database
   credentials or replica path. Never open or copy a managed replica with stock SQLite.
@@ -30,7 +30,9 @@ Keep the normal replica configuration, writable `/data` volume, and dedicated
 `SEARCH_INDEX_CANDIDATE_TOKEN` (at least 32 random characters). Do not reuse or
 print service credentials.
 
-The installed `daylily-search-candidate.timer` runs daily at 05:30 UTC.
+The `daylily-search-candidate.timer` runs at 05:30 and 17:30 UTC (every 12 hours).
+Existing VPS installations require an approved timer update, daemon-reload, and
+timer restart. App deployment alone does not update it. Keep the 12-hour CDN cache unchanged.
 It does not replay missed runs after boot. Check it with:
 
 ```sh
@@ -64,7 +66,7 @@ on Vercel, the endpoint returns 404; an invalid bearer token returns 401.
 
 ## Cleanup deployment and rollback
 
-Before deploying this cleanup, verify a compatible candidate exists and the daily
+Before deploying this cleanup, verify a compatible candidate exists and the scheduled
 timer is healthy. Deployment does not install units, delete artifacts, or change
 the replica, token, timer, or artifact paths. The old reader flag and
 `PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS` are no longer read. Leftover

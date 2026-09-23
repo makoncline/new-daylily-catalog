@@ -253,7 +253,7 @@ The current architecture is a strong fit for the cheap Hetzner constraint:
 ```mermaid
 flowchart LR
     P["Turso primary\nDashboard writes"] --> R["Normal embedded replica\nPublic reads and index source"]
-    R --> I["SQLite FTS search index\nAtomic daily replacement"]
+    R --> I["SQLite FTS search index\nAtomic scheduled replacement"]
     I --> A["Public cultivar search API"]
     A --> S["/cultivars search UI"]
     R --> C["/cultivar/{name}"]
@@ -264,7 +264,7 @@ flowchart LR
 
 - `src/server/search/public-search-index.ts` reads the validated artifact.
   Compatible indexes remain usable after the 24-hour freshness target.
-- The daily timer calls the app to sync its normal replica, page rows through
+- The scheduled timer calls the app to sync its normal replica, page rows through
   `replicaDb`, and stream them to a target-only worker. No managed replica is
   opened or copied with stock SQLite.
 - `src/server/search/build-public-search-index.js` builds the cultivar and
