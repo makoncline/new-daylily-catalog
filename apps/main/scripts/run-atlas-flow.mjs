@@ -167,7 +167,6 @@ async function startServer() {
       )
         ? "true"
         : process.env.PLAYWRIGHT_LOCAL_E2E,
-      PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS: "0",
       RUNTIME_FEATURE_FLAGS_PATH: runtimeFlagsPath,
       TURSO_DATABASE_AUTH_TOKEN: "",
       TURSO_EMBEDDED_REPLICA_URL: "",

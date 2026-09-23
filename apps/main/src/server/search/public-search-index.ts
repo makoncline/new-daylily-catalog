@@ -1,29 +1,9 @@
 import "server-only";
 
-import { execFile } from "node:child_process";
-import { mkdir, open, rename, rm, stat, unlink } from "node:fs/promises";
-import path from "node:path";
-import { promisify } from "node:util";
+import { stat } from "node:fs/promises";
 import { createClient } from "@libsql/client";
-import { z } from "zod";
-import { isCandidateSearchIndexEnabled } from "@/config/feature-flags";
-import { env, isLibsqlDatabaseUrl } from "@/env";
 
-const execFileAsync = promisify(execFile);
-
-const DEFAULT_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS = 60 * 60;
-const SEARCH_INDEX_REFRESH_LOCK_STALE_MS = 10 * 60 * 1000;
 const EXPECTED_SEARCH_INDEX_SCHEMA_VERSION = "13";
-const PUBLIC_SEARCH_BUILD_SOURCE_REPLICA_PATH =
-  "/data/search/public-search-source-replica.sqlite";
-const PUBLIC_SEARCH_BUILD_SOURCE_SUFFIXES = [
-  "",
-  "-info",
-  "-wal",
-  "-shm",
-  "-journal",
-  "-client_wal_index",
-];
 
 interface SearchIndexMeta {
   builtAt: string | null;
@@ -56,237 +36,15 @@ export class PublicSearchIndexUnavailableError extends Error {
   status: PublicSearchIndexStatus;
 }
 
-const globalForPublicSearchIndex = globalThis as unknown as {
-  publicSearchIndexRefreshPromise: Promise<PublicSearchIndexStatus> | undefined;
-  publicSearchCandidateBuild: Promise<unknown> | undefined;
+const globalForPublicSearchIndex = globalThis as typeof globalThis & {
+  publicSearchCandidateBuild?: Promise<unknown>;
 };
-
-class SourceReplicaIntegrityError extends Error {
-  constructor(
-    readonly phase: string,
-    detail: string,
-  ) {
-    super(`Source replica ${phase} quick_check failed: ${detail}`);
-  }
-}
-
-const sourceSyncWorkerResultSchema = z.discriminatedUnion("ok", [
-  z.object({
-    ok: z.literal(true),
-    durationMs: z.number(),
-    frameNumber: z.number().nullable(),
-    framesSynced: z.number().nullable(),
-    pid: z.number(),
-  }),
-  z.object({
-    ok: z.literal(false),
-    error: z.string(),
-    phase: z.enum(["source_sync", "post_sync_client"]).nullable(),
-  }),
-]);
-
-type SourceSyncWorkerResult = z.infer<typeof sourceSyncWorkerResultSchema>;
-
-function parseSourceSyncWorkerResult(output: string): SourceSyncWorkerResult {
-  return sourceSyncWorkerResultSchema.parse(JSON.parse(output.trim()));
-}
-
-function getFailedSourceSyncWorkerResult(
-  error: unknown,
-): Extract<SourceSyncWorkerResult, { ok: false }> | null {
-  if (!(error instanceof Error) || !("stdout" in error)) {
-    return null;
-  }
-
-  try {
-    const result = parseSourceSyncWorkerResult(String(error.stdout));
-    return result.ok ? null : result;
-  } catch {
-    return null;
-  }
-}
-
-function getAppRoot() {
-  const cwd = process.cwd();
-
-  if (process.env.NODE_ENV !== "production" || cwd.endsWith("apps/main")) {
-    return cwd;
-  }
-
-  return path.join(cwd, "apps/main");
-}
-
-export function getPublicSearchIndexPath() {
-  if (process.env.NODE_ENV === "production") {
-    return "/data/search/public-search.sqlite";
-  }
-
-  return path.join(getAppRoot(), ".tmp/search/cultivar-search.sqlite");
-}
-
-function getBuildScriptPath() {
-  return path.join(getAppRoot(), "scripts/build-public-search-index.mjs");
-}
-
-function getSourceSyncScriptPath() {
-  return path.join(
-    getAppRoot(),
-    "scripts/sync-public-search-source-replica.mjs",
-  );
-}
-
-function getRefreshLockPath() {
-  return `${getPublicSearchIndexPath()}.refresh.lock`;
-}
-
-async function checkPublicSearchBuildSource(
-  phase: "pre_sync" | "post_sync",
-  allowMissing = false,
-) {
-  try {
-    await stat(PUBLIC_SEARCH_BUILD_SOURCE_REPLICA_PATH);
-  } catch (error) {
-    if (allowMissing && isMissingFileError(error)) {
-      logSearchIndex("public_search_source_integrity_checked", {
-        phase,
-        result: "missing",
-      });
-      return;
-    }
-
-    throw error;
-  }
-
-  let result: string;
-  try {
-    const { stdout } = await execFileAsync(
-      "sqlite3",
-      [PUBLIC_SEARCH_BUILD_SOURCE_REPLICA_PATH, "PRAGMA quick_check;"],
-      { maxBuffer: 1024 * 1024 },
-    );
-    result = stdout.trim();
-  } catch (error) {
-    const detail =
-      error instanceof Error && "stderr" in error
-        ? `${error.message}\n${String(error.stderr)}`
-        : error instanceof Error
-          ? error.message
-          : String(error);
-    if (
-      !/database disk image is malformed|file is not a database|malformed database schema/i.test(
-        detail,
-      )
-    ) {
-      throw error;
-    }
-    throw new SourceReplicaIntegrityError(phase, detail);
-  }
-
-  logSearchIndex("public_search_source_integrity_checked", { phase, result });
-  if (result !== "ok") {
-    throw new SourceReplicaIntegrityError(phase, result);
-  }
-}
-
-async function runSourceSyncWorker(
-  databaseUrl: string,
-  authToken: string,
-): Promise<Extract<SourceSyncWorkerResult, { ok: true }>> {
-  let output: Awaited<ReturnType<typeof execFileAsync>>;
-  try {
-    output = await execFileAsync(
-      process.execPath,
-      [
-        getSourceSyncScriptPath(),
-        "--source",
-        PUBLIC_SEARCH_BUILD_SOURCE_REPLICA_PATH,
-      ],
-      {
-        cwd: getAppRoot(),
-        encoding: "utf8",
-        env: {
-          ...process.env,
-          DATABASE_URL: databaseUrl,
-          TURSO_DATABASE_AUTH_TOKEN: authToken,
-        },
-        maxBuffer: 1024 * 1024,
-      },
-    );
-  } catch (error) {
-    const result = getFailedSourceSyncWorkerResult(error);
-    if (!result) {
-      throw error;
-    }
-    if (result.phase) {
-      throw new SourceReplicaIntegrityError(result.phase, result.error);
-    }
-    throw new Error(`Source sync worker failed: ${result.error}`, {
-      cause: error,
-    });
-  }
-
-  const result = parseSourceSyncWorkerResult(String(output.stdout));
-  if (!result.ok) {
-    throw new Error("Source sync worker exited successfully with an error.");
-  }
-
-  const stderr = String(output.stderr).trim();
-  if (stderr.length > 0) {
-    logSearchIndex("public_search_source_sync_stderr", { output: stderr });
-  }
-
-  return result;
-}
-
-async function preparePublicSearchBuildSource() {
-  const databaseUrl = env.DATABASE_URL;
-
-  if (
-    process.env.NODE_ENV !== "production" ||
-    !databaseUrl ||
-    !isLibsqlDatabaseUrl(databaseUrl) ||
-    !env.TURSO_DATABASE_AUTH_TOKEN
-  ) {
-    return null;
-  }
-
-  await mkdir(path.dirname(PUBLIC_SEARCH_BUILD_SOURCE_REPLICA_PATH), {
-    recursive: true,
-  });
-  await checkPublicSearchBuildSource("pre_sync", true);
-  const syncResult = await runSourceSyncWorker(
-    databaseUrl,
-    env.TURSO_DATABASE_AUTH_TOKEN,
-  );
-
-  logSearchIndex("public_search_source_sync_completed", {
-    durationMs: syncResult.durationMs,
-    frameNumber: syncResult.frameNumber,
-    framesSynced: syncResult.framesSynced,
-    workerPid: syncResult.pid,
-  });
-  logSearchIndex("public_search_source_integrity_checked", {
-    phase: "post_sync_client",
-    result: "ok",
-  });
-
-  await checkPublicSearchBuildSource("post_sync");
-  return PUBLIC_SEARCH_BUILD_SOURCE_REPLICA_PATH;
-}
 
 function isMissingFileError(error: unknown) {
   return (
     error instanceof Error &&
     "code" in error &&
     (error as NodeJS.ErrnoException).code === "ENOENT"
-  );
-}
-
-function isFileExistsError(error: unknown) {
-  return (
-    error instanceof Error &&
-    "code" in error &&
-    (error as NodeJS.ErrnoException).code === "EEXIST"
   );
 }
 
@@ -303,30 +61,9 @@ function getAgeSeconds(builtAt: string | null) {
   return Math.max(0, Math.floor((Date.now() - builtAtMs) / 1000));
 }
 
-function getSearchIndexRefreshIntervalSeconds() {
-  const value = env.PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS;
-  if (!value) {
-    return DEFAULT_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS;
-  }
-
-  const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed < 0) {
-    throw new Error(
-      "PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS must be a non-negative integer.",
-    );
-  }
-
-  return parsed === 0 ? null : parsed;
-}
-
-function isSearchIndexRefreshEnabled() {
-  return getSearchIndexRefreshIntervalSeconds() !== null;
-}
-
 function getStatusFromAge(
   ageSeconds: number | null,
   schemaVersion: string | null,
-  refreshIntervalSeconds: number | null,
 ) {
   if (schemaVersion !== EXPECTED_SEARCH_INDEX_SCHEMA_VERSION) {
     return "expired" satisfies PublicSearchIndexStatus["status"];
@@ -336,11 +73,7 @@ function getStatusFromAge(
     return "expired" satisfies PublicSearchIndexStatus["status"];
   }
 
-  if (refreshIntervalSeconds === null) {
-    return "stale" satisfies PublicSearchIndexStatus["status"];
-  }
-
-  if (ageSeconds < refreshIntervalSeconds) {
+  if (ageSeconds < 24 * 60 * 60) {
     return "fresh" satisfies PublicSearchIndexStatus["status"];
   }
 
@@ -398,27 +131,15 @@ async function querySearchIndexMeta(dbPath: string) {
   }
 }
 
-async function hasActiveRefreshLock() {
-  try {
-    const lockStat = await stat(getRefreshLockPath());
-    return Date.now() - lockStat.mtimeMs < SEARCH_INDEX_REFRESH_LOCK_STALE_MS;
-  } catch (error) {
-    if (isMissingFileError(error)) {
-      return false;
-    }
-
-    throw error;
-  }
-}
-
-async function getPublicSearchIndexStatus(
-  dbPath = getPublicSearchIndexPath(),
-): Promise<PublicSearchIndexStatus> {
-  const candidate = dbPath !== getPublicSearchIndexPath();
-  const refreshing = candidate
-    ? Boolean(globalForPublicSearchIndex.publicSearchCandidateBuild)
-    : Boolean(globalForPublicSearchIndex.publicSearchIndexRefreshPromise) ||
-      (await hasActiveRefreshLock());
+export async function ensurePublicSearchIndex(): Promise<PublicSearchIndexStatus> {
+  // Requests only read the artifact. The VPS timer owns sync and rebuilds.
+  const { getPublicSearchCandidatePath } = await import(
+    "@/server/search/public-search-candidate"
+  );
+  const dbPath = getPublicSearchCandidatePath();
+  const refreshing = Boolean(
+    globalForPublicSearchIndex.publicSearchCandidateBuild,
+  );
 
   try {
     await stat(dbPath);
@@ -452,245 +173,8 @@ async function getPublicSearchIndexStatus(
     refreshing,
     schemaVersion: meta.schemaVersion,
     sourcePath: meta.sourcePath,
-    status: getStatusFromAge(
-      ageSeconds,
-      meta.schemaVersion,
-      candidate ? 24 * 60 * 60 : getSearchIndexRefreshIntervalSeconds(),
-    ),
+    status: getStatusFromAge(ageSeconds, meta.schemaVersion),
   };
-}
-
-async function acquireRefreshLock() {
-  const lockPath = getRefreshLockPath();
-  await mkdir(path.dirname(lockPath), { recursive: true });
-
-  try {
-    const handle = await open(lockPath, "wx");
-    await handle.writeFile(
-      JSON.stringify({
-        createdAt: new Date().toISOString(),
-        pid: process.pid,
-      }),
-      "utf8",
-    );
-
-    return async () => {
-      await handle.close();
-      await unlink(lockPath).catch((error) => {
-        if (!isMissingFileError(error)) {
-          throw error;
-        }
-      });
-    };
-  } catch (error) {
-    if (!isFileExistsError(error)) {
-      throw error;
-    }
-
-    const lockStat = await stat(lockPath);
-    if (Date.now() - lockStat.mtimeMs < SEARCH_INDEX_REFRESH_LOCK_STALE_MS) {
-      return null;
-    }
-
-    await unlink(lockPath);
-    return acquireRefreshLock();
-  }
-}
-
-function logSearchIndex(event: string, payload: Record<string, unknown> = {}) {
-  console.log(
-    JSON.stringify({
-      component: "public-search-index",
-      event,
-      timestamp: new Date().toISOString(),
-      ...payload,
-    }),
-  );
-}
-
-function getRecoverableSourcePhase(error: unknown, stage: string) {
-  if (error instanceof SourceReplicaIntegrityError) {
-    return error.phase;
-  }
-
-  const message =
-    error instanceof Error && "stderr" in error
-      ? `${error.message}\n${String(error.stderr)}`
-      : error instanceof Error
-        ? error.message
-        : String(error);
-  if (/post_build/i.test(message)) {
-    return "post_build";
-  }
-
-  return /InvalidLocalState|database disk image is malformed/i.test(message)
-    ? stage
-    : null;
-}
-
-async function quarantinePublicSearchBuildSource(
-  phase: string,
-  sourceError: unknown,
-) {
-  const quarantineDirectory = `${PUBLIC_SEARCH_BUILD_SOURCE_REPLICA_PATH}.quarantine`;
-  await rm(quarantineDirectory, { force: true, recursive: true });
-  await mkdir(quarantineDirectory, { recursive: true });
-  const files: string[] = [];
-
-  for (const suffix of PUBLIC_SEARCH_BUILD_SOURCE_SUFFIXES) {
-    const sourcePath = `${PUBLIC_SEARCH_BUILD_SOURCE_REPLICA_PATH}${suffix}`;
-    try {
-      await rename(
-        sourcePath,
-        path.join(quarantineDirectory, path.basename(sourcePath)),
-      );
-      files.push(path.basename(sourcePath));
-    } catch (error) {
-      if (!isMissingFileError(error)) {
-        throw error;
-      }
-    }
-  }
-
-  logSearchIndex("public_search_source_quarantined", {
-    error:
-      sourceError instanceof Error ? sourceError.message : String(sourceError),
-    files,
-    phase,
-    quarantineDirectory,
-  });
-}
-
-async function runPublicSearchIndexRefreshAttempt(state: { stage: string }) {
-  state.stage = "source_sync";
-  const sourcePath = await preparePublicSearchBuildSource();
-  state.stage = "index_build";
-  const buildArgs = [getBuildScriptPath()];
-
-  if (sourcePath) {
-    buildArgs.push("--source", sourcePath);
-  }
-
-  buildArgs.push("--target", getPublicSearchIndexPath());
-
-  logSearchIndex("public_search_index_build_started", {
-    path: getPublicSearchIndexPath(),
-    sourcePath,
-  });
-
-  const { stdout, stderr } = await execFileAsync(process.execPath, buildArgs, {
-    cwd: getAppRoot(),
-    env: process.env,
-    maxBuffer: 1024 * 1024,
-  });
-
-  if (sourcePath) {
-    logSearchIndex("public_search_source_integrity_checked", {
-      phase: "post_build",
-      result: "ok",
-    });
-  }
-
-  if (stdout.trim().length > 0) {
-    logSearchIndex("public_search_index_build_stdout", {
-      output: stdout.trim(),
-    });
-  }
-
-  if (stderr.trim().length > 0) {
-    logSearchIndex("public_search_index_build_stderr", {
-      output: stderr.trim(),
-    });
-  }
-
-  const status = await getPublicSearchIndexStatus();
-  logSearchIndex("public_search_index_build_succeeded", {
-    ageSeconds: status.ageSeconds,
-    counts: status.counts,
-    path: status.path,
-  });
-
-  return status;
-}
-
-async function refreshPublicSearchIndex(): Promise<PublicSearchIndexStatus> {
-  globalForPublicSearchIndex.publicSearchIndexRefreshPromise ??= (async () => {
-    const releaseLock = await acquireRefreshLock();
-
-    if (!releaseLock) {
-      logSearchIndex("public_search_index_refresh_skipped_locked");
-      return getPublicSearchIndexStatus();
-    }
-
-    const state = { stage: "source_sync" };
-    let recoveryPhase: string | null = null;
-    try {
-      try {
-        return await runPublicSearchIndexRefreshAttempt(state);
-      } catch (error) {
-        recoveryPhase = getRecoverableSourcePhase(error, state.stage);
-        if (!recoveryPhase) {
-          throw error;
-        }
-        await quarantinePublicSearchBuildSource(recoveryPhase, error);
-      }
-
-      try {
-        const status = await runPublicSearchIndexRefreshAttempt(state);
-        logSearchIndex("public_search_source_recovery_succeeded", {
-          phase: recoveryPhase,
-        });
-        return status;
-      } catch (error) {
-        logSearchIndex("public_search_source_recovery_failed", {
-          error: error instanceof Error ? error.message : String(error),
-          phase: recoveryPhase,
-        });
-        throw error;
-      }
-    } catch (error) {
-      logSearchIndex("public_search_index_build_failed", {
-        error: error instanceof Error ? error.message : String(error),
-        stage: state.stage,
-      });
-      throw error;
-    } finally {
-      await releaseLock();
-    }
-  })().finally(() => {
-    globalForPublicSearchIndex.publicSearchIndexRefreshPromise = undefined;
-  });
-
-  return globalForPublicSearchIndex.publicSearchIndexRefreshPromise;
-}
-
-export async function ensurePublicSearchIndex() {
-  if (isCandidateSearchIndexEnabled()) {
-    const { getPublicSearchCandidatePath } = await import(
-      "@/server/search/public-search-candidate"
-    );
-    // The VPS timer owns builds. Requests only read the selected artifact.
-    return getPublicSearchIndexStatus(getPublicSearchCandidatePath());
-  }
-  const status = await getPublicSearchIndexStatus();
-
-  if (!isSearchIndexRefreshEnabled()) {
-    return status;
-  }
-
-  if (!status.exists) {
-    return refreshPublicSearchIndex();
-  }
-
-  if (status.status === "expired") {
-    return refreshPublicSearchIndex();
-  }
-
-  if (status.status === "stale") {
-    void refreshPublicSearchIndex().catch(() => undefined);
-  }
-
-  return status;
 }
 
 export function isPublicSearchIndexUsable(status: PublicSearchIndexStatus) {

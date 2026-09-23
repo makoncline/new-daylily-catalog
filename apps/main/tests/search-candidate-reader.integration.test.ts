@@ -15,12 +15,11 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { CREATE_TARGET_SCHEMA_SQL } from "../scripts/public-search-index-sql.mjs";
 
 const mocks = vi.hoisted(() => ({
-  env: { PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS: "0" },
   sync: vi.fn(),
 }));
 vi.mock("server-only", () => ({}));
 vi.mock("@/env", () => ({
-  env: mocks.env,
+  env: {},
   isLibsqlDatabaseUrl: () => false,
 }));
 vi.mock("@/server/db", () => ({ syncEmbeddedReplica: mocks.sync }));
@@ -39,13 +38,6 @@ import { ensurePublicParentageIndex } from "@/server/search/public-parentage-ind
 const appRoot = process.cwd();
 let directory: string;
 let candidatePath: string;
-
-function selectCandidate(enabled: boolean) {
-  writeFileSync(
-    path.join(directory, "flags.json"),
-    JSON.stringify({ candidateSearchIndex: enabled }),
-  );
-}
 
 function createIndex(file: string, name: string, schema = "13", ageDays = 0) {
   const db = new DatabaseSync(file);
@@ -86,7 +78,6 @@ beforeEach(() => {
   vi.stubEnv("NODE_ENV", "test");
   vi.stubEnv("VERCEL", "");
   vi.stubEnv("RUNTIME_FEATURE_FLAGS_PATH", path.join(directory, "flags.json"));
-  mocks.env.PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS = "0";
   mocks.sync.mockReset();
   candidatePath = path.join(
     directory,
@@ -97,7 +88,10 @@ beforeEach(() => {
     "Baseline",
   );
   createIndex(candidatePath, "Candidate");
-  selectCandidate(false);
+  writeFileSync(
+    path.join(directory, "flags.json"),
+    JSON.stringify({ candidateSearchIndex: false }),
+  );
 });
 
 afterEach(() => {
@@ -115,9 +109,7 @@ async function readNames() {
   return result.map((row) => row.name);
 }
 
-it("switches real search, facets, importer and parentage source, observes replacement, and rolls back without a restart", async () => {
-  expect(await readNames()).toEqual(["Baseline"]);
-  selectCandidate(true);
+it("reads the accepted artifact for search, facets, importer and parentage, and observes replacement without a flag", async () => {
   expect(await readNames()).toEqual(["Candidate"]);
   expect(
     await searchCultivarFacetValues({ facet: "hybridizer" }),
@@ -139,16 +131,12 @@ it("switches real search, facets, importer and parentage source, observes replac
   renameSync(candidatePath, `${candidatePath}.previous`);
   renameSync(`${candidatePath}.next`, candidatePath);
   expect(await readNames()).toEqual(["Replacement"]);
-  selectCandidate(false);
-  expect(await readNames()).toEqual(["Baseline"]);
   expect(mocks.sync).not.toHaveBeenCalled();
 });
 
-it("serves a stale candidate without a request-triggered rebuild, even if the old interval is enabled", async () => {
+it("serves a stale artifact without a request-triggered rebuild", async () => {
   rmSync(candidatePath);
   createIndex(candidatePath, "Stale", "13", 3);
-  selectCandidate(true);
-  mocks.env.PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS = "3600";
   expect(await ensurePublicSearchIndex()).toMatchObject({
     status: "stale",
     path: candidatePath,
@@ -158,7 +146,6 @@ it("serves a stale candidate without a request-triggered rebuild, even if the ol
 });
 
 it("does not fall back or build when the selected candidate is absent or incompatible", async () => {
-  selectCandidate(true);
   rmSync(candidatePath);
   await expect(readNames()).rejects.toBeInstanceOf(
     PublicSearchIndexUnavailableError,
@@ -168,6 +155,4 @@ it("does not fall back or build when the selected candidate is absent or incompa
     PublicSearchIndexUnavailableError,
   );
   expect(mocks.sync).not.toHaveBeenCalled();
-  selectCandidate(false);
-  expect(await readNames()).toEqual(["Baseline"]);
 });

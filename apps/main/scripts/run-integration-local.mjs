@@ -45,7 +45,6 @@ const integrationEnv = {
   AWS_ENDPOINT_URL_SES: "http://127.0.0.1:3211/ses",
   NEXT_PUBLIC_CLOUDFLARE_URL: appBaseUrl,
   NEXT_PUBLIC_SENTRY_ENABLED: "false",
-  PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS: "0",
   RUST_LOG: "info",
   NODE_OPTIONS: `--import=${guardUrl}`,
 };

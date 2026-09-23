@@ -6,7 +6,6 @@ import { join } from "node:path";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import {
   isCatalogImporterDiscoveryEnabled,
-  isCandidateSearchIndexEnabled,
   isImageModerationEnforced,
   isPublicCultivarSearchEnabled,
 } from "@/config/feature-flags";
@@ -51,7 +50,6 @@ describe("runtime feature flags", () => {
 
     expect(isCatalogImporterDiscoveryEnabled()).toBe(false);
     expect(isPublicCultivarSearchEnabled()).toBe(false);
-    expect(isCandidateSearchIndexEnabled()).toBe(false);
     expect(getLlmsTxt(baseUrl)).not.toContain("/api/v1/cultivars/search");
     expect(getHomeMarkdown(baseUrl)).not.toContain("/api/v1/cultivars/search");
     expect(getOpenApiDocument(baseUrl).paths).not.toHaveProperty(
@@ -104,13 +102,12 @@ describe("runtime feature flags", () => {
   it("keeps cultivar search disabled on unsupported deployments", () => {
     writeFileSync(
       runtimeFlagsPath,
-      '{"catalogImporterDiscovery":true,"publicCultivarSearch":true,"candidateSearchIndex":true}',
+      '{"catalogImporterDiscovery":true,"publicCultivarSearch":true}',
     );
     process.env.VERCEL = "1";
 
     expect(isCatalogImporterDiscoveryEnabled()).toBe(true);
     expect(isPublicCultivarSearchEnabled()).toBe(false);
-    expect(isCandidateSearchIndexEnabled()).toBe(false);
     expect(getLlmsTxt(baseUrl)).not.toContain("/api/v1/cultivars/search");
     expect(getOpenApiDocument(baseUrl).paths).not.toHaveProperty(
       "/api/v1/cultivars/search",

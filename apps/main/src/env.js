@@ -23,7 +23,6 @@ export const env = createEnv({
     TURSO_DATABASE_AUTH_TOKEN: z.string().optional(),
     TURSO_EMBEDDED_REPLICA_URL: z.string().optional(),
     TURSO_EMBEDDED_REPLICA_SYNC_INTERVAL_SECONDS: z.string().optional(),
-    PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS: z.string().optional(),
     SEARCH_INDEX_CANDIDATE_TOKEN: z.string().min(32).optional(),
     VERCEL_AUTOMATION_BYPASS_SECRET: z.string().optional(),
     CLERK_SECRET_KEY: z.string().optional(),
@@ -55,8 +54,6 @@ export const env = createEnv({
     TURSO_EMBEDDED_REPLICA_URL: process.env.TURSO_EMBEDDED_REPLICA_URL,
     TURSO_EMBEDDED_REPLICA_SYNC_INTERVAL_SECONDS:
       process.env.TURSO_EMBEDDED_REPLICA_SYNC_INTERVAL_SECONDS,
-    PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS:
-      process.env.PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS,
     SEARCH_INDEX_CANDIDATE_TOKEN: process.env.SEARCH_INDEX_CANDIDATE_TOKEN,
     VERCEL_AUTOMATION_BYPASS_SECRET:
       process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
@@ -154,21 +151,6 @@ if (!process.env.SKIP_ENV_VALIDATION) {
     if (!Number.isInteger(syncIntervalSeconds) || syncIntervalSeconds < 1) {
       throw new Error(
         "TURSO_EMBEDDED_REPLICA_SYNC_INTERVAL_SECONDS must be a positive integer.",
-      );
-    }
-  }
-
-  if (env.PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS) {
-    const refreshIntervalSeconds = Number(
-      env.PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS,
-    );
-
-    if (
-      !Number.isInteger(refreshIntervalSeconds) ||
-      refreshIntervalSeconds < 0
-    ) {
-      throw new Error(
-        "PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS must be a non-negative integer.",
       );
     }
   }

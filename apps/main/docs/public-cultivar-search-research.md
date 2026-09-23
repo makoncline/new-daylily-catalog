@@ -252,24 +252,23 @@ The current architecture is a strong fit for the cheap Hetzner constraint:
 
 ```mermaid
 flowchart LR
-    P["Turso primary\nDashboard writes"] --> R["Dedicated embedded source replica\nIndex refresh only"]
-    R --> I["SQLite FTS search index\nAtomic hourly replacement"]
+    P["Turso primary\nDashboard writes"] --> R["Normal embedded replica\nPublic reads and index source"]
+    R --> I["SQLite FTS search index\nAtomic daily replacement"]
     I --> A["Public cultivar search API"]
     A --> S["/cultivars search UI"]
-    D["Embedded read replica\nPublic detail reads"] --> C["/cultivar/{name}"]
+    R --> C["/cultivar/{name}"]
     O["Cloudflare R2 image variants"] --> S
     O --> C
     E["Cloudflare HTML cache"] --> C
 ```
 
-- `src/server/search/public-search-index.ts` manages a production-local search
-  index, atomic refresh lock, hourly freshness target, and 24-hour maximum
-  staleness.
-- Production index builds sync a dedicated source replica at
-  `/data/search/public-search-source-replica.sqlite`. They do not ask the live
-  application replica or remote primary to serve every search.
-- `scripts/build-public-search-index.mjs` builds the cultivar and linked-listing
-  tables plus an FTS5 index.
+- `src/server/search/public-search-index.ts` reads the validated artifact.
+  Compatible indexes remain usable after the 24-hour freshness target.
+- The daily timer calls the app to sync its normal replica, page rows through
+  `replicaDb`, and stream them to a target-only worker. No managed replica is
+  opened or copied with stock SQLite.
+- `src/server/search/build-public-search-index.js` builds the cultivar and
+  linked-listing tables plus an FTS5 index. The local seed CLI uses this same builder.
 - `src/server/search/cultivar-search.ts` already supports name, hybridizer,
   color, parentage, year, height, bloom size, season, habit, form, ploidy,
   foliage, fragrance, bud count, branching, listing text, price, availability,

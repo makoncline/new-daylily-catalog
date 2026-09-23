@@ -18,7 +18,7 @@ instead; those credentials do not apply to this production-service workflow.
 - Disables Sentry runtime reporting and source-map uploads, and uses the fixed
   local release `prod-like-local`.
 - Comments out embedded replica env.
-- Sets `PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS=0`.
+- Search requests never trigger builds. Build a local search artifact explicitly if the smoke test needs search.
 - Creates an ignored Docker Compose override that mounts the local DB into
   `/data/daylilycatalog.sqlite`.
 - Points only the `dev.daylilycatalog.com` entry in `~/.cloudflared/config.yml`

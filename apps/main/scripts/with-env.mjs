@@ -61,7 +61,6 @@ if (
     process.exit(1);
   }
   process.env.DATABASE_URL = `file:${seededDatabasePath}`;
-  process.env.PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS = "0";
   process.env.TURSO_DATABASE_AUTH_TOKEN = "";
   process.env.TURSO_EMBEDDED_REPLICA_URL = "";
   process.env.TURSO_EMBEDDED_REPLICA_SYNC_INTERVAL_SECONDS = "";

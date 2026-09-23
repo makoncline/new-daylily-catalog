@@ -11,8 +11,7 @@ Values live only in `/data/runtime-feature-flags.json`:
 {
   "catalogImporterDiscovery": false,
   "imageModerationEnforced": false,
-  "publicCultivarSearch": true,
-  "candidateSearchIndex": false
+  "publicCultivarSearch": true
 }
 ```
 
@@ -20,11 +19,8 @@ Missing files, missing keys, malformed JSON, and non-boolean values fail closed.
 Server routes use evaluators in `src/config/feature-flags.ts` as their
 availability boundary. Cultivar search is also always disabled on Vercel.
 
-`candidateSearchIndex` selects the candidate artifact for search, facets,
-importer matching, and future parentage builds. It is disabled on Vercel.
-It does not enable public search discovery or start a build. Existing parentage
-artifacts keep their separate refresh policy. Follow
-[the reader trial](search-candidate-rollout.md#reader-trial-pr-2) before enabling it.
+Search reads always use the validated artifact described in
+[the search runbook](search-candidate-rollout.md). There is no reader-selection flag.
 
 `catalogImporterDiscovery` is only a discovery control. When it is off, the
 importer is absent from navigation and sitemaps and returns `noindex` metadata.
