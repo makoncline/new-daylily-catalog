@@ -1,511 +1,71 @@
-import {
-  CREATE_TARGET_SCHEMA_SQL,
-  FACET_SQL,
-  INDEX_SQL,
-} from "./public-search-index-sql.mjs";
-import { execFileSync } from "node:child_process";
-import {
-  existsSync,
-  mkdirSync,
-  renameSync,
-  realpathSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, realpathSync, statSync } from "node:fs";
 import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { parseArgs } from "node:util";
+import { PrismaLibSql } from "@prisma/adapter-libsql";
+import { PrismaClient } from "@prisma/client";
+import { buildPublicSearchIndex } from "../src/server/search/build-public-search-index.js";
 
-const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
-const APP_ROOT = path.resolve(SCRIPT_DIR, "..");
-const DEFAULT_LOCAL_SOURCE = path.join(
-  APP_ROOT,
-  "prisma/local-prod-copy-daylily-catalog.db",
-);
-const DEFAULT_LOCAL_TARGET = path.join(
-  APP_ROOT,
-  ".tmp/search/cultivar-search.sqlite",
-);
-const DEFAULT_PRODUCTION_TARGET = "/data/search/public-search.sqlite";
+const appRoot = path.resolve(import.meta.dirname, "..");
 
-function parseArgs(args = process.argv.slice(2)) {
-  const parsed = new Map();
-
-  for (let index = 0; index < args.length; index += 1) {
-    const arg = args[index];
-
-    if (typeof arg !== "string" || !arg.startsWith("--")) {
-      throw new Error(`Unexpected argument: ${arg}`);
-    }
-
-    const key = arg.slice(2);
-    const value = args[index + 1];
-
-    if (!value || value.startsWith("--")) {
-      throw new Error(`Missing value for --${key}`);
-    }
-
-    parsed.set(key, value);
-    index += 1;
-  }
-
-  return {
-    source: parsed.get("source") ?? getDefaultSource(),
-    target: parsed.get("target") ?? getDefaultTarget(),
-  };
-}
-
-function getDefaultSource() {
-  if (process.env.NODE_ENV === "production") {
-    throw new Error(
-      "Production search index builds require an explicit --source path.",
-    );
-  }
-
-  return DEFAULT_LOCAL_SOURCE;
-}
-
-function getDefaultTarget() {
-  return process.env.NODE_ENV === "production"
-    ? DEFAULT_PRODUCTION_TARGET
-    : DEFAULT_LOCAL_TARGET;
-}
-
-function normalizeLocalPath(input) {
-  if (input.includes("://") && !input.startsWith("file:")) {
-    throw new Error(
-      `Refusing remote database URL: ${input}. Search index builds must use local files.`,
-    );
-  }
-
-  const withoutScheme = input.startsWith("file:") ? input.slice(5) : input;
-  if (withoutScheme.length === 0) {
-    throw new Error("Database path cannot be empty.");
-  }
-
-  return path.resolve(APP_ROOT, withoutScheme);
-}
-
-function assertNotLiveTursoReplica(sourcePath) {
-  const embeddedReplicaUrl = process.env.TURSO_EMBEDDED_REPLICA_URL;
-
-  if (!embeddedReplicaUrl?.startsWith("file:")) {
-    return;
-  }
-
-  const liveReplicaPath = normalizeLocalPath(embeddedReplicaUrl);
-
-  if (sameExistingFile(sourcePath, liveReplicaPath)) {
-    throw new Error(
-      `Refusing to build search index from live Turso embedded replica: ${sourcePath}`,
-    );
-  }
-}
-
-function sameExistingFile(left, right) {
-  try {
-    return realpathSync(left) === realpathSync(right);
-  } catch {
-    return left === right;
-  }
-}
-
-function quoteSqlString(value) {
-  return `'${value.replaceAll("'", "''")}'`;
-}
-
-function assertSafePaths(sourcePath, targetPath) {
-  if (!existsSync(sourcePath)) {
-    throw new Error(`Source database does not exist: ${sourcePath}`);
-  }
-
-  if (sourcePath === targetPath) {
-    throw new Error("Source and target database paths must be different.");
-  }
-
-  if (
-    process.env.NODE_ENV === "production" &&
-    !targetPath.startsWith("/data/search/")
-  ) {
-    throw new Error(
-      `Production target must be under /data/search. Received: ${targetPath}`,
-    );
-  }
-}
-
-function removeSqliteFiles(dbPath) {
-  for (const suffix of ["", "-wal", "-shm"]) {
-    rmSync(`${dbPath}${suffix}`, { force: true });
-  }
-}
-
-function replaceSqliteDatabase({ nextPath, previousPath, targetPath }) {
-  removeSqliteFiles(previousPath);
-
-  if (existsSync(targetPath)) {
-    renameSync(targetPath, previousPath);
-  }
-
-  removeSqliteFiles(targetPath);
-  renameSync(nextPath, targetPath);
-  removeSqliteFiles(nextPath);
-}
-
-function buildSql(sourcePath) {
-  return `
-PRAGMA journal_mode = DELETE;
-PRAGMA synchronous = NORMAL;
-PRAGMA temp_store = MEMORY;
-
-ATTACH DATABASE ${quoteSqlString(sourcePath)} AS source;
-
-DROP TABLE IF EXISTS SearchIndexMeta;
-DROP TABLE IF EXISTS CultivarSearchIndex;
-DROP TABLE IF EXISTS CultivarSearchFacetValue;
-DROP TABLE IF EXISTS CultivarSearchAward;
-DROP TABLE IF EXISTS CultivarSearchSculptedType;
-DROP TABLE IF EXISTS CultivarListingSearchIndex;
-DROP TABLE IF EXISTS CultivarSearchFts;
-
-${CREATE_TARGET_SCHEMA_SQL}
-
-WITH active_pro_users AS (
-  SELECT u."id"
-  FROM source."User" u
-  JOIN source."KeyValue" kv ON kv."key" = 'stripe:customer:' || u."stripeCustomerId"
-  WHERE u."stripeCustomerId" IS NOT NULL
-    AND json_extract(kv."value", '$.status') IN ('active', 'trialing')
-),
-listing_counts AS (
-  SELECT
-    l."cultivarReferenceId",
-    COUNT(*) AS listingCount,
-    SUM(CASE WHEN COALESCE(l."price", 0) > 0 THEN 1 ELSE 0 END) AS forSaleListingCount
-  FROM source."Listing" l
-  JOIN active_pro_users apu ON apu."id" = l."userId"
-  WHERE l."cultivarReferenceId" IS NOT NULL
-    AND (l."status" IS NULL OR l."status" <> 'HIDDEN')
-  GROUP BY l."cultivarReferenceId"
-),
-generated_cultivar_images AS (
-  SELECT
-    "cultivarReferenceId",
-    "id" AS generatedImageAssetId,
-    COALESCE(NULLIF(TRIM("displayUrl"), ''), NULLIF(TRIM("originalUrl"), '')) AS generatedImageUrl,
-    NULLIF(TRIM("originalUrl"), '') AS generatedOriginalUrl,
-    NULLIF(TRIM("thumbUrl"), '') AS generatedThumbUrl,
-    NULLIF(TRIM("blurUrl"), '') AS generatedBlurUrl
-  FROM (
-    SELECT
-      ia.*,
-      ROW_NUMBER() OVER (
-        PARTITION BY ia."cultivarReferenceId"
-        ORDER BY ia."order" ASC, ia."createdAt" ASC
-      ) AS rn
-    FROM source."ImageAsset" ia
-    WHERE ia."kind" = 'cultivar'
-      AND ia."status" = 'ready'
-      AND ia."cultivarReferenceId" IS NOT NULL
-  )
-  WHERE rn = 1
-)
-INSERT INTO CultivarSearchIndex (
-  cultivarReferenceId,
-  v2AhsCultivarId,
-  normalizedName,
-  displayName,
-  displayNameSearch,
-  hybridizer,
-  hybridizerSearch,
-  yearInt,
-  seedlingNumber,
-  scapeHeightIn,
-  bloomSizeIn,
-  budCount,
-  branches,
-  bloomSeason,
-  bloomHabit,
-  form,
-  flowerShow,
-  flowerShowSearch,
-  sculptedTypes,
-  ploidy,
-  foliageType,
-  fragrance,
-  color,
-  parentage,
-  rebloom,
-  doublePercentage,
-  polymerousPercentage,
-  spiderRatio,
-  petalLengthIn,
-  petalWidthIn,
-  awardNames,
-  awardsJson,
-  imageUrl,
-  generatedImageAssetId,
-  generatedImageUrl,
-  generatedOriginalUrl,
-  generatedThumbUrl,
-  generatedBlurUrl,
-  fallbackImageUrl,
-  hasImage,
-  listingCount,
-  forSaleListingCount,
-  sourceUpdatedAt
-)
-SELECT
-  cr."id",
-  cr."v2AhsCultivarId",
-  cr."normalizedName",
-  COALESCE(NULLIF(TRIM(v2."post_title"), ''), cr."normalizedName"),
-  lower(COALESCE(NULLIF(TRIM(v2."post_title"), ''), cr."normalizedName")),
-  COALESCE(
-    NULLIF(TRIM(v2."primary_hybridizer_name"), ''),
-    NULLIF(TRIM(v2."hybridizer_code_legacy"), '')
-  ),
-  lower(
-    COALESCE(
-      NULLIF(TRIM(v2."primary_hybridizer_name"), ''),
-      NULLIF(TRIM(v2."hybridizer_code_legacy"), '')
-    )
-  ),
-  CASE
-    WHEN v2."introduction_date" GLOB '[12][0-9][0-9][0-9]*' THEN CAST(substr(v2."introduction_date", 1, 4) AS INTEGER)
-    ELSE NULL
-  END,
-  NULLIF(TRIM(v2."seedling_number"), ''),
-  v2."scape_height_in",
-  v2."bloom_size_in",
-  v2."bud_count",
-  v2."branches",
-  NULLIF(TRIM(v2."bloom_season_names"), ''),
-  NULLIF(TRIM(v2."bloom_habit_names"), ''),
-  CASE
-    WHEN NULLIF(TRIM(v2."flower_form_names"), '') IS NOT NULL
-      AND NULLIF(TRIM(v2."unusual_forms_names"), '') IS NOT NULL
-      THEN TRIM(v2."flower_form_names") || ', ' || TRIM(v2."unusual_forms_names")
-    ELSE COALESCE(
-      NULLIF(TRIM(v2."flower_form_names"), ''),
-      NULLIF(TRIM(v2."unusual_forms_names"), '')
-    )
-  END,
-  -- flower_show is the source's authoritative show classification. Missing
-  -- values stay NULL instead of being guessed from multiform form fields.
-  NULLIF(TRIM(v2."flower_show"), ''),
-  lower(NULLIF(TRIM(v2."flower_show"), '')),
-  NULLIF(TRIM(v2."sculpted_type_names"), ''),
-  NULLIF(TRIM(v2."ploidy_names"), ''),
-  NULLIF(TRIM(v2."foliage_names"), ''),
-  NULLIF(TRIM(v2."fragrance_names"), ''),
-  NULLIF(TRIM(v2."color"), ''),
-  NULLIF(TRIM(v2."parentage"), ''),
-  v2."rebloom",
-  v2."double_percentage",
-  v2."polymerous_percentage",
-  v2."spider_ratio",
-  v2."petal_length_in",
-  v2."petal_width_in",
-  (
-    SELECT group_concat(awardName, '|')
-    FROM (
-      SELECT DISTINCT NULLIF(TRIM(json_extract(award.value, '$.name')), '') AS awardName
-      FROM json_each(
-        CASE
-          WHEN json_valid(v2."awards_json") THEN v2."awards_json"
-          ELSE '[]'
-        END
-      ) award
-      WHERE NULLIF(TRIM(json_extract(award.value, '$.name')), '') IS NOT NULL
-      ORDER BY awardName COLLATE NOCASE
-    )
-  ),
-  CASE
-    WHEN json_valid(v2."awards_json") THEN v2."awards_json"
-    ELSE NULL
-  END,
-  COALESCE(
-    NULLIF(TRIM(v2."image_url"), ''),
-    NULLIF(TRIM(ahs."ahsImageUrl"), '')
-  ),
-  gci.generatedImageAssetId,
-  gci.generatedImageUrl,
-  gci.generatedOriginalUrl,
-  gci.generatedThumbUrl,
-  gci.generatedBlurUrl,
-  COALESCE(
-    NULLIF(TRIM(v2."image_url"), ''),
-    NULLIF(TRIM(ahs."ahsImageUrl"), '')
-  ),
-  CASE
-    WHEN COALESCE(
-      gci.generatedImageUrl,
-      NULLIF(TRIM(v2."image_url"), ''),
-      NULLIF(TRIM(ahs."ahsImageUrl"), '')
-    ) IS NULL THEN 0
-    ELSE 1
-  END,
-  COALESCE(lc.listingCount, 0),
-  COALESCE(lc.forSaleListingCount, 0),
-  MAX(
-    COALESCE(cr."updatedAt", '1970-01-01'),
-    COALESCE(v2."updatedAt", '1970-01-01')
-  )
-FROM source."CultivarReference" cr
-JOIN source."V2AhsCultivar" v2 ON v2."id" = cr."v2AhsCultivarId"
-LEFT JOIN source."AhsListing" ahs ON ahs."id" = cr."ahsId"
-LEFT JOIN listing_counts lc ON lc."cultivarReferenceId" = cr."id"
-LEFT JOIN generated_cultivar_images gci ON gci."cultivarReferenceId" = cr."id"
-WHERE cr."normalizedName" IS NOT NULL
-  AND COALESCE(NULLIF(TRIM(v2."post_title"), ''), cr."normalizedName") IS NOT NULL;
-
-${FACET_SQL}
-
-WITH active_pro_users AS (
-  SELECT u."id"
-  FROM source."User" u
-  JOIN source."KeyValue" kv ON kv."key" = 'stripe:customer:' || u."stripeCustomerId"
-  WHERE u."stripeCustomerId" IS NOT NULL
-    AND json_extract(kv."value", '$.status') IN ('active', 'trialing')
-),
-image_counts AS (
-  SELECT
-    "listingId",
-    COUNT(*) AS imageCount
-  FROM source."Image"
-  WHERE "listingId" IS NOT NULL
-  GROUP BY "listingId"
-)
-INSERT INTO CultivarListingSearchIndex (
-  listingId,
-  cultivarReferenceId,
-  catalogSlugOrId,
-  catalogTitle,
-  listingTitle,
-  listingTitleSearch,
-  listingDescription,
-  listingDescriptionSearch,
-  price,
-  forSale,
-  hasPhoto,
-  canonicalPath,
-  updatedAt
-)
-SELECT
-  l."id",
-  l."cultivarReferenceId",
-  COALESCE(NULLIF(TRIM(up."slug"), ''), l."userId"),
-  NULLIF(TRIM(up."title"), ''),
-  l."title",
-  lower(l."title"),
-  NULLIF(TRIM(l."description"), ''),
-  lower(NULLIF(TRIM(l."description"), '')),
-  l."price",
-  CASE WHEN COALESCE(l."price", 0) > 0 THEN 1 ELSE 0 END,
-  CASE WHEN COALESCE(ic.imageCount, 0) > 0 THEN 1 ELSE 0 END,
-  '/' || COALESCE(NULLIF(TRIM(up."slug"), ''), l."userId") || '/' || COALESCE(NULLIF(TRIM(l."slug"), ''), l."id"),
-  l."updatedAt"
-FROM source."Listing" l
-JOIN CultivarSearchIndex csi ON csi.cultivarReferenceId = l."cultivarReferenceId"
-JOIN active_pro_users apu ON apu."id" = l."userId"
-LEFT JOIN source."UserProfile" up ON up."userId" = l."userId"
-LEFT JOIN image_counts ic ON ic."listingId" = l."id"
-WHERE l."cultivarReferenceId" IS NOT NULL
-  AND (l."status" IS NULL OR l."status" <> 'HIDDEN');
-
-${INDEX_SQL}
-
-INSERT INTO SearchIndexMeta(key, value)
-VALUES
-  ('schemaVersion', '13'),
-  ('builtAt', strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-  ('sourcePath', ${quoteSqlString(sourcePath)});
-ANALYZE;
-`;
-}
-
-function validateIndex(targetPath) {
-  const output = execFileSync(
-    "sqlite3",
-    [
-      targetPath,
-      `
-SELECT 'cultivars', COUNT(*) FROM CultivarSearchIndex;
-SELECT 'linkedListings', COUNT(*) FROM CultivarListingSearchIndex;
-SELECT 'quickCheck', quick_check FROM pragma_quick_check;
-`,
-    ],
-    { encoding: "utf8" },
+// Local seed tool only. The VPS endpoint uses the app-owned replica singleton.
+if (process.env.NODE_ENV === "production") {
+  throw new Error(
+    "Use the running app's search-candidate endpoint for production builds.",
   );
-
-  if (!output.includes("quickCheck|ok")) {
-    throw new Error(`Search index validation failed:\n${output}`);
-  }
-
-  return output.trim();
 }
-
-function validateSource(sourcePath) {
-  let output;
-  try {
-    output = execFileSync("sqlite3", [sourcePath, "PRAGMA quick_check;"], {
-      encoding: "utf8",
-    }).trim();
-  } catch (error) {
-    throw new Error(
-      `Source replica post_build quick_check failed:\n${
-        error instanceof Error ? error.message : String(error)
-      }`,
-    );
+const { values } = parseArgs({
+  args: process.argv.slice(2).filter((arg) => arg !== "--"),
+  options: { source: { type: "string" }, target: { type: "string" } },
+});
+function localPath(value) {
+  if (value.includes("://") || value.startsWith("libsql:")) {
+    throw new Error("Search seed builds require local file paths.");
   }
-
-  if (output !== "ok") {
-    throw new Error(`Source replica post_build quick_check failed:\n${output}`);
-  }
-
-  return output;
+  return path.resolve(appRoot, value.replace(/^file:/, ""));
 }
-
-function main() {
-  const startedAt = performance.now();
-  const args = parseArgs();
-  const sourcePath = normalizeLocalPath(args.source);
-  const targetPath = normalizeLocalPath(args.target);
-  const targetDir = path.dirname(targetPath);
-  const nextPath = `${targetPath}.next`;
-  const previousPath = `${targetPath}.previous`;
-
-  assertNotLiveTursoReplica(sourcePath);
-  assertSafePaths(sourcePath, targetPath);
-  mkdirSync(targetDir, { recursive: true });
-  removeSqliteFiles(nextPath);
-
-  const sqlPath = path.join(targetDir, "build-public-search-index.sql");
-  writeFileSync(sqlPath, buildSql(sourcePath));
-
-  console.log("Building public search index");
-  console.log(`Source DB: ${sourcePath}`);
-  console.log(`Target DB: ${targetPath}`);
-  console.log("Remote reads: disabled");
-
-  execFileSync("sqlite3", [nextPath, `.read ${sqlPath}`], {
-    cwd: APP_ROOT,
-    stdio: "inherit",
+const sourcePath = localPath(
+  values.source ?? "prisma/local-prod-copy-daylily-catalog.db",
+);
+const targetPath = localPath(
+  values.target ?? ".tmp/search/public-search-candidate.sqlite",
+);
+const replicaUrl = process.env.TURSO_EMBEDDED_REPLICA_URL;
+function sameFile(left, right) {
+  if (left === right) return true;
+  if (!existsSync(left) || !existsSync(right)) return false;
+  const a = statSync(left);
+  const b = statSync(right);
+  return a.dev === b.dev && a.ino === b.ino;
+}
+if (replicaUrl && sameFile(sourcePath, localPath(replicaUrl))) {
+  throw new Error(
+    "Refusing to build search index from live Turso embedded replica.",
+  );
+}
+if (!existsSync(sourcePath)) throw new Error("Source database does not exist.");
+for (const artifact of [
+  targetPath,
+  targetPath + ".next",
+  targetPath + ".previous",
+]) {
+  if (sameFile(sourcePath, artifact)) {
+    throw new Error("Source and target artifacts must be different files.");
+  }
+}
+const sourceDb = new PrismaClient({
+  adapter: new PrismaLibSql({ url: `file:${realpathSync(sourcePath)}` }),
+});
+try {
+  const result = await buildPublicSearchIndex({
+    sourceDb,
+    sourceLabel: "local-seed",
+    targetPath,
+    targetWorkerPath: path.join(
+      appRoot,
+      "scripts/build-public-search-index-target.mjs",
+    ),
   });
-
-  const validation = validateIndex(nextPath);
-  const sourceValidation = validateSource(sourcePath);
-
-  console.log(`Source quick_check: ${sourceValidation}`);
-  replaceSqliteDatabase({ nextPath, previousPath, targetPath });
-
-  const elapsedMs = Math.round(performance.now() - startedAt);
-  console.log(validation);
-  console.log(`Built public search index in ${elapsedMs}ms`);
-}
-
-if (
-  process.argv[1] &&
-  import.meta.url === pathToFileURL(process.argv[1]).href
-) {
-  main();
+  console.log(JSON.stringify(result));
+} finally {
+  await sourceDb.$disconnect();
 }

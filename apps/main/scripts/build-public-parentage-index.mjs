@@ -7,13 +7,13 @@ const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const APP_ROOT = path.resolve(SCRIPT_DIR, "..");
 const DEFAULT_LOCAL_SOURCE = path.join(
   APP_ROOT,
-  ".tmp/search/cultivar-search.sqlite",
+  ".tmp/search/public-search-candidate.sqlite",
 );
 const DEFAULT_LOCAL_TARGET = path.join(
   APP_ROOT,
   ".tmp/search/cultivar-parentage.sqlite",
 );
-const DEFAULT_PRODUCTION_SOURCE = "/data/search/public-search.sqlite";
+const DEFAULT_PRODUCTION_SOURCE = "/data/search/public-search-candidate.sqlite";
 const DEFAULT_PRODUCTION_TARGET = "/data/search/public-parentage.sqlite";
 const SCHEMA_VERSION = "2";
 

@@ -1,8 +1,7 @@
 // @vitest-environment node
 
-import { execFile, execFileSync } from "node:child_process";
+import { execFile } from "node:child_process";
 import {
-  chmodSync,
   existsSync,
   mkdtempSync,
   readFileSync,
@@ -23,7 +22,6 @@ const candidate = vi.hoisted(() => ({
   env: {
     SEARCH_INDEX_CANDIDATE_TOKEN:
       "candidate-test-token-at-least-32-characters" as string | undefined,
-    PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS: "0",
   },
   sync: vi.fn(),
   ensureServing: vi.fn(() => {
@@ -41,9 +39,6 @@ vi.mock("@/lib/utils/getBaseUrl", () => ({
 }));
 vi.mock("@/server/search/public-search-index", () => ({
   ensurePublicSearchIndex: candidate.ensureServing,
-  getPublicSearchIndexPath: () => {
-    throw new Error("Candidate selected serving file");
-  },
   isPublicSearchIndexUsable: () => true,
   PublicSearchIndexUnavailableError: class extends Error {},
 }));
@@ -65,7 +60,6 @@ afterEach(() => {
   candidate.ensureServing.mockClear();
   candidate.env.SEARCH_INDEX_CANDIDATE_TOKEN =
     "candidate-test-token-at-least-32-characters";
-  candidate.env.PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS = "0";
 });
 
 function candidateRequest(method: string, query = "") {
@@ -200,29 +194,8 @@ function createAuthoritativeFlowerShowSource(sourcePath: string) {
   db.close();
 }
 
-function createFailingSourceCheckSqlite(binDirectory: string) {
-  const sqlitePath = execFileSync("which", ["sqlite3"], {
-    encoding: "utf8",
-  }).trim();
-  const wrapperPath = path.join(binDirectory, "sqlite3");
-
-  writeFileSync(
-    wrapperPath,
-    [
-      "#!/bin/sh",
-      'if [ "$1" = "$FAIL_SOURCE_PATH" ] && [ "$2" = "PRAGMA quick_check;" ]; then',
-      '  echo "database disk image is malformed" >&2',
-      "  exit 11",
-      "fi",
-      `exec "${sqlitePath}" "$@"`,
-      "",
-    ].join("\n"),
-  );
-  chmodSync(wrapperPath, 0o755);
-}
-
 describe("candidate search index", () => {
-  it("requires its own token and paused old refreshes before any build", async () => {
+  it("requires its own token and disables the build endpoint on Vercel", async () => {
     for (const handler of [GET, POST]) {
       expect(
         (
@@ -238,10 +211,6 @@ describe("candidate search index", () => {
     }
     vi.stubEnv("VERCEL", "1");
     expect((await POST(candidateRequest("POST"))).status).toBe(404);
-    vi.stubEnv("VERCEL", "");
-    vi.stubEnv("NODE_ENV", "production");
-    candidate.env.PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS = "3600";
-    expect((await POST(candidateRequest("POST"))).status).toBe(500);
     expect(candidate.sync).not.toHaveBeenCalled();
     expect(candidate.ensureServing).not.toHaveBeenCalled();
   });
@@ -273,15 +242,8 @@ describe("candidate search index", () => {
         UPDATE V2AhsCultivar SET awards_json = '[{"name":"Stout"}]' WHERE id = '102174';
       `);
       fixture.close();
-      // The old builder runs only on this plain test fixture, never on a managed replica.
-      await execFileAsync(process.execPath, [
-        buildScriptPath,
-        "--source",
-        sourcePath,
-        "--target",
-        servingPath,
-      ]);
-      const originalServing = readFileSync(servingPath);
+      const originalServing = Buffer.from("unused legacy artifact");
+      writeFileSync(servingPath, originalServing);
       symlinkSync(
         path.join(appRoot, "scripts"),
         path.join(directory, "scripts"),
@@ -336,27 +298,6 @@ describe("candidate search index", () => {
       expect(candidate.sync).toHaveBeenCalledOnce();
       expect(candidate.ensureServing).not.toHaveBeenCalled();
 
-      // Compare complete projected rows and facets, excluding insertion-order IDs.
-      const oldIndex = new DatabaseSync(servingPath, { readOnly: true });
-      const newIndex = new DatabaseSync(targetPath, { readOnly: true });
-      try {
-        for (const table of [
-          "CultivarSearchIndex",
-          "CultivarListingSearchIndex",
-          "CultivarSearchFacetValue",
-        ]) {
-          const rows = (db: DatabaseSync) =>
-            db
-              .prepare(`SELECT * FROM ${table} ORDER BY 2`)
-              .all()
-              .map(({ id: _id, ...row }) => row);
-          expect(rows(newIndex)).toEqual(rows(oldIndex));
-        }
-      } finally {
-        oldIndex.close();
-        newIndex.close();
-      }
-
       const originalCandidate = readFileSync(targetPath);
       candidate.sync.mockRejectedValueOnce(new Error("sync failed"));
       expect((await POST(candidateRequest("POST"))).status).toBe(500);
@@ -386,7 +327,21 @@ describe("candidate search index", () => {
 });
 
 describe("build-public-search-index source selection", () => {
-  it("requires an explicit source in production", async () => {
+  it("selects the documented production copy when no source is given", async () => {
+    const error = await runBuildScript([], {
+      TURSO_EMBEDDED_REPLICA_URL: `file:${path.join(appRoot, "prisma/local-prod-copy-daylily-catalog.db")}`,
+    });
+
+    // The source guard runs before opening the file, so this test needs no real snapshot.
+    expect(error).toHaveProperty(
+      "stderr",
+      expect.stringContaining(
+        "Refusing to build search index from live Turso embedded replica",
+      ),
+    );
+  });
+
+  it("refuses CLI production builds", async () => {
     const error = await runBuildScript([], {
       NODE_ENV: "production",
       TURSO_EMBEDDED_REPLICA_URL: "file:/data/turso-replica.db",
@@ -394,7 +349,7 @@ describe("build-public-search-index source selection", () => {
 
     expect(error).toMatchObject({
       stderr: expect.stringContaining(
-        "Production search index builds require an explicit --source path",
+        "Use the running app's search-candidate endpoint",
       ),
     });
   });
@@ -425,7 +380,10 @@ describe("build-public-search-index source selection", () => {
         [buildScriptPath, "--source", sourcePath, "--target", targetPath],
         { env: process.env },
       );
-      expect(stdout).toContain("Source quick_check: ok");
+      expect(JSON.parse(stdout)).toMatchObject({
+        cultivars: 2,
+        quickCheck: "ok",
+      });
 
       const targetDb = new DatabaseSync(targetPath, { readOnly: true });
       const rows = targetDb
@@ -466,44 +424,26 @@ describe("build-public-search-index source selection", () => {
     }
   });
 
-  it("does not promote an index when the final source check fails", async () => {
-    const tempDirectory = mkdtempSync(
-      path.join(tmpdir(), "public-search-source-check-"),
-    );
-    const sourcePath = path.join(tempDirectory, "source.sqlite");
-    const targetPath = path.join(tempDirectory, "target.sqlite");
-
+  it("refuses a source that aliases a target artifact", async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), "search-source-alias-"));
     try {
-      createAuthoritativeFlowerShowSource(sourcePath);
-      const targetDb = new DatabaseSync(targetPath);
-      targetDb.exec(
-        "CREATE TABLE Marker (value TEXT); INSERT INTO Marker VALUES ('old');",
-      );
-      targetDb.close();
-      createFailingSourceCheckSqlite(tempDirectory);
-
+      const source = path.join(directory, "source.sqlite");
+      const target = path.join(directory, "target.sqlite");
+      createAuthoritativeFlowerShowSource(source);
+      symlinkSync(source, target + ".previous");
+      const original = readFileSync(source);
       const error = await runBuildScript(
-        ["--source", sourcePath, "--target", targetPath],
-        {
-          FAIL_SOURCE_PATH: sourcePath,
-          PATH: `${tempDirectory}:${process.env.PATH}`,
-        },
+        ["--source", source, "--target", target],
+        {},
       );
-
       expect(error).toMatchObject({
         stderr: expect.stringContaining(
-          "Source replica post_build quick_check failed",
+          "Source and target artifacts must be different files",
         ),
       });
-      const preservedTarget = new DatabaseSync(targetPath, { readOnly: true });
-      expect(preservedTarget.prepare("SELECT value FROM Marker").get()).toEqual(
-        {
-          value: "old",
-        },
-      );
-      preservedTarget.close();
+      expect(readFileSync(source)).toEqual(original);
     } finally {
-      rmSync(tempDirectory, { force: true, recursive: true });
+      rmSync(directory, { recursive: true, force: true });
     }
   });
 });

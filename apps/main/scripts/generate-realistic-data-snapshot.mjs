@@ -24,7 +24,7 @@ const searchIndexPath = path.join(
   appRoot,
   ".tmp",
   "search",
-  "cultivar-search.sqlite",
+  "public-search-candidate.sqlite",
 );
 for (const envPath of [
   path.join(repoRoot, ".env.development"),

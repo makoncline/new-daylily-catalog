@@ -3,7 +3,6 @@ import "server-only";
 import { stat } from "node:fs/promises";
 import path from "node:path";
 import { createClient } from "@libsql/client";
-import { env } from "@/env";
 import { syncEmbeddedReplica } from "@/server/db";
 import {
   buildPublicSearchIndex,
@@ -14,7 +13,6 @@ const state = globalThis as typeof globalThis & {
   publicSearchCandidateBuild?: Promise<
     Awaited<ReturnType<typeof buildPublicSearchIndex>>
   >;
-  publicSearchIndexRefreshPromise?: Promise<unknown>;
 };
 
 function getAppRoot() {
@@ -31,18 +29,7 @@ export function getPublicSearchCandidatePath() {
 }
 
 export function buildPublicSearchCandidate() {
-  if (
-    process.env.NODE_ENV === "production" &&
-    env.PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS !== "0"
-  ) {
-    throw new Error(
-      "Pause old search refreshes before building the candidate.",
-    );
-  }
-
   state.publicSearchCandidateBuild ??= (async () => {
-    // A refresh that began before the operator paused the old builder must finish.
-    await state.publicSearchIndexRefreshPromise;
     const sourceDb = await syncEmbeddedReplica();
     return buildPublicSearchIndex({
       sourceDb,
