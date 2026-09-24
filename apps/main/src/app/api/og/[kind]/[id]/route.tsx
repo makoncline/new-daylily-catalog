@@ -1,8 +1,13 @@
 import { ImageResponse } from "next/og";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import sharp from "sharp";
 import { PublicSocialCard } from "@/components/public-social-card";
+import { CultivarSocialCard } from "@/components/cultivar-social-card";
 import { reportError } from "@/lib/error-utils";
 import { isSocialCardKind, SOCIAL_CARD_SIZE } from "@/lib/social-card";
+import { getPublicCloudflareCacheHeaders } from "@/lib/public-cache-policy";
+import { getPublicCultivarSocialCardData } from "@/server/db/public-cultivar-social-card-read-model";
 import { getErrorCode } from "@/lib/utils";
 import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 import { getPublicSocialCardData } from "@/server/db/public-social-card-read-model";
@@ -11,6 +16,46 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MAX_SOURCE_IMAGE_BYTES = 10 * 1024 * 1024;
+
+let cultivarFontPromise: Promise<
+  Array<{ name: string; data: ArrayBuffer; weight: 400 | 700; style: "normal" }>
+> | null = null;
+
+function getCultivarFonts() {
+  cultivarFontPromise ??= (async () => {
+    const appDir = process.cwd().endsWith("apps/main")
+      ? process.cwd()
+      : join(process.cwd(), "apps/main");
+    const fontDir = join(appDir, "public/fonts");
+    const [regular, bold] = await Promise.all([
+      readFile(join(fontDir, "geist-regular.ttf")),
+      readFile(join(fontDir, "geist-bold.ttf")),
+    ]);
+
+    return [
+      {
+        name: "Geist",
+        data: regular.buffer.slice(
+          regular.byteOffset,
+          regular.byteOffset + regular.byteLength,
+        ),
+        weight: 400 as const,
+        style: "normal" as const,
+      },
+      {
+        name: "Geist",
+        data: bold.buffer.slice(
+          bold.byteOffset,
+          bold.byteOffset + bold.byteLength,
+        ),
+        weight: 700 as const,
+        style: "normal" as const,
+      },
+    ];
+  })();
+
+  return cultivarFontPromise;
+}
 
 async function prepareImageForSatori(source: string, requestUrl: string) {
   const safeSource = getOptimizedMetaImageUrl(source);
@@ -88,6 +133,40 @@ export async function GET(
   }
 
   try {
+    if (kind === "cultivar") {
+      const cultivar = await getPublicCultivarSocialCardData(id);
+      if (!cultivar) return errorResponse(404, "Social image not found");
+
+      const [imageUrl] = await prepareSocialCardImages(
+        cultivar.imageUrls,
+        request.url,
+      );
+      const fonts = await getCultivarFonts();
+      const variant =
+        new URL(request.url).searchParams.get("variant") === "print"
+          ? "print"
+          : "share";
+
+      return new ImageResponse(
+        (
+          <CultivarSocialCard
+            title={cultivar.title}
+            ahsListing={cultivar.ahsListing}
+            extraDetails={cultivar.extraDetails}
+            imageUrl={imageUrl}
+            variant={variant}
+          />
+        ),
+        {
+          ...SOCIAL_CARD_SIZE,
+          fonts,
+          headers: getPublicCloudflareCacheHeaders({
+            "Cache-Control": "public, max-age=300",
+          }),
+        },
+      );
+    }
+
     const publicData = await getPublicSocialCardData(kind, id);
     const imageUrls = await prepareSocialCardImages(
       publicData.imageUrls,

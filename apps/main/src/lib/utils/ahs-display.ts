@@ -234,6 +234,7 @@ function joinDisplayValues(values: Array<string | null | undefined>) {
   const unique = Array.from(
     new Set(
       values
+        .flatMap((value) => value?.split(/\s*[|,]\s*/) ?? [])
         .map((value) => toNonEmptyDisplayValue(value))
         .filter((value): value is string => Boolean(value)),
     ),
@@ -269,20 +270,20 @@ export function mapV2AhsCultivarToDisplayAhsListing(
     year: getYearFromIntroductionDate(v2AhsCultivar.introduction_date),
     scapeHeight: formatInches(v2AhsCultivar.scape_height_in),
     bloomSize: formatInches(v2AhsCultivar.bloom_size_in),
-    bloomSeason: v2AhsCultivar.bloom_season_names ?? null,
-    ploidy: v2AhsCultivar.ploidy_names ?? null,
-    foliageType: v2AhsCultivar.foliage_names ?? null,
-    bloomHabit: v2AhsCultivar.bloom_habit_names ?? null,
+    bloomSeason: joinDisplayValues([v2AhsCultivar.bloom_season_names]),
+    ploidy: joinDisplayValues([v2AhsCultivar.ploidy_names]),
+    foliageType: joinDisplayValues([v2AhsCultivar.foliage_names]),
+    bloomHabit: joinDisplayValues([v2AhsCultivar.bloom_habit_names]),
     color: v2AhsCultivar.color ?? null,
     form: joinDisplayValues([
       v2AhsCultivar.flower_form_names,
       v2AhsCultivar.unusual_forms_names,
     ]),
     parentage: v2AhsCultivar.parentage ?? null,
-    fragrance: v2AhsCultivar.fragrance_names ?? null,
+    fragrance: joinDisplayValues([v2AhsCultivar.fragrance_names]),
     budcount: formatInteger(v2AhsCultivar.bud_count),
     branches: formatInteger(v2AhsCultivar.branches),
-    sculpting: v2AhsCultivar.sculpted_type_names ?? null,
+    sculpting: joinDisplayValues([v2AhsCultivar.sculpted_type_names]),
     foliage: null,
     flower: null,
   };

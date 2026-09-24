@@ -10,12 +10,21 @@ import {
   generateProfileMetadata,
 } from "@/app/(public)/[userSlugOrId]/_seo/metadata";
 import { getSocialCardImageUrl } from "@/lib/social-card";
+import { getCultivarPageMetadata } from "@/app/(public)/cultivar/[cultivarNormalizedName]/_lib/cultivar-page-route";
 import {
   buildCultivarMetaDescription,
 } from "@/app/(public)/cultivar/[cultivarNormalizedName]/_lib/cultivar-meta-description";
 import { metadata as privacyMetadata } from "@/app/(public)/privacy/page";
 import { metadata as supportMetadata } from "@/app/(public)/support/page";
 import { metadata as termsMetadata } from "@/app/(public)/terms/page";
+
+const cultivarMocks = vi.hoisted(() => ({
+  getPublicCultivarPage: vi.fn(),
+}));
+
+vi.mock("@/server/db/public-cultivar-read-model", () => ({
+  getPublicCultivarPage: cultivarMocks.getPublicCultivarPage,
+}));
 
 vi.mock("@/config/feature-flags", () => ({
   isPublicCultivarSearchEnabled: () => true,
@@ -71,6 +80,26 @@ describe("social sharing metadata", () => {
         kind: "catalog",
       }),
     ).toBe("https://daylilycatalog.com/api/og/catalog/seller-1?v=2");
+  });
+
+  it("uses the cultivar PNG for Open Graph and Twitter sharing", async () => {
+    cultivarMocks.getPublicCultivarPage.mockResolvedValue({
+      summary: {
+        name: "Millions of Peaches",
+        hybridizer: "Kay Cline",
+        year: "2021",
+      },
+      cultivar: { ahsListing: null },
+      offers: { summary: { gardensCount: 0, offersCount: 0 } },
+      heroImages: [{ url: "https://media.daylilycatalog.com/cultivar.webp" }],
+    });
+
+    const metadata = await getCultivarPageMetadata("millions-of-peaches");
+
+    expect(getOpenGraphImageUrl(metadata)).toContain(
+      "/api/og/cultivar/millions-of-peaches?v=8",
+    );
+    expect(metadata.twitter?.images).toEqual([getOpenGraphImageUrl(metadata)]);
   });
 
   it("keeps the complete cultivar search Open Graph metadata", async () => {

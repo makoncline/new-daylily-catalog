@@ -35,6 +35,9 @@ interface PublicCultivarReferenceRecord {
   v2AhsCultivar?:
     | (V2AhsCultivarDisplaySource & {
         primary_hybridizer_id?: string | null;
+        flower_show?: string | null;
+        rebloom?: number | null;
+        awards_json?: string | null;
       })
     | null;
   imageAssets?: ImageAssetUrlRow[];
@@ -58,7 +61,7 @@ export interface PublicCultivarContext {
   summariesByUserId: CultivarSummariesByUserId;
 }
 
-async function findCultivarReferenceByNormalizedName(
+export async function findCultivarReferenceByNormalizedName(
   normalizedName: string,
 ): Promise<PublicCultivarReferenceRecord | null> {
   const row = await replicaDb.cultivarReference.findFirst({
@@ -78,6 +81,9 @@ async function findCultivarReferenceByNormalizedName(
         select: {
           ...v2AhsCultivarDisplaySelect,
           primary_hybridizer_id: true,
+          flower_show: true,
+          rebloom: true,
+          awards_json: true,
         },
       },
       imageAssets: generatedCultivarImageAssetInclude,

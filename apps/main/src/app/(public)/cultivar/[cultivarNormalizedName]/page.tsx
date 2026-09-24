@@ -69,7 +69,10 @@ export default async function CultivarPage({ params }: PageProps) {
 
         <CultivarPageRoot>
           <CultivarPageSection>
-            <CultivarHeroSection cultivarPage={cultivarPage} />
+            <CultivarHeroSection
+              cultivarPage={cultivarPage}
+              cultivarSegment={cultivarNormalizedName}
+            />
           </CultivarPageSection>
 
           <CultivarPageSection>

@@ -158,7 +158,10 @@ async function getListingSocialCardData(
   };
 }
 
-export function getPublicSocialCardData(kind: SocialCardKind, id: string) {
+export function getPublicSocialCardData(
+  kind: Exclude<SocialCardKind, "cultivar">,
+  id: string,
+) {
   switch (kind) {
     case "catalog":
       return getCatalogSocialCardData(id);
