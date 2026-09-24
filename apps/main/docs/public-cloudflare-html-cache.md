@@ -128,12 +128,14 @@ Cache successful responses from these public read APIs, keyed by the full URL:
 
 - `/api/v1/cultivars/search`
 - `/api/v1/cultivars/facets`
+- `/api/og/cultivar/:segment` (PNG share images, including the renderer version query)
 
 Leave these out of this rollout:
 
 - `/:seller/search`
 - `/dashboard/*`
-- other `/api/*` and `/api/trpc/*` routes
+- other `/api/*` and `/api/trpc/*` routes (existing social cards keep their
+  separate cache policy)
 - auth, onboarding, subscription, webhook, MCP, well-known, and static asset
   routes
 - App Router RSC requests: `_rsc` query, `RSC: 1`, or `Accept:
@@ -226,8 +228,8 @@ Use the prod-like local Docker smoke workflow:
    - RSC requests include `Cache-Control: no-store`
    - seller search, dashboard, other API, and auth routes do not include a
      cacheable CDN directive
-   - successful cultivar search/facet API responses include the public CDN
-     directive, while their errors do not
+   - successful cultivar search/facet API and cultivar share image responses
+     include the public CDN directive, while their errors do not
 6. Verify anonymous Cloudflare document requests for each in-scope route:
    - first request: `cf-cache-status: MISS`
    - second request: `cf-cache-status: HIT`

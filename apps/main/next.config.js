@@ -28,6 +28,9 @@ const config = {
   // Next 16.3 cannot generate both outputs in the same build.
   output: process.env.VERCEL === "1" ? undefined : "standalone",
   outputFileTracingRoot: path.join(appDir, "../.."),
+  outputFileTracingIncludes: {
+    "/api/og/**": ["./public/fonts/geist-*.ttf"],
+  },
   serverExternalPackages: ["@prisma/adapter-better-sqlite3", "better-sqlite3"],
   cacheMaxMemorySize: 0,
 
