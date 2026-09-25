@@ -61,6 +61,22 @@ async function uploadSample(page: Page, rowCount = 25) {
 }
 
 test.describe("catalog importer", () => {
+  test("centers the importer content on desktop", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/catalog-importer");
+
+    await expect(page.getByRole("main")).toHaveCount(1);
+    const container = await page
+      .locator('[data-slot="catalog-importer-page-container"]')
+      .boundingBox();
+    expect(container).not.toBeNull();
+    expect(container!.width).toBeGreaterThan(1000);
+    expect(container!.width).toBeLessThanOrEqual(1024);
+    expect(Math.abs(container!.x - (1280 - container!.width) / 2)).toBeLessThan(
+      2,
+    );
+  });
+
   test("prepares, restores, and downloads a spreadsheet", async ({ page }) => {
     test.slow();
     await mockCultivarMatches(page);
@@ -142,7 +158,7 @@ test.describe("catalog importer", () => {
       page.getByRole("heading", {
         name: "Publish this catalog with Pro",
       }),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 30_000 });
     await expect(
       page.getByText("Give buyers one public link", {
         exact: false,

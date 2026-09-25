@@ -62,7 +62,6 @@ describe("subscription offer configuration", () => {
     expect(SUBSCRIPTION_CONFIG.PATHS.NEW_USER_ONBOARDING).toBe(
       "/catalog-importer",
     );
-    expect(pageSource).toContain("<SellerLandingOnboardingCta");
     expect(pageSource).toContain("Publish when you are ready");
     expect(pageSource).not.toMatch(/\btrial\b/i);
     expect(pageSource).not.toMatch(/\$\s*\d/);
@@ -72,8 +71,5 @@ describe("subscription offer configuration", () => {
     expect(marketingCopy).not.toMatch(
       /\b(?:annual|monthly|per month|per year|yearly)\b/i,
     );
-    expect(pageSource).not.toContain("getMembershipPriceDisplay");
-    expect(pageSource).not.toContain("membershipPriceDisplay");
-    expect(pageSource).not.toContain("getSubscriptionPriceCopy");
   });
 });

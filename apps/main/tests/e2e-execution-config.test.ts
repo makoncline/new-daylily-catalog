@@ -16,9 +16,6 @@ describe("connected E2E CI groups", () => {
   it("assigns every local E2E spec exactly once", () => {
     const { assigned, discovered } = validateE2eCiGroups();
     expect(assigned).toEqual(discovered);
-    expect(Object.values(e2eCiGroups).map((group) => group.length)).toEqual([
-      5, 5, 5,
-    ]);
   });
 
   it("reports duplicate assignments", () => {

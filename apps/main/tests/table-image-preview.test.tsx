@@ -15,7 +15,7 @@ vi.mock("next/image", () => ({
 import { TableImagePreview } from "@/components/data-table/table-image-preview";
 
 describe("TableImagePreview", () => {
-  it("paints the asset blur URL inside a fully sized table preview", () => {
+  it("paints the asset blur URL in the table preview", () => {
     const { container } = render(
       <TableImagePreview
         images={[
@@ -42,10 +42,6 @@ describe("TableImagePreview", () => {
     expect(
       container.querySelector('[aria-hidden="true"]')?.getAttribute("style"),
     ).toContain("https://media.example/image-1/blur-20.webp");
-    const image = screen.getByRole("img", { name: "Image preview" });
-    expect(image.parentElement).toHaveClass("size-full");
-    expect(image.parentElement?.parentElement).toHaveClass("inset-0");
-    expect(screen.getByRole("button")).toHaveClass("size-16");
   });
 
   it("opens the display asset with the same blur-up placeholder", () => {

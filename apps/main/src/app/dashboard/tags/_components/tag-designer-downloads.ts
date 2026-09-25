@@ -125,7 +125,7 @@ type Html2CanvasRenderer = (
 
 const RASTER_RENDER_CONCURRENCY = 2;
 
-export async function mapWithConcurrency<TInput, TOutput>(
+async function mapWithConcurrency<TInput, TOutput>(
   inputs: TInput[],
   concurrency: number,
   mapper: (input: TInput) => Promise<TOutput>,
