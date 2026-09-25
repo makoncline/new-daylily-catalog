@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   downloadTagImagesZip,
   downloadTagDocumentPdf,
-  mapWithConcurrency,
 } from "@/app/dashboard/tags/_components/tag-designer-downloads";
 import type { TagPreviewData } from "@/app/dashboard/tags/_components/tag-designer-model";
 
@@ -107,21 +106,51 @@ describe("tag designer downloads", () => {
     zipGenerateAsyncMock.mockResolvedValue(new Blob(["zip"]));
   });
 
-  it("limits concurrent raster render work while preserving result order", async () => {
+  it("limits PDF raster work and preserves tag order", async () => {
     let active = 0;
     let maxActive = 0;
-
-    const results = await mapWithConcurrency([1, 2, 3, 4, 5], 2, async (item) => {
-      active += 1;
-      maxActive = Math.max(maxActive, active);
-      await new Promise((resolve) => setTimeout(resolve, 1));
-      active -= 1;
-
-      return item * 10;
+    let releaseFirstTag!: () => void;
+    const firstTagCanFinish = new Promise<void>((resolve) => {
+      releaseFirstTag = resolve;
+    });
+    const completedTags: number[] = [];
+    const tags = Array.from({ length: 5 }, (_, index) => {
+      const nextTag = structuredClone(tag);
+      nextTag.id = `tag-${index + 1}`;
+      nextTag.rows[0]!.cells[0]!.text = `Tag ${index + 1}`;
+      return nextTag;
     });
 
-    expect(maxActive).toBeLessThanOrEqual(2);
-    expect(results).toEqual([10, 20, 30, 40, 50]);
+    html2canvasMock.mockImplementation(async (element: HTMLElement) => {
+      const tagIndex = tags.findIndex((item) =>
+        element.textContent?.includes(item.rows[0]!.cells[0]!.text),
+      );
+      active += 1;
+      maxActive = Math.max(maxActive, active);
+      if (tagIndex === 0) await firstTagCanFinish;
+      if (tagIndex === 1) releaseFirstTag();
+      active -= 1;
+      completedTags.push(tagIndex);
+
+      const canvas = document.createElement("canvas");
+      Object.defineProperty(canvas, "toDataURL", {
+        value: () => `data:image/png;base64,tag-${tagIndex + 1}`,
+      });
+      return canvas;
+    });
+
+    expect(
+      await downloadTagDocumentPdf({
+        tags,
+        widthInches: 3,
+        heightInches: 1,
+      }),
+    ).toBe(true);
+    expect(maxActive).toBe(2);
+    expect(completedTags.indexOf(1)).toBeLessThan(completedTags.indexOf(0));
+    expect(pdfAddImageMock.mock.calls.map(([dataUrl]) => dataUrl)).toEqual(
+      tags.map((_, index) => `data:image/png;base64,tag-${index + 1}`),
+    );
   });
 
   it("keeps the hidden raster iframe mounted until html2canvas finishes", async () => {

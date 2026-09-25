@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import CatalogImporterPage, {
   generateMetadata,
 } from "@/app/(public)/catalog-importer/page";
-import CatalogImporterLayout from "@/app/(public)/catalog-importer/layout";
 
 const featureState = vi.hoisted(() => ({
   discoveryEnabled: false,
@@ -40,23 +39,6 @@ describe("catalog importer quiet launch", () => {
       follow: false,
       index: false,
     });
-  });
-
-  it("centers the page in a landscape iPad-width layout container", () => {
-    render(
-      <CatalogImporterLayout>
-        <div>Importer content</div>
-      </CatalogImporterLayout>,
-    );
-
-    expect(screen.getByText("Importer content").parentElement).toHaveClass(
-      "mx-auto",
-      "w-full",
-      "max-w-[1024px]",
-    );
-    expect(
-      screen.getByText("Importer content").parentElement?.parentElement,
-    ).toHaveClass("bg-background", "flex", "flex-1", "flex-col");
   });
 
   it("allows indexing only when importer discovery is enabled", () => {

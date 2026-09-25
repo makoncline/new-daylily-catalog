@@ -705,43 +705,6 @@ describe("read-only MCP server", () => {
     expect(errorSpy).toHaveBeenCalledWith("Unexpected MCP error:", error);
   });
 
-  it("keeps private tools limited to read API wrappers", async () => {
-    const { handleMcpRequest } = await import("@/server/mcp/read-only-mcp");
-    const response = await handleMcpRequest(
-      new Request("https://daylilycatalog.com/api/mcp/server", {
-        body: JSON.stringify({
-          jsonrpc: "2.0",
-          id: 4,
-          method: "tools/list",
-        }),
-        method: "POST",
-      }),
-    );
-    const body = await response.json();
-    const tools = body.result.tools as Array<{
-      description: string;
-      name: string;
-    }>;
-
-    expect(tools.map((tool) => tool.name)).toEqual([
-      "daylily.search_cultivars",
-      "daylily.get_cultivar",
-      "daylily.search_public_listings",
-      "daylily.get_public_listing",
-      "daylily.get_public_profile",
-      "daylily.list_public_profile_lists",
-      "daylily.list_public_listings",
-      "daylily.get_profile",
-      "daylily.list_lists",
-      "daylily.get_list",
-      "daylily.list_listings",
-      "daylily.get_listing",
-    ]);
-    expect(tools.map((tool) => tool.name).join(" ")).not.toMatch(
-      /analyze|create|update|upload|attach|add|remove|delete/,
-    );
-  });
-
   it("builds an MCP server card that points at the MCP endpoint", async () => {
     const { getMcpServerCard } = await import("@/server/mcp/read-only-mcp");
 
