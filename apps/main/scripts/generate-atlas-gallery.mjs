@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck -- Directly executable Node gallery, contract-tested by Vitest.
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import {
@@ -14,6 +15,13 @@ const escapeHtml = (value) =>
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
+const appRoot = path.resolve(import.meta.dirname, "..");
+const sourceHref = (outputDirectory, sourcePath) =>
+  path
+    .relative(outputDirectory, path.resolve(appRoot, sourcePath))
+    .split(path.sep)
+    .map(encodeURIComponent)
+    .join("/");
 
 export function generateAtlasHome({ outputDirectory, flows = ATLAS_FLOWS }) {
   const cards = flows
@@ -47,6 +55,21 @@ export function generateAtlasGallery({
   const confidenceCommands = confidenceCommandsForFlow(flow)
     .map((command) => `<code>${escapeHtml(command)}</code>`)
     .join("");
+  const implementation = flow.implementation
+    ? `<section class="implementation"><h2>Implementation</h2><div>${flow.implementation.entryPoints
+        .map(
+          ({ label, path: sourcePath }) =>
+            `<p><a href="${escapeHtml(sourceHref(outputDirectory, sourcePath))}">${escapeHtml(label)}</a><br><code>${escapeHtml(sourcePath)}</code></p>`,
+        )
+        .join("")}</div><p>Patterns: ${flow.implementation.patternSections
+        .map(
+          (section) =>
+            `<a href="${escapeHtml(sourceHref(outputDirectory, "docs/implementation-patterns.md"))}">${escapeHtml(section)}</a>`,
+        )
+        .join(", ")}</p><ul>${flow.implementation.invariants
+        .map((invariant) => `<li>${escapeHtml(invariant)}</li>`)
+        .join("")}</ul></section>`
+    : "";
   const tests = Object.entries(flow.tests)
     .map(
       ([layer, references]) =>
@@ -55,7 +78,7 @@ export function generateAtlasGallery({
             ? references
                 .map(
                   (reference) =>
-                    `<p><code>${escapeHtml(reference.path)}</code><br><code>${escapeHtml(reference.command)}</code></p>`,
+                    `<p><a href="${escapeHtml(sourceHref(outputDirectory, reference.path))}">${escapeHtml(reference.path)}</a><br><code>${escapeHtml(reference.command)}</code></p>`,
                 )
                 .join("")
             : "<p>None declared.</p>"
@@ -74,8 +97,8 @@ export function generateAtlasGallery({
     )
     .join("");
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(flow.title)} · UI Atlas</title><style>
-  :root{font-family:Inter,ui-sans-serif,system-ui;color:#20251f;background:#f4f5f1}*{box-sizing:border-box}body{margin:0;padding:36px}main{max-width:1600px;margin:auto}header{max-width:850px;margin-bottom:38px}h1{font-size:clamp(2.3rem,5vw,4.5rem);letter-spacing:-.05em;margin:0 0 12px}h2{text-transform:capitalize}header p,.copy p,section>p{color:#62685f;line-height:1.5}.confidence{display:grid;gap:10px;margin:28px 0}.confidence code{display:block}.tests{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin:28px 0 50px}.tests section,article{border:1px solid #d9ddd4;border-radius:16px;background:white;overflow:hidden}.tests section{padding:18px}.tests h2{margin-top:0}.step{margin-bottom:50px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:22px;align-items:start}article>a{display:block;background:#e7e9e3;border-bottom:1px solid #d9ddd4}img{display:block;width:100%;height:auto}.copy{padding:18px}.copy h3{margin:0 0 8px}.meta{display:flex;flex-wrap:wrap;gap:9px;align-items:center}.meta a,.meta span{padding:6px 9px;border-radius:7px;background:#e7efe3;color:#3f6037;font-weight:700;text-decoration:none}code{display:inline-block;max-width:100%;overflow:auto;padding:6px 8px;border-radius:6px;background:#eef0eb;font-size:.78rem}details code{margin-top:10px}@media(max-width:800px){body{padding:22px 12px}.tests{grid-template-columns:1fr}.grid{grid-template-columns:1fr}}
-  </style></head><body><main><header><p>Daylily Catalog UI Atlas</p><h1>${escapeHtml(flow.title)}</h1><p>${escapeHtml(flow.description)}</p></header><section class="confidence"><h2>Run this flow's confidence</h2>${confidenceCommands}</section><div class="tests">${tests}</div>${steps}</main></body></html>`;
+  :root{font-family:Inter,ui-sans-serif,system-ui;color:#20251f;background:#f4f5f1}*{box-sizing:border-box}body{margin:0;padding:36px}main{max-width:1600px;margin:auto}header{max-width:850px;margin-bottom:38px}h1{font-size:clamp(2.3rem,5vw,4.5rem);letter-spacing:-.05em;margin:0 0 12px}h2{text-transform:capitalize}header p,.copy p,section>p{color:#62685f;line-height:1.5}.confidence{display:grid;gap:10px;margin:28px 0}.confidence code{display:block}.implementation{padding:18px;margin:28px 0;border:1px solid #d9ddd4;border-radius:16px;background:white}.implementation>div{display:flex;flex-wrap:wrap;gap:18px}.implementation ul{line-height:1.6}.tests{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin:28px 0 50px}.tests section,article{border:1px solid #d9ddd4;border-radius:16px;background:white;overflow:hidden}.tests section{padding:18px}.tests h2{margin-top:0}.step{margin-bottom:50px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:22px;align-items:start}article>a{display:block;background:#e7e9e3;border-bottom:1px solid #d9ddd4}img{display:block;width:100%;height:auto}.copy{padding:18px}.copy h3{margin:0 0 8px}.meta{display:flex;flex-wrap:wrap;gap:9px;align-items:center}.meta a,.meta span{padding:6px 9px;border-radius:7px;background:#e7efe3;color:#3f6037;font-weight:700;text-decoration:none}code{display:inline-block;max-width:100%;overflow:auto;padding:6px 8px;border-radius:6px;background:#eef0eb;font-size:.78rem}details code{margin-top:10px}@media(max-width:800px){body{padding:22px 12px}.tests{grid-template-columns:1fr}.grid{grid-template-columns:1fr}}
+  </style></head><body><main><header><p>Daylily Catalog UI Atlas</p><h1>${escapeHtml(flow.title)}</h1><p>${escapeHtml(flow.description)}</p></header><section class="confidence"><h2>Run this flow's confidence</h2>${confidenceCommands}</section>${implementation}<div class="tests">${tests}</div>${steps}</main></body></html>`;
   mkdirSync(outputDirectory, { recursive: true });
   const galleryPath = path.join(outputDirectory, "index.html");
   writeFileSync(galleryPath, html);
