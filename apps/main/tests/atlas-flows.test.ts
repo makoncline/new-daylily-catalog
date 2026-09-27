@@ -1,6 +1,13 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it } from "vitest";
-import { mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import {
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  utimesSync,
+  writeFileSync,
+} from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
@@ -12,6 +19,7 @@ import {
   statesForFlow,
   validateAtlasFlows,
 } from "../scripts/atlas-flows.mjs";
+import { generateAtlasGallery } from "../scripts/generate-atlas-gallery.mjs";
 const appRoot = path.resolve(import.meta.dirname, "..");
 const tempDirectories: string[] = [];
 const cloneFlows = () => structuredClone(ATLAS_FLOWS);
@@ -77,6 +85,52 @@ describe("Atlas flow contract", () => {
     expect(() => validateAtlasFlows({ flows: invalid, appRoot })).toThrow(
       "Invalid test layer: browser",
     );
+  });
+
+  it("rejects broken implementation links and pattern sections", () => {
+    const missingSource = cloneFlows();
+    missingSource[0]!.implementation!.entryPoints[0]!.path =
+      "src/server/db/missing-read-model.ts";
+    expect(() => validateAtlasFlows({ flows: missingSource, appRoot })).toThrow(
+      "Missing implementation entry point: src/server/db/missing-read-model.ts",
+    );
+
+    const missingPattern = cloneFlows();
+    missingPattern[0]!.implementation!.patternSections[0] = "Missing pattern";
+    expect(() =>
+      validateAtlasFlows({ flows: missingPattern, appRoot }),
+    ).toThrow("Missing implementation pattern: Missing pattern");
+  });
+
+  it("links a flow to its source, pattern, and behavioral tests", () => {
+    const directory = mkdtempSync(path.join(os.tmpdir(), "atlas-gallery-"));
+    tempDirectories.push(directory);
+    const flow = getAtlasFlow("public-catalog");
+    const screenshots = path.join(directory, "screenshots");
+    mkdirSync(screenshots);
+    for (const stateItem of statesForFlow(flow)) {
+      writeFileSync(path.join(screenshots, stateItem.capture), "capture");
+    }
+
+    const html = readFileSync(
+      generateAtlasGallery({
+        flowId: flow.id,
+        outputDirectory: directory,
+      }),
+      "utf8",
+    );
+    expect(html).toContain("Profile page data");
+    const sourceLink = /href="([^"]*public-profile-route\.ts)"/.exec(html)?.[1];
+    expect(sourceLink).toBeDefined();
+    expect(path.resolve(directory, decodeURIComponent(sourceLink!))).toBe(
+      path.join(
+        appRoot,
+        "src/app/(public)/[userSlugOrId]/_lib/public-profile-route.ts",
+      ),
+    );
+    expect(html).toContain("Public server read");
+    expect(html).toContain("implementation-patterns.md");
+    expect(html).toContain("tests/public-profile-route.test.ts");
   });
 
   it("rejects a state without a reproduction command", () => {

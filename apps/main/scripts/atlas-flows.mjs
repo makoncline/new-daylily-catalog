@@ -1,5 +1,5 @@
 // @ts-nocheck -- Directly executable Node registry, contract-tested by Vitest.
-import { existsSync, statSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 const stateFor =
   (captureSpec, atlasFlowId) =>
@@ -52,9 +52,27 @@ export const ATLAS_FLOWS = [
     title: "Browse a public catalog",
     description:
       "Find a grower, search a production-sized catalog, and inspect a listing.",
+    implementation: {
+      entryPoints: [
+        {
+          label: "Profile page data",
+          path: "src/app/(public)/[userSlugOrId]/_lib/public-profile-route.ts",
+        },
+        {
+          label: "Published listing reads",
+          path: "src/server/db/public-listing-read-model.ts",
+        },
+      ],
+      patternSections: ["Public server read"],
+      invariants: [
+        "Read public data through the replica and apply published-listing filters.",
+        "Keep profile data and listing cards in the first HTML response.",
+      ],
+    },
     tests: {
       unit: [],
       integration: [
+        testRef("integration", "tests/public-profile-route.test.ts"),
         testRef("integration", "tests/get-public-listings.test.ts"),
         testRef(
           "integration",
@@ -843,9 +861,35 @@ export const ATLAS_FLOWS = [
     title: "Find, create, and edit listings",
     description:
       "Manage a production-shaped catalog through the same dashboard controls members use.",
+    implementation: {
+      entryPoints: [
+        {
+          label: "Listing mutations",
+          path: "src/server/api/routers/dashboard-db/listing.ts",
+        },
+        {
+          label: "Listing edit form",
+          path: "src/components/forms/listing-form.tsx",
+        },
+      ],
+      patternSections: [
+        "Authenticated mutation",
+        "Form validation and save",
+        "Full app persistence test",
+      ],
+      invariants: [
+        "Scope listing writes to the authenticated user on the server.",
+        "Validate before save and keep the form open when save fails.",
+        "Confirm saved values after a new page load.",
+      ],
+    },
     tests: {
       unit: [testRef("unit", "tests/listings-search-normalization.test.tsx")],
       integration: [
+        testRef(
+          "integration",
+          "tests/dashboard-db-listing-entitlements.integration.test.ts",
+        ),
         testRef(
           "integration",
           "tests/dashboard-listing-filter-toolbar.test.ts",
@@ -1424,7 +1468,30 @@ export function validateAtlasFlows({ flows = ATLAS_FLOWS, appRoot }) {
   const stateIds = new Set();
   const captures = new Set();
   const allowedLayers = new Set(["unit", "integration", "e2e"]);
+  const patternsPath = path.resolve(appRoot, "docs/implementation-patterns.md");
   for (const flow of flows) {
+    if (flow.implementation) {
+      for (const entryPoint of flow.implementation.entryPoints) {
+        if (!existsSync(path.resolve(appRoot, entryPoint.path)))
+          throw new Error(
+            `Missing implementation entry point: ${entryPoint.path}`,
+          );
+      }
+      if (!existsSync(patternsPath))
+        throw new Error(
+          "Missing implementation patterns: docs/implementation-patterns.md",
+        );
+      const patternHeadings = new Set(
+        readFileSync(patternsPath, "utf8")
+          .split("\n")
+          .filter((line) => line.startsWith("## "))
+          .map((line) => line.slice(3).trim()),
+      );
+      for (const section of flow.implementation.patternSections) {
+        if (!patternHeadings.has(section))
+          throw new Error(`Missing implementation pattern: ${section}`);
+      }
+    }
     for (const layer of Object.keys(flow.tests)) {
       if (!allowedLayers.has(layer))
         throw new Error(`Invalid test layer: ${layer}`);
