@@ -61,12 +61,7 @@ export function generateAtlasGallery({
           ({ label, path: sourcePath }) =>
             `<p><a href="${escapeHtml(sourceHref(outputDirectory, sourcePath))}">${escapeHtml(label)}</a><br><code>${escapeHtml(sourcePath)}</code></p>`,
         )
-        .join("")}</div><p>Patterns: ${flow.implementation.patternSections
-        .map(
-          (section) =>
-            `<a href="${escapeHtml(sourceHref(outputDirectory, "docs/implementation-patterns.md"))}">${escapeHtml(section)}</a>`,
-        )
-        .join(", ")}</p><ul>${flow.implementation.invariants
+        .join("")}</div><ul>${flow.implementation.invariants
         .map((invariant) => `<li>${escapeHtml(invariant)}</li>`)
         .join("")}</ul></section>`
     : "";

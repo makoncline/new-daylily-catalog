@@ -87,22 +87,16 @@ describe("Atlas flow contract", () => {
     );
   });
 
-  it("rejects broken implementation links and pattern sections", () => {
+  it("rejects broken implementation links", () => {
     const missingSource = cloneFlows();
     missingSource[0]!.implementation!.entryPoints[0]!.path =
       "src/server/db/missing-read-model.ts";
     expect(() => validateAtlasFlows({ flows: missingSource, appRoot })).toThrow(
       "Missing implementation entry point: src/server/db/missing-read-model.ts",
     );
-
-    const missingPattern = cloneFlows();
-    missingPattern[0]!.implementation!.patternSections[0] = "Missing pattern";
-    expect(() =>
-      validateAtlasFlows({ flows: missingPattern, appRoot }),
-    ).toThrow("Missing implementation pattern: Missing pattern");
   });
 
-  it("links a flow to its source, pattern, and behavioral tests", () => {
+  it("links a flow to its source and behavioral tests", () => {
     const directory = mkdtempSync(path.join(os.tmpdir(), "atlas-gallery-"));
     tempDirectories.push(directory);
     const flow = getAtlasFlow("public-catalog");
@@ -128,8 +122,7 @@ describe("Atlas flow contract", () => {
         "src/app/(public)/[userSlugOrId]/_lib/public-profile-route.ts",
       ),
     );
-    expect(html).toContain("Public server read");
-    expect(html).toContain("implementation-patterns.md");
+    expect(html).toContain("Read public data through the replica");
     expect(html).toContain("tests/public-profile-route.test.ts");
   });
 

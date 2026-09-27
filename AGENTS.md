@@ -1,74 +1,28 @@
 # Agents
 
-This repository contains the Daylily Catalog Next.js app. Start here, then open
-the guide for the area you will change. Read [historical notes](logs.md) only
-when a note relates to the current task. Check older notes against current code.
-
-## Work rules
+This repository contains the Daylily Catalog Next.js app. Use the tracked
+scripts and installed package documentation as the source of truth.
 
 - Use ASD-STE100 style. Write short, direct sentences.
-- Make the smallest complete change. Remove obsolete paths instead of adding
-  compatibility layers or temporary architecture.
-- Keep route, UI, server, and data concerns separate. Follow an existing
-  pattern before you add an abstraction or dependency.
-- Use the libraries already in the app. Check their installed types and docs
-  before you write a replacement.
-- Add a few meaningful tests for changed behavior. Prefer integration tests.
-  Do not test facts that TypeScript already guarantees.
-- Keep a working end-to-end path at each step. Check the user-visible result
-  when the change affects a flow.
+- Make the smallest complete change. Remove obsolete paths and avoid temporary architecture.
+- Keep route, UI, server, and data concerns separate. Check existing patterns, dependencies, and installed types before adding code.
+- Add a few meaningful tests for changed behavior. Prefer integration tests. Do not test facts that TypeScript guarantees. Check the user-visible result when a flow changes.
 - Do not run `codex review` unless the user asks for it.
-- If you learn a reusable, non-obvious detail, append one dated entry to
-  [logs.md](logs.md) in the format shown there. Keep dated incidents out of
-  this entry guide.
+- If you learn a reusable, non-obvious detail, append it to `logs.md` in this format: `[YYYY-MM-DD] Short label: What was learned. When it matters. What future agents should do.` Create the file if needed.
 
-## Find the right area
+Run scripts from the repository root with `pnpm`. Use `pnpm env:dev <command>`
+when a script needs development env values. Keep credentials in ignored env
+files. Do not reuse another checkout's server, database, or port. The PR CI
+aggregate status is `Verify PR`.
 
-| Work                                             | Start at                                                                                                                                                         |
-| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Routes, layouts, metadata, and HTTP handlers     | [`apps/main/src/app/`](apps/main/src/app/) and [app guidance](apps/main/AGENTS.md)                                                                               |
-| Shared UI                                        | [`apps/main/src/components/`](apps/main/src/components/); `ui/` contains shadcn components                                                                       |
-| tRPC, auth, billing, search, and database access | [`apps/main/src/server/`](apps/main/src/server/)                                                                                                                 |
-| Shared client-safe helpers and types             | [`apps/main/src/lib/`](apps/main/src/lib/) and [`apps/main/src/types/`](apps/main/src/types/)                                                                    |
-| Prisma schema and data changes                   | [`apps/main/prisma/`](apps/main/prisma/) and [database migration workflow](apps/main/docs/db-migration.md)                                                       |
-| Atlas visual flows                               | [agent development flywheel](apps/main/docs/agent-development-flywheel.md) and [`apps/main/scripts/atlas-flows.mjs`](apps/main/scripts/atlas-flows.mjs)          |
-| Tests and verification                           | [`apps/main/tests/`](apps/main/tests/), [E2E guide](apps/main/docs/e2e-tests.md), and [agent development flywheel](apps/main/docs/agent-development-flywheel.md) |
+Use [database migration steps](apps/main/docs/db-migration.md) for schema and
+data changes, [V2 AHS refresh](.codex/skills/v2-ahs-refresh/SKILL.md) for
+cultivar updates, and [image catch-up](apps/main/docs/generated-cultivar-image-catchup.md)
+for generated cultivar images. Use [VPS deployment](apps/main/docs/deploy-vps.md)
+and [production container smoke](apps/main/docs/prod-like-local-docker-smoke.md)
+for deployment work.
 
-See the [app docs index](apps/main/docs/README.md) for feature and operations
-runbooks. The [implementation patterns guide](apps/main/docs/implementation-patterns.md)
-collects examples of the current architecture.
-
-## Local work and verification
-
-Run commands from the repository root unless a linked guide says otherwise.
-Use `pnpm` and keep service credentials in ignored environment files.
-
-| Goal                                         | Command and guide                                                                                                                                                                                                                                                  |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Use representative local data                | `pnpm db:seed:prepare && pnpm dev`; [seeded development](apps/main/docs/realistic-data-local-development.md). `pnpm dev` uses that seed unless `DATABASE_URL` is set.                                                                                              |
-| Run focused Vitest tests                     | `pnpm verify --tests tests/<file>.test.ts` runs lint, typecheck, and the selected test paths relative to `apps/main`.                                                                                                                                              |
-| Check app code                               | `pnpm verify` runs lint, typecheck, and all Vitest tests in sequence.                                                                                                                                                                                              |
-| Run the offline full-app integration harness | `pnpm verify --full` adds the full-app suite after `pnpm verify`; [integration loop](apps/main/docs/agent-development-flywheel.md#integration-loop). For one spec, use `node apps/main/scripts/run-integration-local.mjs tests/integration/<file>.integration.ts`. |
-| Check a declared Atlas flow                  | `pnpm verify --flow <flow-id>` runs that flow's listed confidence commands. It does not add lint or typecheck. Some flows need connected stage services.                                                                                                           |
-| Capture an Atlas flow                        | `node apps/main/scripts/run-atlas-flow.mjs <flow-id> --output=local/atlas/current`; [Atlas loop](apps/main/docs/agent-development-flywheel.md#public-catalog-loop). Use a free `ATLAS_PORT` if another checkout has the default port.                              |
-| Run connected browser E2E                    | `pnpm test:e2e`; [E2E guide](apps/main/docs/e2e-tests.md). Local runs manage a temporary database and server. Connected auth or payment flows need their configured services.                                                                                      |
-| Test the production container locally        | [production-shaped Docker smoke](apps/main/docs/prod-like-local-docker-smoke.md). This uses a local database copy and production service configuration.                                                                                                            |
-
-The seeded development path, offline integration harness, connected E2E,
-and Docker smoke use different data and service boundaries. Use the guide for
-the proof you need. Do not reuse another checkout's server, database, or port.
-The PR CI aggregate status is `Verify PR`.
-
-## Next.js and environment rules
-
-Server Components are the App Router default. Put `"use client"` at a client
-entry point that needs state, events, or browser APIs. Use `"use server"` for
-Server Functions, not for every server-rendered component. The installed Next
-docs are in `apps/main/node_modules/next/dist/docs/`; read the relevant guide
-before you change framework behavior. Keep server-only modules out of client
-imports. The managed Next.js note is in [app guidance](apps/main/AGENTS.md).
-
-Use `@/` for app imports. Load configured development env values with
-`pnpm env:dev <command>` when a script needs them. Add required variable names
-to [`apps/main/.env.example`](apps/main/.env.example). Expose a value with
-`NEXT_PUBLIC_` only when the browser needs it.
+Keep server-only modules out of client imports. Read installed Next docs in
+`apps/main/node_modules/next/dist/docs/` before changing framework behavior.
+Add required env names to `apps/main/.env.example`. Use `NEXT_PUBLIC_` only
+when the browser needs a value.

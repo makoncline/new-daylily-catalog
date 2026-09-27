@@ -7,7 +7,7 @@ This workflow is intended for auth and routing regressions that only reproduce
 on a real `*.daylilycatalog.com` origin. It does not use the embedded replica.
 
 For stage Clerk, Stripe test mode, and the `prodlike+` personas, use
-[`realistic-data-local-development.md`](./realistic-data-local-development.md)
+the seeded local development path
 instead; those credentials do not apply to this production-service workflow.
 
 ## What It Does

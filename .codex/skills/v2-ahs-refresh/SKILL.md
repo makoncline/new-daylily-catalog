@@ -146,7 +146,6 @@ pnpm db:seed:sync
 
 ## References
 
-- `apps/main/docs/v2-ahs-cultivar-migration.md`
 - `apps/main/scripts/scrape/fetch-pages.sh`
 - `apps/main/scripts/scrape/combine-pages-sqlite.sh`
 - `apps/main/scripts/generate-v2-ahs-cultivar-delta-sql.ts`
