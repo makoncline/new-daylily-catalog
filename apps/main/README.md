@@ -27,7 +27,7 @@ delegates to this package's `scripts/with-env.mjs --env development -- ...`;
 inside `apps/main`, the equivalent is `pnpm env:dev ...`.
 
 Routine verification and operational workflows are documented in the runbooks
-linked below and in `../../AGENTS.md`.
+linked below and in [`../../AGENTS.md`](../../AGENTS.md).
 
 ## Environment Loading
 
@@ -46,11 +46,16 @@ memory.
 
 ## Related Docs
 
-- `docs/README.md` - categorized index for app runbooks.
-- `docs/e2e-tests.md` - Playwright workflow and tagging rules.
+- [App docs index](docs/README.md) - categorized app runbooks.
+- [Implementation patterns](docs/implementation-patterns.md) - examples of current route, UI, server,
+  and data boundaries.
+- [Agent development flywheel](docs/agent-development-flywheel.md) - Atlas, browser, and integration loops.
+- [Seeded local development](docs/realistic-data-local-development.md) - representative local data.
+- [E2E tests](docs/e2e-tests.md) - Playwright workflow and tagging rules.
+- [Production-shaped Docker smoke](docs/prod-like-local-docker-smoke.md) - production container smoke workflow.
 - `docs/deploy-vps.md` - VPS Docker deployment and runtime contract.
 - `docs/public-rendering-cache-strategy.md` - public page cache strategy.
 - `docs/local-query-profiler.md` - local query profiling workflow.
 - `docs/prod-readonly-dashboard-smoke.md` - production-shaped read-only smoke
   testing from local code.
-- `../../AGENTS.md` - agent-oriented repo conventions and gotchas.
+- `../../AGENTS.md` - short agent entry point.

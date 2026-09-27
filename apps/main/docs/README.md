@@ -3,11 +3,24 @@
 This directory holds focused runbooks and product notes for `apps/main`. Keep
 deep operational detail in the linked documents and use this index for routing.
 
+## Start Here
+
+- [`../README.md`](../README.md) - app source map and environment loading.
+- [`implementation-patterns.md`](implementation-patterns.md) - current route,
+  UI, server, and data patterns.
+- [`agent-development-flywheel.md`](agent-development-flywheel.md) - choose a
+  browser, Atlas, or full-app integration loop for the change.
+- [Root agent guide](../../../AGENTS.md) - work rules and commands.
+
 ## Local Development and Tests
 
 - `realistic-data-local-development.md` - generate and use the production-shaped
   seeded development database.
+- `agent-development-flywheel.md` - Atlas visual flows and the offline full-app
+  integration harness with disposable data and local providers.
 - `e2e-tests.md` - Playwright local, preview, and page-object workflow.
+- `prod-like-local-docker-smoke.md` - local production container with a database
+  copy and production service configuration.
 - `local-query-profiler.md` - local profiling against a production-shaped
   SQLite snapshot.
 - `query-performance-notes.md` - query profiling findings and follow-up notes.
