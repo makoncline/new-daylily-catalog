@@ -12,6 +12,11 @@ deep operational detail in the linked documents and use this index for routing.
   browser, Atlas, or full-app integration loop for the change.
 - [Root agent guide](../../../AGENTS.md) - work rules and commands.
 
+From the repository root, `pnpm verify` runs lint, typecheck, and Vitest.
+`pnpm verify --full` adds offline full-app integration. Run
+`pnpm verify --flow <flow-id>` for the flow's listed commands. Some flows need
+connected stage services.
+
 ## Local Development and Tests
 
 - `realistic-data-local-development.md` - generate and use the production-shaped

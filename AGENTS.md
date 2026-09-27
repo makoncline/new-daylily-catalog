@@ -43,19 +43,21 @@ collects examples of the current architecture.
 Run commands from the repository root unless a linked guide says otherwise.
 Use `pnpm` and keep service credentials in ignored environment files.
 
-| Goal                                         | Command and guide                                                                                                                                                                                                                     |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Use representative local data                | `pnpm db:seed:prepare && pnpm dev`; [seeded development](apps/main/docs/realistic-data-local-development.md). `pnpm dev` uses that seed unless `DATABASE_URL` is set.                                                                 |
-| Run focused Vitest tests                     | `pnpm main test -- tests/<file>.test.ts`                                                                                                                                                                                              |
-| Check app code                               | `pnpm lint`, `pnpm typecheck`, `pnpm test`                                                                                                                                                                                            |
-| Run the offline full-app integration harness | `node apps/main/scripts/run-integration-local.mjs`; [integration loop](apps/main/docs/agent-development-flywheel.md#integration-loop). It owns a disposable database and local providers.                                             |
-| Capture an Atlas flow                        | `node apps/main/scripts/run-atlas-flow.mjs <flow-id> --output=local/atlas/current`; [Atlas loop](apps/main/docs/agent-development-flywheel.md#public-catalog-loop). Use a free `ATLAS_PORT` if another checkout has the default port. |
-| Run connected browser E2E                    | `pnpm test:e2e`; [E2E guide](apps/main/docs/e2e-tests.md). Local runs manage a temporary database and server. Connected auth or payment flows need their configured services.                                                         |
-| Test the production container locally        | [production-shaped Docker smoke](apps/main/docs/prod-like-local-docker-smoke.md). This uses a local database copy and production service configuration.                                                                               |
+| Goal                                         | Command and guide                                                                                                                                                                                                                                                  |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Use representative local data                | `pnpm db:seed:prepare && pnpm dev`; [seeded development](apps/main/docs/realistic-data-local-development.md). `pnpm dev` uses that seed unless `DATABASE_URL` is set.                                                                                              |
+| Run focused Vitest tests                     | `pnpm verify --tests tests/<file>.test.ts` runs lint, typecheck, and the selected test paths relative to `apps/main`.                                                                                                                                              |
+| Check app code                               | `pnpm verify` runs lint, typecheck, and all Vitest tests in sequence.                                                                                                                                                                                              |
+| Run the offline full-app integration harness | `pnpm verify --full` adds the full-app suite after `pnpm verify`; [integration loop](apps/main/docs/agent-development-flywheel.md#integration-loop). For one spec, use `node apps/main/scripts/run-integration-local.mjs tests/integration/<file>.integration.ts`. |
+| Check a declared Atlas flow                  | `pnpm verify --flow <flow-id>` runs that flow's listed confidence commands. It does not add lint or typecheck. Some flows need connected stage services.                                                                                                           |
+| Capture an Atlas flow                        | `node apps/main/scripts/run-atlas-flow.mjs <flow-id> --output=local/atlas/current`; [Atlas loop](apps/main/docs/agent-development-flywheel.md#public-catalog-loop). Use a free `ATLAS_PORT` if another checkout has the default port.                              |
+| Run connected browser E2E                    | `pnpm test:e2e`; [E2E guide](apps/main/docs/e2e-tests.md). Local runs manage a temporary database and server. Connected auth or payment flows need their configured services.                                                                                      |
+| Test the production container locally        | [production-shaped Docker smoke](apps/main/docs/prod-like-local-docker-smoke.md). This uses a local database copy and production service configuration.                                                                                                            |
 
 The seeded development path, offline integration harness, connected E2E,
 and Docker smoke use different data and service boundaries. Use the guide for
 the proof you need. Do not reuse another checkout's server, database, or port.
+The PR CI aggregate status is `Verify PR`.
 
 ## Next.js and environment rules
 
