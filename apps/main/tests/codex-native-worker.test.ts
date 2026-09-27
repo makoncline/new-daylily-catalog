@@ -573,7 +573,7 @@ database.close();
     `);
     prodDatabase.close();
 
-    execFileSync(
+    const run = spawnSync(
       process.execPath,
       [
         path.join(scriptRoot, "run-codex-native-worker.mjs"),
@@ -585,6 +585,7 @@ database.close();
         "1",
       ],
       {
+        encoding: "utf8",
         env: createWorkerEnv(temporaryRoot, {
           CODEX_BACKLOG_SCRIPT: fakeBacklogPath,
           CODEX_BIN: fakeCodexPath,
@@ -595,6 +596,11 @@ database.close();
         }),
       },
     );
+    if (run.error || run.status !== 0) {
+      throw new Error(
+        `Worker failed: status=${run.status}, signal=${run.signal}, error=${run.error ?? "none"}\nstdout:\n${run.stdout}\nstderr:\n${run.stderr}`,
+      );
+    }
 
     const verifiedDatabase = new DatabaseSync(databasePath, {
       readOnly: true,
