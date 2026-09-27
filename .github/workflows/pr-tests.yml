@@ -147,3 +147,19 @@ jobs:
           path: |
             apps/main/test-results
             apps/main/playwright-report
+
+  verify-pr:
+    name: Verify PR
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [quality, vitest, full-app-integration, e2e]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check required results
+        env:
+          QUALITY_RESULT: ${{ needs.quality.result }}
+          VITEST_RESULT: ${{ needs.vitest.result }}
+          FULL_APP_INTEGRATION_RESULT: ${{ needs['full-app-integration'].result }}
+          E2E_RESULT: ${{ needs.e2e.result }}
+          PR_IS_FORK: ${{ github.event.pull_request.head.repo.fork == true }}
+        run: node apps/main/scripts/verify-pr-results.mjs

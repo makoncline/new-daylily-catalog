@@ -13,8 +13,12 @@ const appRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
 );
-const port = process.env.INTEGRATION_PORT ?? "3210";
+const port = Number(process.env.INTEGRATION_PORT ?? "3210");
+if (!Number.isInteger(port) || port < 1 || port >= 65535) {
+  throw new Error("INTEGRATION_PORT must be a port from 1 to 65534.");
+}
 const appBaseUrl = `http://localhost:${port}`;
+const providerUrl = `http://127.0.0.1:${port + 1}`;
 const runId = `${process.pid}-${crypto.randomUUID()}`;
 const databasePath = path.join(
   appRoot,
@@ -34,7 +38,7 @@ const integrationEnv = {
   INTEGRATION_MODE: "1",
   INTEGRATION_NETWORK_GUARD: "1",
   APP_BASE_URL: appBaseUrl,
-  INTEGRATION_PROVIDER_URL: "http://127.0.0.1:3211",
+  INTEGRATION_PROVIDER_URL: providerUrl,
   DATABASE_URL: databaseUrl,
   CLERK_SECRET_KEY: "sk_test_integration",
   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_integration",
@@ -42,7 +46,7 @@ const integrationEnv = {
   AWS_ACCESS_KEY_ID: "integration-access-key",
   AWS_SECRET_ACCESS_KEY: "integration-secret-key",
   AWS_REGION: "integration-region",
-  AWS_ENDPOINT_URL_SES: "http://127.0.0.1:3211/ses",
+  AWS_ENDPOINT_URL_SES: `${providerUrl}/ses`,
   NEXT_PUBLIC_CLOUDFLARE_URL: appBaseUrl,
   NEXT_PUBLIC_SENTRY_ENABLED: "false",
   RUST_LOG: "info",
