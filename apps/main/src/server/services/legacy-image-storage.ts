@@ -1,3 +1,5 @@
+import "server-only";
+
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { env, requireEnv } from "@/env";
 import {
