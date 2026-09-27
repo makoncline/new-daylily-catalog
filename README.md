@@ -37,13 +37,14 @@ app.
 
 ## Internal Documentation
 
-- `apps/main/README.md` - app-specific map and development notes.
-- `apps/main/docs/README.md` - index of app runbooks and product notes.
-- `apps/main/docs/deploy-vps.md` - VPS Docker deployment runbook.
-- `apps/main/docs/public-rendering-cache-strategy.md` - public page rendering
+- [`AGENTS.md`](AGENTS.md) - short agent entry point, work rules, and verification map.
+- [`apps/main/README.md`](apps/main/README.md) - app source map and development notes.
+- [`apps/main/docs/README.md`](apps/main/docs/README.md) - index of app runbooks and product notes.
+- [`logs.md`](logs.md) - dated incident notes and older agent findings.
+- [VPS deployment](apps/main/docs/deploy-vps.md) - Docker deployment runbook.
+- [Public rendering and cache strategy](apps/main/docs/public-rendering-cache-strategy.md) - public page rendering
   and cache strategy.
-- `apps/main/docs/local-query-profiler.md` - local query profiling workflow.
-- `AGENTS.md` - coding-agent conventions, repo gotchas, and command notes.
+- [Local query profiler](apps/main/docs/local-query-profiler.md) - query profiling workflow.
 
 Local operation depends on private environment configuration. When running
 repo scripts in an existing configured checkout, prefer the documented
