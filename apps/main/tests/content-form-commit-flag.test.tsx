@@ -8,9 +8,20 @@ import {
 
 const mutateAsyncMock = vi.hoisted(() => vi.fn());
 const editorMountMock = vi.hoisted(() => vi.fn());
+const getProfileMock = vi.hoisted(() => vi.fn());
+const setProfileDataMock = vi.hoisted(() => vi.fn());
+
+vi.mock("@/trpc/client", () => ({
+  getTrpcClient: () => ({
+    dashboardDb: { userProfile: { get: { query: getProfileMock } } },
+  }),
+}));
 
 vi.mock("@/trpc/react", () => ({
   api: {
+    useUtils: () => ({
+      dashboardDb: { userProfile: { get: { setData: setProfileDataMock } } },
+    }),
     dashboardDb: {
       userProfile: {
         updateContent: {
@@ -83,6 +94,12 @@ describe("ContentManagerFormItem", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mutateAsyncMock.mockResolvedValue({
+      updatedAt: new Date("2026-09-25T13:00:00.000Z"),
+    });
+    getProfileMock.mockResolvedValue({
+      content: JSON.stringify({
+        blocks: [{ id: "remote", type: "paragraph", data: { text: "Remote" } }],
+      }),
       updatedAt: new Date("2026-09-25T13:00:00.000Z"),
     });
   });
@@ -164,12 +181,44 @@ describe("ContentManagerFormItem", () => {
       }),
     );
 
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: "Discard this draft and load the latest story",
-      }),
-    );
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", {
+          name: "Discard this draft and load the latest story",
+        }),
+      );
+    });
     expect(editorMountMock).toHaveBeenCalledTimes(2);
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("loads a new profile after a stale story save and keeps the draft", async () => {
+    const formRef = React.createRef<ContentManagerFormHandle>();
+    render(
+      <ContentManagerFormItem
+        initialProfile={
+          {
+            content: null,
+            updatedAt: new Date("2026-09-25T12:00:00.000Z"),
+          } as never
+        }
+        formRef={formRef}
+      />,
+    );
+    fireEvent.click(screen.getByTestId("editor-change"));
+    mutateAsyncMock.mockRejectedValueOnce(
+      new Error("The profile changed. Load the latest version before saving."),
+    );
+
+    await act(async () => {
+      expect(await formRef.current?.saveChanges("manual")).toBe(false);
+    });
+
+    expect(getProfileMock).toHaveBeenCalledOnce();
+    expect(setProfileDataMock).toHaveBeenCalledOnce();
+    expect(editorMountMock).toHaveBeenCalledOnce();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Your unsaved story is still here",
+    );
   });
 });

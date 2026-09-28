@@ -252,6 +252,13 @@ function ListFormInner({
       previousCommittedValues,
     );
 
+    if (areListValuesEqual(nextCommittedValues, previousCommittedValues)) {
+      // Membership changes advance the list version without changing form fields.
+      committedUpdatedAtRef.current = list.updatedAt;
+      setHasRemoteChange(false);
+      return;
+    }
+
     if (hasLocalFieldChanges || needsParentCommitRef.current) {
       setHasRemoteChange(true);
       return;

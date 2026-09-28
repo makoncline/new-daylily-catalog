@@ -51,6 +51,7 @@ const OAUTH_SCOPES_SUPPORTED = [
   "profile",
   "catalog:read",
   "catalog:write",
+  "catalog:manage",
 ] as const;
 
 const OAUTH_PROTECTED_RESOURCE_SCOPES = [

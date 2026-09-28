@@ -161,6 +161,26 @@ describe("ListForm boundary save semantics", () => {
     );
   });
 
+  it("keeps a draft savable after its membership advances the list version", async () => {
+    const view = render(<ListForm listId="list-1" />);
+    fireEvent.change(await screen.findByLabelText("Title"), {
+      target: { value: "My draft" },
+    });
+
+    missingListState.updatedAt = new Date("2025-01-02T00:00:00.000Z");
+    view.rerender(<ListForm listId="list-1" />);
+
+    expect(screen.getByLabelText("Title")).toHaveValue("My draft");
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+    await waitFor(() => expect(updateListMock).toHaveBeenCalledOnce());
+    expect(updateListMock).toHaveBeenCalledWith({
+      id: "list-1",
+      expectedUpdatedAt: "2025-01-02T00:00:00.000Z",
+      data: { title: "My draft", description: undefined },
+    });
+  });
+
   it("opens deletion review from a deep link without deleting on load", async () => {
     let finishRefresh: () => void = () => {};
     loadMissingListMock.mockReturnValueOnce(

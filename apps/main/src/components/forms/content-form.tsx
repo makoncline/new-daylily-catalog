@@ -4,6 +4,7 @@ import * as React from "react";
 import type EditorJS from "@editorjs/editorjs";
 import { type RouterOutputs } from "@/trpc/react";
 import { api } from "@/trpc/react";
+import { getTrpcClient } from "@/trpc/client";
 import { toast } from "sonner";
 import { Editor } from "@/components/editor";
 import { parseEditorContent } from "@/lib/editor-utils";
@@ -58,6 +59,7 @@ export function ContentManagerFormItem({
 
   const updateContentMutation =
     api.dashboardDb.userProfile.updateContent.useMutation();
+  const utils = api.useUtils();
 
   const markDirty = React.useCallback(() => {
     if (isDirtyRef.current) {
@@ -136,6 +138,19 @@ export function ContentManagerFormItem({
 
         return true;
       } catch (error) {
+        if (getErrorMessage(error).includes("changed. Load the latest")) {
+          setHasRemoteChange(true);
+          try {
+            const latest =
+              await getTrpcClient().dashboardDb.userProfile.get.query();
+            utils.dashboardDb.userProfile.get.setData(undefined, latest);
+          } catch (refreshError) {
+            reportError({
+              error: normalizeError(refreshError),
+              context: { source: "ContentManagerFormItem", reason: "refresh" },
+            });
+          }
+        }
         if (reason === "outside") {
           toast.error("Failed to save content", {
             description: getErrorMessage(error),
@@ -153,7 +168,7 @@ export function ContentManagerFormItem({
         }
       }
     },
-    [onDirtyChange, onMutationSuccess, updateContentMutation],
+    [onDirtyChange, onMutationSuccess, updateContentMutation, utils],
   );
 
   const { saveChanges } = useManagedFormSave<
@@ -194,18 +209,29 @@ export function ContentManagerFormItem({
     setHasRemoteChange(false);
   }, [initialProfile.content, initialProfile.updatedAt]);
 
-  const loadLatestContent = React.useCallback(() => {
-    lastSavedRef.current = initialProfile.content;
-    lastSavedUpdatedAtRef.current = initialProfile.updatedAt;
-    isDirtyRef.current = false;
-    setIsDirty(false);
-    onDirtyChange?.(false);
-    setEditorSnapshot((current) => ({
-      content: initialProfile.content,
-      revision: current.revision + 1,
-    }));
-    setHasRemoteChange(false);
-  }, [initialProfile.content, initialProfile.updatedAt, onDirtyChange]);
+  const loadLatestContent = React.useCallback(async () => {
+    setIsSaving(true);
+    try {
+      const latest = await getTrpcClient().dashboardDb.userProfile.get.query();
+      utils.dashboardDb.userProfile.get.setData(undefined, latest);
+      lastSavedRef.current = latest.content;
+      lastSavedUpdatedAtRef.current = latest.updatedAt;
+      isDirtyRef.current = false;
+      setIsDirty(false);
+      onDirtyChange?.(false);
+      setEditorSnapshot((current) => ({
+        content: latest.content,
+        revision: current.revision + 1,
+      }));
+      setHasRemoteChange(false);
+    } catch (error) {
+      toast.error("Failed to load the latest story", {
+        description: getErrorMessage(error),
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  }, [onDirtyChange, utils]);
 
   useOnClickOutside(contentRef as React.RefObject<HTMLElement>, () => {
     void saveChanges("outside");
@@ -259,7 +285,8 @@ export function ContentManagerFormItem({
             <button
               type="button"
               className="mt-2 underline"
-              onClick={loadLatestContent}
+              onClick={() => void loadLatestContent()}
+              disabled={isPendingIndicatorVisible}
             >
               Discard this draft and load the latest story
             </button>

@@ -33,6 +33,7 @@ describe("OAuth metadata", () => {
         "profile",
         "catalog:read",
         "catalog:write",
+        "catalog:manage",
       ],
     });
   });
