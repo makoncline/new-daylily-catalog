@@ -73,6 +73,22 @@ async function attachListListingIds(db: PrismaClient, lists: ListBaseRow[]) {
   }));
 }
 
+async function advanceListVersion(
+  tx: Prisma.TransactionClient,
+  listId: string,
+  userId: string,
+) {
+  await tx.$executeRaw`
+    UPDATE "List"
+    SET "updatedAt" = MAX("updatedAt" + 1, ${Date.now()})
+    WHERE "id" = ${listId} AND "userId" = ${userId}
+  `;
+  return tx.list.findFirstOrThrow({
+    where: { id: listId, userId },
+    select: listBaseSelect,
+  });
+}
+
 export const dashboardDbListRouter = createTRPCRouter({
   create: protectedProcedure
     .input(
@@ -270,12 +286,12 @@ export const dashboardDbListRouter = createTRPCRouter({
         userId: ctx.user.id,
       });
 
-      const updated = await ctx.db.list.update({
-        where: { id: input.listId, userId: ctx.user.id },
-        data: {
-          listings: { connect: { id: input.listingId } },
-        },
-        select: listBaseSelect,
+      const updated = await ctx.db.$transaction(async (tx) => {
+        await tx.list.update({
+          where: { id: input.listId, userId: ctx.user.id },
+          data: { listings: { connect: { id: input.listingId } } },
+        });
+        return advanceListVersion(tx, input.listId, ctx.user.id);
       });
 
       return updated;
@@ -295,12 +311,12 @@ export const dashboardDbListRouter = createTRPCRouter({
         userId: ctx.user.id,
       });
 
-      const updated = await ctx.db.list.update({
-        where: { id: input.listId, userId: ctx.user.id },
-        data: {
-          listings: { disconnect: { id: input.listingId } },
-        },
-        select: listBaseSelect,
+      const updated = await ctx.db.$transaction(async (tx) => {
+        await tx.list.update({
+          where: { id: input.listId, userId: ctx.user.id },
+          data: { listings: { disconnect: { id: input.listingId } } },
+        });
+        return advanceListVersion(tx, input.listId, ctx.user.id);
       });
 
       return updated;
@@ -343,15 +359,15 @@ export const dashboardDbListRouter = createTRPCRouter({
             message: "Some listings are no longer in this list",
           });
         }
-        return tx.list.update({
+        await tx.list.update({
           where: { id: input.listId, userId: ctx.user.id },
           data: {
             listings: {
               disconnect: input.listingIds.map((id) => ({ id })),
             },
           },
-          select: listBaseSelect,
         });
+        return advanceListVersion(tx, input.listId, ctx.user.id);
       });
     }),
 });

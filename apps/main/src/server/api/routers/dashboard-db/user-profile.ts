@@ -38,6 +38,10 @@ function sanitizeBoundedProfileContent(content: string | null) {
   return sanitized;
 }
 
+function nextUpdatedAt(expectedUpdatedAt: Date) {
+  return new Date(Math.max(Date.now(), expectedUpdatedAt.getTime() + 1));
+}
+
 const reservedProfileSlugs = new Set([
   "_next",
   "auth-error",
@@ -203,9 +207,7 @@ export const dashboardDbUserProfileRouter = createTRPCRouter({
         where: { userId: ctx.user.id, updatedAt: expectedUpdatedAt },
         data: {
           ...data,
-          updatedAt: new Date(
-            Math.max(Date.now(), expectedUpdatedAt.getTime() + 1),
-          ),
+          updatedAt: nextUpdatedAt(expectedUpdatedAt),
         },
       });
       if (result.count === 0) {
@@ -259,9 +261,7 @@ export const dashboardDbUserProfileRouter = createTRPCRouter({
         where: { userId: ctx.user.id, updatedAt: expectedUpdatedAt },
         data: {
           ...input.data,
-          updatedAt: new Date(
-            Math.max(Date.now(), expectedUpdatedAt.getTime() + 1),
-          ),
+          updatedAt: nextUpdatedAt(expectedUpdatedAt),
         },
       });
       if (result.count === 0) {
@@ -286,12 +286,16 @@ export const dashboardDbUserProfileRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const sanitizedContent = sanitizeBoundedProfileContent(input.content);
+      const expectedUpdatedAt = new Date(input.expectedUpdatedAt);
       const result = await ctx.db.userProfile.updateMany({
         where: {
           userId: ctx.user.id,
-          updatedAt: new Date(input.expectedUpdatedAt),
+          updatedAt: expectedUpdatedAt,
         },
-        data: { content: sanitizedContent },
+        data: {
+          content: sanitizedContent,
+          updatedAt: nextUpdatedAt(expectedUpdatedAt),
+        },
       });
       if (result.count === 0) {
         throw new TRPCError({
@@ -328,12 +332,13 @@ export const dashboardDbUserProfileRouter = createTRPCRouter({
         input.content,
         current.content,
       );
+      const expectedUpdatedAt = new Date(input.expectedUpdatedAt);
       const result = await ctx.db.userProfile.updateMany({
         where: {
           userId: ctx.user.id,
-          updatedAt: new Date(input.expectedUpdatedAt),
+          updatedAt: expectedUpdatedAt,
         },
-        data: { content },
+        data: { content, updatedAt: nextUpdatedAt(expectedUpdatedAt) },
       });
       if (result.count === 0) {
         throw new TRPCError({
@@ -380,12 +385,16 @@ export const dashboardDbUserProfileRouter = createTRPCRouter({
           ],
         }),
       );
+      const expectedUpdatedAt = new Date(input.expectedUpdatedAt);
       const updated = await ctx.db.userProfile.updateMany({
         where: {
           userId: ctx.user.id,
-          updatedAt: new Date(input.expectedUpdatedAt),
+          updatedAt: expectedUpdatedAt,
         },
-        data: { content: nextContent },
+        data: {
+          content: nextContent,
+          updatedAt: nextUpdatedAt(expectedUpdatedAt),
+        },
       });
       if (updated.count === 0) {
         throw new TRPCError({
@@ -439,12 +448,16 @@ export const dashboardDbUserProfileRouter = createTRPCRouter({
             : block,
         ),
       });
+      const expectedUpdatedAt = new Date(input.expectedUpdatedAt);
       const result = await ctx.db.userProfile.updateMany({
         where: {
           userId: ctx.user.id,
-          updatedAt: new Date(input.expectedUpdatedAt),
+          updatedAt: expectedUpdatedAt,
         },
-        data: { content: sanitizeBoundedProfileContent(updatedContent) },
+        data: {
+          content: sanitizeBoundedProfileContent(updatedContent),
+          updatedAt: nextUpdatedAt(expectedUpdatedAt),
+        },
       });
       if (result.count === 0) {
         throw new TRPCError({
