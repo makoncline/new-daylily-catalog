@@ -1,317 +1,40 @@
 # VPS Deployment
 
-This app is prepared for a single-container Docker deployment behind Cloudflare Tunnel and internal Caddy.
-
-## Image Strategy
-
-Immutable image tags are the deploy unit.
-
-- Pull request builds verify Docker image creation with `pr-<number>-<shortsha>` tags and do not push or deploy.
-- Main branch builds publish `main-<shortsha>` images.
-- `latest` can still move as a convenience alias.
-- The VPS should deploy by setting `IMAGE_TAG` in `.env`, not by relying on `latest`.
-- After a successful image push on `main`, GitHub Actions calls the deploy webhook at `https://deploy.makon.dev/deploy/daylilycatalog`.
-- Pull requests still run Docker image verification in the `preview` GitHub Environment, but server config sync and deploy stay gated to `push` on `main`.
-- Docker builds consume the latest GitHub Actions layer cache. Pull-request builds skip exporting throwaway cache layers, while successful `main` builds refresh the complete cache for later builds.
-- Non-pushed pull-request verification images skip Sentry sourcemap processing and do not receive `SENTRY_AUTH_TOKEN`. Main images retain source-map upload behavior.
-- The runner combines Next standalone output with a lockfile-backed production closure from `packages/standalone-runtime`. That manifest contains only the image-processing, S3, Prisma, and libsql packages imported by current externalized server code; Prisma's generated client is copied separately from the app build. The Docker build loads every declared external inside the final runner before emitting an image. A local production-shaped build measured 868 MB versus 1.76 GB for the prior production image, and both `/` and database-backed `/catalogs` returned 200.
-
-## GitHub Actions Environments
-
-This repo now uses environment-scoped GitHub Actions config instead of repo-level vars and secrets.
-
-Required environment setup:
-
-- `production` environment:
-  - Variable: `APP_BASE_URL` set to `https://daylilycatalog.com`
-  - Variable: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
-  - Variable: `NEXT_PUBLIC_CLOUDFLARE_URL`
-  - Variable: `NEXT_PUBLIC_SENTRY_ENABLED`
-  - Variable: `NEXT_PUBLIC_POSTHOG_KEY`
-  - Variable: `NEXT_PUBLIC_POSTHOG_HOST`
-  - Variable: `DATABASE_URL`
-  - Secret: `TURSO_DATABASE_AUTH_TOKEN`
-  - Secret: `STRIPE_SECRET_KEY` optional for cold-cache-safe production Docker builds
-  - Secret: `SENTRY_AUTH_TOKEN` optional for source-map upload during Docker image builds
-  - Secret: `DEPLOY_WEBHOOK_TOKEN`
-- `preview` environment:
-  - Variable: `APP_BASE_URL` set to the preview deployment origin for that environment
-  - Variable: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
-  - Variable: `NEXT_PUBLIC_CLOUDFLARE_URL`
-  - Variable: `DATABASE_URL` set to the shared seeded preview Turso database
-  - Variable: `VERCEL_TEAM`
-  - Secret: `CLERK_SECRET_KEY`
-  - Secret: `TURSO_DATABASE_AUTH_TOKEN`
-  - Secret: `STRIPE_SECRET_KEY` optional for cold-cache-safe PR Docker verification builds
-  - Secret: `VERCEL_AUTOMATION_BYPASS_SECRET`
-  - Secret: `VERCEL_TOKEN`
-- `ops` environment:
-  - Secret: `AWS_ACCESS_KEY_ID`
-  - Secret: `AWS_SECRET_ACCESS_KEY`
-  - Secret: `TURSO_API_TOKEN`
-
-## Runtime Contract
-
-- Internal app port: `3000`
-- Container start command: `node server.js`
-- Container bind address: `0.0.0.0`
-- Recommended database mode: Turso (`DATABASE_URL=libsql://...`)
-
-## Hostname Strategy
-
-- Canonical public domain: `https://daylilycatalog.com`
-- Redirect-only hostname: `https://www.daylilycatalog.com` -> `https://daylilycatalog.com{uri}`
-- Parallel rollout/testing hostname: `https://prod.daylilycatalog.com`
-- Set `APP_BASE_URL` to the apex canonical domain, not `prod`.
-- Keep `prod.daylilycatalog.com` routed live during rollout so request-origin flows can be tested without changing canonical SEO assets.
-
-## Required Runtime Environment Variables
-
-### Required for Compose image selection
-
-- `IMAGE_TAG`
-
-### Required in the recommended Turso deployment
-
-Non-secrets:
-
-- `APP_BASE_URL` set to `https://daylilycatalog.com`
-- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
-- `NEXT_PUBLIC_CLOUDFLARE_URL`
-- `AWS_REGION`
-- `AWS_BUCKET_NAME`
-- `DATABASE_URL`
-- `NEXT_PUBLIC_SENTRY_ENABLED`
-- `SENTRY_ENVIRONMENT` set to `production`
-- `NEXT_PUBLIC_POSTHOG_KEY`
-- `NEXT_PUBLIC_POSTHOG_HOST`
-
-Secrets:
-
-- `TURSO_DATABASE_AUTH_TOKEN` when `DATABASE_URL` uses `libsql://`
-- `CLERK_SECRET_KEY`
-- `CLERK_WEBHOOK_SECRET`
-- `STRIPE_SECRET_KEY`
-- `STRIPE_WEBHOOK_SECRET`
-- `AWS_ACCESS_KEY_ID`
-- `AWS_SECRET_ACCESS_KEY`
-
-Optional:
-
-- `SENTRY_AUTH_TOKEN`
-
-## Stripe Membership Catalog
-
-Configure the membership offer in each Stripe mode that the app uses.
-
-- Keep the monthly and yearly recurring prices on the same active product.
-- Use the same currency for both prices.
-- Set `daylily_catalog_pro_monthly_checkout` as the lookup key on the active monthly price.
-- Configure the active yearly price as the subscription upsell for that monthly price.
-- Do not configure a trial on the Checkout Session or either price.
-
-The app resolves the monthly entry price by lookup key. Stripe Checkout shows
-the monthly and yearly choice. The webhook reads the completed line item and
-records the selected billing interval.
-
-To change the monthly amount, create a new price and transfer the lookup key to
-it. Then configure its yearly upsell. To change only the yearly amount, create a
-new yearly price and select it as the monthly price's upsell. Existing
-subscriptions stay on their current prices.
-
-### Optional local SQLite runtime mode
-
-If you choose local SQLite instead of Turso, set:
-
-- `DATABASE_URL=file:/data/daylilycatalog.sqlite`
-
-And mount a persistent volume at `/data`.
-
-## Reverse Proxy Notes
-
-The app now uses two URL-generation modes:
-
-- Canonical/public assets use `APP_BASE_URL`:
-  - canonical metadata
-  - sitemap
-  - robots
-  - Google Merchant feed
-  - app-generated inquiry email links
-- Request-origin flows use forwarded host/protocol headers:
-  - Stripe checkout success/cancel URLs
-  - Stripe billing portal return URLs
-  - request-scoped redirects such as legacy redirect handling
-
-Caddy should terminate HTTPS and proxy plain HTTP to the container on port `3000`, preserving forwarded host and protocol headers.
-
-## External Callback and Link Audit
-
-- Auth callbacks:
-  - The app uses relative post-auth destinations for Clerk modal flows.
-  - During rollout, Clerk must allow both `https://daylilycatalog.com` and `https://prod.daylilycatalog.com` as valid application origins / redirect targets.
-- Stripe:
-  - Checkout and billing-portal return URLs stay on the host where the user started.
-  - The Stripe webhook endpoint itself is provider-configured; point Stripe at the hostname you want receiving live events. Once apex is live, prefer the apex webhook URL and keep `prod` only if you intentionally need parallel webhook delivery.
-- Email links:
-  - App-generated inquiry emails intentionally link to the canonical apex hostname.
-  - Auth emails are owned by Clerk, not by this app code.
-- Canonical metadata and crawl surfaces:
-  - `metadataBase`, canonical alternates, sitemap, robots, and feed URLs intentionally stay pinned to the apex hostname.
-
-## Volumes
-
-- Persistent Next.js runtime cache:
-  - `./next-cache:/app/.next/cache`
-- Optional local SQLite deployment: mount a persistent volume to `/data`
-
-Create the cache directory on the server before first deploy so the non-root app user can write to it:
-
-```sh
-install -d -o 1001 -g 1001 /srv/stacks/daylilycatalog/next-cache
-```
-
-## External Dependencies
-
-- Turso/libSQL database when `DATABASE_URL` uses `libsql://`
-- Clerk
-- Stripe
-- AWS S3 bucket for image storage
-- Cloudflare image/CDN endpoint at `NEXT_PUBLIC_CLOUDFLARE_URL`
-- Optional PostHog
-- Optional Sentry source map upload during image builds
-
-## Image Build
-
-The Docker build prerenders static public routes and sitemap data, so build with the same env file you plan to run in production.
-Sentry support is always included in the Docker build so source maps and runtime instrumentation stay available. Browser observability reads `NEXT_PUBLIC_SENTRY_ENABLED`, `SENTRY_ENVIRONMENT`, `NEXT_PUBLIC_POSTHOG_KEY`, and `NEXT_PUBLIC_POSTHOG_HOST` from the running container through `/api/runtime-config`; server Sentry reads the same Sentry settings through the runtime env helper. Set the VPS to `SENTRY_ENVIRONMENT=production`. Vercel previews infer `preview` from `VERCEL_ENV`, and the local production-like preparation script writes `prod-like`. Changing the VPS `.env` and restarting the container can turn observability on or off or change its environment without rebuilding the image.
-
-GitHub Actions now hashes the generated Docker build env and passes that fingerprint as a build arg, so changes to canonical build-time env like `APP_BASE_URL` automatically force a fresh `next build` layer instead of reusing stale cached public output.
-
-```sh
-IMAGE_TAG=main-$(git rev-parse --short=8 HEAD)
-GIT_COMMIT_SHA="$(git rev-parse HEAD)"
-BUILD_ENV_FINGERPRINT="$(sha256sum .env | cut -d' ' -f1)"
-docker build \
-  --build-arg BUILD_ENV_FINGERPRINT="${BUILD_ENV_FINGERPRINT}" \
-  --build-arg GIT_COMMIT_SHA="${GIT_COMMIT_SHA}" \
-  --secret id=app_env,src=.env \
-  -t ghcr.io/makoncline/daylilycatalog:${IMAGE_TAG} .
-```
-
-The full commit SHA is available as `SENTRY_RELEASE` during `next build` and in
-the final container. The runtime config endpoint passes that same value to the
-browser SDK so browser, Node.js, and edge events share one release.
-
-### Minimum Verified CI Build Env
-
-For a non-Vercel CI build that still generates correct public metadata and sitemap URLs, the minimum verified env set is:
-
-- `APP_BASE_URL` set to the canonical public origin (`https://daylilycatalog.com` in production)
-- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
-- `NEXT_PUBLIC_CLOUDFLARE_URL`
-- `DATABASE_URL`
-- `TURSO_DATABASE_AUTH_TOKEN` when `DATABASE_URL` uses `libsql://`
-
-Optional observability env:
-
-- `NEXT_PUBLIC_SENTRY_ENABLED`
-- `SENTRY_ENVIRONMENT` (`production` or `preview`)
-- `NEXT_PUBLIC_POSTHOG_KEY`
-- `NEXT_PUBLIC_POSTHOG_HOST`
-
-Notes:
-
-- This minimum set was verified with both `next build` and `docker build`.
-- `STRIPE_SECRET_KEY` was not required for the verified build against the current production DB state because subscription cache data already existed in the DB.
-- If you need cold-cache-safe correctness for public route generation that depends on Stripe subscription state, include `STRIPE_SECRET_KEY` in the build env too.
-- When the build runs on GitHub for a pull request, the workflow reads its build vars and secrets from the `preview` GitHub Environment instead of `production`.
-
-## Server Compose
-
-```yaml
-services:
-  app:
-    image: ghcr.io/makoncline/daylilycatalog:${IMAGE_TAG}
-    restart: unless-stopped
-    env_file:
-      - .env
-    volumes:
-      - ./next-cache:/app/.next/cache
-    networks:
-      - edge
-
-networks:
-  edge:
-    external: true
-```
-
-Committed source: `deploy/vps/compose.yaml`
-
-If you run local SQLite instead of Turso, add:
-
-```yaml
-    volumes:
-      - ./data:/data
-```
-
-## Caddy Route
-
-```caddy
-@daylilycatalog host daylilycatalog.com prod.daylilycatalog.com
-handle @daylilycatalog {
-  reverse_proxy app:3000
-}
-
-@daylilycatalog_www host www.daylilycatalog.com
-redir @daylilycatalog_www https://daylilycatalog.com{uri} permanent
-```
-
-Committed source: `deploy/vps/caddy-route.caddy`
-
-## Local Docker Compose Check
-
-Use the canonical [production-like local Docker smoke workflow](./prod-like-local-docker-smoke.md) for local production-container verification.
-
-## Deploy Steps
-
-1. Place the repo or deployment files at `/srv/stacks/daylilycatalog`.
-2. Create the cache directory:
-
-```sh
-install -d -o 1001 -g 1001 /srv/stacks/daylilycatalog/next-cache
-```
-
-3. Copy `deploy/vps/compose.yaml` to `/srv/stacks/daylilycatalog/compose.yaml`.
-4. Copy `deploy/vps/caddy-route.caddy` to `/srv/stacks/proxy/sites/20-daylilycatalog.caddy`.
-5. Create `/srv/stacks/daylilycatalog/.env` from `deploy/vps/.env.example`.
-6. Set `IMAGE_TAG` in `/srv/stacks/daylilycatalog/.env` to the immutable image tag you want to run.
-7. Build and push the image, or use the CI-published image for that same tag.
-8. Start the stack with `docker compose up -d`.
-9. Reload the proxy if your server setup requires it after changing Caddy route files.
-
-## DNS / Tunnel Rollout
-
-After the app and server config are deployed:
-
-1. Point Cloudflare DNS `@` to the tunnel target for this app.
-2. Keep `www` as a DNS alias to `@`.
-3. Keep `prod.daylilycatalog.com` routed to the same tunnel as the parallel rollout hostname.
-4. Once DNS is live, the Caddy route above serves apex and `prod`, while `www` redirects to apex.
-
-## Rollback
-
-Rollback is just an image tag change:
-
-1. Edit `/srv/stacks/daylilycatalog/.env`
-2. Set `IMAGE_TAG` back to a previous immutable tag such as `main-99e41b7c`
-3. Run `docker compose up -d`
-
-## Cache Notes
-
-`./next-cache:/app/.next/cache` keeps ISR and other Next runtime cache data across container recreations.
-
-Caveats:
-
-- Cache contents can outlive an app deploy. If you see stale ISR output or odd cache behavior after a significant app change, clear `/srv/stacks/daylilycatalog/next-cache` and redeploy.
-- Reusing the cache across normal deploys is expected, but it is not a substitute for app-level invalidation when route behavior changes.
-- `latest` is only a convenience alias. The recommended deployed source of truth is the immutable tag stored in `IMAGE_TAG`.
+The app runs in one Docker container behind the Cloudflare tunnel and Caddy.
+The tracked server files are in `apps/main/deploy/vps/`. Use the configured
+stack directory and proxy site directory on the server.
+
+## External setup
+
+- Configure the GitHub Actions `production`, `preview`, and `ops` environments with the names used in `.github/workflows/` and `apps/main/deploy/vps/.env.example`. The `ops` environment needs AWS S3 and Turso backup credentials. Keep secrets out of tracked files.
+- Point the apex and `prod.daylilycatalog.com` Cloudflare DNS records to the app tunnel. Redirect `www.daylilycatalog.com` to the apex. Keep `APP_BASE_URL=https://daylilycatalog.com` for canonical links.
+- Allow both the apex and `prod.daylilycatalog.com` in Clerk during a parallel rollout. Configure Stripe's live webhook for the intended host. Checkout and billing portal returns use the request host.
+- Keep monthly and yearly Stripe prices on one active product, in one currency. Set `daylily_catalog_pro_monthly_checkout` on the monthly price and select the yearly price as its upsell. Do not add a trial. When an amount changes, create a new price and transfer the lookup key or upsell; existing subscriptions keep their prices.
+- Keep the VPS runtime values in the configured stack directory's `.env`. Set `IMAGE_TAG` to an immutable `main-<shortsha>` tag. Use the tracked `.env.example` for the variable names.
+
+## Server installation
+
+1. Copy `apps/main/deploy/vps/compose.yaml` to the configured stack directory as `compose.yaml`.
+2. Copy `apps/main/deploy/vps/caddy-route.caddy` to the configured proxy site directory. If server config sync is active, point it at `apps/main/deploy/vps`.
+3. Create `next-cache` in the stack directory with write access for the container user.
+4. Set the runtime `.env` and run `docker compose up -d` from the configured stack directory. Reload Caddy after route changes.
+5. Install or update the tracked search service and timer separately from the app image. Follow the [search index procedure](search-candidate-rollout.md).
+
+Keep `DATABASE_URL` on the remote `libsql://` Turso database. Set
+`TURSO_EMBEDDED_REPLICA_URL=file:/data/turso-replica.db` for lag-tolerant public
+reads. Dashboard reads and writes use the primary database. The Compose volume
+keeps the replica and search artifact across container replacement.
+
+Main branch CI publishes an immutable image and calls the configured deploy
+webhook after the push. PR CI builds an image for verification without
+publishing it. The tracked Docker workflow contains the webhook request
+contract and reads its bearer token from GitHub Actions secrets.
+
+To roll back, set `IMAGE_TAG` to a previous published tag in the live `.env`
+and run `docker compose up -d`. The `next-cache` volume survives normal image
+changes. Clear it only when a specific cache problem requires it.
+
+Use the [local production container smoke](prod-like-local-docker-smoke.md)
+before a change that needs production-shaped auth or routing proof.
+After an authorized live checkout test, use the
+[test account cleanup procedure](production-test-account-cleanup.md).

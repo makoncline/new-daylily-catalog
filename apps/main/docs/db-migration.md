@@ -2,10 +2,6 @@
 
 This document defines the default, database-agnostic migration workflow for this repo.
 
-Current repo note: the Prisma/Turso simplification refactor does not change the
-database schema and must not be used to touch preview or production data. Keep
-using this workflow only for future intentional schema/data migrations.
-
 ## Goals
 
 - Keep schema and data changes predictable.
@@ -165,15 +161,6 @@ turso db shell daylily-catalog < prisma/migrations/<timestamp>_<migration_name>/
 turso db shell daylily-catalog < prisma/data-migrations/<first_data_sql>.sql
 turso db shell daylily-catalog < prisma/data-migrations/<second_data_sql>.sql
 ```
-
-## Migration-Specific Runbooks
-
-For migration-specific commands, queries, and acceptance gates, create a dedicated doc in `docs/` and link it from the PR.
-
-Current example:
-
-- `docs/cultivar-reference-migration.md`
-- `docs/v2-ahs-cultivar-migration.md`
 
 ## PR Checklist
 

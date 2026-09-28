@@ -143,10 +143,10 @@ pnpm db:seed:sync
 - The public daylily search endpoint exposes `last_updated` in row payloads, but it does not support filtering or sorting by `last_updated`. Treat refreshes as fresh snapshots plus delta-vs-prod, not true incremental API syncs.
 - New or edited cultivars can shift alphabetical page boundaries while a scrape is running. The `start/end total_count` check is a stability signal, not a guarantee.
 - Some legacy `AhsListing` cultivars are genuinely absent from the V2/live site. Do not assume every missing V2 link is a normalization bug.
+- A 2026-07-16 comparison found that the WordPress `flower-show-section` taxonomy called `A Different Kinda Buzz` `Seedling`, while the rendered page and `cultivar_search` row called it `Large`. For `flower_show`, use the search payload and check a rendered page when the sources disagree.
 
 ## References
 
-- `apps/main/docs/v2-ahs-cultivar-migration.md`
 - `apps/main/scripts/scrape/fetch-pages.sh`
 - `apps/main/scripts/scrape/combine-pages-sqlite.sh`
 - `apps/main/scripts/generate-v2-ahs-cultivar-delta-sql.ts`

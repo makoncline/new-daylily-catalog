@@ -1,5 +1,5 @@
 // @ts-nocheck -- Directly executable Node registry, contract-tested by Vitest.
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import path from "node:path";
 const stateFor =
   (captureSpec, atlasFlowId) =>
@@ -63,7 +63,6 @@ export const ATLAS_FLOWS = [
           path: "src/server/db/public-listing-read-model.ts",
         },
       ],
-      patternSections: ["Public server read"],
       invariants: [
         "Read public data through the replica and apply published-listing filters.",
         "Keep profile data and listing cards in the first HTML response.",
@@ -872,11 +871,6 @@ export const ATLAS_FLOWS = [
           path: "src/components/forms/listing-form.tsx",
         },
       ],
-      patternSections: [
-        "Authenticated mutation",
-        "Form validation and save",
-        "Full app persistence test",
-      ],
       invariants: [
         "Scope listing writes to the authenticated user on the server.",
         "Validate before save and keep the form open when save fails.",
@@ -1468,7 +1462,6 @@ export function validateAtlasFlows({ flows = ATLAS_FLOWS, appRoot }) {
   const stateIds = new Set();
   const captures = new Set();
   const allowedLayers = new Set(["unit", "integration", "e2e"]);
-  const patternsPath = path.resolve(appRoot, "docs/implementation-patterns.md");
   for (const flow of flows) {
     if (flow.implementation) {
       for (const entryPoint of flow.implementation.entryPoints) {
@@ -1476,20 +1469,6 @@ export function validateAtlasFlows({ flows = ATLAS_FLOWS, appRoot }) {
           throw new Error(
             `Missing implementation entry point: ${entryPoint.path}`,
           );
-      }
-      if (!existsSync(patternsPath))
-        throw new Error(
-          "Missing implementation patterns: docs/implementation-patterns.md",
-        );
-      const patternHeadings = new Set(
-        readFileSync(patternsPath, "utf8")
-          .split("\n")
-          .filter((line) => line.startsWith("## "))
-          .map((line) => line.slice(3).trim()),
-      );
-      for (const section of flow.implementation.patternSections) {
-        if (!patternHeadings.has(section))
-          throw new Error(`Missing implementation pattern: ${section}`);
       }
     }
     for (const layer of Object.keys(flow.tests)) {
