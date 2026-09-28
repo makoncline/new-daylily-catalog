@@ -138,30 +138,6 @@
   --sidebar-ring: oklch(0.551 0.027 264.364);
 }
 
-@layer utilities {
-  :root {
-    --sidebar: hsl(107 12% 95%);
-    --sidebar-foreground: hsl(107 1% 9%);
-    --sidebar-primary: hsl(107 47% 9%);
-    --sidebar-primary-foreground: hsl(0 0% 100%);
-    --sidebar-accent: hsl(145 12% 85%);
-    --sidebar-accent-foreground: hsl(0 0% 0%);
-    --sidebar-border: hsl(107 21% 78%);
-    --sidebar-ring: hsl(97 98% 45%);
-  }
-
-  .dark {
-    --sidebar: hsl(107 15% 13%);
-    --sidebar-foreground: hsl(107 1% 100%);
-    --sidebar-primary: hsl(107 47% 8%);
-    --sidebar-primary-foreground: hsl(0 0% 100%);
-    --sidebar-accent: hsl(145 12% 21%);
-    --sidebar-accent-foreground: hsl(0 0% 100%);
-    --sidebar-border: hsl(107 21% 47%);
-    --sidebar-ring: hsl(97 98% 45%);
-  }
-}
-
 @layer base {
   * {
     @apply border-border outline-ring/50;
