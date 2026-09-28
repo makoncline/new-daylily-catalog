@@ -8,7 +8,10 @@ scripts and installed package documentation as the source of truth.
 - Keep route, UI, server, and data concerns separate. Check existing patterns, dependencies, and installed types before adding code.
 - Add a few meaningful tests for changed behavior. Prefer integration tests. Do not test facts that TypeScript guarantees. Check the user-visible result when a flow changes.
 - Do not run `codex review` unless the user asks for it.
-- If you learn a reusable, non-obvious detail, append it to `logs.md` in this format: `[YYYY-MM-DD] Short label: What was learned. When it matters. What future agents should do.` Create the file if needed.
+- If you learn a reusable, non-obvious detail, append it to `logs.md` in this format: `[YYYY-MM-DD] Short label: What was learned. When it matters. What future agents should do.`
+
+When choosing or prioritizing work, read [GOALS.md](GOALS.md). When a prior
+technical lesson may affect the change, check [logs.md](logs.md).
 
 Run scripts from the repository root with `pnpm`. Use `pnpm env:dev <command>`
 when a script needs development env values. Keep credentials in ignored env

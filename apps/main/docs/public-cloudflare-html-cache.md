@@ -6,10 +6,10 @@ Keep the Cloudflare Cache Rule aligned with that header.
 ## Cloudflare Rule
 
 Use one header-driven Cache Rule. Matching the rule only makes a request
-eligible for caching; the response is stored only when the app sends an
-explicit cache header. A response without a cache header bypasses Cloudflare.
-This lets the app remain the cache-policy owner without requiring a Cloudflare
-change for each new public page.
+eligible for caching. Cloudflare follows an origin cache header, including
+ordinary Next `Cache-Control`. A response with no cache header bypasses
+Cloudflare. This keeps cache policy in the app without a Cloudflare change
+for each new public page.
 
 Create the same shape in dev first on `dev.daylilycatalog.com`, then copy it to
 `daylilycatalog.com` after proof.
@@ -36,19 +36,19 @@ Use one Cache Rule for application response eligibility:
 - Status-code guard in the same rule: `400-599` uses no-store.
 
 Do not maintain a second route allowlist or dashboard/API path exclusion list in
-this rule. Excluded responses send no cacheable origin directive. The
-credential, component-request, and status guards are narrow defense-in-depth
-boundaries, not a second cache policy.
+this rule. Verify excluded static documents at the edge; ordinary Next cache
+headers can still make them eligible. If needed, send an explicit CDN
+`no-store` directive. The credential, component-request, and status guards
+are narrow defense-in-depth boundaries, not a second cache policy.
 
 The status-code guard is intentionally the one successful-TTL exception. The app
 adds the CDN cache header before the page knows whether the route will become a
 404, but Cloudflare can see the final response status. Do not cache missing
 sellers/listings for the 12-hour success TTL.
 
-Do not use a Cache Response Rule for the normal public HTML TTL. Any existing
-test rule such as `Test SWR for /catalogs` should be disabled or deleted before
-final validation, because Cache Response Rules take precedence over the app's
-`Cloudflare-CDN-Cache-Control` header.
+Do not use a Cache Response Rule for the normal public HTML TTL. Disable any
+overlapping test rule before final validation. It takes precedence over the
+app's `Cloudflare-CDN-Cache-Control` header.
 
 Do not use a Worker or normal response-header transform for these directives.
 Workers and response transforms run at the wrong layer for deciding cache
@@ -86,9 +86,9 @@ Use the prod-like local Docker smoke workflow:
 8. Verify common `/cultivars` query variants and their matching public search
    API URLs independently. The document and JSON result are separate cache
    entries.
-9. Click through the site in Chrome as a user would, then use anonymous document
-   requests for the clean cache proof. App Router clicks often fetch RSC, so
-   click testing and document cache testing answer different questions.
+9. Click through the site in a browser as a user would, then use anonymous
+   document requests for the clean cache proof. App Router clicks often fetch
+   RSC, so click testing and document cache testing answer different questions.
 
 ## Production Rollout
 

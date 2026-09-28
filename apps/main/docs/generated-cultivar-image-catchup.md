@@ -9,19 +9,9 @@ image assets for linked cultivars.
 
 ## Runtime State
 
-Runtime files are intentionally outside the repo:
-
-```text
-~/daylily-catalog-image-processing/
-  v2-ahs-images/
-  v2-ahs-image-review/
-    review.sqlite
-    edited/
-    codex-native-candidates/
-    debug/
-```
-
-Override the root with `V2_AHS_IMAGE_REVIEW_DATA_ROOT` if needed.
+The worker keeps source images, `review.sqlite`, generated files, and logs
+outside the repo. Its startup log prints the resolved data paths. Set
+`V2_AHS_IMAGE_REVIEW_DATA_ROOT` only when the default data root is unsuitable.
 
 ## 1. Refresh The Prod Copy
 
@@ -67,11 +57,11 @@ The worker:
 6. fills any remaining batch capacity from the alphabetical non-linked backlog
 
 Source images prefer V2 and fall back to legacy AHS when V2 is absent. Downloads
-and queue state stay under `~/daylily-catalog-image-processing/`.
+and queue state stay under the worker's data root.
 
 The worker promotes each generated image into the review queue and marks its
 row `review` only after the output files exist. It writes per-run logs under
-`~/daylily-catalog-image-processing/v2-ahs-image-review/codex-native-runs/`.
+the review data root.
 
 ## 3. Spot-Check Generated Images
 
@@ -81,12 +71,7 @@ Start the local review UI:
 pnpm main exec node scripts/image-processing/v2-ahs-image-review/server.mjs
 ```
 
-Open:
-
-```text
-http://127.0.0.1:4310
-http://127.0.0.1:4310/gallery
-```
+Open the address that the server prints, then open its `/gallery` page.
 
 Use this UI to compare original and generated images side-by-side. A row with
 status `review` means the generated file exists and is importable; it does not
@@ -110,8 +95,8 @@ DATABASE_URL=file:./prisma/local-prod-copy-daylily-catalog.db \
   pnpm main exec node scripts/image-assets/backfill-generated-cultivar-images-to-r2.mjs --dry-run
 ```
 
-After reviewing the dry run, use the local database and production R2
-credentials for the write run:
+For an approved write run, use the local database and production R2
+credentials:
 
 ```bash
 DATABASE_URL=file:./prisma/local-prod-copy-daylily-catalog.db \
@@ -160,12 +145,8 @@ Delete generated artifacts plus downloaded source originals for imported rows:
 pnpm main exec node scripts/image-processing/v2-ahs-image-review/cleanup-imported-artifacts.mjs --include-originals --apply
 ```
 
-The script leaves `review.sqlite` intact as the durable completion log and writes
-a cleanup manifest under:
-
-```text
-~/daylily-catalog-image-processing/v2-ahs-image-review/manifests/
-```
+The script leaves `review.sqlite` intact as the durable completion log and
+writes a cleanup manifest under the review data root.
 
 ## Related V2 Data Refresh
 

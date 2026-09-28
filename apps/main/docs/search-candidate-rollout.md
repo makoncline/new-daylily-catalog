@@ -22,7 +22,7 @@ Disable the timer to pause builds. Requests continue to use the last validated
 index. Stopping the systemd service does not necessarily cancel a build already
 running inside the app. Do not start repeated retries while one runs.
 
-For a manual build, run from `/srv/stacks/daylilycatalog`:
+For a manual build, run from the configured stack directory:
 
 ```sh
 docker compose exec -T app node --input-type=module -e '

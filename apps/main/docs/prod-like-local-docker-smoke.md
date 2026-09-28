@@ -1,165 +1,54 @@
 # Production-Like Local Docker Smoke
 
-Use this when you need local code running in a production Docker build while
-using production Clerk domains and a local SQLite copy of production data.
+Use this for auth or routing behavior that needs the production container and
+a real `*.daylilycatalog.com` origin. The app uses a local production database
+copy. The seeded development path uses stage Clerk and Stripe test mode, so it
+cannot prove production-origin auth behavior.
 
-This workflow is intended for auth and routing regressions that only reproduce
-on a real `*.daylilycatalog.com` origin. It does not use the embedded replica.
+## Prepare
 
-For stage Clerk, Stripe test mode, and the `prodlike+` personas, use
-the seeded local development path
-instead; those credentials do not apply to this production-service workflow.
-
-## What It Does
-
-- Pulls the VPS runtime env from `/srv/stacks/daylilycatalog/.env`.
-- Writes ignored local env files under `apps/main`.
-- Overrides `DATABASE_URL` to use a local SQLite copy.
-- Disables Sentry runtime reporting and source-map uploads, and uses the fixed
-  local release `prod-like-local`.
-- Comments out embedded replica env.
-- Search requests never trigger builds. Build a local search artifact explicitly if the smoke test needs search.
-- Creates an ignored Docker Compose override that mounts the local DB into
-  `/data/daylilycatalog.sqlite`.
-- Points only the `dev.daylilycatalog.com` entry in `~/.cloudflared/config.yml`
-  at the local Docker port, preserving other tunnel ingress entries.
-
-## Prerequisites
-
-- OrbStack or Docker is running.
-- `cloudflared` is authenticated for the existing `local` tunnel.
-- `dev.daylilycatalog.com` is allowed by the production Clerk instance.
-- Your SSH host can read `/srv/stacks/daylilycatalog/.env` on the VPS.
-- The local production DB copy exists.
-
-Create or refresh the local DB copy:
+The run needs Docker, an authenticated Cloudflare tunnel, a hostname allowed
+by production Clerk, SSH read access to the configured server `.env`, and a
+local production database copy. From the repository root, refresh that copy:
 
 ```sh
-cd apps/main
 CI=false pnpm env:dev bash scripts/db-backup.sh
 ```
 
-From a linked worktree, perform the [exceptional full-snapshot copy](./db-backup-readme.md#linked-worktrees) before continuing.
-
-That writes:
-
-```txt
-apps/main/prisma/local-prod-copy-daylily-catalog.db
-```
-
-## Prepare Local Files
-
-From `apps/main`, run:
+For a linked worktree, follow the [snapshot copy step](db-backup-readme.md#linked-worktrees).
+Then prepare ignored local env and Compose files. Give the script the configured
+server env path rather than relying on its default:
 
 ```sh
-node scripts/prepare-prod-like-local-smoke.mjs --ssh-host <vps-ssh-host>
+pnpm main exec node scripts/prepare-prod-like-local-smoke.mjs \
+  --ssh-host "<ssh-host>" \
+  --remote-env "<configured-stack-dir>/.env"
 ```
 
-The remote env path defaults to:
+The script uses the local database, disables Sentry reporting and source-map
+uploads, and removes embedded-replica settings. It changes only the selected
+tunnel hostname in the local Cloudflare tunnel config. Review the generated
+files before starting the container. Build a local search artifact separately
+if the smoke needs search.
 
-```txt
-/srv/stacks/daylilycatalog/.env
-```
-
-The tunnel hostname defaults to:
-
-```txt
-dev.daylilycatalog.com
-```
-
-If you already have `apps/main/.env.production` and only want to regenerate the
-local override files from it:
+## Run and check
 
 ```sh
-node scripts/prepare-prod-like-local-smoke.mjs --skip-env-pull
-```
-
-## Start Docker
-
-```sh
-docker compose \
-  -f compose.local.yaml \
-  -f local/compose.prod-like.override.yaml \
-  up --build -d
-```
-
-The app binds to:
-
-```txt
-http://localhost:3012
-```
-
-## Start The Tunnel
-
-The package script can run the tunnel in the foreground:
-
-```sh
+cd apps/main
+docker compose -f compose.local.yaml -f local/compose.prod-like.override.yaml up --build -d
 pnpm start-tunnel
 ```
 
-For longer browser testing on this Mac, `launchctl` has been more reliable than
-backgrounding `cloudflared` from a shell:
-
-```sh
-launchctl remove com.makon.daylily-prodlike-cloudflared 2>/dev/null || true
-launchctl submit -l com.makon.daylily-prodlike-cloudflared -- \
-  /opt/homebrew/bin/cloudflared \
-  tunnel \
-  --config /Users/makon/.cloudflared/config.yml \
-  run \
-  local
-```
-
-Confirm the tunnel is connected:
-
-```sh
-cloudflared tunnel info local
-curl -I https://dev.daylilycatalog.com/
-```
-
-Open:
-
-```txt
-https://dev.daylilycatalog.com
-```
-
-Use the tunneled URL for Clerk testing. Plain `localhost` is useful for quick
-HTTP checks, but it is not equivalent for production Clerk behavior.
-
-## Auth Regression Smoke
-
-Verify:
-
-- Sign-in code entry leaves the Clerk modal instead of spinning forever.
-- Refresh after sign-in still shows the user signed in.
-- Sign-out completes.
-- Browser console does not show protected `_rsc` fetches redirected to
-  `accounts.daylilycatalog.com/sign-in`.
-
-Quick unauthenticated RSC check:
-
-```sh
-curl -i 'http://localhost:3012/dashboard/listings?_rsc=test' \
-  -H 'accept: text/x-component' \
-  -H 'next-url: /dashboard' \
-  -H 'sec-fetch-dest: empty'
-```
-
-Expected:
-
-```txt
-HTTP/1.1 404 Not Found
-cache-control: no-store
-```
-
-There should be no `Location` header.
+The tunnel command runs in the foreground. Use the tunneled hostname for Clerk
+tests; a localhost request does not prove the same auth behavior. Check that
+sign-in completes, the session survives refresh, sign-out completes, and
+protected component requests do not redirect to Clerk sign-in. Inspect the
+browser console for related errors.
 
 ## Stop
 
+Stop the foreground tunnel with `Ctrl+C`, then stop the local container:
+
 ```sh
 docker compose -f compose.local.yaml -f local/compose.prod-like.override.yaml down
-launchctl remove com.makon.daylily-prodlike-cloudflared
 ```
-
-If you used foreground `pnpm start-tunnel`, stop the tunnel with `Ctrl+C`
-instead of `launchctl remove`.
