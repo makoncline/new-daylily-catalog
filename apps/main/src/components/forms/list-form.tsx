@@ -157,6 +157,10 @@ function ListFormInner({
         }
         resetNeedsParentCommit();
         setHasRemoteChange(false);
+        if (reason === "manual") {
+          toast.success("List updated");
+          onSave?.();
+        }
         return true;
       }
 

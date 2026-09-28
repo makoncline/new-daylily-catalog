@@ -236,6 +236,10 @@ function useListingFormController({
           }
           resetNeedsParentCommit();
           setHasRemoteChange(false);
+          if (reason === "manual") {
+            toast.success("Changes saved");
+            onSave();
+          }
           return true;
         }
 
