@@ -1359,7 +1359,7 @@ function CultivarCard({
     .join(", ");
 
   const content = (
-    <article className="group relative isolate flex min-h-[19rem] overflow-hidden rounded-3xl border border-[#dbe3d5] bg-[#173126] text-white shadow-[0_24px_80px_-58px_rgba(24,50,32,0.9)] transition-transform duration-300 hover:-translate-y-1">
+    <article className="group relative isolate flex min-h-76 overflow-hidden rounded-3xl border border-[#dbe3d5] bg-[#173126] text-white shadow-[0_24px_80px_-58px_rgba(24,50,32,0.9)] transition-transform duration-300 hover:-translate-y-1">
       {result.imageUrl ? (
         <OptimizedImage
           alt={`${result.name} daylily`}
@@ -1381,7 +1381,7 @@ function CultivarCard({
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_35%_30%,#6b8f63,#173126_62%)]" />
       )}
 
-      <div className="relative z-10 flex min-h-[19rem] w-full flex-col justify-end p-5 pr-16">
+      <div className="relative z-10 flex min-h-76 w-full flex-col justify-end p-5 pr-16">
         <div className="max-w-full">
           <h2 className="text-2xl leading-tight font-semibold text-white [text-shadow:0_2px_3px_rgba(0,0,0,0.98),0_0_10px_rgba(0,0,0,0.95),0_0_24px_rgba(0,0,0,0.8)]">
             {result.name}
@@ -1431,7 +1431,7 @@ function ResultsSkeleton() {
       {Array.from({ length: 6 }, (_, index) => (
         <div
           key={index}
-          className="min-h-[19rem] animate-pulse rounded-3xl bg-[#dfe5d9]"
+          className="min-h-76 animate-pulse rounded-3xl bg-[#dfe5d9]"
         />
       ))}
     </div>
