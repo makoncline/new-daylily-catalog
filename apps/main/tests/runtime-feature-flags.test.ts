@@ -35,12 +35,15 @@ const runtimeFlagsPath = join(
 
 describe("runtime feature flags", () => {
   beforeEach(() => {
+    vi.stubEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "pk_test_runtime_flags");
+    vi.stubEnv("NEXT_PUBLIC_CLOUDFLARE_URL", "https://example.com");
     process.env.RUNTIME_FEATURE_FLAGS_PATH = runtimeFlagsPath;
     writeFileSync(runtimeFlagsPath, '{"publicCultivarSearch":false}');
     delete process.env.VERCEL;
   });
 
   afterAll(() => {
+    vi.unstubAllEnvs();
     if (originalRuntimeFlagsPath === undefined) {
       delete process.env.RUNTIME_FEATURE_FLAGS_PATH;
     } else {
