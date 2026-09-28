@@ -217,11 +217,11 @@ export class ManageListPage {
   }
 
   async confirmRemoveSelected() {
-    const deleteButton = this.page
+    const removeButton = this.page
       .getByRole("alertdialog")
-      .getByRole("button", { name: "Delete" })
+      .getByRole("button", { name: "Remove" })
       .first();
-    await this.clickWithScroll(deleteButton);
+    await this.clickWithScroll(removeButton);
   }
 
   async resetToolbarFiltersIfVisible() {
