@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import type { PublicSocialCardData, SocialCardKind } from "@/lib/social-card";
-import { replicaDb } from "@/server/db";
+import { publicDb } from "@/server/db";
 import {
   getListings,
   getPublicListingCardsByIds,
@@ -43,7 +43,7 @@ async function getCatalogSocialCardData(
 async function getListSocialCardData(
   id: string,
 ): Promise<PublicSocialCardData> {
-  const list = await replicaDb.list.findFirst({
+  const list = await publicDb.list.findFirst({
     where: {
       id,
       ...isPublicList(),
@@ -106,7 +106,7 @@ async function getForSaleSocialCardData(
 ): Promise<PublicSocialCardData> {
   const [profile, listingRows, listingCount] = await Promise.all([
     getPublicProfile(id),
-    replicaDb.listing.findMany({
+    publicDb.listing.findMany({
       where: {
         userId: id,
         ...isPublished(),
@@ -116,7 +116,7 @@ async function getForSaleSocialCardData(
       orderBy: { updatedAt: "desc" },
       take: 8,
     }),
-    replicaDb.listing.count({
+    publicDb.listing.count({
       where: {
         userId: id,
         ...isPublished(),

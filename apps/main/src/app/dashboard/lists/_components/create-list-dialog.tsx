@@ -10,11 +10,16 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { PageHeader } from "@/components/page-header";
 import { normalizeError, reportError } from "@/lib/error-utils";
-import { insertList } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
+import {
+  insertList,
+  listsCollection,
+  type ListCollectionItem,
+} from "@/app/dashboard/_lib/dashboard-db/lists-collection";
+import { DASHBOARD_DB_QUERY_KEYS } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-keys";
+import { useSeededDashboardDbQuery } from "@/app/dashboard/_lib/dashboard-db/use-seeded-dashboard-db-query";
 import { useQueryParamDialogState } from "@/hooks/use-dialog-search-param";
 import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
 import { ListingSurfaceSaveBar } from "../../listings/_components/listing-surface-save-bar";
-import { api } from "@/trpc/react";
 import { APP_CONFIG } from "@/config/constants";
 import { usePro } from "@/hooks/use-pro";
 
@@ -28,10 +33,12 @@ export function useCreateList() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isPro, isLoading: isSubscriptionLoading } = usePro();
-  const { data: listCount, isLoading: isListCountLoading } =
-    api.dashboardDb.list.count.useQuery();
-  const isEligibilityLoading =
-    isSubscriptionLoading || isListCountLoading || listCount === undefined;
+  const listsQuery = useSeededDashboardDbQuery<ListCollectionItem>({
+    query: (q) => q.from({ list: listsCollection }),
+    queryKey: DASHBOARD_DB_QUERY_KEYS.lists,
+  });
+  const listCount = listsQuery.data.length;
+  const isEligibilityLoading = isSubscriptionLoading || !listsQuery.isReady;
   const canCreateList =
     !isEligibilityLoading &&
     (isPro || listCount < APP_CONFIG.LIST.FREE_TIER_MAX_LISTS);
@@ -108,10 +115,7 @@ export function CreateListSurface({
   };
 
   return (
-    <section
-      aria-label="Create list"
-      className="mx-auto w-full max-w-3xl pb-8"
-    >
+    <section aria-label="Create list" className="mx-auto w-full max-w-3xl pb-8">
       {hasPendingChanges() ? (
         <ListingSurfaceSaveBar
           title="Unsaved list"

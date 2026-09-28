@@ -12,6 +12,7 @@ interface EditorProps {
   editorRef: React.RefObject<EditorJS | null>;
   readOnly?: boolean;
   onChange?: () => void;
+  onReady?: (editor: EditorJS) => void;
 }
 
 function destroyEditor(editor: EditorJS) {
@@ -37,15 +38,21 @@ export function Editor({
   editorRef,
   readOnly,
   onChange,
+  onReady,
 }: EditorProps) {
   const initialContentRef = React.useRef(initialContent);
   const holderRef = React.useRef<HTMLDivElement | null>(null);
   const onChangeRef = React.useRef(onChange);
+  const onReadyRef = React.useRef(onReady);
 
   // EditorJS owns its DOM after mount, so callback changes should not recreate it.
   React.useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
+
+  React.useEffect(() => {
+    onReadyRef.current = onReady;
+  }, [onReady]);
 
   React.useEffect(() => {
     let isCancelled = false;
@@ -92,17 +99,13 @@ export function Editor({
 
       editorRef.current = editor;
 
-      if (readOnly) {
-        void editor.isReady
-          .then(() => {
-            if (isCancelled || editorRef.current !== editor) {
-              return;
-            }
-
-            return editor.readOnly.toggle(true);
-          })
-          .catch(() => undefined);
-      }
+      void editor.isReady
+        .then(() => {
+          if (isCancelled || editorRef.current !== editor) return;
+          onReadyRef.current?.(editor);
+          if (readOnly) return editor.readOnly.toggle(true);
+        })
+        .catch(() => undefined);
     })();
 
     return () => {

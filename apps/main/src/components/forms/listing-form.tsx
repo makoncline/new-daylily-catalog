@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { type Image } from "@prisma/client";
 import { toast } from "sonner";
@@ -54,6 +54,8 @@ import { STATUS } from "@/config/constants";
 import {
   type ListingCollectionItem,
   deleteListing,
+  loadMissingListing,
+  listingsCollection,
   updateListing,
 } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
 import { type CultivarReferenceCollectionItem } from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
@@ -62,6 +64,7 @@ import {
   removeListingFromList,
 } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
 import { useListingEditorResource } from "@/hooks/use-listing-editor-resource";
+import { rebaseFormValues } from "@/lib/rebase-form-values";
 
 type LinkedAhsListing = CultivarReferenceCollectionItem["ahsListing"];
 type LinkedCultivarReferenceImage =
@@ -69,6 +72,7 @@ type LinkedCultivarReferenceImage =
 
 interface ListingFormProps {
   listingId: string;
+  openDeleteOnMount?: boolean;
   onDelete: () => void;
   onSave: () => void;
   onPendingChangesChange?: (hasPendingChanges: boolean) => void;
@@ -109,6 +113,7 @@ function areListingValuesEqual(
 
 function useListingFormController({
   listingId,
+  openDeleteOnMount,
   listing,
   linkedAhs,
   linkedCultivarReferenceImage,
@@ -120,6 +125,7 @@ function useListingFormController({
   formRef,
 }: {
   listingId: string;
+  openDeleteOnMount?: boolean;
   listing: ListingCollectionItem;
   linkedAhs: LinkedAhsListing | null;
   linkedCultivarReferenceImage: LinkedCultivarReferenceImage | null;
@@ -131,6 +137,8 @@ function useListingFormController({
   formRef?: React.RefObject<ListingFormHandle | null>;
 }) {
   const [isSaving, setIsSaving] = useState(false);
+  const [hasRemoteChange, setHasRemoteChange] = useState(false);
+  const committedListingRef = useRef(listing);
   const { textAreaRef, adjustHeight } = useAutoResizeTextArea();
   const {
     markNeedsParentCommit,
@@ -167,16 +175,39 @@ function useListingFormController({
       });
     },
   });
+  useEffect(() => {
+    if (openDeleteOnMount) openDeleteDialog();
+  }, [openDeleteOnMount, openDeleteDialog]);
   const isBusy = isSaving || isDeletePending;
 
   const hasPendingChanges = useCallback(() => {
     const values = form.getValues();
-    const committedValues = toFormValues(listing);
+    const committedValues = toFormValues(committedListingRef.current);
     return (
       !areListingValuesEqual(values, committedValues) ||
       needsParentCommitRef.current
     );
-  }, [form, listing, needsParentCommitRef]);
+  }, [form, needsParentCommitRef]);
+
+  const handleCultivarMutation = useCallback(
+    (updated: ListingCollectionItem) => {
+      const rebased = rebaseFormValues(
+        form.getValues(),
+        toFormValues(committedListingRef.current),
+        toFormValues(updated),
+      );
+      if (!rebased) {
+        setHasRemoteChange(true);
+        markNeedsParentCommit();
+        return;
+      }
+      committedListingRef.current = updated;
+      form.reset(rebased, { keepIsValid: true });
+      setHasRemoteChange(false);
+      markNeedsParentCommit();
+    },
+    [form, markNeedsParentCommit],
+  );
 
   const { saveChanges } = useManagedFormSave<
     ListingFormSaveReason,
@@ -187,12 +218,24 @@ function useListingFormController({
     save: useCallback(
       async (reason: ListingFormSaveReason): Promise<boolean> => {
         const values = form.getValues();
-        const committedValues = toFormValues(listing);
+        const committedValues = toFormValues(committedListingRef.current);
         const hasFieldPending = !areListingValuesEqual(values, committedValues);
         const shouldCommitParent =
           hasFieldPending || needsParentCommitRef.current;
 
         if (!shouldCommitParent) {
+          return true;
+        }
+        if (!hasFieldPending) {
+          if (
+            new Date(listing.updatedAt).getTime() >
+            new Date(committedListingRef.current.updatedAt).getTime()
+          ) {
+            committedListingRef.current = listing;
+            form.reset(toFormValues(listing), { keepIsValid: true });
+          }
+          resetNeedsParentCommit();
+          setHasRemoteChange(false);
           return true;
         }
 
@@ -214,11 +257,16 @@ function useListingFormController({
         }
 
         try {
-          await updateListing({
+          const updated = await updateListing({
             id: listing.id,
+            expectedUpdatedAt: new Date(
+              committedListingRef.current.updatedAt,
+            ).toISOString(),
             data: values,
           });
 
+          committedListingRef.current = updated;
+          setHasRemoteChange(false);
           resetNeedsParentCommit();
           if (shouldUpdateUi) {
             form.reset(values, { keepIsValid: true });
@@ -229,6 +277,9 @@ function useListingFormController({
           }
           return true;
         } catch (error) {
+          if (getErrorMessage(error).includes("changed. Load the latest")) {
+            setHasRemoteChange(true);
+          }
           if (shouldUpdateUi) {
             toast.error("Failed to save changes", {
               description: getErrorMessage(error),
@@ -258,6 +309,45 @@ function useListingFormController({
     const subscription = form.watch(notifyPendingChanges);
     return () => subscription.unsubscribe();
   }, [form, hasPendingChanges, needsParentCommit, onPendingChangesChange]);
+
+  useEffect(() => {
+    const currentVersion = new Date(committedListingRef.current.updatedAt);
+    const incomingVersion = new Date(listing.updatedAt);
+    if (incomingVersion <= currentVersion) return;
+    const values = form.getValues();
+    if (
+      !areListingValuesEqual(
+        values,
+        toFormValues(committedListingRef.current),
+      ) ||
+      needsParentCommitRef.current
+    ) {
+      setHasRemoteChange(true);
+      return;
+    }
+    committedListingRef.current = listing;
+    setHasRemoteChange(false);
+    form.reset(toFormValues(listing), { keepIsValid: true });
+  }, [form, listing, needsParentCommitRef]);
+
+  const discardDraftAndLoadLatest = useCallback(async () => {
+    setIsSaving(true);
+    try {
+      await loadMissingListing(listingId);
+      const latest = listingsCollection.get(listingId);
+      if (!latest) throw new Error("Listing not found.");
+      committedListingRef.current = latest;
+      form.reset(toFormValues(latest), { keepIsValid: true });
+      resetNeedsParentCommit();
+      setHasRemoteChange(false);
+    } catch (error) {
+      toast.error("Failed to load the latest listing", {
+        description: getErrorMessage(error),
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  }, [form, listingId, resetNeedsParentCommit]);
 
   async function onSubmit() {
     await saveChanges("manual");
@@ -313,6 +403,9 @@ function useListingFormController({
     listing,
     listingId,
     markNeedsParentCommit,
+    handleCultivarMutation,
+    hasRemoteChange,
+    discardDraftAndLoadLatest,
     onSubmit,
     openDeleteDialog,
     selectedListIds,
@@ -345,6 +438,9 @@ function ListingFormFields({
   listing,
   listingId,
   markNeedsParentCommit,
+  handleCultivarMutation,
+  hasRemoteChange,
+  discardDraftAndLoadLatest,
   onSubmit,
   openDeleteDialog,
   selectedListIds,
@@ -354,6 +450,21 @@ function ListingFormFields({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pb-16">
+        {hasRemoteChange && (
+          <div role="status" className="rounded-md border p-3 text-sm">
+            <p>
+              The listing changed elsewhere. Your unsaved fields are still here.
+            </p>
+            <button
+              type="button"
+              className="mt-2 underline"
+              disabled={isBusy}
+              onClick={() => void discardDraftAndLoadLatest()}
+            >
+              Discard this draft and load the latest listing
+            </button>
+          </div>
+        )}
         <FormField
           control={form.control}
           name="title"
@@ -493,7 +604,7 @@ function ListingFormFields({
           onNameChange={(name) => {
             form.setValue("title", name);
           }}
-          onMutationSuccess={markNeedsParentCommit}
+          onMutationSuccess={handleCultivarMutation}
         />
 
         <div className="flex justify-end gap-4">
@@ -527,7 +638,7 @@ function ListingFormFields({
         onOpenChange={setIsDeleteDialogOpen}
         onConfirm={() => void confirmDelete()}
         title="Delete Listing"
-        description="Are you sure you want to delete this listing? This action cannot be undone."
+        description={`Delete ${listing.title}? This action cannot be undone.`}
       />
     </Form>
   );
@@ -535,11 +646,14 @@ function ListingFormFields({
 
 function ListingFormLive({
   listingId,
+  openDeleteOnMount,
   onDelete,
   onSave,
   onPendingChangesChange,
   formRef,
 }: ListingFormProps) {
+  const [unavailableId, setUnavailableId] = useState<string | null>(null);
+  const [freshReviewId, setFreshReviewId] = useState<string | null>(null);
   const {
     images,
     isReady,
@@ -548,14 +662,45 @@ function ListingFormLive({
     listing,
     selectedListIds,
   } = useListingEditorResource(listingId);
+  const needsPrimaryFetch =
+    isReady && (openDeleteOnMount === true || listing === null);
 
-  if (!isReady || !listing) {
+  useEffect(() => {
+    if (!needsPrimaryFetch) return;
+    let active = true;
+    void loadMissingListing(listingId)
+      .then(() => {
+        if (active) setFreshReviewId(listingId);
+      })
+      .catch(() => {
+        if (active) setUnavailableId(listingId);
+      });
+    return () => {
+      active = false;
+    };
+  }, [needsPrimaryFetch, listingId]);
+
+  if (
+    !isReady ||
+    (openDeleteOnMount &&
+      freshReviewId !== listingId &&
+      unavailableId !== listingId) ||
+    (!listing && unavailableId !== listingId)
+  ) {
     return <ListingFormSkeleton />;
+  }
+  if (!listing || unavailableId === listingId) {
+    return (
+      <p role="status">
+        This listing is unavailable. Return to Listings and try again.
+      </p>
+    );
   }
 
   return (
     <ListingFormInner
       listingId={listingId}
+      openDeleteOnMount={openDeleteOnMount}
       listing={listing}
       linkedAhs={linkedAhs}
       linkedCultivarReferenceImage={linkedCultivarReferenceImage}

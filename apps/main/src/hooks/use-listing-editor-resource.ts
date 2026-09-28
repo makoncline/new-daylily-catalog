@@ -77,8 +77,7 @@ export function useListingEditorResource(
       isListingReady &&
       isCultivarReferencesReady &&
       isImagesReady &&
-      isListsReady &&
-      !!listing,
+      isListsReady,
     linkedAhs,
     linkedCultivarReferenceImage,
     listing,

@@ -7,6 +7,7 @@ import { ListForm, type ListFormHandle } from "@/components/forms/list-form";
 import { AddListingsSection } from "./_components/add-listings-section";
 import { useSaveBeforeNavigate } from "@/hooks/use-save-before-navigate";
 import { useListResource } from "@/app/dashboard/_lib/dashboard-db/use-list-resource";
+import { loadMissingList } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
 
 interface ListPageProps {
   params: Promise<{
@@ -27,8 +28,22 @@ export function ManageListPageLive({ listId }: { listId: string }) {
     formRef.current?.markNeedsCommit();
   }, []);
 
-  const { list } = useListResource(listId);
+  const { isReady, list } = useListResource(listId);
+  const [unavailableId, setUnavailableId] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    if (!isReady || list || unavailableId === listId) return;
+    let active = true;
+    void loadMissingList(listId).catch(() => {
+      if (active) setUnavailableId(listId);
+    });
+    return () => {
+      active = false;
+    };
+  }, [isReady, list, listId, unavailableId]);
 
+  if (!isReady || (!list && unavailableId !== listId)) {
+    return <div className="p-4">Loading list...</div>;
+  }
   if (!list) {
     return <div className="p-4">List not found</div>;
   }

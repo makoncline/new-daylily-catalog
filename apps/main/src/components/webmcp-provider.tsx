@@ -233,11 +233,16 @@ export function WebMcpProvider() {
           name: "daylily.update-profile",
           title: "Update Seller Profile",
           description:
-            "Create or update the signed-in seller profile fields used for the public catalog card.",
+            "Create or update the signed-in seller profile fields used for the public catalog card. Supply updatedAt from a profile read, or null if no profile exists.",
           inputSchema: {
             type: "object",
             additionalProperties: false,
+            required: ["expectedUpdatedAt"],
             properties: {
+              expectedUpdatedAt: {
+                type: ["string", "null"],
+                format: "date-time",
+              },
               title: {
                 type: "string",
                 description: "Garden or business name.",
@@ -267,7 +272,15 @@ export function WebMcpProvider() {
             openWorldHint: true,
           },
           execute: async (input) => {
+            const expectedUpdatedAt =
+              input.expectedUpdatedAt === null
+                ? null
+                : asString(input.expectedUpdatedAt);
+            if (expectedUpdatedAt === "") {
+              throw new Error("expectedUpdatedAt is required.");
+            }
             const profile = await client.dashboardDb.userProfile.update.mutate({
+              expectedUpdatedAt,
               data: {
                 title: asOptionalString(input.title),
                 slug: asOptionalString(input.slug),
@@ -308,9 +321,11 @@ export function WebMcpProvider() {
           },
           execute: async (input) => {
             const content = asString(input.content);
+            const current = await client.dashboardDb.userProfile.get.query();
             const profile =
               await client.dashboardDb.userProfile.updateContent.mutate({
                 content: content ? toEditorJsParagraphContent(content) : null,
+                expectedUpdatedAt: new Date(current.updatedAt).toISOString(),
               });
             void queryClient.invalidateQueries();
             return toolResult({ ok: true, profile });
@@ -377,6 +392,7 @@ export function WebMcpProvider() {
             if (shouldUpdate) {
               await updateListing({
                 id: created.id,
+                expectedUpdatedAt: new Date(created.updatedAt).toISOString(),
                 data: {
                   description: asNullableString(input.description),
                   price,
@@ -394,14 +410,14 @@ export function WebMcpProvider() {
         {
           name: "daylily.update-listing",
           title: "Update Listing",
-          description:
-            "Update a signed-in user's listing fields and optionally link it to a cultivar reference.",
+          description: "Update a signed-in user's listing fields.",
           inputSchema: {
             type: "object",
             additionalProperties: false,
-            required: ["listingId"],
+            required: ["listingId", "expectedUpdatedAt"],
             properties: {
               listingId: { type: "string" },
+              expectedUpdatedAt: { type: "string", format: "date-time" },
               title: { type: "string" },
               description: {
                 type: ["string", "null"],
@@ -417,12 +433,6 @@ export function WebMcpProvider() {
                 description: "Private dashboard note. Use null to clear.",
               },
               hidden: { type: "boolean" },
-              cultivarReferenceId: { type: "string" },
-              syncName: {
-                type: "boolean",
-                description:
-                  "When linking a cultivar, set true to rename the listing to the cultivar name.",
-              },
             },
           },
           annotations: {
@@ -433,19 +443,23 @@ export function WebMcpProvider() {
           execute: async (input) => {
             const id = asString(input.listingId);
             if (!id) throw new Error("listingId is required.");
+            const expectedUpdatedAt = asString(input.expectedUpdatedAt);
+            if (!expectedUpdatedAt) {
+              throw new Error("expectedUpdatedAt is required.");
+            }
             const price =
               input.price === undefined
                 ? undefined
                 : asNullableNonNegativeNumber(input.price, "price");
-            if (input.cultivarReferenceId) {
-              await linkAhs({
-                id,
-                cultivarReferenceId: asString(input.cultivarReferenceId),
-                syncName: input.syncName === true,
-              });
+            if (
+              input.cultivarReferenceId !== undefined ||
+              input.syncName !== undefined
+            ) {
+              throw new Error("Use daylily.link-cultivar for cultivar links.");
             }
             await updateListing({
               id,
+              expectedUpdatedAt,
               data: {
                 title: asOptionalString(input.title),
                 description:
@@ -466,6 +480,46 @@ export function WebMcpProvider() {
               },
             });
             const listing = await client.dashboardDb.listing.get.query({ id });
+            return toolResult({ ok: true, listing });
+          },
+        },
+        {
+          name: "daylily.link-cultivar",
+          title: "Link Cultivar",
+          description:
+            "Link one signed-in user's listing to a cultivar reference. Use daylily.update-listing separately for other fields.",
+          inputSchema: {
+            type: "object",
+            additionalProperties: false,
+            required: ["listingId", "cultivarReferenceId"],
+            properties: {
+              listingId: { type: "string" },
+              cultivarReferenceId: { type: "string" },
+              syncName: {
+                type: "boolean",
+                description:
+                  "Set true to rename the listing to the cultivar name.",
+              },
+            },
+          },
+          annotations: {
+            readOnlyHint: false,
+            destructiveHint: true,
+            openWorldHint: true,
+          },
+          execute: async (input) => {
+            const id = asString(input.listingId);
+            const cultivarReferenceId = asString(input.cultivarReferenceId);
+            if (!id || !cultivarReferenceId) {
+              throw new Error(
+                "listingId and cultivarReferenceId are required.",
+              );
+            }
+            const listing = await linkAhs({
+              id,
+              cultivarReferenceId,
+              syncName: input.syncName === true,
+            });
             return toolResult({ ok: true, listing });
           },
         },

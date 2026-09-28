@@ -64,6 +64,21 @@ export async function cleanupImagesCollection() {
   await imagesCollection.cleanup();
 }
 
+export async function loadImageFromPrimary(args: {
+  type: "listing" | "profile";
+  referenceId: string;
+  imageId: string;
+}) {
+  await runWithDashboardRefreshLock(async () => {
+    const image = await getTrpcClient().dashboardDb.image.get.query(args);
+    if (imagesCollection.get(image.id)) {
+      imagesCollection.utils.writeUpdate(image);
+    } else {
+      imagesCollection.utils.writeInsert(image);
+    }
+  });
+}
+
 function getExistingImageRows(
   queryKey: readonly unknown[],
 ): ImageCollectionItem[] {

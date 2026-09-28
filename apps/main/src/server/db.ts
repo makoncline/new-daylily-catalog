@@ -150,6 +150,18 @@ export const db = globalForPrisma.prisma ?? createPrismaClient();
 export const replicaDb =
   globalForPrisma.replicaPrisma ?? createReplicaPrismaClient();
 export const hasEmbeddedReplica = Boolean(embeddedReplicaUrl);
+export const hasLocalPublicReadDb =
+  isFileDatabaseUrl(databaseUrl) || hasEmbeddedReplica;
+
+export const publicDb: typeof db = hasLocalPublicReadDb
+  ? replicaDb
+  : new Proxy({} as typeof db, {
+      get() {
+        throw new Error(
+          "Public database reads require local SQLite or an embedded replica.",
+        );
+      },
+    });
 
 /**
  * Sync the normal embedded replica and return the exact Prisma singleton that

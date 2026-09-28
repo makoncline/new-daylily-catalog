@@ -24,7 +24,8 @@ interface MockDb {
   };
   userProfile: {
     findFirst: ReturnType<typeof vi.fn>;
-    upsert: ReturnType<typeof vi.fn>;
+    create: ReturnType<typeof vi.fn>;
+    updateMany: ReturnType<typeof vi.fn>;
   };
 }
 
@@ -35,7 +36,8 @@ function createMockDb(): MockDb {
     },
     userProfile: {
       findFirst: vi.fn(),
-      upsert: vi.fn(),
+      create: vi.fn(),
+      updateMany: vi.fn(),
     },
   };
 }
@@ -108,8 +110,12 @@ describe("dashboardDb.userProfile slug namespace", () => {
     const caller = createCaller(db);
 
     await expect(
-      caller.update({ data: { slug: "other-user-id" } }),
+      caller.update({
+        expectedUpdatedAt: null,
+        data: { slug: "other-user-id" },
+      }),
     ).rejects.toBeInstanceOf(TRPCError);
-    expect(db.userProfile.upsert).not.toHaveBeenCalled();
+    expect(db.userProfile.create).not.toHaveBeenCalled();
+    expect(db.userProfile.updateMany).not.toHaveBeenCalled();
   });
 });

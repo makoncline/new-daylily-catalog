@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { buildLegacyUserRedirectPath } from "@/lib/legacy-route-redirects";
-import { db } from "@/server/db";
+import { publicDb } from "@/server/db";
 
 export const metadata: Metadata = {
   title: "Catalog Redirect | Daylily Catalog",
@@ -20,7 +20,7 @@ export default async function UsersLegacyRoutePage({
   searchParams,
 }: UsersLegacyRoutePageProps) {
   const userPromise = params.then(({ userId }) =>
-    db.user.findUnique({
+    publicDb.user.findUnique({
       where: { id: userId },
       select: {
         id: true,

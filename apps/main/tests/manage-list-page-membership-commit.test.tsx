@@ -1,27 +1,42 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ManageListPageLive } from "@/app/dashboard/lists/[listId]/page";
 
 const markNeedsCommitMock = vi.hoisted(() => vi.fn());
+const listState = vi.hoisted(() => ({
+  rows: [
+    {
+      id: "list-1",
+      userId: "user-1",
+      title: "My List",
+      description: null,
+      status: null,
+      createdAt: new Date("2025-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2025-01-01T00:00:00.000Z"),
+      listings: [],
+    },
+  ],
+}));
+const loadMissingList = vi.hoisted(() =>
+  vi.fn(async () => {
+    listState.rows = [
+      { ...listState.rows[0]!, id: "new-list", title: "New List" },
+    ];
+  }),
+);
 
 vi.mock("@tanstack/react-db", () => ({
   useLiveQuery: () => ({
-    data: [
-      {
-        id: "list-1",
-        userId: "user-1",
-        title: "My List",
-        description: null,
-        status: null,
-        createdAt: new Date("2025-01-01T00:00:00.000Z"),
-        updatedAt: new Date("2025-01-01T00:00:00.000Z"),
-        listings: [],
-      },
-    ],
+    data: listState.rows,
     isReady: true,
   }),
   eq: vi.fn(),
   createCollection: vi.fn(() => ({})),
+}));
+
+vi.mock("@/app/dashboard/_lib/dashboard-db/lists-collection", () => ({
+  listsCollection: {},
+  loadMissingList,
 }));
 
 vi.mock("@/trpc/query-client", () => ({
@@ -81,6 +96,9 @@ vi.mock(
 describe("Manage list membership mutations", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    listState.rows = [
+      { ...listState.rows[0]!, id: "list-1", title: "My List" },
+    ];
   });
 
   it("marks list form as needing commit after add/remove membership changes", async () => {
@@ -90,5 +108,18 @@ describe("Manage list membership mutations", () => {
     fireEvent.click(screen.getByRole("button", { name: "Remove listing" }));
 
     expect(markNeedsCommitMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("loads a remote-created list that is missing from the local cache", async () => {
+    listState.rows = [];
+    const view = render(<ManageListPageLive listId="new-list" />);
+    expect(screen.getByText("Loading list...")).toBeVisible();
+    await waitFor(() =>
+      expect(loadMissingList).toHaveBeenCalledWith("new-list"),
+    );
+    view.rerender(<ManageListPageLive listId="new-list" />);
+    expect(
+      screen.getByRole("heading", { name: "Manage List: New List" }),
+    ).toBeVisible();
   });
 });

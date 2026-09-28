@@ -5,11 +5,11 @@ import { CreateListButton } from "@/app/dashboard/lists/_components/create-list-
 import { APP_CONFIG } from "@/config/constants";
 
 const mocks = vi.hoisted(() => ({
-  listCount: vi.fn(),
+  listCount: vi.fn<() => { data?: number; isLoading: boolean }>(),
   listings: vi.fn(),
   openCreateList: vi.fn(),
   openCreateListing: vi.fn(),
-  usePro: vi.fn(),
+  usePro: vi.fn<() => { isLoading: boolean; isPro: boolean }>(),
 }));
 
 vi.mock("@/hooks/use-pro", () => ({
@@ -31,14 +31,11 @@ vi.mock("@/app/dashboard/_lib/dashboard-timing", () => ({
   logDashboardTiming: vi.fn(),
 }));
 
-vi.mock(
-  "@/app/dashboard/listings/_components/create-listing-dialog",
-  () => ({
-    useCreateListing: () => ({
-      openCreateListing: mocks.openCreateListing,
-    }),
+vi.mock("@/app/dashboard/listings/_components/create-listing-dialog", () => ({
+  useCreateListing: () => ({
+    openCreateListing: mocks.openCreateListing,
   }),
-);
+}));
 
 vi.mock("@/app/dashboard/lists/_components/create-list-dialog", () => ({
   useCreateList: () => {
@@ -51,18 +48,6 @@ vi.mock("@/app/dashboard/lists/_components/create-list-dialog", () => ({
       listCount: count.data,
       openCreateList: mocks.openCreateList,
     };
-  },
-}));
-
-vi.mock("@/trpc/react", () => ({
-  api: {
-    dashboardDb: {
-      list: {
-        count: {
-          useQuery: mocks.listCount,
-        },
-      },
-    },
   },
 }));
 

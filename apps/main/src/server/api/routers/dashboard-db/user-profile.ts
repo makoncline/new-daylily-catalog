@@ -1,10 +1,18 @@
 import { z } from "zod";
+import { randomUUID } from "node:crypto";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
-import { slugSchema } from "@/types/schemas/profile";
+import { profileFormSchema, slugSchema } from "@/types/schemas/profile";
 import { isValidSlug } from "@/lib/utils/slugify";
-import type { PrismaClient } from "@prisma/client";
-import { sanitizeEditorJsContentForStorage } from "@/server/security/editor-js-content";
+import { Prisma, type PrismaClient } from "@prisma/client";
+import {
+  parseAndSanitizeEditorJsContent,
+  sanitizeEditorJsContentForStorage,
+} from "@/server/security/editor-js-content";
+import {
+  MAX_MEMBER_PROFILE_CONTENT_CHARS,
+  prepareMemberProfileContent,
+} from "@/server/security/member-profile-content";
 
 const profileSelect = {
   id: true,
@@ -18,6 +26,17 @@ const profileSelect = {
   createdAt: true,
   updatedAt: true,
 } as const;
+
+function sanitizeBoundedProfileContent(content: string | null) {
+  const sanitized = sanitizeEditorJsContentForStorage(content);
+  if (sanitized && sanitized.length > MAX_MEMBER_PROFILE_CONTENT_CHARS) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Profile content is too large.",
+    });
+  }
+  return sanitized;
+}
 
 const reservedProfileSlugs = new Set([
   "_next",
@@ -115,13 +134,8 @@ export const dashboardDbUserProfileRouter = createTRPCRouter({
   update: protectedProcedure
     .input(
       z.object({
-        data: z.object({
-          title: z.string().optional().nullable(),
-          slug: z.string().optional().nullable(),
-          description: z.string().optional().nullable(),
-          location: z.string().optional().nullable(),
-          logoUrl: z.string().optional().nullable(),
-        }),
+        expectedUpdatedAt: z.iso.datetime().nullable(),
+        data: profileFormSchema.partial().strict(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -152,47 +166,296 @@ export const dashboardDbUserProfileRouter = createTRPCRouter({
         }
       }
 
-      const profile = await ctx.db.userProfile.upsert({
+      const data = {
+        title: input.data.title,
+        ...(slug !== undefined ? { slug } : {}),
+        description: input.data.description,
+        location: input.data.location,
+        logoUrl: input.data.logoUrl,
+      };
+      if (input.expectedUpdatedAt === null) {
+        try {
+          return await ctx.db.userProfile.create({
+            data: {
+              ...data,
+              userId: ctx.user.id,
+              slug: slug ?? ctx.user.id,
+            },
+            select: profileSelect,
+          });
+        } catch (error) {
+          if (
+            error instanceof Prisma.PrismaClientKnownRequestError &&
+            error.code === "P2002"
+          ) {
+            throw new TRPCError({
+              code: "CONFLICT",
+              message:
+                "The profile changed. Load the latest version before saving.",
+            });
+          }
+          throw error;
+        }
+      }
+
+      const expectedUpdatedAt = new Date(input.expectedUpdatedAt);
+      const result = await ctx.db.userProfile.updateMany({
+        where: { userId: ctx.user.id, updatedAt: expectedUpdatedAt },
+        data: {
+          ...data,
+          updatedAt: new Date(
+            Math.max(Date.now(), expectedUpdatedAt.getTime() + 1),
+          ),
+        },
+      });
+      if (result.count === 0) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message:
+            "The profile changed. Load the latest version before saving.",
+        });
+      }
+      return ctx.db.userProfile.findUniqueOrThrow({
         where: { userId: ctx.user.id },
-        create: {
-          userId: ctx.user.id,
-          title: input.data.title,
-          slug: slug ?? ctx.user.id,
-          description: input.data.description,
-          location: input.data.location,
-          logoUrl: input.data.logoUrl,
-        },
-        update: {
-          title: input.data.title,
-          ...(slug !== undefined ? { slug } : {}),
-          description: input.data.description,
-          location: input.data.location,
-          logoUrl: input.data.logoUrl,
-        },
         select: profileSelect,
       });
+    }),
 
-      return profile;
+  updateBasic: protectedProcedure
+    .input(
+      z.object({
+        expectedUpdatedAt: z.iso.datetime().nullable(),
+        data: profileFormSchema.omit({ slug: true }).partial().strict(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (input.expectedUpdatedAt === null) {
+        try {
+          return await ctx.db.userProfile.create({
+            data: {
+              userId: ctx.user.id,
+              slug: ctx.user.id,
+              ...input.data,
+            },
+            select: profileSelect,
+          });
+        } catch (error) {
+          if (
+            error instanceof Prisma.PrismaClientKnownRequestError &&
+            error.code === "P2002"
+          ) {
+            throw new TRPCError({
+              code: "CONFLICT",
+              message:
+                "The profile changed. Load the latest version before saving.",
+            });
+          }
+          throw error;
+        }
+      }
+
+      const expectedUpdatedAt = new Date(input.expectedUpdatedAt);
+      const result = await ctx.db.userProfile.updateMany({
+        where: { userId: ctx.user.id, updatedAt: expectedUpdatedAt },
+        data: {
+          ...input.data,
+          updatedAt: new Date(
+            Math.max(Date.now(), expectedUpdatedAt.getTime() + 1),
+          ),
+        },
+      });
+      if (result.count === 0) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message:
+            "The profile changed. Load the latest version before saving.",
+        });
+      }
+      return ctx.db.userProfile.findUniqueOrThrow({
+        where: { userId: ctx.user.id },
+        select: profileSelect,
+      });
     }),
 
   updateContent: protectedProcedure
-    .input(z.object({ content: z.string().nullable() }))
+    .input(
+      z.object({
+        content: z.string().max(MAX_MEMBER_PROFILE_CONTENT_CHARS).nullable(),
+        expectedUpdatedAt: z.iso.datetime(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
-      const sanitizedContent = sanitizeEditorJsContentForStorage(input.content);
-
-      const profile = await ctx.db.userProfile.upsert({
-        where: { userId: ctx.user.id },
-        create: {
+      const sanitizedContent = sanitizeBoundedProfileContent(input.content);
+      const result = await ctx.db.userProfile.updateMany({
+        where: {
           userId: ctx.user.id,
-          slug: ctx.user.id,
-          content: sanitizedContent,
+          updatedAt: new Date(input.expectedUpdatedAt),
         },
-        update: {
-          content: sanitizedContent,
-        },
+        data: { content: sanitizedContent },
+      });
+      if (result.count === 0) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message:
+            "Profile changed. Read it again before replacing its content.",
+        });
+      }
+      return ctx.db.userProfile.findUniqueOrThrow({
+        where: { userId: ctx.user.id },
         select: profileSelect,
       });
+    }),
 
-      return profile;
+  updateContentPreservingBlocks: protectedProcedure
+    .input(
+      z.strictObject({
+        content: z.string().min(1).max(MAX_MEMBER_PROFILE_CONTENT_CHARS),
+        expectedUpdatedAt: z.iso.datetime(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const current = await ctx.db.userProfile.findUnique({
+        where: { userId: ctx.user.id },
+        select: { content: true },
+      });
+      if (!current) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Profile not found.",
+        });
+      }
+      const content = prepareMemberProfileContent(
+        input.content,
+        current.content,
+      );
+      const result = await ctx.db.userProfile.updateMany({
+        where: {
+          userId: ctx.user.id,
+          updatedAt: new Date(input.expectedUpdatedAt),
+        },
+        data: { content },
+      });
+      if (result.count === 0) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Profile changed. Read it again before editing its content.",
+        });
+      }
+      return ctx.db.userProfile.findUniqueOrThrow({
+        where: { userId: ctx.user.id },
+        select: profileSelect,
+      });
+    }),
+
+  appendParagraph: protectedProcedure
+    .input(
+      z.object({
+        paragraph: z.string().trim().min(1).max(4000),
+        expectedUpdatedAt: z.iso.datetime(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.db.userProfile.findUnique({
+        where: { userId: ctx.user.id },
+        select: { content: true },
+      });
+      if (!existing) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Profile not found.",
+        });
+      }
+      const content = parseAndSanitizeEditorJsContent(existing.content);
+      const nextContent = sanitizeBoundedProfileContent(
+        JSON.stringify({
+          time: Date.now(),
+          version: content?.version ?? "2.30.8",
+          blocks: [
+            ...(content?.blocks ?? []),
+            {
+              id: randomUUID(),
+              type: "paragraph",
+              data: { text: input.paragraph },
+            },
+          ],
+        }),
+      );
+      const updated = await ctx.db.userProfile.updateMany({
+        where: {
+          userId: ctx.user.id,
+          updatedAt: new Date(input.expectedUpdatedAt),
+        },
+        data: { content: nextContent },
+      });
+      if (updated.count === 0) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message:
+            "Profile changed. Read it again before appending a paragraph.",
+        });
+      }
+      return ctx.db.userProfile.findUniqueOrThrow({
+        where: { userId: ctx.user.id },
+        select: profileSelect,
+      });
+    }),
+
+  updateParagraph: protectedProcedure
+    .input(
+      z.object({
+        blockId: z.string().trim().min(1),
+        text: z.string().trim().min(1).max(4000),
+        expectedUpdatedAt: z.iso.datetime(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const profile = await ctx.db.userProfile.findUnique({
+        where: { userId: ctx.user.id },
+        select: { content: true },
+      });
+      const content = parseAndSanitizeEditorJsContent(profile?.content ?? null);
+      const matchingBlocks = content?.blocks.filter(
+        (block) => block.id === input.blockId,
+      );
+      if (!content || matchingBlocks?.length !== 1) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Profile paragraph not found.",
+        });
+      }
+      if (matchingBlocks[0]?.type !== "paragraph") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Only a paragraph can be edited here.",
+        });
+      }
+
+      const updatedContent = JSON.stringify({
+        ...content,
+        time: Date.now(),
+        blocks: content.blocks.map((block) =>
+          block.id === input.blockId
+            ? { ...block, data: { text: input.text } }
+            : block,
+        ),
+      });
+      const result = await ctx.db.userProfile.updateMany({
+        where: {
+          userId: ctx.user.id,
+          updatedAt: new Date(input.expectedUpdatedAt),
+        },
+        data: { content: sanitizeBoundedProfileContent(updatedContent) },
+      });
+      if (result.count === 0) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Profile changed. Read it again before editing a paragraph.",
+        });
+      }
+
+      return ctx.db.userProfile.findUniqueOrThrow({
+        where: { userId: ctx.user.id },
+        select: profileSelect,
+      });
     }),
 });

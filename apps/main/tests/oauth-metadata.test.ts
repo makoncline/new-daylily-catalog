@@ -31,6 +31,8 @@ describe("OAuth metadata", () => {
         "email",
         "offline_access",
         "profile",
+        "catalog:read",
+        "catalog:write",
       ],
     });
   });
@@ -43,7 +45,7 @@ describe("OAuth metadata", () => {
     ).toMatchObject({
       resource: "https://daylilycatalog.com",
       authorization_servers: [`https://${TEST_CLERK_HOST}`],
-      scopes_supported: ["profile"],
+      scopes_supported: ["catalog:read", "catalog:write", "catalog:manage"],
     });
   });
 
@@ -51,7 +53,9 @@ describe("OAuth metadata", () => {
     process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = TEST_PUBLISHABLE_KEY;
 
     const authorizationResponse = getOAuthAuthorizationServer(
-      new Request("https://daylilycatalog.com/.well-known/openid-configuration"),
+      new Request(
+        "https://daylilycatalog.com/.well-known/openid-configuration",
+      ),
     );
     const protectedResourceResponse = getOAuthProtectedResource(
       new Request(

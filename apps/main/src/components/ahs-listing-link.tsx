@@ -22,6 +22,7 @@ import {
   linkAhs,
   syncAhsName,
   unlinkAhs,
+  type ListingCollectionItem,
 } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
 
 type CultivarReferenceAhsListing =
@@ -32,7 +33,7 @@ interface AhsListingLinkProps {
   linkedAhs: CultivarReferenceAhsListing | null;
   cultivarReferenceImage?: OptimizedImageSource | null;
   onNameChange?: (name: string) => void;
-  onMutationSuccess?: () => void;
+  onMutationSuccess?: (listing: ListingCollectionItem) => void;
 }
 
 export function AhsListingLink({
@@ -47,6 +48,7 @@ export function AhsListingLink({
   async function updateAhsListing(selected: AhsSearchResult | null) {
     setIsSaving(true);
     try {
+      let updatedListing: ListingCollectionItem;
       if (selected?.name) {
         if (!selected.cultivarReferenceId) {
           toast.error("Selected listing is not available for cultivar link.");
@@ -56,7 +58,7 @@ export function AhsListingLink({
         const shouldUpdateName =
           !listing.title || listing.title === LISTING_CONFIG.DEFAULT_NAME;
 
-        await linkAhs({
+        updatedListing = await linkAhs({
           id: listing.id,
           cultivarReferenceId: selected.cultivarReferenceId,
           syncName: shouldUpdateName,
@@ -67,7 +69,7 @@ export function AhsListingLink({
           onNameChange?.(selected.name);
         }
       } else {
-        await unlinkAhs({
+        updatedListing = await unlinkAhs({
           id: listing.id,
         });
       }
@@ -77,7 +79,7 @@ export function AhsListingLink({
           ? "Listing linked successfully"
           : "Listing unlinked successfully",
       );
-      onMutationSuccess?.();
+      onMutationSuccess?.(updatedListing);
     } catch (error) {
       toast.error(
         selected ? "Failed to link listing" : "Failed to unlink listing",
@@ -102,7 +104,7 @@ export function AhsListingLink({
         onNameChange?.(updatedListing.title);
       }
       toast.success("Name synced successfully");
-      onMutationSuccess?.();
+      onMutationSuccess?.(updatedListing);
     } catch (error) {
       toast.error("Failed to sync name", {
         description: getErrorMessage(error),

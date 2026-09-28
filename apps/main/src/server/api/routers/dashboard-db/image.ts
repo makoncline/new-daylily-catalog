@@ -3,16 +3,26 @@ import { TRPCError } from "@trpc/server";
 import { Prisma } from "@prisma/client";
 import { protectedProcedure, createTRPCRouter } from "@/server/api/trpc";
 import { APP_CONFIG } from "@/config/constants";
-import { PutObjectCommand } from "@aws-sdk/client-s3";
+import {
+  HeadObjectCommand,
+  PutObjectCommand,
+  type S3Client,
+} from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import crypto from "node:crypto";
-import { imageContentTypeSchema, imageTypeSchema } from "@/types/image";
+import {
+  imageContentTypeSchema,
+  imageExtensionByContentType,
+  imageTypeSchema,
+} from "@/types/image";
 import type { db } from "@/server/db";
 import {
   imageAssetUrlSelect,
   resolveLegacyImagesWithAssets,
 } from "@/server/services/image-asset-read-model";
 import {
+  getR2BucketName,
+  getR2Client,
   getR2OriginalUploadMetadata,
   isExpectedOriginalImageAssetKey,
 } from "@/server/services/image-asset-storage";
@@ -32,6 +42,10 @@ import {
 import { captureServerPosthogEvent } from "@/server/analytics/posthog-server";
 import { isImageModerationEnforced } from "@/config/feature-flags";
 import { reportError } from "@/lib/error-utils";
+import {
+  memberCreateId,
+  reserveMemberCreateRequest,
+} from "@/server/mcp/member-create-id";
 import { after } from "next/server";
 import {
   assertOwnedListing,
@@ -46,6 +60,27 @@ type DashboardImageRow = ReturnType<typeof mapImageRow>;
 const MODERATION_MODEL = "omni-moderation-latest";
 const MAX_IMAGE_DATA_URL_LENGTH =
   Math.ceil((APP_CONFIG.UPLOAD.MAX_FILE_SIZE * 4) / 3) + 100;
+
+async function assertImageSlotAvailable(
+  database: Pick<Prisma.TransactionClient, "image">,
+  owner: { type: "listing" | "profile"; referenceId: string },
+) {
+  const maximum =
+    owner.type === "listing"
+      ? APP_CONFIG.UPLOAD.MAX_IMAGES_PER_LISTING
+      : APP_CONFIG.UPLOAD.MAX_IMAGES_PER_PROFILE;
+  const rows = await database.image.findMany({
+    where: getUserImageOwnerWhere(owner),
+    select: { id: true },
+    take: maximum,
+  });
+  if (rows.length >= maximum) {
+    throw new TRPCError({
+      code: "PRECONDITION_FAILED",
+      message: `This ${owner.type} already has the maximum number of images.`,
+    });
+  }
+}
 
 const moderationResponseSchema = z.object({
   results: z
@@ -114,10 +149,58 @@ function invalidImageAssetMetadata() {
   });
 }
 
-function decodeImageDataUrl(
+function isStorageNotFound(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+  const metadata = Reflect.get(error, "$metadata") as
+    | { httpStatusCode?: number }
+    | undefined;
+  return metadata?.httpStatusCode === 404;
+}
+
+async function assertUploadedImageObject(args: {
+  bucket: string;
+  client: S3Client;
+  key: string;
+}) {
+  let object;
+  try {
+    object = await args.client.send(
+      new HeadObjectCommand({ Bucket: args.bucket, Key: args.key }),
+    );
+  } catch (error) {
+    if (isStorageNotFound(error)) {
+      throw new TRPCError({
+        code: "PRECONDITION_FAILED",
+        message: "Upload the image before attaching it.",
+      });
+    }
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message: "Image upload could not be verified. Try again.",
+      cause: error,
+    });
+  }
+
+  const expectedType = Object.entries(imageExtensionByContentType).find(
+    ([, extension]) => args.key.endsWith(extension),
+  )?.[0];
+  if (
+    !expectedType ||
+    object.ContentType !== expectedType ||
+    !object.ContentLength ||
+    object.ContentLength > APP_CONFIG.UPLOAD.MAX_FILE_SIZE
+  ) {
+    throw new TRPCError({
+      code: "PRECONDITION_FAILED",
+      message: "The uploaded image does not match its upload request.",
+    });
+  }
+}
+
+export function decodeImageDataUrl(
   dataUrl: string,
   contentType: string,
-  size: number,
+  size?: number,
 ) {
   const prefix = `data:${contentType};base64,`;
   if (!dataUrl.startsWith(prefix)) {
@@ -128,7 +211,11 @@ function decodeImageDataUrl(
   }
 
   const buffer = Buffer.from(dataUrl.slice(prefix.length), "base64");
-  if (buffer.byteLength !== size) {
+  if (
+    !buffer.byteLength ||
+    buffer.byteLength > APP_CONFIG.UPLOAD.MAX_FILE_SIZE ||
+    (size !== undefined && buffer.byteLength !== size)
+  ) {
     throw new TRPCError({
       code: "BAD_REQUEST",
       message: "Invalid image data",
@@ -295,6 +382,30 @@ async function assertOwnedImageTarget(args: {
   }
 }
 
+export async function getOwnedDashboardImage(args: {
+  db: DbClient;
+  imageId: string;
+  referenceId: string;
+  type: "listing" | "profile";
+  userId: string;
+}) {
+  await assertOwnedImageTarget(args);
+  const image = await args.db.image.findFirst({
+    where: {
+      id: args.imageId,
+      ...getUserImageOwnerWhere(args),
+    },
+  });
+  if (!image) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Image not found" });
+  }
+  const [resolved] = await resolveDashboardImageRows({
+    db: args.db,
+    rows: [image],
+  });
+  return resolved ?? image;
+}
+
 async function getDashboardImagesByListingIds(args: {
   db: DbClient;
   userId: string;
@@ -348,6 +459,22 @@ async function resolveDashboardImageRows(args: {
 }
 
 export const dashboardDbImageRouter = createTRPCRouter({
+  get: protectedProcedure
+    .input(
+      z.strictObject({
+        type: imageTypeSchema,
+        referenceId: z.string().trim().min(1).max(128),
+        imageId: z.string().trim().min(1).max(128),
+      }),
+    )
+    .query(({ ctx, input }) =>
+      getOwnedDashboardImage({
+        db: ctx.db,
+        ...input,
+        userId: ctx.user.id,
+      }),
+    ),
+
   moderateImage: protectedProcedure
     .input(imageModerationInputSchema)
     .mutation(async ({ ctx, input }) => {
@@ -381,6 +508,7 @@ export const dashboardDbImageRouter = createTRPCRouter({
         size: z.number().int().positive().max(APP_CONFIG.UPLOAD.MAX_FILE_SIZE),
         referenceId: z.string(),
         imageDataUrl: z.string().max(MAX_IMAGE_DATA_URL_LENGTH).optional(),
+        requestId: z.uuid().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -390,6 +518,38 @@ export const dashboardDbImageRouter = createTRPCRouter({
         type: input.type,
         userId: ctx.user.id,
       });
+
+      const imageId = input.requestId
+        ? memberCreateId("image", ctx.user.id, input.requestId)
+        : crypto.randomUUID();
+      const existingAttachment = input.requestId
+        ? await ctx.db.image.findFirst({
+            where: {
+              id: imageId,
+              ...getUserImageOwnerWhere({
+                type: input.type,
+                referenceId: input.referenceId,
+              }),
+            },
+            select: { id: true },
+          })
+        : null;
+      if (!existingAttachment) {
+        await assertImageSlotAvailable(ctx.db, {
+          type: input.type,
+          referenceId: input.referenceId,
+        });
+      }
+
+      if (input.requestId && !input.imageDataUrl) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Image data is required for a retryable upload.",
+        });
+      }
+      const image = input.imageDataUrl
+        ? decodeImageDataUrl(input.imageDataUrl, input.contentType, input.size)
+        : null;
 
       let contentMd5: string | undefined;
       const moderationEnabled = Boolean(
@@ -402,15 +562,10 @@ export const dashboardDbImageRouter = createTRPCRouter({
           return { moderationRequired: true } as const;
         }
 
-        const image = decodeImageDataUrl(
-          input.imageDataUrl,
-          input.contentType,
-          input.size,
-        );
         const result = await moderateAndLogImage({
           enforced: true,
           fileSize: input.size,
-          image,
+          image: image!,
           imageType: input.type,
           referenceId: input.referenceId,
           userId: ctx.user.id,
@@ -423,11 +578,17 @@ export const dashboardDbImageRouter = createTRPCRouter({
           });
         }
 
-        contentMd5 = crypto.createHash("md5").update(image).digest("base64");
+        contentMd5 = crypto.createHash("md5").update(image!).digest("base64");
       }
 
-      const imageId = crypto.randomUUID();
-      const fileId = crypto.randomBytes(16).toString("hex");
+      const fileId = input.requestId
+        ? crypto
+            .createHash("sha256")
+            .update(imageId)
+            .update(image!)
+            .digest("hex")
+            .slice(0, 32)
+        : crypto.randomBytes(16).toString("hex");
       const key = buildLegacyImageKey({
         contentType: input.contentType,
         fileId,
@@ -444,6 +605,10 @@ export const dashboardDbImageRouter = createTRPCRouter({
         imageAssetId: imageId,
         contentType: input.contentType,
         contentMd5,
+        contentDigest:
+          input.requestId && image
+            ? crypto.createHash("sha256").update(image).digest("hex")
+            : undefined,
       });
 
       const command = new PutObjectCommand({
@@ -616,10 +781,6 @@ export const dashboardDbImageRouter = createTRPCRouter({
       }
 
       const owner = { type: input.type, referenceId: input.referenceId };
-      const whereClause = getUserImageOwnerWhere(owner);
-
-      const currentCount = await ctx.db.image.count({ where: whereClause });
-
       if (input.r2OriginalKey) {
         if (!input.imageId) {
           throw invalidImageAssetMetadata();
@@ -637,16 +798,120 @@ export const dashboardDbImageRouter = createTRPCRouter({
         }
       }
 
-      const image = await ctx.db.$transaction(async (tx) => {
-        return createUserImageRecord({
-          db: tx,
-          imageId: input.imageId,
-          order: currentCount,
-          owner,
-          r2OriginalKey: input.r2OriginalKey,
-          url: imageUrl,
+      const findExistingAttachment = async () => {
+        const imageId = input.imageId;
+        if (!imageId) return null;
+        const existing = await ctx.db.image.findUnique({
+          where: { id: imageId },
         });
+        if (!existing) return null;
+
+        const sameTarget =
+          input.type === "listing"
+            ? existing.listingId === input.referenceId &&
+              existing.userProfileId === null
+            : existing.userProfileId === input.referenceId &&
+              existing.listingId === null;
+        const asset = await ctx.db.imageAsset.findUnique({
+          where: { id: imageId },
+          select: { legacyImageId: true, originalKey: true },
+        });
+        if (
+          !sameTarget ||
+          existing.url !== imageUrl ||
+          (asset?.originalKey ?? null) !== (input.r2OriginalKey ?? null) ||
+          (asset && asset.legacyImageId !== imageId)
+        ) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "Image ID was already used for another attachment.",
+          });
+        }
+
+        const [resolved] = await resolveDashboardImageRows({
+          db: ctx.db,
+          rows: [existing],
+        });
+        return resolved ?? existing;
+      };
+
+      const existing = await findExistingAttachment();
+      if (existing) return existing;
+
+      await assertUploadedImageObject({
+        bucket: getLegacyImageUploadBucketName(),
+        client: getLegacyS3Client(),
+        key: input.key,
       });
+      if (input.r2OriginalKey) {
+        await assertUploadedImageObject({
+          bucket: getR2BucketName(),
+          client: getR2Client(),
+          key: input.r2OriginalKey,
+        });
+      }
+
+      let image;
+      try {
+        image = await ctx.db.$transaction(async (tx) => {
+          if (input.imageId) {
+            const fresh = await reserveMemberCreateRequest(
+              tx,
+              "image",
+              ctx.user.id,
+              input.imageId,
+              {
+                type: input.type,
+                referenceId: input.referenceId,
+                url: imageUrl,
+                key: input.key,
+                r2OriginalKey: input.r2OriginalKey ?? null,
+              },
+            );
+            if (!fresh) {
+              const prior = await tx.image.findUnique({
+                where: { id: input.imageId },
+              });
+              const sameOwner =
+                input.type === "listing"
+                  ? prior?.listingId === input.referenceId &&
+                    prior?.userProfileId === null
+                  : prior?.userProfileId === input.referenceId &&
+                    prior?.listingId === null;
+              if (prior && sameOwner && prior.url === imageUrl) return prior;
+              throw new TRPCError({
+                code: "CONFLICT",
+                message:
+                  "This image request already completed. The image was deleted.",
+              });
+            }
+          }
+          await assertImageSlotAvailable(tx, owner);
+          const lastImage = await tx.image.findFirst({
+            where: getUserImageOwnerWhere(owner),
+            select: { order: true },
+            orderBy: { order: "desc" },
+          });
+          return createUserImageRecord({
+            db: tx,
+            imageId: input.imageId,
+            order: (lastImage?.order ?? -1) + 1,
+            owner,
+            r2OriginalKey: input.r2OriginalKey,
+            url: imageUrl,
+          });
+        });
+      } catch (error) {
+        if (
+          input.imageId &&
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === "P2002"
+        ) {
+          const concurrentAttachment = await findExistingAttachment();
+          if (concurrentAttachment) return concurrentAttachment;
+        }
+        throw error;
+      }
 
       const [resolved] = await resolveDashboardImageRows({
         db: ctx.db,
@@ -670,7 +935,13 @@ export const dashboardDbImageRouter = createTRPCRouter({
         referenceId: z.string(),
         images: z
           .array(z.object({ id: z.string(), order: z.number().int().min(0) }))
-          .min(1, "At least one image is required"),
+          .min(1, "At least one image is required")
+          .max(APP_CONFIG.UPLOAD.MAX_REORDER_IMAGES)
+          .refine(
+            (images) =>
+              new Set(images.map((image) => image.id)).size === images.length,
+            "Each image id must occur once.",
+          ),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -697,7 +968,14 @@ export const dashboardDbImageRouter = createTRPCRouter({
         where: whereClause,
         orderBy: { order: "asc" },
         select: { id: true },
+        take: APP_CONFIG.UPLOAD.MAX_REORDER_IMAGES + 1,
       });
+      if (allImages.length > APP_CONFIG.UPLOAD.MAX_REORDER_IMAGES) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "Remove older images before reordering this target.",
+        });
+      }
 
       const inputIds = new Set(input.images.map((img) => img.id));
       const ownedImageIds = new Set(allImages.map((img) => img.id));
@@ -724,7 +1002,7 @@ export const dashboardDbImageRouter = createTRPCRouter({
       await ctx.db.$transaction(
         mergedOrder.flatMap((img, index) => [
           ctx.db.image.update({
-            where: { id: img.id },
+            where: { id: img.id, ...whereClause },
             data: { order: index },
           }),
           ctx.db.imageAsset.updateMany({
@@ -779,26 +1057,33 @@ export const dashboardDbImageRouter = createTRPCRouter({
           where: { legacyImageId: input.imageId },
         });
 
-        const remaining = await tx.image.findMany({
-          where: whereClause,
-          orderBy: { order: "asc" },
-          select: { id: true },
-        });
-
-        await Promise.all(
-          remaining.map((img, index) =>
-            Promise.all([
-              tx.image.update({
-                where: { id: img.id },
-                data: { order: index },
-              }),
-              tx.imageAsset.updateMany({
-                where: { legacyImageId: img.id },
-                data: { order: index },
-              }),
-            ]),
-          ),
-        );
+        const target =
+          input.type === "listing"
+            ? Prisma.sql`"listingId" = ${input.referenceId}`
+            : Prisma.sql`"userProfileId" = ${input.referenceId}`;
+        const assetTarget =
+          input.type === "listing"
+            ? Prisma.sql`image."listingId" = ${input.referenceId}`
+            : Prisma.sql`image."userProfileId" = ${input.referenceId}`;
+        const updatedAt = new Date();
+        await tx.$executeRaw(Prisma.sql`
+          WITH ranked AS MATERIALIZED (
+            SELECT id, ROW_NUMBER() OVER (ORDER BY "order", id) - 1 AS nextOrder
+            FROM "Image"
+            WHERE ${target}
+          )
+          UPDATE "Image"
+          SET "order" = ranked.nextOrder, "updatedAt" = ${updatedAt}
+          FROM ranked
+          WHERE "Image".id = ranked.id
+        `);
+        await tx.$executeRaw(Prisma.sql`
+          UPDATE "ImageAsset"
+          SET "order" = image."order", "updatedAt" = ${updatedAt}
+          FROM "Image" AS image
+          WHERE "ImageAsset"."legacyImageId" = image.id
+            AND ${assetTarget}
+        `);
       });
 
       return { success: true } as const;

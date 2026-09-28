@@ -78,10 +78,9 @@ describe("useEditList URL sync", () => {
     expect(screen.getByRole("button")).toHaveTextContent("none");
 
     await waitFor(() => {
-      expect(navigationState.replace).toHaveBeenCalledWith(
-        "/dashboard/lists",
-        { scroll: false },
-      );
+      expect(navigationState.replace).toHaveBeenCalledWith("/dashboard/lists", {
+        scroll: false,
+      });
     });
     expect(navigationState.push).not.toHaveBeenCalled();
     expect(
@@ -97,5 +96,14 @@ describe("useEditList URL sync", () => {
     navigationState.setSearch("editing=list-1");
     rerender(<EditListHookHarness />);
     expect(screen.getByRole("button")).toHaveTextContent("list-1");
+  });
+
+  it("clears deletion intent when closing an edit", () => {
+    navigationState.setSearch("editing=list-1&intent=delete");
+    render(<EditListHookHarness />);
+    fireEvent.click(screen.getByRole("button"));
+    expect(navigationState.replace).toHaveBeenCalledWith("/dashboard/lists", {
+      scroll: false,
+    });
   });
 });

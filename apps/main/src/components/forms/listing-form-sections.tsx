@@ -9,6 +9,7 @@ import { AhsListingLink } from "@/components/ahs-listing-link";
 import { LISTING_CONFIG } from "@/config/constants";
 import { type ListingCollectionItem } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
 import { type CultivarReferenceCollectionItem } from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
+import { useDashboardSectionFocus } from "@/hooks/use-dashboard-section-focus";
 
 type LinkedAhsListing = CultivarReferenceCollectionItem["ahsListing"];
 type LinkedCultivarReferenceImage =
@@ -23,8 +24,9 @@ export function ListingMediaSection({
   listingId: string;
   onMutationSuccess: () => void;
 }) {
+  useDashboardSectionFocus("listing-images");
   return (
-    <div className="space-y-2">
+    <div id="listing-images" className="space-y-2">
       <Label htmlFor="image-upload-input">Images</Label>
       <p className="text-muted-foreground text-[0.8rem]">
         Upload images of your listing. You can reorder them by dragging.
@@ -85,11 +87,12 @@ export function ListingCultivarLinkSection({
   linkedAhs: LinkedAhsListing | null;
   linkedCultivarReferenceImage: LinkedCultivarReferenceImage | null;
   listing: ListingCollectionItem;
-  onMutationSuccess: () => void;
+  onMutationSuccess: (listing: ListingCollectionItem) => void;
   onNameChange: (name: string) => void;
 }) {
+  useDashboardSectionFocus("listing-cultivar");
   return (
-    <div className="space-y-2">
+    <div id="listing-cultivar" className="space-y-2">
       <Label htmlFor="ahs-listing-select">
         Link to Daylily Database Listing
       </Label>

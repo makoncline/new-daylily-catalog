@@ -142,7 +142,7 @@ model Listing {
   @@unique([userId, importKey])
   @@index([ahsId])
   @@index([cultivarReferenceId])
-  @@index([userId])
+  @@index([userId, id])
   @@index([slug])
 }
 

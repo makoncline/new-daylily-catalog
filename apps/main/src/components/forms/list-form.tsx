@@ -8,6 +8,8 @@ import { useZodForm } from "@/hooks/use-zod-form";
 import { listFormSchema, type ListFormData } from "@/types/schemas/list";
 import {
   deleteList,
+  loadMissingList,
+  listsCollection,
   updateList,
   type ListCollectionItem,
 } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
@@ -28,9 +30,11 @@ import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
 import { ListFormSkeleton } from "@/components/forms/list-form-skeleton";
 import { useListResource } from "@/app/dashboard/_lib/dashboard-db/use-list-resource";
 import { useConfirmableAsyncAction } from "@/hooks/use-confirmable-async-action";
+import { getErrorMessage } from "@/lib/error-utils";
 
 interface ListFormProps {
   listId: string;
+  openDeleteOnMount?: boolean;
   onDelete?: () => void;
   onSave?: () => void;
   onPendingChangesChange?: (hasPendingChanges: boolean) => void;
@@ -45,7 +49,9 @@ export interface ListFormHandle {
   markNeedsCommit: () => void;
 }
 
-function toFormValues(list: ListCollectionItem): ListFormData {
+function toFormValues(
+  list: Pick<ListCollectionItem, "title" | "description">,
+): ListFormData {
   return {
     title: list.title,
     description: list.description ?? undefined,
@@ -59,6 +65,7 @@ function areListValuesEqual(a: ListFormData, b: ListFormData): boolean {
 function ListFormInner({
   list,
   listId,
+  openDeleteOnMount,
   onDelete,
   onSave,
   onPendingChangesChange,
@@ -66,13 +73,16 @@ function ListFormInner({
 }: {
   list: ListCollectionItem;
   listId: string;
+  openDeleteOnMount?: boolean;
   onDelete?: () => void;
   onSave?: () => void;
   onPendingChangesChange?: (hasPendingChanges: boolean) => void;
   formRef?: React.RefObject<ListFormHandle | null>;
 }) {
   const [isSaving, setIsSaving] = useState(false);
+  const [hasRemoteChange, setHasRemoteChange] = useState(false);
   const committedValuesRef = useRef<ListFormData>(toFormValues(list));
+  const committedUpdatedAtRef = useRef(list.updatedAt);
   const {
     markNeedsParentCommit,
     needsParentCommit,
@@ -106,16 +116,19 @@ function ListFormInner({
       });
     },
   });
+  useEffect(() => {
+    if (openDeleteOnMount) openDeleteDialog();
+  }, [openDeleteOnMount, openDeleteDialog]);
   const isBusy = isSaving || isDeletePending;
 
   const hasPendingChanges = useCallback(() => {
     const values = form.getValues();
-    const committedValues = toFormValues(list);
+    const committedValues = committedValuesRef.current;
     return (
       !areListValuesEqual(values, committedValues) ||
       needsParentCommitRef.current
     );
-  }, [form, list, needsParentCommitRef]);
+  }, [form, needsParentCommitRef]);
 
   const { saveChanges } = useManagedFormSave<
     ListFormSaveReason,
@@ -125,12 +138,25 @@ function ListFormInner({
     hasPendingChanges,
     save: async (reason) => {
       const values = form.getValues();
-      const committedValues = toFormValues(list);
+      const committedValues = committedValuesRef.current;
       const hasFieldPending = !areListValuesEqual(values, committedValues);
       const shouldCommitParent =
         hasFieldPending || needsParentCommitRef.current;
 
       if (!shouldCommitParent) {
+        return true;
+      }
+      if (!hasFieldPending) {
+        if (
+          new Date(list.updatedAt).getTime() >
+          new Date(committedUpdatedAtRef.current).getTime()
+        ) {
+          committedValuesRef.current = toFormValues(list);
+          committedUpdatedAtRef.current = list.updatedAt;
+          form.reset(toFormValues(list), { keepIsValid: true });
+        }
+        resetNeedsParentCommit();
+        setHasRemoteChange(false);
         return true;
       }
 
@@ -151,13 +177,19 @@ function ListFormInner({
         setIsSaving(true);
       }
       try {
-        await updateList({
+        const updated = await updateList({
           id: listId,
+          expectedUpdatedAt: new Date(
+            committedUpdatedAtRef.current,
+          ).toISOString(),
           data: {
             title: values.title,
             description: values.description ?? undefined,
           },
         });
+        committedValuesRef.current = toFormValues(updated);
+        committedUpdatedAtRef.current = updated.updatedAt;
+        setHasRemoteChange(false);
         resetNeedsParentCommit();
         if (shouldUpdateUi) {
           form.reset(values, { keepIsValid: true });
@@ -169,10 +201,13 @@ function ListFormInner({
           onSave?.();
         }
         return true;
-      } catch {
+      } catch (error) {
+        if (getErrorMessage(error).includes("changed. Load the latest")) {
+          setHasRemoteChange(true);
+        }
         if (shouldUpdateUi) {
           toast.error("Failed to update list", {
-            description: "An error occurred while updating your list",
+            description: getErrorMessage(error),
           });
         }
         return false;
@@ -199,6 +234,12 @@ function ListFormInner({
   }, [form, hasPendingChanges, needsParentCommit, onPendingChangesChange]);
 
   useEffect(() => {
+    if (
+      new Date(list.updatedAt).getTime() <=
+      new Date(committedUpdatedAtRef.current).getTime()
+    ) {
+      return;
+    }
     const nextCommittedValues = toFormValues(list);
     const previousCommittedValues = committedValuesRef.current;
     const currentValues = form.getValues();
@@ -207,16 +248,38 @@ function ListFormInner({
       previousCommittedValues,
     );
 
-    committedValuesRef.current = nextCommittedValues;
-
     if (hasLocalFieldChanges || needsParentCommitRef.current) {
+      setHasRemoteChange(true);
       return;
     }
 
+    committedValuesRef.current = nextCommittedValues;
+    committedUpdatedAtRef.current = list.updatedAt;
+    setHasRemoteChange(false);
     if (!areListValuesEqual(currentValues, nextCommittedValues)) {
       form.reset(nextCommittedValues, { keepIsValid: true });
     }
   }, [form, list, needsParentCommitRef]);
+
+  async function discardDraftAndLoadLatest() {
+    setIsSaving(true);
+    try {
+      await loadMissingList(listId);
+      const latest = listsCollection.get(listId);
+      if (!latest) throw new Error("List not found.");
+      committedValuesRef.current = toFormValues(latest);
+      committedUpdatedAtRef.current = latest.updatedAt;
+      form.reset(toFormValues(latest), { keepIsValid: true });
+      resetNeedsParentCommit();
+      setHasRemoteChange(false);
+    } catch (error) {
+      toast.error("Failed to load the latest list", {
+        description: getErrorMessage(error),
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  }
 
   async function onSubmit() {
     await saveChanges("manual");
@@ -225,6 +288,21 @@ function ListFormInner({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {hasRemoteChange && (
+          <div role="status" className="rounded-md border p-3 text-sm">
+            <p>
+              The list changed elsewhere. Your unsaved fields are still here.
+            </p>
+            <button
+              type="button"
+              className="mt-2 underline"
+              disabled={isBusy}
+              onClick={() => void discardDraftAndLoadLatest()}
+            >
+              Discard this draft and load the latest list
+            </button>
+          </div>
+        )}
         <FormField
           control={form.control}
           name="title"
@@ -290,7 +368,7 @@ function ListFormInner({
         onOpenChange={setIsDeleteDialogOpen}
         onConfirm={() => void confirmDelete()}
         title="Delete List"
-        description="Are you sure you want to delete this list? This action cannot be undone."
+        description={`Delete ${list.title}? This action cannot be undone.`}
       />
     </Form>
   );
@@ -298,15 +376,48 @@ function ListFormInner({
 
 function ListFormLive({
   listId,
+  openDeleteOnMount,
   onDelete,
   onSave,
   onPendingChangesChange,
   formRef,
 }: ListFormProps) {
+  const [unavailableId, setUnavailableId] = useState<string | null>(null);
+  const [freshReviewId, setFreshReviewId] = useState<string | null>(null);
   const { isReady, list } = useListResource(listId);
+  const needsPrimaryFetch =
+    isReady && (openDeleteOnMount === true || list === null);
 
-  if (!isReady || !list) {
+  useEffect(() => {
+    if (!needsPrimaryFetch) return;
+    let active = true;
+    void loadMissingList(listId)
+      .then(() => {
+        if (active) setFreshReviewId(listId);
+      })
+      .catch(() => {
+        if (active) setUnavailableId(listId);
+      });
+    return () => {
+      active = false;
+    };
+  }, [needsPrimaryFetch, listId]);
+
+  if (
+    !isReady ||
+    (openDeleteOnMount &&
+      freshReviewId !== listId &&
+      unavailableId !== listId) ||
+    (!list && unavailableId !== listId)
+  ) {
     return <ListFormSkeleton />;
+  }
+  if (!list || unavailableId === listId) {
+    return (
+      <p role="status">
+        This list is unavailable. Return to Lists and try again.
+      </p>
+    );
   }
 
   return (
@@ -314,6 +425,7 @@ function ListFormLive({
       key={listId}
       list={list}
       listId={listId}
+      openDeleteOnMount={openDeleteOnMount}
       onDelete={onDelete}
       onSave={onSave}
       onPendingChangesChange={onPendingChangesChange}

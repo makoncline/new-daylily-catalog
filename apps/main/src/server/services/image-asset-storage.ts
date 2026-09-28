@@ -11,11 +11,35 @@ import {
 
 export const IMAGE_ASSET_VARIANT_CACHE_CONTROL =
   "public, max-age=31536000, immutable";
-const ORIGINAL_IMAGE_ASSET_FILE_PATTERN = "original\\.(?:jpe?g|png|webp)";
+const ORIGINAL_IMAGE_ASSET_FILE_PATTERN =
+  "original(?:-[a-f0-9]{64})?\\.(?:jpe?g|png|webp)";
 const ORIGINAL_IMAGE_ASSET_KEY_PATTERN = new RegExp(
   `^${ORIGINAL_IMAGE_ASSET_FILE_PATTERN}$`,
 );
 let r2Client: S3Client | undefined;
+
+function getR2Endpoint() {
+  const integrationEndpoint = process.env.INTEGRATION_R2_ENDPOINT_URL;
+  if (!integrationEndpoint) {
+    return `https://${requireEnv("R2_ACCOUNT_ID", env.R2_ACCOUNT_ID)}.r2.cloudflarestorage.com`;
+  }
+
+  const url = new URL(integrationEndpoint);
+  if (
+    process.env.INTEGRATION_MODE !== "1" ||
+    process.env.NODE_ENV === "production" ||
+    url.protocol !== "http:" ||
+    !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname) ||
+    url.username ||
+    url.password ||
+    url.pathname !== "/" ||
+    url.search ||
+    url.hash
+  ) {
+    throw new Error("Integration R2 endpoint must be loopback HTTP.");
+  }
+  return url.toString();
+}
 
 export interface UserImageAssetKeyArgs {
   kind: ImageType;
@@ -37,7 +61,7 @@ export function areImageAssetUploadsConfigured() {
 export function getR2Client() {
   r2Client ??= new S3Client({
     region: "auto",
-    endpoint: `https://${requireEnv("R2_ACCOUNT_ID", env.R2_ACCOUNT_ID)}.r2.cloudflarestorage.com`,
+    endpoint: getR2Endpoint(),
     forcePathStyle: true,
     credentials: {
       accessKeyId: requireEnv("R2_ACCESS_KEY_ID", env.R2_ACCESS_KEY_ID),
@@ -49,6 +73,10 @@ export function getR2Client() {
   });
 
   return r2Client;
+}
+
+export function getR2BucketName() {
+  return requireEnv("R2_BUCKET_NAME", env.R2_BUCKET_NAME);
 }
 
 export function buildR2PublicUrl(key: string) {
@@ -94,9 +122,17 @@ export function buildUserImageAssetBaseKey(args: UserImageAssetKeyArgs) {
 }
 
 export function buildOriginalImageAssetKey(
-  args: UserImageAssetKeyArgs & { contentType: ImageContentType },
+  args: UserImageAssetKeyArgs & {
+    contentType: ImageContentType;
+    contentDigest?: string;
+  },
 ) {
+  if (args.contentDigest && !/^[a-f0-9]{64}$/.test(args.contentDigest)) {
+    throw new Error("Image content digest must be SHA-256 hex.");
+  }
   return `${buildUserImageAssetBaseKey(args)}/original${
+    args.contentDigest ? `-${args.contentDigest}` : ""
+  }${
     imageExtensionByContentType[args.contentType]
   }`;
 }
@@ -132,7 +168,10 @@ export function buildVariantImageAssetKeys(
 export function buildVariantImageAssetKeysFromOriginalKey(originalKey: string) {
   assertCanonicalImageAssetKey(originalKey);
 
-  const baseKey = originalKey.replace(/\/original\.[a-z0-9]+$/i, "");
+  const baseKey = originalKey.replace(
+    /\/original(?:-[a-f0-9]{64})?\.[a-z0-9]+$/i,
+    "",
+  );
   if (baseKey === originalKey) {
     throw new Error(`Invalid ImageAsset original key: ${originalKey}`);
   }
@@ -147,7 +186,7 @@ export async function getR2PresignedPutUrl(args: {
   cacheControl?: string;
 }) {
   const command = new PutObjectCommand({
-    Bucket: requireEnv("R2_BUCKET_NAME", env.R2_BUCKET_NAME),
+    Bucket: getR2BucketName(),
     Key: args.key,
     ContentType: args.contentType,
     ContentMD5: args.contentMd5,
@@ -164,7 +203,7 @@ export async function uploadR2ImageBuffer(args: {
 }) {
   await getR2Client().send(
     new PutObjectCommand({
-      Bucket: requireEnv("R2_BUCKET_NAME", env.R2_BUCKET_NAME),
+      Bucket: getR2BucketName(),
       Key: args.key,
       Body: args.body,
       ContentType: args.contentType,
@@ -180,6 +219,7 @@ export async function getR2OriginalUploadMetadata(args: {
   imageAssetId: string;
   contentType: ImageContentType;
   contentMd5?: string;
+  contentDigest?: string;
 }) {
   if (!areImageAssetUploadsConfigured()) return null;
 

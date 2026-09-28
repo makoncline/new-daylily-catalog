@@ -18,6 +18,11 @@ vi.mock("@/server/db", () => ({
       findMany: dbMocks.listingFindMany,
     },
   },
+  publicDb: {
+    listing: {
+      findMany: dbMocks.listingFindMany,
+    },
+  },
 }));
 
 vi.mock("@/server/db/getProUserIds", () => ({

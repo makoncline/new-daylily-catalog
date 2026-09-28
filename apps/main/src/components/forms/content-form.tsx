@@ -30,7 +30,9 @@ export interface ContentManagerFormHandle {
 interface ContentManagerFormProps {
   initialProfile: RouterOutputs["dashboardDb"]["userProfile"]["get"];
   formRef?: React.RefObject<ContentManagerFormHandle | null>;
-  onMutationSuccess?: () => void;
+  onMutationSuccess?: (
+    profile: RouterOutputs["dashboardDb"]["userProfile"]["updateContent"],
+  ) => void;
   onDirtyChange?: (isDirty: boolean) => void;
 }
 
@@ -46,6 +48,12 @@ export function ContentManagerFormItem({
   const contentRef = React.useRef<HTMLDivElement | null>(null);
   const isDirtyRef = React.useRef(isDirty);
   const lastSavedRef = React.useRef(initialProfile.content);
+  const lastSavedUpdatedAtRef = React.useRef(initialProfile.updatedAt);
+  const [editorSnapshot, setEditorSnapshot] = React.useState({
+    content: initialProfile.content,
+    revision: 0,
+  });
+  const [hasRemoteChange, setHasRemoteChange] = React.useState(false);
   isDirtyRef.current = isDirty;
 
   const updateContentMutation =
@@ -106,9 +114,17 @@ export function ContentManagerFormItem({
         }
 
         const newData = JSON.stringify(newBlocks);
-        await updateContentMutation.mutateAsync({ content: newData });
+        const saved = await updateContentMutation.mutateAsync({
+          content: newData,
+          expectedUpdatedAt: new Date(
+            lastSavedUpdatedAtRef.current,
+          ).toISOString(),
+        });
 
         lastSavedRef.current = newData;
+        lastSavedUpdatedAtRef.current = saved.updatedAt;
+        setEditorSnapshot((current) => ({ ...current, content: newData }));
+        setHasRemoteChange(false);
 
         isDirtyRef.current = false;
         if (shouldUpdateUi) {
@@ -116,7 +132,7 @@ export function ContentManagerFormItem({
           onDirtyChange?.(false);
         }
 
-        onMutationSuccess?.();
+        onMutationSuccess?.(saved);
 
         return true;
       } catch (error) {
@@ -150,19 +166,75 @@ export function ContentManagerFormItem({
   });
 
   React.useEffect(() => {
+    const incomingTime = new Date(initialProfile.updatedAt).getTime();
+    const savedTime = new Date(lastSavedUpdatedAtRef.current).getTime();
+    if (incomingTime < savedTime) {
+      return;
+    }
+    if (
+      incomingTime === savedTime &&
+      initialProfile.content === lastSavedRef.current
+    ) {
+      return;
+    }
     if (isDirtyRef.current) {
+      setHasRemoteChange(true);
       return;
     }
 
     lastSavedRef.current = initialProfile.content;
-  }, [initialProfile.content]);
+    lastSavedUpdatedAtRef.current = initialProfile.updatedAt;
+    setEditorSnapshot((current) => ({
+      content: initialProfile.content,
+      revision:
+        current.content === initialProfile.content
+          ? current.revision
+          : current.revision + 1,
+    }));
+    setHasRemoteChange(false);
+  }, [initialProfile.content, initialProfile.updatedAt]);
+
+  const loadLatestContent = React.useCallback(() => {
+    lastSavedRef.current = initialProfile.content;
+    lastSavedUpdatedAtRef.current = initialProfile.updatedAt;
+    isDirtyRef.current = false;
+    setIsDirty(false);
+    onDirtyChange?.(false);
+    setEditorSnapshot((current) => ({
+      content: initialProfile.content,
+      revision: current.revision + 1,
+    }));
+    setHasRemoteChange(false);
+  }, [initialProfile.content, initialProfile.updatedAt, onDirtyChange]);
 
   useOnClickOutside(contentRef as React.RefObject<HTMLElement>, () => {
     void saveChanges("outside");
   });
 
   const isPendingIndicatorVisible = isSaving || updateContentMutation.isPending;
-  const editorResetKey = initialProfile.content ?? "empty-content";
+  const editorResetKey = editorSnapshot.revision;
+  const focusReviewBlock = React.useCallback((editor: EditorJS) => {
+    if (window.location.hash !== "#profile-content") return;
+    const blockId = new URLSearchParams(window.location.search).get(
+      "contentBlock",
+    );
+    if (!blockId) return;
+    const block = editor.blocks.getById(blockId);
+    if (!block) {
+      toast.error("The profile block is no longer in the editor.");
+      return;
+    }
+    block.holder.classList.add(
+      "outline",
+      "outline-2",
+      "outline-primary",
+      "outline-offset-2",
+    );
+    requestAnimationFrame(() => {
+      block.holder.scrollIntoView({ block: "center" });
+      editor.caret.setToBlock(block, "start");
+    });
+  }, []);
 
   return (
     <FormItem>
@@ -178,13 +250,29 @@ export function ContentManagerFormItem({
         )}
       </div>
       <div ref={contentRef} className="space-y-3">
+        {hasRemoteChange && (
+          <div role="status" className="rounded-md border p-3 text-sm">
+            <p>
+              Your profile changed elsewhere. Your unsaved story is still here.
+              Saving it will report a conflict.
+            </p>
+            <button
+              type="button"
+              className="mt-2 underline"
+              onClick={loadLatestContent}
+            >
+              Discard this draft and load the latest story
+            </button>
+          </div>
+        )}
         <div className="bg-background min-h-96 rounded-md border">
           <Editor
             key={editorResetKey}
             editorRef={editorRef}
-            initialContent={parseEditorContent(initialProfile.content)}
+            initialContent={parseEditorContent(editorSnapshot.content)}
             className="px-3 py-2 pb-8"
             onChange={markDirty}
+            onReady={focusReviewBlock}
           />
         </div>
       </div>

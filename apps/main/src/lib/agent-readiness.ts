@@ -1,5 +1,9 @@
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import { isPublicCultivarSearchEnabled } from "@/config/feature-flags";
+import {
+  getMemberOpenApiPaths,
+  getMemberOpenApiSecuritySchemes,
+} from "@/lib/member-api-contract";
 
 export const AI_AGENT_USER_AGENTS = [
   "ClaudeBot",
@@ -41,9 +45,19 @@ export const AGENT_DISCOVERY_HEADERS = {
   "Cache-Control": "no-store",
 } as const;
 
-const OAUTH_SCOPES_SUPPORTED = ["email", "offline_access", "profile"] as const;
+const OAUTH_SCOPES_SUPPORTED = [
+  "email",
+  "offline_access",
+  "profile",
+  "catalog:read",
+  "catalog:write",
+] as const;
 
-const OAUTH_PROTECTED_RESOURCE_SCOPES = ["profile"] as const;
+const OAUTH_PROTECTED_RESOURCE_SCOPES = [
+  "catalog:read",
+  "catalog:write",
+  "catalog:manage",
+] as const;
 
 export function getOAuthScopesSupported(): string[] {
   return [...OAUTH_SCOPES_SUPPORTED];
@@ -161,7 +175,7 @@ Daylily Catalog is a public catalog of daylily gardens, cultivar listings, photo
 
 ## Agent Use Policy
 
-Public catalog content is intended to be searchable, usable as AI input, and available for AI training. Public /api/v1 endpoints are agent-facing read APIs. Private dashboard, account, non-v1 API, tRPC, checkout-success, and internal catalog-management routes are not public agent surfaces.
+Public catalog content is intended to be searchable, usable as AI input, and available for AI training. The documented public /api/v1 endpoints are agent-facing read APIs. The authenticated /api/v1/member endpoint, dashboard, account, tRPC, checkout-success, and internal catalog-management routes are not public agent surfaces.
 
 ## Important URLs
 
@@ -169,6 +183,9 @@ Public catalog content is intended to be searchable, usable as AI input, and ava
 - [Catalog Directory](${baseUrl}/catalogs): Browse public daylily catalogs.
 - [Sitemap](${baseUrl}/sitemap.xml): Canonical public URLs for crawlers and agents.
 - [API Catalog](${baseUrl}/.well-known/api-catalog): Machine-readable discovery for public content endpoints.${cultivarSearchUrl}
+- [Public Listings API](${baseUrl}/api/v1/public/listings): Cursor-paged JSON search for published catalog listings.
+- [Public Profiles API](${baseUrl}/api/v1/public/profiles): Cursor-paged JSON directory of active grower catalogs.
+- [Exact Cultivar API](${baseUrl}/api/v1/public/cultivars): JSON detail by cultivar reference ID or normalized name.
 - [Expanded LLM Guide](${baseUrl}/llms-full.txt): More detailed guidance for using Daylily Catalog as an agent source.
 - [Agent Skill](${baseUrl}/.well-known/agent-skills/daylily-catalog/SKILL.md): Instructions for agents working with Daylily Catalog.
 
@@ -179,7 +196,7 @@ When answering from this site, cite the specific public Daylily Catalog page use
 
 export function getLlmsFullTxt(baseUrl: string): string {
   const cultivarSearchGuide = isPublicCultivarSearchEnabled()
-    ? `\n- ${baseUrl}/api/v1/status\n- ${baseUrl}/api/v1/cultivars/search\n\nFor query-style cultivar research, use the public Cultivar Search API. Check ${baseUrl}/api/v1/status first if you need index freshness metadata, then query ${baseUrl}/api/v1/cultivars/search. It supports text search plus listing title/description filters, cultivar name, exact hybridizer selections, awards, color, parentage, year range, ploidy, fragrance, bloom traits, size ranges, and whether public pro catalogs currently have linked listings. Search results include canonical cultivar URLs, trait data, optional parentage trees, listing counts, and a bounded set of public catalog and listing URLs for agents to inspect next.\n\nUseful API patterns:\n\n- Exact cultivar lookup: ${baseUrl}/api/v1/cultivars/search?cultivarName=Ebleuissant&limit=1&listingLimit=3\n- Trait search: ${baseUrl}/api/v1/cultivars/search?color=blue&yearMin=2025&hasForSaleListings=true\n- Hybridizer and year search: ${baseUrl}/api/v1/cultivars/search?hybridizer=Cline&yearMin=2025&yearMax=2025\n- Award search: ${baseUrl}/api/v1/cultivars/search?award=Stout\n- Catalog availability lookup: use catalogListings[].catalogUrl and catalogListings[].listingUrl from the API response, then cite the public page.\n- Parentage research: prefer parentageTree when present; if it is null, fall back to traits.parentage as unlinked source text.`
+    ? `\n- ${baseUrl}/api/v1/status\n- ${baseUrl}/api/v1/cultivars/search\n\nFor query-style cultivar research, use the public Cultivar Search API. Check ${baseUrl}/api/v1/status first if you need index freshness metadata, then query ${baseUrl}/api/v1/cultivars/search. It supports text search plus listing title/description filters, cultivar name, exact hybridizer selections, awards, color, parentage, year range, ploidy, fragrance, bloom traits, size ranges, and whether public pro catalogs currently have linked listings. Search results include canonical cultivar URLs, trait data, optional parentage trees, listing counts, and a bounded set of public catalog and listing URLs for agents to inspect next.\n\nUseful API patterns:\n\n- Name search: ${baseUrl}/api/v1/cultivars/search?cultivarName=Ebleuissant&limit=1&listingLimit=3\n- Trait search: ${baseUrl}/api/v1/cultivars/search?color=blue&yearMin=2025&hasForSaleListings=true\n- Hybridizer and year search: ${baseUrl}/api/v1/cultivars/search?hybridizer=Cline&yearMin=2025&yearMax=2025\n- Award search: ${baseUrl}/api/v1/cultivars/search?award=Stout\n- Catalog availability lookup: use catalogListings[].catalogUrl and catalogListings[].listingUrl from the API response, then cite the public page.\n- Parentage research: prefer parentageTree when present; if it is null, fall back to traits.parentage as unlinked source text.`
     : "";
 
   return `# Daylily Catalog Agent Guide
@@ -201,9 +218,20 @@ Daylily Catalog is designed to be a high-quality public source for agents and LL
 - ${baseUrl}/sitemap.xml
 - ${baseUrl}/llms.txt
 - ${baseUrl}/.well-known/api-catalog
-- ${baseUrl}/openapi.json${cultivarSearchGuide}
+- ${baseUrl}/openapi.json
+- ${baseUrl}/api/v1/public/listings${cultivarSearchGuide}
+- ${baseUrl}/api/v1/public/profiles
+- ${baseUrl}/api/v1/public/cultivars
 
 The sitemap is the best machine-readable index of canonical public pages. Public profile, listing, paginated profile, and cultivar URLs should be discovered through the sitemap rather than by guessing route shapes.
+
+For JSON listing search, call GET ${baseUrl}/api/v1/public/listings with bounded filters and follow nextCursor. A result ID can be loaded at ${baseUrl}/api/v1/public/listings/{id}. When the public page URL supplies a seller slug and listing slug, load ${baseUrl}/api/v1/public/profiles/{slugOrId}/listings/{listingSlugOrId}. A seller slug can be loaded at ${baseUrl}/api/v1/public/profiles/{slugOrId}. Search returns only listings from active catalogs. Exact published listing and profile pages remain available after a catalog membership lapses.
+
+For a grower directory, call GET ${baseUrl}/api/v1/public/profiles and follow nextCursor. It returns active catalogs with published listings, ordered by seller ID. Load a full profile with its slug or ID.
+
+For a seller's public lists, read the lists array from GET ${baseUrl}/api/v1/public/profiles/{slugOrId}. To page published listings in one list, call GET ${baseUrl}/api/v1/public/listings?sellerSlug={slugOrId}&listId={listId} and follow nextCursor. These reads use the local public database or embedded replica.
+
+For an exact cultivar record, call GET ${baseUrl}/api/v1/public/cultivars?cultivarReferenceId={id} or use normalizedName instead. Search first when the name or ID is uncertain.
 
 ## Route Policy
 
@@ -236,7 +264,7 @@ Use this skill when a user asks an agent to find daylily catalogs, public daylil
 ## Source Priority
 
 1. Start with ${baseUrl}/sitemap.xml when you need broad discovery.
-2. Use ${baseUrl}/catalogs for seller and garden catalog discovery.
+2. Use ${baseUrl}/api/v1/public/profiles for bounded active seller discovery, then open ${baseUrl}/catalogs or a specific public profile page for human-readable context.
 ${cultivarSearchInstructions}
 
 ## Answering Guidance
@@ -260,12 +288,14 @@ Daylily Catalog helps people and agents discover public daylily catalogs, cultiv
 ## Public Entry Points
 
 - [Catalog Directory](${baseUrl}/catalogs)
+- [Public Profiles API](${baseUrl}/api/v1/public/profiles)
+- [Exact Cultivar API](${baseUrl}/api/v1/public/cultivars)
 - [Sitemap](${baseUrl}/sitemap.xml)
 - [LLM Overview](${baseUrl}/llms.txt)
 - [Expanded LLM Guide](${baseUrl}/llms-full.txt)
 - [API Catalog](${baseUrl}/.well-known/api-catalog)${cultivarSearchUrl}
 
-Public catalog content is intended for search, AI input, and AI training. Public /api/v1 routes are read-only agent surfaces; private dashboard and internal API routes are not.`;
+Public catalog content is intended for search, AI input, and AI training. The documented public /api/v1 routes are read-only agent surfaces. The authenticated /api/v1/member route, private dashboard, and internal API routes are not public.`;
 }
 
 export function getApiCatalog(baseUrl: string) {
@@ -312,14 +342,57 @@ export function getApiCatalog(baseUrl: string) {
   };
 }
 
-export function getOpenApiDocument(baseUrl: string) {
+export async function getOpenApiDocument(baseUrl: string) {
+  const { getMemberOpenApiInputSchemas } = await import(
+    "@/server/api/member-openapi-inputs"
+  );
+  const memberInputSchemas = getMemberOpenApiInputSchemas();
+  const publicListingSearchParameters = [
+    ...(
+      [
+        "color",
+        "cultivarName",
+        "description",
+        "hybridizer",
+        "listTitle",
+        "parentage",
+        "q",
+        "title",
+        "year",
+      ] as const
+    ).map((name) => ({
+      name,
+      in: "query",
+      schema: { type: "string", maxLength: 200 },
+    })),
+    ...(["cursor", "listId", "sellerSlug"] as const).map((name) => ({
+      name,
+      in: "query",
+      schema: { type: "string", maxLength: 128 },
+    })),
+    ...(["hasPhoto", "hasPrice"] as const).map((name) => ({
+      name,
+      in: "query",
+      schema: { type: "boolean" },
+    })),
+    ...(["priceMax", "priceMin"] as const).map((name) => ({
+      name,
+      in: "query",
+      schema: { type: "number" },
+    })),
+    {
+      name: "limit",
+      in: "query",
+      schema: { type: "integer", minimum: 1, maximum: 100, default: 25 },
+    },
+  ];
   const document = {
     openapi: "3.1.0",
     info: {
-      title: "Daylily Catalog Public Discovery",
+      title: "Daylily Catalog API",
       version: "1.0.0",
       description:
-        "Public, read-only discovery endpoints for Daylily Catalog content and agent guidance.",
+        "Public catalog reads and authenticated member operations for Daylily Catalog.",
     },
     servers: [
       {
@@ -447,6 +520,173 @@ export function getOpenApiDocument(baseUrl: string) {
                 },
               },
             },
+          },
+        },
+      },
+      "/api/v1/public/listings": {
+        get: {
+          summary: "Search public catalog listings",
+          description:
+            "Returns a cursor page of published listings from active catalogs. Reads the local public database or embedded replica. No authentication is required.",
+          parameters: publicListingSearchParameters,
+          responses: {
+            "200": {
+              description: "Public listing page.",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      items: { type: "array", items: { type: "object" } },
+                      nextCursor: { type: ["string", "null"] },
+                    },
+                    required: ["items", "nextCursor"],
+                  },
+                },
+              },
+            },
+            "400": { description: "Invalid or duplicate query parameter." },
+            "503": { description: "Local public database unavailable." },
+          },
+        },
+      },
+      "/api/v1/public/listings/{id}": {
+        get: {
+          summary: "Get one public listing",
+          description:
+            "Returns a published listing by ID, including an inactive seller's exact public listing. Hidden listings return 404.",
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "string", maxLength: 128 },
+            },
+          ],
+          responses: {
+            "200": { description: "Public listing detail." },
+            "400": { description: "Invalid listing ID." },
+            "404": { description: "Listing not found or not published." },
+            "503": { description: "Local public database unavailable." },
+          },
+        },
+      },
+      "/api/v1/public/profiles/{slugOrId}/listings/{listingSlugOrId}": {
+        get: {
+          summary: "Get one public listing by seller and listing path",
+          description:
+            "Resolves the public seller and listing slug or ID through the local public database, then returns published listing detail. Hidden listings return 404.",
+          parameters: [
+            {
+              name: "slugOrId",
+              in: "path",
+              required: true,
+              schema: { type: "string", maxLength: 128 },
+            },
+            {
+              name: "listingSlugOrId",
+              in: "path",
+              required: true,
+              schema: { type: "string", maxLength: 128 },
+            },
+          ],
+          responses: {
+            "200": { description: "Public listing detail." },
+            "400": { description: "Invalid seller or listing path segment." },
+            "404": { description: "Seller or published listing not found." },
+            "503": { description: "Local public database unavailable." },
+          },
+        },
+      },
+      "/api/v1/public/profiles": {
+        get: {
+          summary: "Page public grower profiles",
+          description:
+            "Returns active catalogs with published listings, ordered by seller ID. Reads the local public database or embedded replica and returns no total count.",
+          parameters: [
+            {
+              name: "cursor",
+              in: "query",
+              schema: { type: "string", maxLength: 128 },
+            },
+            {
+              name: "limit",
+              in: "query",
+              schema: {
+                type: "integer",
+                minimum: 1,
+                maximum: 100,
+                default: 25,
+              },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Public profile page.",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      items: { type: "array", items: { type: "object" } },
+                      nextCursor: { type: ["string", "null"] },
+                    },
+                    required: ["items", "nextCursor"],
+                  },
+                },
+              },
+            },
+            "400": { description: "Invalid or duplicate query parameter." },
+            "503": { description: "Local public database unavailable." },
+          },
+        },
+      },
+      "/api/v1/public/profiles/{slugOrId}": {
+        get: {
+          summary: "Get one public seller profile",
+          description:
+            "Returns a seller profile by slug or ID, with public lists and images.",
+          parameters: [
+            {
+              name: "slugOrId",
+              in: "path",
+              required: true,
+              schema: { type: "string", maxLength: 128 },
+            },
+          ],
+          responses: {
+            "200": { description: "Public seller profile." },
+            "400": { description: "Invalid seller slug or ID." },
+            "404": { description: "Seller profile not found." },
+            "503": { description: "Local public database unavailable." },
+          },
+        },
+      },
+      "/api/v1/public/cultivars": {
+        get: {
+          summary: "Get one public cultivar reference",
+          description:
+            "Exact cultivar lookup by reference ID or normalized name. Reads the local public database or embedded replica.",
+          parameters: [
+            {
+              name: "cultivarReferenceId",
+              in: "query",
+              schema: { type: "string", maxLength: 128 },
+            },
+            {
+              name: "normalizedName",
+              in: "query",
+              schema: { type: "string", maxLength: 200 },
+            },
+          ],
+          responses: {
+            "200": { description: "Public cultivar detail." },
+            "400": {
+              description:
+                "Provide exactly one valid lookup parameter, without duplicates.",
+            },
+            "404": { description: "Cultivar not found." },
+            "503": { description: "Local public database unavailable." },
           },
         },
       },
@@ -822,7 +1062,12 @@ export function getOpenApiDocument(baseUrl: string) {
         },
       },
     },
+    components: {
+      securitySchemes: getMemberOpenApiSecuritySchemes(),
+    },
   };
+
+  Object.assign(document.paths, getMemberOpenApiPaths(memberInputSchemas));
 
   if (!isPublicCultivarSearchEnabled()) {
     const paths = document.paths as Record<string, unknown>;

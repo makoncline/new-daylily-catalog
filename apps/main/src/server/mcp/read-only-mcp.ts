@@ -1,45 +1,81 @@
-import type { Prisma } from "@prisma/client";
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
+import { APP_CONFIG } from "@/config/constants";
+import { getTrustedBaseUrl } from "@/lib/agent-readiness";
 import {
-  getOAuthProtectedResourceScopes,
-  getTrustedBaseUrl,
-} from "@/lib/agent-readiness";
+  getOwnedMemberListingDetail,
+  type MemberListingDetail,
+} from "@/server/services/member-listing-read";
 import {
-  type AhsDisplayListing,
-  getDisplayAhsListing,
-  v2AhsCultivarDisplaySelect,
-} from "@/lib/utils/ahs-display";
+  getPublicCultivarReference,
+  serializeCultivarDisplay,
+  serializeCultivarReference,
+} from "@/server/services/public-cultivar-reference";
+import { getOwnedMemberProfile } from "@/server/services/member-profile-read";
 import {
-  generatedCultivarImageAssetInclude,
-  resolveCultivarReferenceImage,
-} from "@/server/services/cultivar-reference-image-read-model";
+  MEMBER_IMAGE_DETAIL_LIMIT,
+  MEMBER_IMAGE_PAGE_LIMIT,
+  pageOwnedMemberImages,
+} from "@/server/services/member-image-read";
+import { getOwnedDashboardImage } from "@/server/api/routers/dashboard-db/image";
+import {
+  getOwnedMemberListDetail,
+  pageOwnedMemberLists,
+} from "@/server/services/member-list-read";
+import {
+  getMemberDashboardHandoff,
+  memberDashboardHandoffSchema,
+} from "@/server/services/member-dashboard-handoff";
+import {
+  memberListingSearchSchema,
+  searchOwnedMemberListings,
+} from "@/server/services/member-listing-search";
+import {
+  publicListingSearchSchema,
+  searchPublicListings,
+} from "@/server/services/public-listing-search";
+import {
+  pagePublicProfiles,
+  publicProfilePageSchema,
+} from "@/server/services/public-profile-search";
 import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
-import { db, replicaDb } from "@/server/db";
-import { getProUserIds } from "@/server/db/getProUserIds";
+import { db, hasLocalPublicReadDb, publicDb } from "@/server/db";
 import {
-  buildPublicListingDetail,
-  publicListingSelect,
+  type buildPublicListingDetail,
+  getPublicListingDetail,
 } from "@/server/db/public-listing-read-model";
 import {
+  getListingIdFromSlugOrId,
   getPublicProfile,
+  type getPublicProfileByUserId,
   getPublicSellerListSummaries,
   getUserIdFromSlugOrId,
 } from "@/server/db/public-seller-read-model";
-import {
-  isPublicList,
-  shouldShowToPublic,
-} from "@/server/db/public-visibility/filters";
-import { getClerk } from "@/server/clerk/client";
+import { getScopedOAuthClient } from "@/server/api/member-oauth";
+import { getClerkUserData } from "@/server/clerk/sync-user";
 import {
   DEFAULT_LIMIT,
   MAX_LIMIT,
+  MEMBER_MAX_LIMIT,
 } from "@/server/mcp/read-only-mcp-schema-builders";
 import { buildReadOnlyMcpTools } from "@/server/mcp/read-only-mcp-tools";
+import {
+  memberWriteMcpTools,
+  memberWriteMcpToolNames,
+} from "@/server/mcp/member-write-mcp-tools";
+import {
+  callMemberWriteTool,
+  validateMemberWriteToolInput,
+} from "@/server/mcp/member-write-mcp";
+import { getStripeSubscriptionResult } from "@/server/stripe/sync-subscription";
+import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
+import { searchMemberHelp } from "@/server/mcp/member-help";
 import type {
   JsonRpcRequest,
   McpContext,
 } from "@/server/mcp/read-only-mcp-types";
 import { searchCultivars } from "@/server/search/cultivar-search";
+import { consumeMemberRequestBudget } from "@/server/security/member-request-budget";
 
 const MCP_PROTOCOL_VERSION = "2025-11-25";
 const SUPPORTED_MCP_PROTOCOL_VERSIONS = [
@@ -49,6 +85,8 @@ const SUPPORTED_MCP_PROTOCOL_VERSIONS = [
 ] as const;
 const MCP_SERVER_NAME = "daylily-catalog";
 const MCP_SERVER_VERSION = "0.1.0";
+const MAX_MCP_REQUEST_BYTES =
+  Math.ceil((APP_CONFIG.UPLOAD.MAX_FILE_SIZE * 4) / 3) + 64 * 1024;
 
 class McpError extends Error {
   constructor(
@@ -61,19 +99,38 @@ class McpError extends Error {
 }
 
 class McpAuthRequiredError extends Error {
-  constructor() {
+  constructor(
+    readonly scope = "catalog:read",
+    readonly status: 401 | 403 = 401,
+    readonly reason:
+      | "unauthenticated"
+      | "insufficient_scope"
+      | "wrong_client" = "unauthenticated",
+  ) {
     super("Authentication required.");
   }
 }
 
-const REQUIRED_PRIVATE_OAUTH_SCOPE = "profile";
-const PRIVATE_OAUTH_SCOPES = getOAuthProtectedResourceScopes();
-const tools = buildReadOnlyMcpTools(PRIVATE_OAUTH_SCOPES);
+const REQUIRED_PRIVATE_OAUTH_SCOPE = "catalog:read";
+const REQUIRED_WRITE_OAUTH_SCOPE = "catalog:write";
+const tools = [
+  ...buildReadOnlyMcpTools([REQUIRED_PRIVATE_OAUTH_SCOPE]),
+  ...memberWriteMcpTools,
+];
+const PUBLIC_DATABASE_TOOLS = new Set([
+  "daylily.get_cultivar",
+  "daylily.search_public_listings",
+  "daylily.get_public_listing",
+  "daylily.list_public_profiles",
+  "daylily.get_public_profile",
+  "daylily.list_public_profile_lists",
+  "daylily.list_public_listings",
+]);
 
-function getExpectedMcpOAuthClientId() {
-  const clientId = process.env.DAYLILY_MCP_OAUTH_CLIENT_ID?.trim();
-  if (!clientId) return null;
-  return clientId;
+function availableTools(localPublicReadDb: boolean) {
+  return localPublicReadDb
+    ? tools
+    : tools.filter((tool) => !PUBLIC_DATABASE_TOOLS.has(tool.name));
 }
 
 const limitSchema = z
@@ -84,49 +141,47 @@ const limitSchema = z
   .optional()
   .default(DEFAULT_LIMIT);
 
-const optionalCursorSchema = z.string().trim().min(1).optional();
+const boundedIdSchema = z.string().trim().min(1).max(128);
+const boundedSearchTextSchema = z.string().trim().min(1).max(200);
+const optionalCursorSchema = boundedIdSchema.optional();
 
-const listSchema = z.object({
+const listSchema = z.strictObject({
   cursor: optionalCursorSchema,
   limit: limitSchema,
 });
+const emptyInputSchema = z.strictObject({});
 
-const searchCultivarsSchema = z.object({
-  q: z.string().trim().min(1).optional(),
-  cultivarName: z.string().trim().min(1).optional(),
-  hybridizer: z.string().trim().min(1).optional(),
-  color: z.string().trim().min(1).optional(),
-  parentage: z.string().trim().min(1).optional(),
+const memberLimitSchema = z
+  .number()
+  .int()
+  .min(1)
+  .max(MEMBER_MAX_LIMIT)
+  .optional()
+  .default(DEFAULT_LIMIT);
+
+const memberListSchema = listSchema.extend({
+  limit: memberLimitSchema,
+  listingId: boundedIdSchema.optional(),
+});
+
+const searchCultivarsSchema = z.strictObject({
+  q: boundedSearchTextSchema.optional(),
+  cultivarName: boundedSearchTextSchema.optional(),
+  hybridizer: boundedSearchTextSchema.optional(),
+  color: boundedSearchTextSchema.optional(),
+  parentage: boundedSearchTextSchema.optional(),
   limit: limitSchema,
 });
 
-const publicListingSearchSchema = listSchema.extend({
-  color: z.string().trim().min(1).optional(),
-  cultivarName: z.string().trim().min(1).optional(),
-  description: z.string().trim().min(1).optional(),
-  hasPhoto: z.boolean().optional(),
-  hasPrice: z.boolean().optional(),
-  hybridizer: z.string().trim().min(1).optional(),
-  listId: z.string().trim().min(1).optional(),
-  listTitle: z.string().trim().min(1).optional(),
-  parentage: z.string().trim().min(1).optional(),
-  priceMax: z.number().finite().optional(),
-  priceMin: z.number().finite().optional(),
-  q: z.string().trim().min(1).optional(),
-  sellerSlug: z.string().trim().min(1).optional(),
-  title: z.string().trim().min(1).optional(),
-  year: z.string().trim().min(1).optional(),
-});
-
-const publicProfileSchema = z.object({
-  sellerSlug: z.string().trim().min(1),
+const publicProfileSchema = z.strictObject({
+  sellerSlug: boundedIdSchema,
 });
 
 const publicListingSchema = z
-  .object({
-    id: z.string().trim().min(1).optional(),
-    listingSlug: z.string().trim().min(1).optional(),
-    sellerSlug: z.string().trim().min(1).optional(),
+  .strictObject({
+    id: boundedIdSchema.optional(),
+    listingSlug: boundedIdSchema.optional(),
+    sellerSlug: boundedIdSchema.optional(),
   })
   .refine(
     (input) => Boolean(input.id ?? (input.sellerSlug && input.listingSlug)),
@@ -135,48 +190,89 @@ const publicListingSchema = z
     },
   );
 
-const getCultivarSchema = z.object({
-  cultivarReferenceId: z.string().trim().min(1).optional(),
-  normalizedName: z.string().trim().min(1).optional(),
+const getCultivarSchema = z
+  .strictObject({
+    cultivarReferenceId: boundedIdSchema.optional(),
+    normalizedName: boundedSearchTextSchema.optional(),
+  })
+  .refine(
+    (input) =>
+      Number(Boolean(input.cultivarReferenceId)) +
+        Number(Boolean(input.normalizedName)) ===
+      1,
+    { message: "Provide one cultivarReferenceId or normalizedName." },
+  );
+
+const getByIdSchema = z.strictObject({
+  id: boundedIdSchema,
+});
+const getImageSchema = z.strictObject({
+  type: z.enum(["listing", "profile"]),
+  referenceId: boundedIdSchema,
+  imageId: boundedIdSchema,
+});
+const listImagesSchema = getImageSchema.omit({ imageId: true }).extend({
+  cursor: boundedIdSchema.optional(),
+  limit: z
+    .number()
+    .int()
+    .min(1)
+    .max(MEMBER_IMAGE_PAGE_LIMIT)
+    .optional()
+    .default(MEMBER_IMAGE_DETAIL_LIMIT),
 });
 
-const listListingsSchema = listSchema.extend({
-  bloomHabit: z.string().trim().min(1).optional(),
-  bloomSeason: z.string().trim().min(1).optional(),
-  color: z.string().trim().min(1).optional(),
-  cultivarName: z.string().trim().min(1).optional(),
-  description: z.string().trim().min(1).optional(),
-  foliageType: z.string().trim().min(1).optional(),
-  form: z.string().trim().min(1).optional(),
-  fragrance: z.string().trim().min(1).optional(),
-  hasPhoto: z.boolean().optional(),
-  hasPrice: z.boolean().optional(),
-  hybridizer: z.string().trim().min(1).optional(),
-  linkedToCultivar: z.boolean().optional(),
-  listId: z.string().trim().min(1).optional(),
-  parentage: z.string().trim().min(1).optional(),
-  ploidy: z.string().trim().min(1).optional(),
-  priceMax: z.number().finite().optional(),
-  priceMin: z.number().finite().optional(),
-  q: z.string().trim().min(1).optional(),
-  status: z.string().trim().min(1).optional(),
-  title: z.string().trim().min(1).optional(),
-  year: z.string().trim().min(1).optional(),
-});
-
-const getByIdSchema = z.object({
-  id: z.string().trim().min(1),
-});
+const helpSearchSchema = z
+  .object({ query: z.string().trim().min(2).max(200) })
+  .strict();
 
 function mcpResult(payload: unknown) {
   return {
     content: [
       {
         type: "text",
-        text: JSON.stringify(payload, null, 2),
+        text: JSON.stringify(payload),
       },
     ],
     structuredContent: payload,
+  };
+}
+
+function mcpToolError(error: unknown) {
+  let code = "INTERNAL_ERROR";
+  let message = "The tool could not complete the request.";
+  if (error instanceof z.ZodError) {
+    code = "INVALID_ARGUMENTS";
+    message = error.issues
+      .slice(0, 3)
+      .map(
+        (issue) => `${issue.path.join(".") || "arguments"}: ${issue.message}`,
+      )
+      .join("; ");
+  } else if (error instanceof McpError) {
+    code =
+      error.code === -32004
+        ? "NOT_FOUND"
+        : error.code === -32009
+          ? "CONFLICT"
+          : error.code === -32602
+            ? "INVALID_ARGUMENTS"
+            : error.code === -32003
+              ? "FORBIDDEN"
+              : error.code === -32029
+                ? "RATE_LIMITED"
+                : "TOOL_ERROR";
+    message = error.message;
+  } else if (error instanceof TRPCError) {
+    code = error.code;
+    message = error.message;
+  } else {
+    console.error("Unexpected MCP error:", error);
+  }
+  return {
+    content: [{ type: "text", text: `${code}: ${message}` }],
+    structuredContent: { error: { code, message } },
+    isError: true,
   };
 }
 
@@ -206,61 +302,6 @@ function serializeImage(image: {
     ...(image.updatedAt !== undefined
       ? { updatedAt: serializeDate(image.updatedAt) }
       : {}),
-  };
-}
-
-function serializeCultivarDisplay(
-  ahsListing: AhsDisplayListing | null,
-  imageUrl?: string | null,
-) {
-  if (!ahsListing) return null;
-
-  return {
-    name: ahsListing.name,
-    hybridizer: ahsListing.hybridizer,
-    year: ahsListing.year,
-    scapeHeight: ahsListing.scapeHeight,
-    bloomSize: ahsListing.bloomSize,
-    bloomSeason: ahsListing.bloomSeason,
-    ploidy: ahsListing.ploidy,
-    foliageType: ahsListing.foliageType,
-    bloomHabit: ahsListing.bloomHabit,
-    color: ahsListing.color,
-    form: ahsListing.form,
-    parentage: ahsListing.parentage,
-    imageUrl: imageUrl ?? null,
-  };
-}
-
-function serializeCultivarReference(
-  cultivarReference: Prisma.CultivarReferenceGetPayload<{
-    select: typeof cultivarReferenceSelect;
-  }> | null,
-  baseUrl: string,
-) {
-  if (!cultivarReference) return null;
-  const ahsListing = getDisplayAhsListing(cultivarReference);
-  const cultivarReferenceImage = resolveCultivarReferenceImage({
-    id: `ahs-${cultivarReference.id}`,
-    fallbackImageUrl: ahsListing?.ahsImageUrl,
-    imageAssets:
-      "imageAssets" in cultivarReference ? cultivarReference.imageAssets : [],
-  });
-  const segment = cultivarReference.normalizedName
-    ? toCultivarRouteSegment(cultivarReference.normalizedName)
-    : null;
-
-  return {
-    id: cultivarReference.id,
-    ahsId: cultivarReference.ahsId,
-    v2AhsCultivarId: cultivarReference.v2AhsCultivarId,
-    normalizedName: cultivarReference.normalizedName,
-    canonicalUrl: segment ? `${baseUrl}/cultivar/${segment}` : null,
-    updatedAt: serializeDate(cultivarReference.updatedAt),
-    display: serializeCultivarDisplay(
-      ahsListing,
-      cultivarReferenceImage?.url ?? null,
-    ),
   };
 }
 
@@ -310,7 +351,7 @@ function serializePublicListing(
 }
 
 function serializePublicProfile(
-  profile: Awaited<ReturnType<typeof getPublicProfile>>,
+  profile: Awaited<ReturnType<typeof getPublicProfileByUserId>>,
 ) {
   return {
     id: profile.id,
@@ -333,12 +374,7 @@ function serializePublicProfile(
   };
 }
 
-function serializeListing(
-  listing: Prisma.ListingGetPayload<{
-    select: typeof listingSelect;
-  }>,
-  baseUrl: string,
-) {
+function serializeListing(listing: MemberListingDetail, baseUrl: string) {
   return {
     id: listing.id,
     title: listing.title,
@@ -352,448 +388,90 @@ function serializeListing(
     updatedAt: serializeDate(listing.updatedAt),
     cultivar: serializeCultivarReference(listing.cultivarReference, baseUrl),
     images: listing.images.map(serializeImage),
+    imagesHasMore: listing.imagesHasMore,
     lists: listing.lists.map((list) => ({
       id: list.id,
       title: list.title,
     })),
+    listsNextCursor: listing.listsNextCursor,
+    dashboardUrl: new URL(
+      `/dashboard/listings?editing=${encodeURIComponent(listing.id)}`,
+      baseUrl,
+    ).toString(),
+    deleteReviewUrl: new URL(
+      `/dashboard/listings?editing=${encodeURIComponent(listing.id)}&intent=delete`,
+      baseUrl,
+    ).toString(),
   };
 }
 
 function serializeList(
-  list: Prisma.ListGetPayload<{
-    select: typeof listSelect;
-  }>,
+  list: NonNullable<Awaited<ReturnType<typeof getOwnedMemberListDetail>>>,
+  baseUrl: string,
 ) {
   return {
     id: list.id,
     title: list.title,
     description: list.description,
     status: list.status,
+    hasMembers: list.hasMembers,
     createdAt: serializeDate(list.createdAt),
     updatedAt: serializeDate(list.updatedAt),
-    listings: list.listings.map((listing) => ({
-      id: listing.id,
-    })),
+    dashboardUrl: new URL(
+      `/dashboard/lists?editing=${encodeURIComponent(list.id)}`,
+      baseUrl,
+    ).toString(),
+    deleteReviewUrl: !list.hasMembers
+      ? new URL(
+          `/dashboard/lists?editing=${encodeURIComponent(list.id)}&intent=delete`,
+          baseUrl,
+        ).toString()
+      : null,
   };
 }
 
-type ListListingsInput = z.infer<typeof listListingsSchema>;
-type PublicListingSearchInput = z.infer<typeof publicListingSearchSchema>;
-type PublicListingInput = z.infer<typeof publicListingSchema>;
-
-function textContains(value: string): Prisma.StringFilter {
-  return { contains: value };
-}
-
-function linkedCultivarWhere(
-  where: Prisma.CultivarReferenceWhereInput,
-): Prisma.ListingWhereInput {
-  return { cultivarReference: { is: where } };
-}
-
-function ahsListingWhere(where: Prisma.AhsListingWhereInput) {
-  return [
-    { ahsListing: { is: where } },
-    linkedCultivarWhere({ ahsListing: { is: where } }),
-  ] satisfies Prisma.ListingWhereInput[];
-}
-
-function v2CultivarWhere(
-  where: Prisma.V2AhsCultivarWhereInput,
-): Prisma.ListingWhereInput {
-  return linkedCultivarWhere({ v2AhsCultivar: { is: where } });
-}
-
-function cultivarNameWhere(value: string) {
-  const contains = textContains(value);
-
-  return [
-    { cultivarReference: { is: { normalizedName: contains } } },
-    ...ahsListingWhere({ name: contains }),
-    v2CultivarWhere({ post_title: contains }),
-    v2CultivarWhere({ link_normalized_name: contains }),
-  ] satisfies Prisma.ListingWhereInput[];
-}
-
-function hybridizerWhere(value: string) {
-  const contains = textContains(value);
-
-  return [
-    ...ahsListingWhere({ hybridizer: contains }),
-    v2CultivarWhere({ primary_hybridizer_name: contains }),
-    v2CultivarWhere({ additional_hybridizers_names: contains }),
-    v2CultivarWhere({ hybridizer_code_legacy: contains }),
-  ] satisfies Prisma.ListingWhereInput[];
-}
-
-function cultivarTextWhere(args: {
-  ahsField: keyof Prisma.AhsListingWhereInput;
-  v2Field: keyof Prisma.V2AhsCultivarWhereInput;
-  value: string;
-}) {
-  const contains = textContains(args.value);
-
-  return [
-    ...ahsListingWhere({ [args.ahsField]: contains }),
-    v2CultivarWhere({ [args.v2Field]: contains }),
-  ] satisfies Prisma.ListingWhereInput[];
-}
-
-function buildListingWhere(userId: string, input: ListListingsInput) {
-  const and: Prisma.ListingWhereInput[] = [{ userId }];
-
-  if (input.cursor) {
-    and.push({ id: { gt: input.cursor } });
-  }
-
-  if (input.q) {
-    const contains = textContains(input.q);
-    and.push({
-      OR: [
-        { title: contains },
-        { description: contains },
-        { privateNote: contains },
-        ...cultivarNameWhere(input.q),
-        ...hybridizerWhere(input.q),
-        ...cultivarTextWhere({
-          ahsField: "color",
-          v2Field: "color",
-          value: input.q,
-        }),
-        ...cultivarTextWhere({
-          ahsField: "parentage",
-          v2Field: "parentage",
-          value: input.q,
-        }),
-      ],
-    });
-  }
-
-  if (input.title) {
-    and.push({ title: textContains(input.title) });
-  }
-
-  if (input.description) {
-    and.push({ description: textContains(input.description) });
-  }
-
-  if (input.status) {
-    and.push({ status: input.status });
-  }
-
-  if (input.listId) {
-    and.push({ lists: { some: { id: input.listId } } });
-  }
-
-  if (input.hasPhoto === true) {
-    and.push({ images: { some: {} } });
-  } else if (input.hasPhoto === false) {
-    and.push({ images: { none: {} } });
-  }
-
-  if (input.hasPrice === true) {
-    and.push({ price: { gt: 0 } });
-  } else if (input.hasPrice === false) {
-    and.push({ OR: [{ price: null }, { price: { lte: 0 } }] });
-  }
-
-  if (typeof input.priceMin === "number") {
-    and.push({ price: { gte: input.priceMin } });
-  }
-
-  if (typeof input.priceMax === "number") {
-    and.push({ price: { lte: input.priceMax } });
-  }
-
-  if (input.linkedToCultivar === true) {
-    and.push({ cultivarReferenceId: { not: null } });
-  } else if (input.linkedToCultivar === false) {
-    and.push({ cultivarReferenceId: null });
-  }
-
-  if (input.cultivarName) {
-    and.push({ OR: cultivarNameWhere(input.cultivarName) });
-  }
-
-  if (input.hybridizer) {
-    and.push({ OR: hybridizerWhere(input.hybridizer) });
-  }
-
-  if (input.year) {
-    const contains = textContains(input.year);
-    and.push({
-      OR: [
-        ...ahsListingWhere({ year: contains }),
-        v2CultivarWhere({ introduction_date: contains }),
-      ],
-    });
-  }
-
-  const cultivarTextFilters = [
-    ["bloomHabit", "bloomHabit", "bloom_habit_names"],
-    ["bloomSeason", "bloomSeason", "bloom_season_names"],
-    ["color", "color", "color"],
-    ["foliageType", "foliageType", "foliage_names"],
-    ["form", "form", "flower_form_names"],
-    ["fragrance", "fragrance", "fragrance_names"],
-    ["parentage", "parentage", "parentage"],
-    ["ploidy", "ploidy", "ploidy_names"],
-  ] as const;
-
-  for (const [inputKey, ahsField, v2Field] of cultivarTextFilters) {
-    const value = input[inputKey];
-    if (value) {
-      and.push({
-        OR: cultivarTextWhere({
-          ahsField,
-          v2Field,
-          value,
-        }),
-      });
+async function mcpLookup<T>(operation: Promise<T>, notFoundMessage: string) {
+  try {
+    return await operation;
+  } catch (error) {
+    if (error instanceof TRPCError && error.code === "NOT_FOUND") {
+      throw new McpError(notFoundMessage, -32004);
     }
+    throw error;
   }
-
-  return { AND: and } satisfies Prisma.ListingWhereInput;
 }
 
-async function buildPublicListingWhere(input: PublicListingSearchInput) {
-  const proUserIds = await getProUserIds();
-  const and: Prisma.ListingWhereInput[] = [shouldShowToPublic(proUserIds)];
-
-  if (input.cursor) {
-    and.push({ id: { gt: input.cursor } });
-  }
-
-  if (input.sellerSlug) {
-    const userId = await getUserIdFromSlugOrId(input.sellerSlug);
-    and.push({ userId });
-  }
-
-  if (input.q) {
-    const contains = textContains(input.q);
-    and.push({
-      OR: [
-        { title: contains },
-        { description: contains },
-        ...cultivarNameWhere(input.q),
-        ...hybridizerWhere(input.q),
-        ...cultivarTextWhere({
-          ahsField: "color",
-          v2Field: "color",
-          value: input.q,
-        }),
-        ...cultivarTextWhere({
-          ahsField: "parentage",
-          v2Field: "parentage",
-          value: input.q,
-        }),
-      ],
-    });
-  }
-
-  if (input.title) {
-    and.push({ title: textContains(input.title) });
-  }
-
-  if (input.description) {
-    and.push({ description: textContains(input.description) });
-  }
-
-  if (input.listId) {
-    and.push({ lists: { some: { ...isPublicList(), id: input.listId } } });
-  }
-
-  if (input.listTitle) {
-    and.push({
-      lists: {
-        some: { ...isPublicList(), title: textContains(input.listTitle) },
-      },
-    });
-  }
-
-  if (input.hasPhoto === true) {
-    and.push({ images: { some: {} } });
-  } else if (input.hasPhoto === false) {
-    and.push({ images: { none: {} } });
-  }
-
-  if (input.hasPrice === true) {
-    and.push({ price: { gt: 0 } });
-  } else if (input.hasPrice === false) {
-    and.push({ OR: [{ price: null }, { price: { lte: 0 } }] });
-  }
-
-  if (typeof input.priceMin === "number") {
-    and.push({ price: { gte: input.priceMin } });
-  }
-
-  if (typeof input.priceMax === "number") {
-    and.push({ price: { lte: input.priceMax } });
-  }
-
-  if (input.cultivarName) {
-    and.push({ OR: cultivarNameWhere(input.cultivarName) });
-  }
-
-  if (input.hybridizer) {
-    and.push({ OR: hybridizerWhere(input.hybridizer) });
-  }
-
-  if (input.year) {
-    const contains = textContains(input.year);
-    and.push({
-      OR: [
-        ...ahsListingWhere({ year: contains }),
-        v2CultivarWhere({ introduction_date: contains }),
-      ],
-    });
-  }
-
-  for (const [inputKey, ahsField, v2Field] of [
-    ["color", "color", "color"],
-    ["parentage", "parentage", "parentage"],
-  ] as const) {
-    const value = input[inputKey];
-    if (value) {
-      and.push({
-        OR: cultivarTextWhere({
-          ahsField,
-          v2Field,
-          value,
-        }),
-      });
-    }
-  }
-
-  return { AND: and } satisfies Prisma.ListingWhereInput;
-}
-
-async function getPublicMcpUserId(sellerSlugOrId: string) {
-  const [proUserIds, userId] = await Promise.all([
-    getProUserIds(),
-    getUserIdFromSlugOrId(sellerSlugOrId),
-  ]);
-
-  if (!proUserIds.includes(userId)) {
-    throw new McpError("Public catalog not found.", -32004);
-  }
-
-  return userId;
-}
-
-async function getPublicMcpListingDetail(
+async function requireMcpUser(
   context: McpContext,
-  input: PublicListingInput,
+  requiredScope:
+    | "catalog:read"
+    | "catalog:write" = REQUIRED_PRIVATE_OAUTH_SCOPE,
 ) {
-  const proUserIds = await getProUserIds();
-  const listing = await context.readDb.listing.findFirst({
-    where: input.id
-      ? {
-          id: input.id,
-          ...shouldShowToPublic(proUserIds),
-        }
-      : {
-          slug: input.listingSlug?.toLowerCase(),
-          userId: await getPublicMcpUserId(input.sellerSlug ?? ""),
-          ...shouldShowToPublic(proUserIds),
-        },
-    select: publicListingSelect,
-  });
-
-  if (!listing) {
-    throw new McpError("Listing not found.", -32004);
+  let client: Awaited<ReturnType<typeof getScopedOAuthClient>>;
+  try {
+    client = await getScopedOAuthClient(context.request, requiredScope);
+  } catch {
+    throw new McpAuthRequiredError(requiredScope);
+  }
+  if (client.status === "unauthenticated") {
+    throw new McpAuthRequiredError(requiredScope);
+  }
+  if (client.status === "insufficient_scope") {
+    throw new McpAuthRequiredError(requiredScope, 403, "insufficient_scope");
+  }
+  const expectedClientId = process.env.DAYLILY_MCP_OAUTH_CLIENT_ID?.trim();
+  if (!expectedClientId || client.clientId !== expectedClientId) {
+    throw new McpAuthRequiredError(requiredScope, 403, "wrong_client");
+  }
+  if (!consumeMemberRequestBudget(client.clientId, client.clerkUserId)) {
+    throw new McpError(
+      "Member request limit reached. Retry in 60 seconds.",
+      -32029,
+    );
   }
 
-  return buildPublicListingDetail(listing);
-}
-
-const cultivarReferenceSelect = {
-  id: true,
-  ahsId: true,
-  v2AhsCultivarId: true,
-  normalizedName: true,
-  updatedAt: true,
-  v2AhsCultivar: { select: v2AhsCultivarDisplaySelect },
-  imageAssets: generatedCultivarImageAssetInclude,
-} as const;
-
-const listingSelect = {
-  id: true,
-  title: true,
-  slug: true,
-  price: true,
-  description: true,
-  privateNote: true,
-  status: true,
-  cultivarReferenceId: true,
-  createdAt: true,
-  updatedAt: true,
-  cultivarReference: { select: cultivarReferenceSelect },
-  images: {
-    select: {
-      id: true,
-      url: true,
-      order: true,
-      status: true,
-    },
-    orderBy: { order: "asc" },
-  },
-  lists: {
-    select: {
-      id: true,
-      title: true,
-    },
-    orderBy: { title: "asc" },
-  },
-} as const satisfies Prisma.ListingSelect;
-
-const listSelect = {
-  id: true,
-  title: true,
-  description: true,
-  status: true,
-  createdAt: true,
-  updatedAt: true,
-  listings: {
-    select: {
-      id: true,
-    },
-  },
-} as const satisfies Prisma.ListSelect;
-
-async function requireMcpUser(context: McpContext) {
-  const requestState = await (
-    await getClerk()
-  ).authenticateRequest(context.request, {
-    acceptsToken: ["oauth_token"],
-  });
-  const authObject = requestState.toAuth();
-  const clerkUserId =
-    authObject?.isAuthenticated === true && "userId" in authObject
-      ? authObject.userId
-      : null;
-  const scopes =
-    authObject?.isAuthenticated === true && "scopes" in authObject
-      ? authObject.scopes
-      : [];
-  const clientId =
-    authObject?.isAuthenticated === true && "clientId" in authObject
-      ? authObject.clientId
-      : null;
-  const expectedClientId = getExpectedMcpOAuthClientId();
-  if (
-    !clerkUserId ||
-    !expectedClientId ||
-    clientId !== expectedClientId ||
-    !Array.isArray(scopes) ||
-    !scopes.includes(REQUIRED_PRIVATE_OAUTH_SCOPE)
-  ) {
-    throw new McpAuthRequiredError();
-  }
-
-  const user = await context.readDb.user.findUnique({
-    where: { clerkUserId },
-    select: { id: true, clerkUserId: true },
+  const user = await context.memberDb.user.findUnique({
+    where: { clerkUserId: client.clerkUserId },
   });
   if (!user) {
     throw new McpError(
@@ -802,10 +480,18 @@ async function requireMcpUser(context: McpContext) {
     );
   }
 
-  return user;
+  return {
+    ...user,
+    clerkUserId: client.clerkUserId,
+    oauthClientId: client.clientId,
+  };
 }
 
-function mcpAuthRequiredResult(baseUrl: string) {
+function mcpAuthChallenge(baseUrl: string, error: McpAuthRequiredError) {
+  return `Bearer resource_metadata="${baseUrl}/.well-known/oauth-protected-resource", scope="${error.scope}"${error.reason === "insufficient_scope" ? ', error="insufficient_scope"' : ""}`;
+}
+
+function mcpAuthRequiredResult(baseUrl: string, error: McpAuthRequiredError) {
   return {
     content: [
       {
@@ -815,15 +501,65 @@ function mcpAuthRequiredResult(baseUrl: string) {
     ],
     isError: true,
     _meta: {
-      "mcp/www_authenticate": [
-        `Bearer resource_metadata="${baseUrl}/.well-known/oauth-protected-resource", scope="${REQUIRED_PRIVATE_OAUTH_SCOPE}", error="insufficient_scope", error_description="Connect Daylily Catalog to continue"`,
-      ],
+      "mcp/www_authenticate": [mcpAuthChallenge(baseUrl, error)],
     },
   };
 }
 
 async function callTool(context: McpContext, name: string, input: unknown) {
   const args = parseObject(input);
+
+  if (memberWriteMcpToolNames.has(name)) {
+    validateMemberWriteToolInput(name, input);
+    const user = await requireMcpUser(context, REQUIRED_WRITE_OAUTH_SCOPE);
+    const subscription = await getStripeSubscriptionResult(
+      user.stripeCustomerId,
+    );
+    if (
+      !subscription.confirmed ||
+      !hasActiveSubscription(subscription.subscription.status)
+    ) {
+      throw new McpError(
+        "An active membership is required for dashboard writes.",
+        -32003,
+      );
+    }
+    try {
+      const authUser = {
+        ...user,
+        clerk: await getClerkUserData(user.clerkUserId),
+      };
+      return mcpResult(
+        await callMemberWriteTool(
+          context,
+          name,
+          input,
+          authUser,
+          user.oauthClientId,
+        ),
+      );
+    } catch (error) {
+      if (error instanceof TRPCError) {
+        const code =
+          error.code === "NOT_FOUND"
+            ? -32004
+            : error.code === "CONFLICT"
+              ? -32009
+              : error.code === "BAD_REQUEST"
+                ? -32602
+                : -32003;
+        throw new McpError(error.message, code);
+      }
+      throw error;
+    }
+  }
+
+  if (PUBLIC_DATABASE_TOOLS.has(name) && !context.hasLocalPublicReadDb) {
+    throw new McpError(
+      "Public catalog data is unavailable on this server.",
+      -32003,
+    );
+  }
 
   switch (name) {
     case "daylily.search_cultivars": {
@@ -842,20 +578,11 @@ async function callTool(context: McpContext, name: string, input: unknown) {
 
     case "daylily.get_cultivar": {
       const parsed = getCultivarSchema.parse(args);
-      if (!parsed.cultivarReferenceId && !parsed.normalizedName) {
-        throw new McpError(
-          "Provide cultivarReferenceId or normalizedName.",
-          -32602,
-        );
-      }
-
-      const cultivarReference =
-        await context.readDb.cultivarReference.findFirst({
-          where: parsed.cultivarReferenceId
-            ? { id: parsed.cultivarReferenceId }
-            : { normalizedName: parsed.normalizedName },
-          select: cultivarReferenceSelect,
-        });
+      const cultivarReference = await getPublicCultivarReference({
+        database: context.publicDb,
+        cultivarReferenceId: parsed.cultivarReferenceId,
+        normalizedName: parsed.normalizedName,
+      });
       if (!cultivarReference) {
         throw new McpError("Cultivar not found.", -32004);
       }
@@ -870,29 +597,33 @@ async function callTool(context: McpContext, name: string, input: unknown) {
 
     case "daylily.search_public_listings": {
       const parsed = publicListingSearchSchema.parse(args);
-      const rows = await context.readDb.listing.findMany({
-        where: await buildPublicListingWhere(parsed),
-        select: publicListingSelect,
-        orderBy: { id: "asc" },
-        take: parsed.limit + 1,
+      const page = await searchPublicListings({
+        database: context.publicDb,
+        input: parsed,
       });
-      const items = rows
-        .slice(0, parsed.limit)
-        .map((listing) =>
-          serializePublicListing(
-            buildPublicListingDetail(listing),
-            context.baseUrl,
-          ),
-        );
       return mcpResult({
-        items,
-        nextCursor: rows.length > parsed.limit ? items.at(-1)?.id : null,
+        items: page.items.map((listing) =>
+          serializePublicListing(listing, context.baseUrl),
+        ),
+        nextCursor: page.nextCursor,
       });
     }
 
     case "daylily.get_public_listing": {
       const parsed = publicListingSchema.parse(args);
-      const listing = await getPublicMcpListingDetail(context, parsed);
+      const listingId =
+        parsed.id ??
+        (await mcpLookup(
+          getUserIdFromSlugOrId(parsed.sellerSlug!).then((userId) =>
+            getListingIdFromSlugOrId(parsed.listingSlug!, userId),
+          ),
+          "Listing not found.",
+        ));
+      if (!listingId) throw new McpError("Listing not found.", -32004);
+      const listing = await mcpLookup(
+        getPublicListingDetail(listingId),
+        "Listing not found.",
+      );
       return mcpResult({
         listing: serializePublicListing(listing, context.baseUrl),
       });
@@ -900,14 +631,29 @@ async function callTool(context: McpContext, name: string, input: unknown) {
 
     case "daylily.get_public_profile": {
       const parsed = publicProfileSchema.parse(args);
-      await getPublicMcpUserId(parsed.sellerSlug);
-      const profile = await getPublicProfile(parsed.sellerSlug);
+      const profile = await mcpLookup(
+        getPublicProfile(parsed.sellerSlug),
+        "Public catalog not found.",
+      );
       return mcpResult({ profile: serializePublicProfile(profile) });
+    }
+
+    case "daylily.list_public_profiles": {
+      const parsed = publicProfilePageSchema.parse(args);
+      return mcpResult(
+        await pagePublicProfiles({
+          database: context.publicDb,
+          input: parsed,
+        }),
+      );
     }
 
     case "daylily.list_public_profile_lists": {
       const parsed = publicProfileSchema.parse(args);
-      const userId = await getPublicMcpUserId(parsed.sellerSlug);
+      const userId = await mcpLookup(
+        getUserIdFromSlugOrId(parsed.sellerSlug),
+        "Public catalog not found.",
+      );
       const items = await getPublicSellerListSummaries(userId);
       return mcpResult({ items, nextCursor: null });
     }
@@ -917,42 +663,27 @@ async function callTool(context: McpContext, name: string, input: unknown) {
       if (!parsed.sellerSlug) {
         throw new McpError("sellerSlug is required.", -32602);
       }
-      const rows = await context.readDb.listing.findMany({
-        where: await buildPublicListingWhere(parsed),
-        select: publicListingSelect,
-        orderBy: { id: "asc" },
-        take: parsed.limit + 1,
+      const page = await searchPublicListings({
+        database: context.publicDb,
+        input: parsed,
       });
-      const items = rows
-        .slice(0, parsed.limit)
-        .map((listing) =>
-          serializePublicListing(
-            buildPublicListingDetail(listing),
-            context.baseUrl,
-          ),
-        );
       return mcpResult({
-        items,
-        nextCursor: rows.length > parsed.limit ? items.at(-1)?.id : null,
+        items: page.items.map((listing) =>
+          serializePublicListing(listing, context.baseUrl),
+        ),
+        nextCursor: page.nextCursor,
       });
     }
 
+    case "daylily.search_help": {
+      const { query } = helpSearchSchema.parse(args);
+      return mcpResult({ results: searchMemberHelp(query, context.baseUrl) });
+    }
+
     case "daylily.get_profile": {
+      emptyInputSchema.parse(args);
       const user = await requireMcpUser(context);
-      const profile = await context.readDb.userProfile.findUnique({
-        where: { userId: user.id },
-        select: {
-          id: true,
-          title: true,
-          slug: true,
-          logoUrl: true,
-          description: true,
-          content: true,
-          location: true,
-          createdAt: true,
-          updatedAt: true,
-        },
-      });
+      const profile = await getOwnedMemberProfile(context.memberDb, user.id);
 
       return mcpResult({
         profile: profile
@@ -960,73 +691,148 @@ async function callTool(context: McpContext, name: string, input: unknown) {
               ...profile,
               createdAt: serializeDate(profile.createdAt),
               updatedAt: serializeDate(profile.updatedAt),
+              images: profile.images.map(serializeImage),
             }
           : null,
       });
     }
 
     case "daylily.list_lists": {
+      const parsed = memberListSchema.parse(args);
       const user = await requireMcpUser(context);
-      const parsed = listSchema.parse(args);
-      const rows = await context.readDb.list.findMany({
-        where: {
-          userId: user.id,
-          ...(parsed.cursor ? { id: { gt: parsed.cursor } } : {}),
-        },
-        select: listSelect,
-        orderBy: { id: "asc" },
-        take: parsed.limit + 1,
+      const page = await pageOwnedMemberLists({
+        database: context.memberDb,
+        userId: user.id,
+        ...parsed,
       });
-      const items = rows.slice(0, parsed.limit).map(serializeList);
+      const items = page.items.map((list) => ({
+        id: list.id,
+        title: list.title,
+        description: list.description,
+        status: list.status,
+        updatedAt: serializeDate(list.updatedAt),
+        dashboardUrl: new URL(
+          `/dashboard/lists?editing=${encodeURIComponent(list.id)}`,
+          context.baseUrl,
+        ).toString(),
+      }));
       return mcpResult({
         items,
-        nextCursor: rows.length > parsed.limit ? items.at(-1)?.id : null,
+        nextCursor: page.nextCursor,
       });
     }
 
     case "daylily.get_list": {
-      const user = await requireMcpUser(context);
       const parsed = getByIdSchema.parse(args);
-      const list = await context.readDb.list.findFirst({
-        where: { id: parsed.id, userId: user.id },
-        select: listSelect,
+      const user = await requireMcpUser(context);
+      const list = await getOwnedMemberListDetail({
+        database: context.memberDb,
+        id: parsed.id,
+        userId: user.id,
       });
       if (!list) {
         throw new McpError("List not found.", -32004);
       }
-      return mcpResult({ list: serializeList(list) });
+      return mcpResult({
+        list: serializeList(list, context.baseUrl),
+      });
     }
 
     case "daylily.list_listings": {
+      const parsed = memberListingSearchSchema.parse(args);
       const user = await requireMcpUser(context);
-      const parsed = listListingsSchema.parse(args);
-      const rows = await context.readDb.listing.findMany({
-        where: buildListingWhere(user.id, parsed),
-        select: listingSelect,
-        orderBy: { id: "asc" },
-        take: parsed.limit + 1,
+      const page = await searchOwnedMemberListings({
+        database: context.memberDb,
+        input: parsed,
+        userId: user.id,
       });
-      const items = rows
-        .slice(0, parsed.limit)
-        .map((listing) => serializeListing(listing, context.baseUrl));
+      const items = page.items.map((listing) => ({
+        id: listing.id,
+        title: listing.title,
+        slug: listing.slug,
+        price: listing.price,
+        status: listing.status,
+        cultivarReferenceId: listing.cultivarReferenceId,
+        updatedAt: serializeDate(listing.updatedAt),
+        hasPhoto: listing.hasPhoto,
+        dashboardUrl: new URL(
+          `/dashboard/listings?editing=${encodeURIComponent(listing.id)}`,
+          context.baseUrl,
+        ).toString(),
+      }));
       return mcpResult({
         items,
-        nextCursor: rows.length > parsed.limit ? items.at(-1)?.id : null,
+        nextCursor: page.nextCursor,
       });
     }
 
     case "daylily.get_listing": {
-      const user = await requireMcpUser(context);
       const parsed = getByIdSchema.parse(args);
-      const listing = await context.readDb.listing.findFirst({
-        where: { id: parsed.id, userId: user.id },
-        select: listingSelect,
+      const user = await requireMcpUser(context);
+      const listing = await getOwnedMemberListingDetail({
+        id: parsed.id,
+        memberDb: context.memberDb,
+        publicDb: context.hasLocalPublicReadDb ? context.publicDb : null,
+        userId: user.id,
       });
       if (!listing) {
         throw new McpError("Listing not found.", -32004);
       }
       return mcpResult({
         listing: serializeListing(listing, context.baseUrl),
+      });
+    }
+
+    case "daylily.list_images": {
+      const input = listImagesSchema.parse(args);
+      const user = await requireMcpUser(context);
+      const page = await pageOwnedMemberImages({
+        database: context.memberDb,
+        userId: user.id,
+        ...input,
+      });
+      return mcpResult({
+        items: page.items.map(serializeImage),
+        nextCursor: page.nextCursor,
+      });
+    }
+
+    case "daylily.get_image": {
+      const input = getImageSchema.parse(args);
+      const user = await requireMcpUser(context);
+      const image = await mcpLookup(
+        getOwnedDashboardImage({
+          db: context.memberDb,
+          ...input,
+          userId: user.id,
+        }),
+        "Image not found.",
+      );
+      return mcpResult({ image: serializeImage(image) });
+    }
+
+    case "daylily.open_dashboard": {
+      const input = memberDashboardHandoffSchema.parse(args);
+      const user = await requireMcpUser(context);
+      let handoff;
+      try {
+        handoff = await getMemberDashboardHandoff({
+          database: context.memberDb,
+          userId: user.id,
+          input,
+        });
+      } catch (error) {
+        if (error instanceof TRPCError && error.code === "NOT_FOUND") {
+          throw new McpError(error.message, -32004);
+        }
+        throw error;
+      }
+      return mcpResult({
+        url: new URL(handoff.dashboardPath, context.baseUrl).toString(),
+        destination: handoff.destination,
+        title: handoff.title,
+        canComplete: handoff.canComplete,
+        nextStep: handoff.nextStep,
       });
     }
 
@@ -1152,18 +958,22 @@ async function handleJsonRpcRequest(
     }
 
     case "tools/list":
-      return { tools };
+      return { tools: availableTools(context.hasLocalPublicReadDb) };
+
+    case "ping":
+      return {};
 
     case "tools/call": {
       const params = parseObject(request.params);
       const name = typeof params.name === "string" ? params.name : "";
+      if (!tools.some((tool) => tool.name === name)) {
+        throw new McpError(`Unknown tool: ${name}`, -32602);
+      }
       try {
         return await callTool(context, name, params.arguments);
       } catch (error) {
-        if (error instanceof McpAuthRequiredError) {
-          return mcpAuthRequiredResult(context.baseUrl);
-        }
-        throw error;
+        if (error instanceof McpAuthRequiredError) throw error;
+        return mcpToolError(error);
       }
     }
 
@@ -1183,7 +993,7 @@ export function getMcpServerCard(baseUrl: string) {
       title: "Daylily Catalog",
       version: MCP_SERVER_VERSION,
       description:
-        "Read-only MCP tools for Daylily Catalog cultivar data and authenticated catalog dashboard reads.",
+        "Public catalog reads and scoped member dashboard management tools.",
     },
     transports: [
       {
@@ -1192,7 +1002,7 @@ export function getMcpServerCard(baseUrl: string) {
       },
     ],
     capabilities: {
-      tools: tools.map((tool) => ({
+      tools: availableTools(hasLocalPublicReadDb).map((tool) => ({
         name: tool.name,
         title: tool.title,
         description: tool.description,
@@ -1203,7 +1013,7 @@ export function getMcpServerCard(baseUrl: string) {
     authentication: {
       type: "oauth2",
       protectedResourceMetadata: `${baseUrl}/.well-known/oauth-protected-resource`,
-      note: "Public cultivar tools do not require authentication. User catalog tools require Clerk OAuth bearer tokens.",
+      note: "Public data and help tools do not require authentication. Member reads require catalog:read scope. Member writes require catalog:write scope and active membership.",
     },
   };
 }
@@ -1217,9 +1027,39 @@ export async function handleMcpRequest(request: Request) {
   if (protocolVersionError) return protocolVersionError;
 
   let payload: unknown;
-  const authRequest = request.clone();
   try {
-    payload = await request.json();
+    const contentLength = Number(request.headers.get("content-length"));
+    if (contentLength > MAX_MCP_REQUEST_BYTES) {
+      return Response.json(
+        jsonRpcError(null, new McpError("Request too large.", -32600)),
+        { status: 413 },
+      );
+    }
+
+    const reader = request.body?.getReader();
+    if (!reader) throw new SyntaxError("Missing JSON body.");
+    const chunks: Uint8Array[] = [];
+    let size = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > MAX_MCP_REQUEST_BYTES) {
+        await reader.cancel();
+        return Response.json(
+          jsonRpcError(null, new McpError("Request too large.", -32600)),
+          { status: 413 },
+        );
+      }
+      chunks.push(value);
+    }
+    const bytes = new Uint8Array(size);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    payload = JSON.parse(new TextDecoder().decode(bytes));
   } catch {
     return Response.json(
       jsonRpcError(null, new McpError("Invalid JSON.", -32700)),
@@ -1243,14 +1083,32 @@ export async function handleMcpRequest(request: Request) {
     return new Response(null, { status: 202 });
   }
 
+  if (!payload || typeof payload !== "object") {
+    return Response.json(
+      jsonRpcError(null, new McpError("Invalid JSON-RPC request.", -32600)),
+      { status: 400 },
+    );
+  }
+
   const context: McpContext = {
     baseUrl,
-    request: authRequest,
-    readDb: replicaDb ?? db,
+    request,
+    publicDb,
+    memberDb: db,
+    hasLocalPublicReadDb,
   };
 
   const rpcRequest = payload as JsonRpcRequest;
   if (rpcRequest.id === undefined) {
+    if (rpcRequest.method !== "notifications/initialized") {
+      return Response.json(
+        jsonRpcError(
+          null,
+          new McpError("A request id is required for this method.", -32600),
+        ),
+        { status: 400 },
+      );
+    }
     try {
       await handleJsonRpcRequest(rpcRequest, context);
       return new Response(null, { status: 202 });
@@ -1266,11 +1124,24 @@ export async function handleMcpRequest(request: Request) {
     const result = await handleJsonRpcRequest(rpcRequest, context);
     responseBody = jsonRpcSuccess(rpcRequest.id, result);
   } catch (error) {
+    if (error instanceof McpAuthRequiredError) {
+      return Response.json(
+        jsonRpcSuccess(rpcRequest.id, mcpAuthRequiredResult(baseUrl, error)),
+        {
+          status: error.status,
+          headers: {
+            "Cache-Control": "no-store",
+            "WWW-Authenticate": mcpAuthChallenge(baseUrl, error),
+          },
+        },
+      );
+    }
     responseBody = jsonRpcError(rpcRequest.id, error);
   }
 
   return Response.json(responseBody, {
     headers: {
+      "Cache-Control": "no-store",
       "Content-Type": "application/json; charset=utf-8",
     },
   });

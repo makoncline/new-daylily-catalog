@@ -15,6 +15,10 @@ import { getStripeSubscriptionResult } from "@/server/stripe/sync-subscription";
 import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
 import { slugify } from "@/lib/utils/slugify";
 import { getCatalogImportExistingListingMatch } from "@/lib/catalog-import-existing-listings";
+import {
+  memberCreateId,
+  reserveMemberCreateRequest,
+} from "@/server/mcp/member-create-id";
 
 const listingSelect = {
   id: true,
@@ -94,9 +98,9 @@ export const dashboardDbListingRouter = createTRPCRouter({
         }
       }
 
-      const subscriptionResult = await getStripeSubscriptionResult(
-        ctx.user.stripeCustomerId,
-      );
+      const subscriptionResult = ctx._confirmedActiveMembership
+        ? null
+        : await getStripeSubscriptionResult(ctx.user.stripeCustomerId);
 
       return ctx.db.$transaction(async (tx) => {
         const existingImportedRows = await tx.listing.findMany({
@@ -149,14 +153,16 @@ export const dashboardDbListingRouter = createTRPCRouter({
         );
 
         if (
-          subscriptionResult.confirmed &&
+          subscriptionResult?.confirmed &&
           !hasActiveSubscription(subscriptionResult.subscription.status)
         ) {
-          const listingCount = await tx.listing.count({
+          const existingListingsAtLimit = await tx.listing.findMany({
             where: { userId: ctx.user.id },
+            select: { id: true },
+            take: APP_CONFIG.LISTING.FREE_TIER_MAX_LISTINGS,
           });
           if (
-            listingCount + rowsToCreate.length >
+            existingListingsAtLimit.length + rowsToCreate.length >
             APP_CONFIG.LISTING.FREE_TIER_MAX_LISTINGS
           ) {
             throw new TRPCError({
@@ -218,12 +224,20 @@ export const dashboardDbListingRouter = createTRPCRouter({
       z.object({
         title: z.string().trim().min(1).max(200),
         cultivarReferenceId: z.string().trim().min(1).nullable().optional(),
+        description: z.string().trim().max(10_000).nullable().optional(),
+        price: z.number().nonnegative().nullable().optional(),
+        privateNote: z.string().trim().max(10_000).nullable().optional(),
+        hidden: z.boolean().optional(),
+        requestId: z.uuid().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const subscriptionResult = await getStripeSubscriptionResult(
-        ctx.user.stripeCustomerId,
-      );
+      const id = input.requestId
+        ? memberCreateId("listing", ctx.user.id, input.requestId)
+        : undefined;
+      const subscriptionResult = ctx._confirmedActiveMembership
+        ? null
+        : await getStripeSubscriptionResult(ctx.user.stripeCustomerId);
       if (input.cultivarReferenceId) {
         const cultivarReference = await ctx.db.cultivarReference.findUnique({
           where: { id: input.cultivarReferenceId },
@@ -240,14 +254,47 @@ export const dashboardDbListingRouter = createTRPCRouter({
       }
 
       const listing = await ctx.db.$transaction(async (tx) => {
+        if (id && input.requestId) {
+          const fresh = await reserveMemberCreateRequest(
+            tx,
+            "listing",
+            ctx.user.id,
+            input.requestId,
+            {
+              title: input.title,
+              cultivarReferenceId: input.cultivarReferenceId ?? null,
+              description: input.description ?? null,
+              price: input.price ?? null,
+              privateNote: input.privateNote ?? null,
+              status: input.hidden ? "HIDDEN" : null,
+            },
+          );
+          if (!fresh) {
+            const existing = await tx.listing.findUnique({
+              where: { id },
+              select: listingSelect,
+            });
+            if (existing?.userId === ctx.user.id) return existing;
+            throw new TRPCError({
+              code: "CONFLICT",
+              message:
+                "This create request already completed. The listing was deleted.",
+            });
+          }
+        }
         if (
-          subscriptionResult.confirmed &&
+          subscriptionResult?.confirmed &&
           !hasActiveSubscription(subscriptionResult.subscription.status)
         ) {
-          const listingCount = await tx.listing.count({
+          const existingListingsAtLimit = await tx.listing.findMany({
             where: { userId: ctx.user.id },
+            select: { id: true },
+            take: APP_CONFIG.LISTING.FREE_TIER_MAX_LISTINGS,
           });
-          if (listingCount >= APP_CONFIG.LISTING.FREE_TIER_MAX_LISTINGS) {
+          if (
+            existingListingsAtLimit.length >=
+            APP_CONFIG.LISTING.FREE_TIER_MAX_LISTINGS
+          ) {
             throw new TRPCError({
               code: "FORBIDDEN",
               message: "Upgrade to Pro to create more listings.",
@@ -261,15 +308,18 @@ export const dashboardDbListingRouter = createTRPCRouter({
           undefined,
           tx,
         );
-        return tx.listing.create({
-          data: {
-            userId: ctx.user.id,
-            title: input.title,
-            slug,
-            cultivarReferenceId: input.cultivarReferenceId ?? null,
-          },
-          select: listingSelect,
-        });
+        const data = {
+          ...(id ? { id } : {}),
+          userId: ctx.user.id,
+          title: input.title,
+          slug,
+          cultivarReferenceId: input.cultivarReferenceId ?? null,
+          description: input.description ?? null,
+          price: input.price ?? null,
+          privateNote: input.privateNote ?? null,
+          status: input.hidden ? "HIDDEN" : null,
+        };
+        return tx.listing.create({ data, select: listingSelect });
       });
 
       return listing;
@@ -289,6 +339,15 @@ export const dashboardDbListingRouter = createTRPCRouter({
         });
       }
       return listing;
+    }),
+
+  getByIds: protectedProcedure
+    .input(z.object({ ids: z.array(z.string().min(1)).min(1).max(20) }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.listing.findMany({
+        where: { id: { in: input.ids }, userId: ctx.user.id },
+        select: listingSelect,
+      });
     }),
 
   list: protectedProcedure.query(async ({ ctx }) => {
@@ -376,17 +435,32 @@ export const dashboardDbListingRouter = createTRPCRouter({
         ? await generateUniqueSlug(nextTitle, ctx.user.id, listing.id, ctx.db)
         : undefined;
 
-      const updated = await ctx.db.listing.update({
-        where: { id: listing.id },
+      const updated = await ctx.db.listing.updateMany({
+        where: {
+          id: listing.id,
+          userId: ctx.user.id,
+          OR: [
+            { cultivarReferenceId: null },
+            { cultivarReferenceId: input.cultivarReferenceId },
+          ],
+        },
         data: {
           cultivarReferenceId: cultivarReference.id,
           ...(nextTitle ? { title: nextTitle } : {}),
           ...(nextSlug ? { slug: nextSlug } : {}),
         },
+      });
+      if (updated.count === 0) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "Listing link changed. Read it again before linking.",
+        });
+      }
+
+      return ctx.db.listing.findFirstOrThrow({
+        where: { id: listing.id, userId: ctx.user.id },
         select: listingSelect,
       });
-
-      return updated;
     }),
 
   unlinkAhs: protectedProcedure
@@ -406,7 +480,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
       }
 
       const updated = await ctx.db.listing.update({
-        where: { id: listing.id },
+        where: { id: listing.id, userId: ctx.user.id },
         data: { cultivarReferenceId: null },
         select: listingSelect,
       });
@@ -421,6 +495,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
         where: { id: input.id, userId: ctx.user.id },
         select: {
           id: true,
+          cultivarReferenceId: true,
           cultivarReference: {
             select: {
               v2AhsCultivar: { select: v2AhsCultivarDisplaySelect },
@@ -445,19 +520,33 @@ export const dashboardDbListingRouter = createTRPCRouter({
         ctx.db,
       );
 
-      const updated = await ctx.db.listing.update({
-        where: { id: listing.id },
+      const updated = await ctx.db.listing.updateMany({
+        where: {
+          id: listing.id,
+          userId: ctx.user.id,
+          cultivarReferenceId: listing.cultivarReferenceId,
+        },
         data: { title: name, slug: nextSlug },
+      });
+      if (updated.count === 0) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message:
+            "Listing cultivar link changed. Read it again before syncing.",
+        });
+      }
+
+      return ctx.db.listing.findFirstOrThrow({
+        where: { id: listing.id, userId: ctx.user.id },
         select: listingSelect,
       });
-
-      return updated;
     }),
 
   update: protectedProcedure
     .input(
       z.object({
         id: z.string(),
+        expectedUpdatedAt: z.iso.datetime(),
         data: z.object({
           title: z.string().trim().min(1).max(200).optional(),
           description: z.string().trim().max(10_000).nullable().optional(),
@@ -473,12 +562,21 @@ export const dashboardDbListingRouter = createTRPCRouter({
         select: {
           id: true,
           title: true,
+          updatedAt: true,
         },
       });
       if (!existing) {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "Listing not found",
+        });
+      }
+      const expectedUpdatedAt = new Date(input.expectedUpdatedAt);
+      if (existing.updatedAt.getTime() !== expectedUpdatedAt.getTime()) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message:
+            "The listing changed. Load the latest version before saving.",
         });
       }
 
@@ -495,69 +593,60 @@ export const dashboardDbListingRouter = createTRPCRouter({
         : undefined;
 
       const result = await ctx.db.listing.updateMany({
-        where: { id: input.id, userId: ctx.user.id },
+        where: {
+          id: input.id,
+          userId: ctx.user.id,
+          updatedAt: expectedUpdatedAt,
+        },
         data: {
           ...input.data,
           ...(nextSlug ? { slug: nextSlug } : {}),
+          updatedAt: new Date(
+            Math.max(Date.now(), expectedUpdatedAt.getTime() + 1),
+          ),
         },
       });
       if (result.count === 0) {
         throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Listing not found",
+          code: "CONFLICT",
+          message:
+            "The listing changed. Load the latest version before saving.",
         });
       }
 
-      const updated = await ctx.db.listing.findUnique({
-        where: { id: input.id },
+      const updated = await ctx.db.listing.findFirstOrThrow({
+        where: { id: input.id, userId: ctx.user.id },
         select: listingSelect,
       });
 
-      return updated!;
+      return updated;
     }),
 
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const listing = await ctx.db.listing.findFirst({
-        where: { id: input.id, userId: ctx.user.id },
-        select: { id: true },
-      });
-      if (!listing) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Listing not found",
-        });
-      }
-
       // Deleting a listing clears join rows, but does not automatically bump List.updatedAt.
       // We touch affected lists so incremental `list.sync({ since })` can't retain dead listing ids.
-      const affectedLists = await ctx.db.list.findMany({
-        where: {
-          userId: ctx.user.id,
-          listings: { some: { id: listing.id } },
-        },
-        select: { id: true },
-      });
-
       await ctx.db.$transaction(async (tx) => {
-        await tx.listing.delete({ where: { id: listing.id } });
-
-        if (affectedLists.length) {
-          await tx.list.updateMany({
-            where: {
-              userId: ctx.user.id,
-              id: { in: affectedLists.map((l) => l.id) },
-            },
-            data: { updatedAt: new Date() },
+        await tx.$executeRaw`
+          UPDATE "List"
+          SET "updatedAt" = ${new Date()}
+          WHERE "userId" = ${ctx.user.id}
+            AND "id" IN (
+              SELECT "A" FROM "_ListToListing" WHERE "B" = ${input.id}
+            )
+        `;
+        const deleted = await tx.listing.deleteMany({
+          where: { id: input.id, userId: ctx.user.id },
+        });
+        if (deleted.count === 0) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Listing not found",
           });
         }
       });
 
-      return { id: listing.id } as const;
+      return { id: input.id } as const;
     }),
-
-  count: protectedProcedure.query(async ({ ctx }) => {
-    return ctx.db.listing.count({ where: { userId: ctx.user.id } });
-  }),
 });

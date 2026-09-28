@@ -66,6 +66,7 @@ test.describe("WebMCP discovery @local", () => {
         "daylily.update-profile-content",
         "daylily.create-listing",
         "daylily.update-listing",
+        "daylily.link-cultivar",
         "daylily.create-list",
         "daylily.prepare-image-upload",
         "daylily.attach-uploaded-image",

@@ -109,6 +109,7 @@ describe("WebMcpProvider", () => {
       "daylily.update-profile-content",
       "daylily.create-listing",
       "daylily.update-listing",
+      "daylily.link-cultivar",
       "daylily.create-list",
       "daylily.prepare-image-upload",
       "daylily.attach-uploaded-image",
@@ -159,7 +160,7 @@ describe("WebMcpProvider", () => {
     });
 
     const provideContextInput = provideContext.mock.calls[0]?.[0];
-    expect(provideContextInput?.tools).toHaveLength(11);
+    expect(provideContextInput?.tools).toHaveLength(12);
     expect(provideContextInput?.tools[0]?.name).toBe("daylily.navigate");
   });
 
@@ -178,16 +179,16 @@ describe("WebMcpProvider", () => {
 
     const { rerender } = render(<WebMcpProvider />);
     await waitFor(() => {
-      expect(registerTool).toHaveBeenCalledTimes(11);
+      expect(registerTool).toHaveBeenCalledTimes(12);
     });
 
     mocks.pathname = "/dashboard/listings";
     rerender(<WebMcpProvider />);
 
     await waitFor(() => {
-      expect(registerTool).toHaveBeenCalledTimes(22);
+      expect(registerTool).toHaveBeenCalledTimes(24);
     });
-    expect(registeredToolNames.size).toBe(11);
+    expect(registeredToolNames.size).toBe(12);
   });
 
   test("does not crash the dashboard when registerTool throws", async () => {
@@ -199,7 +200,7 @@ describe("WebMcpProvider", () => {
     render(<WebMcpProvider />);
 
     await waitFor(() => {
-      expect(registerTool).toHaveBeenCalledTimes(11);
+      expect(registerTool).toHaveBeenCalledTimes(12);
     });
   });
 
@@ -219,6 +220,9 @@ describe("WebMcpProvider", () => {
   test("converts plain profile content into EditorJS paragraphs", async () => {
     const registerTool = vi.fn();
     setModelContext({ registerTool });
+    mocks.trpcClient.dashboardDb.userProfile.get.query.mockResolvedValue({
+      updatedAt: new Date("2026-09-25T12:00:00.000Z"),
+    });
     mocks.trpcClient.dashboardDb.userProfile.updateContent.mutate.mockResolvedValue(
       {
         id: "profile-1",
@@ -242,6 +246,7 @@ describe("WebMcpProvider", () => {
       mocks.trpcClient.dashboardDb.userProfile.updateContent.mutate.mock
         .calls[0]?.[0];
     const parsed = JSON.parse(mutationInput.content);
+    expect(mutationInput.expectedUpdatedAt).toBe("2026-09-25T12:00:00.000Z");
 
     expect(parsed.blocks).toMatchObject([
       { type: "paragraph", data: { text: "First paragraph." } },
@@ -252,7 +257,10 @@ describe("WebMcpProvider", () => {
   test("create-listing returns post-mutation listing state", async () => {
     const registerTool = vi.fn();
     setModelContext({ registerTool });
-    mocks.insertListing.mockResolvedValue({ id: "listing-1" });
+    mocks.insertListing.mockResolvedValue({
+      id: "listing-1",
+      updatedAt: new Date("2026-09-25T12:00:00.000Z"),
+    });
     mocks.trpcClient.dashboardDb.listing.get.query.mockResolvedValue({
       id: "listing-1",
       title: "Updated listing",
@@ -340,6 +348,52 @@ describe("WebMcpProvider", () => {
       price: { type: ["number", "null"] },
       privateNote: { type: ["string", "null"] },
     });
+  });
+
+  test("keeps listing field edits and cultivar links as separate writes", async () => {
+    const registerTool = vi.fn();
+    setModelContext({ registerTool });
+    mocks.linkAhs.mockResolvedValue({
+      id: "listing-1",
+      cultivarReferenceId: "cultivar-1",
+    });
+
+    render(<WebMcpProvider />);
+    await waitFor(() => expect(registerTool).toHaveBeenCalled());
+
+    const tools = registerTool.mock.calls.map(([tool]) => tool);
+    const updateListingTool = tools.find(
+      (tool) => tool.name === "daylily.update-listing",
+    );
+    const linkCultivarTool = tools.find(
+      (tool) => tool.name === "daylily.link-cultivar",
+    );
+    expect(updateListingTool.inputSchema.properties).not.toHaveProperty(
+      "cultivarReferenceId",
+    );
+
+    await expect(
+      updateListingTool.execute({
+        listingId: "listing-1",
+        expectedUpdatedAt: "2026-09-25T12:00:00.000Z",
+        title: "New title",
+        cultivarReferenceId: "cultivar-1",
+      }),
+    ).rejects.toThrow("Use daylily.link-cultivar");
+    expect(mocks.linkAhs).not.toHaveBeenCalled();
+    expect(mocks.updateListing).not.toHaveBeenCalled();
+
+    await linkCultivarTool.execute({
+      listingId: "listing-1",
+      cultivarReferenceId: "cultivar-1",
+      syncName: true,
+    });
+    expect(mocks.linkAhs).toHaveBeenCalledWith({
+      id: "listing-1",
+      cultivarReferenceId: "cultivar-1",
+      syncName: true,
+    });
+    expect(mocks.updateListing).not.toHaveBeenCalled();
   });
 
   test("passes ImageAsset metadata when attaching an uploaded image", async () => {

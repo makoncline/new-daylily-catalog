@@ -78,3 +78,13 @@ describe("public.sendMessage", () => {
     expect(serviceMocks.sendPublicInquiry).not.toHaveBeenCalled();
   });
 });
+
+describe("public.getListings", () => {
+  it("rejects an unbounded page before a database read", async () => {
+    const caller = createCaller(new Headers());
+
+    await expect(
+      caller.getListings({ userSlugOrId: "grower", limit: 501 }),
+    ).rejects.toThrow();
+  });
+});
