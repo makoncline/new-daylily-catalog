@@ -388,14 +388,17 @@ function useProfileFormController({
   }
 
   function handleContentSaved(saved: UserProfile) {
+    const draft = form.getValues();
     const rebased = rebaseFormValues(
-      form.getValues(),
+      draft,
       toFormValues(committedProfileRef.current),
       toFormValues(saved),
     );
     if (rebased) {
       committedProfileRef.current = saved;
-      form.reset(rebased, { keepIsValid: true });
+      if (!areProfileValuesEqual(draft, rebased)) {
+        form.reset(rebased, { keepIsValid: true });
+      }
     }
     syncedProfileTimestampRef.current = profileTimestamp(saved);
     setProfileOverride(saved);
