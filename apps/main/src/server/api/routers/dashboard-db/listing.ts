@@ -58,6 +58,10 @@ function reserveUniqueSlug(title: string, reservedSlugs: Set<string>) {
   return slug;
 }
 
+function nextListingVersion(updatedAt: Date) {
+  return new Date(Math.max(Date.now(), updatedAt.getTime() + 1));
+}
+
 export const dashboardDbListingRouter = createTRPCRouter({
   importRows: protectedProcedure
     .input(
@@ -388,6 +392,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
         select: {
           id: true,
           cultivarReferenceId: true,
+          updatedAt: true,
         },
       });
       if (!listing) {
@@ -439,6 +444,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
         where: {
           id: listing.id,
           userId: ctx.user.id,
+          updatedAt: listing.updatedAt,
           OR: [
             { cultivarReferenceId: null },
             { cultivarReferenceId: input.cultivarReferenceId },
@@ -448,6 +454,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
           cultivarReferenceId: cultivarReference.id,
           ...(nextTitle ? { title: nextTitle } : {}),
           ...(nextSlug ? { slug: nextSlug } : {}),
+          updatedAt: nextListingVersion(listing.updatedAt),
         },
       });
       if (updated.count === 0) {
@@ -470,6 +477,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
         where: { id: input.id, userId: ctx.user.id },
         select: {
           id: true,
+          updatedAt: true,
         },
       });
       if (!listing) {
@@ -479,13 +487,28 @@ export const dashboardDbListingRouter = createTRPCRouter({
         });
       }
 
-      const updated = await ctx.db.listing.update({
+      const updated = await ctx.db.listing.updateMany({
+        where: {
+          id: listing.id,
+          userId: ctx.user.id,
+          updatedAt: listing.updatedAt,
+        },
+        data: {
+          cultivarReferenceId: null,
+          updatedAt: nextListingVersion(listing.updatedAt),
+        },
+      });
+      if (updated.count === 0) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "Listing changed. Read it again before unlinking.",
+        });
+      }
+
+      return ctx.db.listing.findFirstOrThrow({
         where: { id: listing.id, userId: ctx.user.id },
-        data: { cultivarReferenceId: null },
         select: listingSelect,
       });
-
-      return updated;
     }),
 
   syncAhsName: protectedProcedure
@@ -496,6 +519,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
         select: {
           id: true,
           cultivarReferenceId: true,
+          updatedAt: true,
           cultivarReference: {
             select: {
               v2AhsCultivar: { select: v2AhsCultivarDisplaySelect },
@@ -525,8 +549,13 @@ export const dashboardDbListingRouter = createTRPCRouter({
           id: listing.id,
           userId: ctx.user.id,
           cultivarReferenceId: listing.cultivarReferenceId,
+          updatedAt: listing.updatedAt,
         },
-        data: { title: name, slug: nextSlug },
+        data: {
+          title: name,
+          slug: nextSlug,
+          updatedAt: nextListingVersion(listing.updatedAt),
+        },
       });
       if (updated.count === 0) {
         throw new TRPCError({
@@ -601,9 +630,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
         data: {
           ...input.data,
           ...(nextSlug ? { slug: nextSlug } : {}),
-          updatedAt: new Date(
-            Math.max(Date.now(), expectedUpdatedAt.getTime() + 1),
-          ),
+          updatedAt: nextListingVersion(expectedUpdatedAt),
         },
       });
       if (result.count === 0) {
@@ -630,7 +657,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
       await ctx.db.$transaction(async (tx) => {
         await tx.$executeRaw`
           UPDATE "List"
-          SET "updatedAt" = ${new Date()}
+          SET "updatedAt" = MAX("updatedAt" + 1, ${Date.now()})
           WHERE "userId" = ${ctx.user.id}
             AND "id" IN (
               SELECT "A" FROM "_ListToListing" WHERE "B" = ${input.id}

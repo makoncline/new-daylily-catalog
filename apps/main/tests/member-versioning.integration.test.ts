@@ -21,6 +21,91 @@ async function createCaller(userId: string) {
 }
 
 describe("member mutation versions", () => {
+  it("advances listing versions through cultivar commands", async () => {
+    await withTempAppDb(async ({ user }) => {
+      const { caller, db } = await createCaller(user.id);
+      const ahs = await db.v2AhsCultivar.create({
+        data: { id: "versioning-ahs", post_title: "Golden Bloom" },
+      });
+      const cultivar = await db.cultivarReference.create({
+        data: { v2AhsCultivarId: ahs.id },
+      });
+      const listing = await db.listing.create({
+        data: {
+          userId: user.id,
+          title: "Original",
+          slug: "original",
+          updatedAt: new Date(Date.now() + 10_000),
+        },
+      });
+
+      const linked = await caller.dashboardDb.listing.linkAhs({
+        id: listing.id,
+        cultivarReferenceId: cultivar.id,
+        syncName: true,
+      });
+      expect(linked.title).toBe("Golden Bloom");
+      expect(linked.updatedAt.getTime()).toBeGreaterThan(
+        listing.updatedAt.getTime(),
+      );
+
+      const synced = await caller.dashboardDb.listing.syncAhsName({
+        id: listing.id,
+      });
+      expect(synced.updatedAt.getTime()).toBeGreaterThan(
+        linked.updatedAt.getTime(),
+      );
+
+      const unlinked = await caller.dashboardDb.listing.unlinkAhs({
+        id: listing.id,
+      });
+      expect(unlinked.updatedAt.getTime()).toBeGreaterThan(
+        synced.updatedAt.getTime(),
+      );
+      await expect(
+        caller.dashboardDb.listing.update({
+          id: listing.id,
+          expectedUpdatedAt: listing.updatedAt.toISOString(),
+          data: { title: "Stale title" },
+        }),
+      ).rejects.toMatchObject({ code: "CONFLICT" });
+    });
+  }, 30_000);
+
+  it("keeps list sync monotonic when deleting a listing", async () => {
+    await withTempAppDb(async ({ user }) => {
+      const { caller, db } = await createCaller(user.id);
+      const listing = await db.listing.create({
+        data: { userId: user.id, title: "Bloom", slug: "bloom" },
+      });
+      const list = await db.list.create({
+        data: {
+          userId: user.id,
+          title: "Future version",
+          updatedAt: new Date(Date.now() + 10_000),
+        },
+      });
+      const added = await caller.dashboardDb.list.addListingToList({
+        listId: list.id,
+        listingId: listing.id,
+      });
+      await caller.dashboardDb.listing.delete({ id: listing.id });
+      const afterDelete = await db.list.findUniqueOrThrow({
+        where: { id: list.id },
+      });
+      expect(afterDelete.updatedAt.getTime()).toBeGreaterThan(
+        added.updatedAt.getTime(),
+      );
+      expect(
+        (
+          await caller.dashboardDb.list.sync({
+            since: added.updatedAt.toISOString(),
+          })
+        ).find((row) => row.id === list.id)?.listings,
+      ).toEqual([]);
+    });
+  }, 30_000);
+
   it("syncs an older list after each membership change", async () => {
     await withTempAppDb(async ({ user }) => {
       const { caller, db } = await createCaller(user.id);
@@ -50,9 +135,11 @@ describe("member mutation versions", () => {
         newer.updatedAt.getTime(),
       );
       expect(
-        (await caller.dashboardDb.list.sync({
-          since: newer.updatedAt.toISOString(),
-        })).find((list) => list.id === older.id)?.listings,
+        (
+          await caller.dashboardDb.list.sync({
+            since: newer.updatedAt.toISOString(),
+          })
+        ).find((list) => list.id === older.id)?.listings,
       ).toEqual([{ id: listing.id }]);
 
       const removed = await caller.dashboardDb.list.removeListingFromList({
@@ -63,27 +150,32 @@ describe("member mutation versions", () => {
         added.updatedAt.getTime(),
       );
       expect(
-        (await caller.dashboardDb.list.sync({
-          since: added.updatedAt.toISOString(),
-        })).find((list) => list.id === older.id)?.listings,
+        (
+          await caller.dashboardDb.list.sync({
+            since: added.updatedAt.toISOString(),
+          })
+        ).find((list) => list.id === older.id)?.listings,
       ).toEqual([]);
 
       const addedAgain = await caller.dashboardDb.list.addListingToList({
         listId: older.id,
         listingId: listing.id,
       });
-      const batchRemoved =
-        await caller.dashboardDb.list.removeListingsFromList({
+      const batchRemoved = await caller.dashboardDb.list.removeListingsFromList(
+        {
           listId: older.id,
           listingIds: [listing.id],
-        });
+        },
+      );
       expect(batchRemoved.updatedAt.getTime()).toBeGreaterThan(
         addedAgain.updatedAt.getTime(),
       );
       expect(
-        (await caller.dashboardDb.list.sync({
-          since: addedAgain.updatedAt.toISOString(),
-        })).find((list) => list.id === older.id)?.listings,
+        (
+          await caller.dashboardDb.list.sync({
+            since: addedAgain.updatedAt.toISOString(),
+          })
+        ).find((list) => list.id === older.id)?.listings,
       ).toEqual([]);
     });
   }, 30_000);
