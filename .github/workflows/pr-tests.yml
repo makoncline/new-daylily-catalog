@@ -23,15 +23,8 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm fetch
       - run: pnpm install --frozen-lockfile --prefer-offline
-      - name: Restore ESLint cache
-        uses: actions/cache@v4
-        with:
-          path: apps/main/local/eslint/.eslintcache
-          key: eslint-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
-          restore-keys: |
-            eslint-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
       - name: Lint
-        run: pnpm main exec eslint src --cache --cache-location local/eslint/.eslintcache --cache-strategy content
+        run: pnpm main lint
       - name: Typecheck
         run: pnpm typecheck
 
