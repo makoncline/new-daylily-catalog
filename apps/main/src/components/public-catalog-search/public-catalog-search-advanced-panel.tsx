@@ -148,7 +148,6 @@ export function PublicCatalogSearchAdvancedPanel<TData>({
           type="button"
           variant="ghost"
           size="icon"
-          className="size-8"
           onClick={() => onCollapsedChange(false)}
           data-testid="search-panel-expand"
         >
@@ -171,7 +170,6 @@ export function PublicCatalogSearchAdvancedPanel<TData>({
             type="button"
             variant="ghost"
             size="icon"
-            className="size-6"
             onClick={() => onCollapsedChange(true)}
             data-testid="search-panel-collapse"
           >

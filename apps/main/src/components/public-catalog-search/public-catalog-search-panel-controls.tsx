@@ -536,7 +536,7 @@ export function PublicCatalogSearchFilterSection({
         <span className="flex items-center gap-2">
           {definition.label}
           {count > 0 ? (
-            <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">
+            <Badge variant="secondary">
               {count}
             </Badge>
           ) : null}
