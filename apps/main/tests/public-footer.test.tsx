@@ -31,7 +31,7 @@ describe("PublicFooter", () => {
       "before:backdrop-blur-[5px]",
     );
     expect(footerNav).toBeVisible();
-    expect(screen.getByRole("contentinfo")).toHaveClass("text-[#142118]");
+    expect(screen.getByRole("contentinfo")).toHaveClass("text-brand-ink");
     expect(footerNav.querySelectorAll("li")).toHaveLength(3);
     expect(
       screen.queryByText("Browse daylily catalogs created by growers."),
@@ -46,7 +46,7 @@ describe("PublicFooter", () => {
     render(<PublicFooter />);
 
     expect(screen.getByRole("contentinfo")).toHaveClass("text-white");
-    expect(screen.getByRole("contentinfo")).not.toHaveClass("bg-[#07120e]");
+    expect(screen.getByRole("contentinfo")).not.toHaveClass("bg-brand-night");
     expect(screen.getByRole("link", { name: "Support" })).toHaveClass(
       "text-white/70",
     );

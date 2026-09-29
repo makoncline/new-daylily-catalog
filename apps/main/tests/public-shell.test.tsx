@@ -47,7 +47,9 @@ describe("PublicShell", () => {
 
     render(<PublicShell>Membership</PublicShell>);
 
-    expect(screen.getByRole("main").parentElement).toHaveClass("bg-[#07120e]");
+    expect(screen.getByRole("main").parentElement).toHaveClass(
+      "bg-brand-night",
+    );
     expect(screen.getByRole("main")).toHaveClass("-mt-16", "lg:-mt-20");
   });
 
@@ -56,7 +58,9 @@ describe("PublicShell", () => {
 
     render(<PublicShell>Catalog importer</PublicShell>);
 
-    expect(screen.getByRole("main").parentElement).toHaveClass("bg-[#f6f8f3]");
+    expect(screen.getByRole("main").parentElement).toHaveClass(
+      "bg-brand-surface",
+    );
     expect(screen.getByRole("main")).toHaveClass("flex", "flex-col");
     expect(screen.getByRole("main")).not.toHaveClass("-mt-16", "lg:-mt-20");
   });
@@ -66,7 +70,9 @@ describe("PublicShell", () => {
 
     render(<PublicShell>Catalogs</PublicShell>);
 
-    expect(screen.getByRole("main").parentElement).toHaveClass("bg-[#f6f8f3]");
+    expect(screen.getByRole("main").parentElement).toHaveClass(
+      "bg-brand-surface",
+    );
     expect(screen.getByRole("main")).not.toHaveClass("-mt-16", "lg:-mt-20");
   });
 });
