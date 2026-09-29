@@ -250,10 +250,7 @@ export function useTagDesignerController({
   );
 
   const handleDeleteTemplate = React.useCallback(
-    (templateId: string, templateName: string) => {
-      const shouldDelete = window.confirm(`Delete template "${templateName}"?`);
-      if (!shouldDelete) return false;
-
+    (templateId: string) => {
       setStoredUserTemplates((previous) =>
         (Array.isArray(previous) ? previous : [])
           .map((template) => sanitizeStoredTemplate(template))

@@ -1,16 +1,28 @@
 "use client";
 
 import * as React from "react";
-import { X } from "lucide-react";
+import { Tags, X } from "lucide-react";
 import {
   type ColumnDef,
   type RowSelectionState,
   type Table,
 } from "@tanstack/react-table";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { EmptyState } from "@/components/empty-state";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableLayout } from "@/components/data-table/data-table-layout";
 import { DataTablePagination } from "@/components/data-table/data-table-pagination";
@@ -29,7 +41,6 @@ const tagPrintColumns: ColumnDef<ListingData>[] = [
     id: "select",
     header: ({ table }) => (
       <Checkbox
-        className="size-4"
         checked={
           table.getIsAllPageRowsSelected() ||
           (table.getIsSomePageRowsSelected() && "indeterminate")
@@ -40,7 +51,6 @@ const tagPrintColumns: ColumnDef<ListingData>[] = [
     ),
     cell: ({ row }) => (
       <Checkbox
-        className="size-4"
         checked={row.getIsSelected()}
         onCheckedChange={(value) => row.toggleSelected(!!value)}
         aria-label="Select row"
@@ -119,15 +129,14 @@ function SelectedListingsBadges({
   if (selectedIds.length === 0) return null;
 
   return (
-    <div className="border-border bg-muted/30 flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2">
-      <span className="text-muted-foreground shrink-0 text-xs font-medium">
+    <div className="flex flex-wrap items-center gap-2" aria-live="polite">
+      <span className="text-muted-foreground shrink-0 text-sm">
         Selected ({selectedIds.length}):
       </span>
       <Button
         type="button"
         variant="ghost"
         size="sm"
-        className="h-6 px-2 text-xs"
         onClick={() => table.setRowSelection({})}
       >
         Remove all
@@ -136,29 +145,24 @@ function SelectedListingsBadges({
         const listing = listingsById.get(id);
         const title = listing?.title ?? "(Unknown)";
         return (
-          <Badge
+          <Button
             key={id}
             variant="secondary"
-            className="group flex items-center gap-1 pr-1"
+            size="sm"
+            className="max-w-52"
+            title={title}
+            aria-label={`Deselect ${title}`}
+            onClick={() => {
+              table.setRowSelection((prev) => {
+                const next = { ...prev };
+                delete next[id];
+                return next;
+              });
+            }}
           >
-            <span className="max-w-[12rem] truncate" title={title}>
-              {title}
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                table.setRowSelection((prev) => {
-                  const next = { ...prev };
-                  delete next[id];
-                  return next;
-                });
-              }}
-              className="hover:bg-muted rounded p-0.5 transition-colors"
-              aria-label={`Deselect ${title}`}
-            >
-              <X className="size-3" />
-            </button>
-          </Badge>
+            <span className="truncate">{title}</span>
+            <X data-icon="inline-end" />
+          </Button>
         );
       })}
     </div>
@@ -199,46 +203,69 @@ export function TagPrintTable() {
 
   if (!listings.length) {
     return (
-      <EmptyState
-        title="No listings"
-        description="Create listings first, then come back to print tags."
-      />
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <Tags />
+          </EmptyMedia>
+          <EmptyTitle>No listings</EmptyTitle>
+          <EmptyDescription>
+            Create listings first, then come back to print tags.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-6">
       <TagDesignerPanel listings={selectedListings} />
-
-      <SelectedListingsBadges table={table} listingsById={listingsById} />
-
-      <DataTableLayout
-        table={table}
-        toolbar={
-          <DashboardListingFilterToolbar
-            table={table}
-            lists={lists}
-            listings={listings}
-            placeholder="Filter listings to tag..."
-          />
-        }
-        pagination={
-          <DataTablePagination
-            table={table}
-            pageSizeOptions={
-              APP_CONFIG.TABLE.PAGINATION.DASHBOARD_PAGE_SIZE_OPTIONS
-            }
-          />
-        }
-        noResults={
-          <EmptyState
-            title="No listings found"
-            description="Try adjusting your search or list filters."
-          />
-        }
-      >
-        <DataTable table={table} />
-      </DataTableLayout>
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            <h2>Choose listings</h2>
+          </CardTitle>
+          <CardDescription>
+            Select the listings to include in your tags.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col gap-4">
+            <SelectedListingsBadges table={table} listingsById={listingsById} />
+            <DataTableLayout
+              table={table}
+              toolbar={
+                <DashboardListingFilterToolbar
+                  table={table}
+                  lists={lists}
+                  listings={listings}
+                  placeholder="Filter listings to tag..."
+                />
+              }
+              pagination={
+                <DataTablePagination
+                  table={table}
+                  pageSizeOptions={
+                    APP_CONFIG.TABLE.PAGINATION.DASHBOARD_PAGE_SIZE_OPTIONS
+                  }
+                />
+              }
+              noResults={
+                <Empty>
+                  <EmptyHeader>
+                    <EmptyTitle>No listings found</EmptyTitle>
+                    <EmptyDescription>
+                      Try adjusting your search or list filters.
+                    </EmptyDescription>
+                  </EmptyHeader>
+                </Empty>
+              }
+            >
+              <DataTable table={table} />
+            </DataTableLayout>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -5,6 +5,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createTagPrintDocumentHtml,
@@ -79,13 +80,13 @@ describe("TagDesignerPanel", () => {
   it("shows tag sizes in a select and reveals custom size inputs", () => {
     render(<TagDesignerPanel listings={sampleListings} />);
 
-    const sizeSelect = screen.getByLabelText("Tag Size");
+    const sizeSelect = screen.getByRole("combobox", { name: "Tag Size" });
     expect(sizeSelect).toBeInTheDocument();
+    fireEvent.click(sizeSelect);
     expect(
       screen.getByRole("option", { name: /Brother TZe/i }),
     ).toBeInTheDocument();
-
-    fireEvent.change(sizeSelect, { target: { value: "custom" } });
+    fireEvent.click(screen.getByRole("option", { name: /Custom/i }));
 
     expect(screen.getByLabelText("Width (in)")).toBeInTheDocument();
     expect(screen.getByLabelText("Height (in)")).toBeInTheDocument();
@@ -94,8 +95,8 @@ describe("TagDesignerPanel", () => {
   it("lets custom tag size inputs stay empty until blur", async () => {
     render(<TagDesignerPanel listings={sampleListings} />);
 
-    const sizeSelect = screen.getByLabelText("Tag Size");
-    fireEvent.change(sizeSelect, { target: { value: "custom" } });
+    fireEvent.click(screen.getByRole("combobox", { name: "Tag Size" }));
+    fireEvent.click(screen.getByRole("option", { name: /Custom/i }));
 
     const widthInput = screen.getByLabelText("Width (in)");
     const heightInput = screen.getByLabelText("Height (in)");
@@ -114,6 +115,27 @@ describe("TagDesignerPanel", () => {
       expect(widthInput).toHaveValue(4.2);
       expect(heightInput).toHaveValue(1.75);
     });
+  });
+
+  it("keeps the last valid tag size while an invalid custom width is shown", () => {
+    render(<TagDesignerPanel listings={sampleListings} />);
+    fireEvent.click(screen.getByRole("combobox", { name: "Tag Size" }));
+    fireEvent.click(screen.getByRole("option", { name: /Custom/i }));
+
+    const width = screen.getByLabelText("Width (in)");
+    const preview = screen.getByRole("article");
+    expect(preview).toHaveStyle({ width: "3.5in" });
+
+    fireEvent.change(width, { target: { value: "0.1" } });
+    fireEvent.blur(width);
+    expect(width).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByText(/Enter a number from/)).toBeInTheDocument();
+    expect(preview).toHaveStyle({ width: "3.5in" });
+
+    fireEvent.change(width, { target: { value: "4.2" } });
+    fireEvent.blur(width);
+    expect(width).toHaveAttribute("aria-invalid", "false");
+    expect(preview).toHaveStyle({ width: "4.2in" });
   });
 
   it("shows sample preview when no listings selected", () => {
@@ -300,42 +322,111 @@ describe("TagDesignerPanel", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("blocks sheet output when the page cannot fit a tag", () => {
+    render(<TagDesignerPanel listings={sampleListings} />);
+    openSheetCreator();
+
+    const width = screen.getByLabelText("Page width (in)");
+    fireEvent.change(width, { target: { value: "1" } });
+    fireEvent.blur(width);
+
+    expect(
+      screen.getByText(/Page too small for this layout/),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Print Sheets" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Download" })).toBeDisabled();
+  });
+
+  it("commits numeric drafts before a step, restores on Escape, and clears drafts on reset", async () => {
+    const user = userEvent.setup();
+    render(<TagDesignerPanel listings={sampleListings} />);
+    fireEvent.click(screen.getByRole("combobox", { name: "Tag Size" }));
+    fireEvent.click(screen.getByRole("option", { name: /Custom/i }));
+    const width = screen.getByLabelText("Width (in)");
+    await user.clear(width);
+    await user.type(width, "4.256");
+    expect(screen.getByRole("article")).toHaveStyle({ width: "3.5in" });
+    await user.keyboard("{Enter}");
+    expect(width).toHaveValue(4.26);
+    expect(screen.getByRole("article")).toHaveStyle({ width: "4.26in" });
+
+    await user.click(screen.getByRole("button", { name: "Make sheet" }));
+    const dialog = screen.getByRole("dialog");
+    const rows = within(dialog).getByLabelText("Rows");
+    await user.clear(rows);
+    await user.type(rows, "3");
+    expect(within(dialog).getByText(/1 tag per sheet/)).toBeInTheDocument();
+    const increase = within(dialog).getByRole("button", {
+      name: "Increase Rows",
+    });
+    await user.click(increase);
+    expect(rows).toHaveValue(4);
+    expect(increase).toHaveFocus();
+    expect(within(dialog).getByText(/4 tags per sheet/)).toBeInTheDocument();
+
+    await user.clear(rows);
+    await user.keyboard("{Escape}");
+    expect(dialog).toBeInTheDocument();
+    expect(rows).toHaveValue(4);
+    expect(rows).toHaveAttribute("aria-invalid", "false");
+    expect(rows).not.toHaveFocus();
+
+    await user.clear(rows);
+    await user.tab();
+    expect(rows).toHaveAttribute("aria-invalid", "true");
+    expect(within(dialog).getByText(/4 tags per sheet/)).toBeInTheDocument();
+    const reset = within(dialog).getByRole("button", {
+      name: "Reset to 1 Tag",
+    });
+    await user.click(reset);
+    expect(within(dialog).getByLabelText("Rows")).toHaveValue(1);
+    expect(within(dialog).getByLabelText("Rows")).toHaveAttribute(
+      "aria-invalid",
+      "false",
+    );
+    expect(within(dialog).getByText(/1 tag per sheet/)).toBeInTheDocument();
+    expect(reset).toHaveFocus();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
   it("keeps template content selected when size and QR settings change", () => {
     render(<TagDesignerPanel listings={sampleListings} />);
 
-    const gardenId = screen.getByRole("button", { name: /Garden ID/i });
-    expect(gardenId).toHaveAttribute("aria-pressed", "true");
+    const gardenId = screen.getByRole("radio", { name: /Garden ID/i });
+    expect(gardenId).toBeChecked();
 
-    fireEvent.change(screen.getByLabelText("Tag Size"), {
-      target: { value: "card-2x3.5" },
-    });
+    fireEvent.click(screen.getByRole("combobox", { name: "Tag Size" }));
+    fireEvent.click(screen.getByRole("option", { name: /Card 2.00.*3.50/i }));
     fireEvent.click(screen.getByLabelText("Include QR code"));
 
-    expect(gardenId).toHaveAttribute("aria-pressed", "true");
+    expect(gardenId).toBeChecked();
     expect(screen.queryByLabelText("Custom template")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /Grower details/i }));
+    fireEvent.click(screen.getByRole("radio", { name: /Grower details/i }));
     expect(screen.getByLabelText("Include QR code")).not.toBeChecked();
-    expect(screen.getByLabelText("Tag Size")).toHaveValue("card-2x4");
+    expect(
+      screen.getByRole("combobox", { name: "Tag Size" }),
+    ).toHaveTextContent(/2.00.*4.00/i);
   });
 
   it("uses presets by default and reveals a simple custom template editor", () => {
     render(<TagDesignerPanel listings={sampleListings} />);
 
     expect(
-      screen.getByRole("button", { name: /Simple name/i }),
+      screen.getByRole("radio", { name: /Simple name/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /Garden ID/i }),
+      screen.getByRole("radio", { name: /Garden ID/i }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /^Grower ID/i }),
+      screen.queryByRole("radio", { name: /^Grower ID/i }),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /Sale tag/i }),
+      screen.getByRole("radio", { name: /Sale tag/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /Grower details/i }),
+      screen.getByRole("radio", { name: /Grower details/i }),
     ).toBeInTheDocument();
     expect(screen.queryByTitle("Column width (fr units)")).toBeNull();
     expect(screen.queryByRole("button", { name: "Add Row" })).toBeNull();
@@ -356,7 +447,7 @@ describe("TagDesignerPanel", () => {
   it("applies the two-line Garden ID template with an auto-sized title", () => {
     render(<TagDesignerPanel listings={sampleListings} />);
 
-    fireEvent.click(screen.getByRole("button", { name: /Garden ID/i }));
+    fireEvent.click(screen.getByRole("radio", { name: /Garden ID/i }));
 
     expect(screen.getByText("Smith, 2015 tet")).toBeInTheDocument();
     expect(
@@ -377,6 +468,41 @@ describe("TagDesignerPanel", () => {
 
     fireEvent.change(editor, { target: { value: "# {{title}}\n" } });
     expect(editor).toHaveValue("# {{title}}\n");
+  });
+
+  it("links editor instructions and errors, and inserts a field at the selection", async () => {
+    const user = userEvent.setup();
+    render(<TagDesignerPanel listings={sampleListings} />);
+    await user.click(
+      screen.getByRole("button", { name: "Customize this template" }),
+    );
+    const editor = screen.getByRole<HTMLTextAreaElement>("textbox", {
+      name: "Custom template",
+    });
+    const instructionsId = editor.getAttribute("aria-describedby");
+    expect(editor).toHaveAccessibleDescription(/One row per line/);
+    for (const radio of screen.getAllByRole("radio"))
+      expect(radio).not.toBeChecked();
+
+    fireEvent.change(editor, {
+      target: { value: "{{unknown}} | {{year}} | {{price}}" },
+    });
+    expect(editor).toHaveAccessibleDescription(/not an available field/);
+    expect(editor).toHaveAccessibleDescription(
+      /Use no more than two columns per row/,
+    );
+    expect(screen.getAllByRole("alert")).toHaveLength(2);
+    fireEvent.change(editor, { target: { value: "# replace me" } });
+    expect(editor).toHaveAttribute("aria-describedby", instructionsId);
+    editor.focus();
+    editor.setSelectionRange(2, editor.value.length);
+    await user.click(screen.getByRole("button", { name: "Insert field" }));
+    await user.click(screen.getByRole("menuitem", { name: /^Title/ }));
+    await waitFor(() => expect(editor).toHaveFocus());
+    expect(editor).toHaveValue("# {{title}}");
+    expect(editor.selectionStart).toBe(editor.value.length);
+    expect(editor.selectionEnd).toBe(editor.value.length);
+    expect(screen.getByText("Moonlit Smile")).toBeInTheDocument();
   });
 
   it("checks readability warnings for selected tags beyond the visible eight", () => {
@@ -420,6 +546,59 @@ describe("TagDesignerPanel", () => {
     );
   });
 
+  it.each(["rejected", "unavailable"])(
+    "supports manual AI prompt copy when the clipboard is %s",
+    async (mode) => {
+      const user = userEvent.setup();
+      const clipboardDescriptor = Object.getOwnPropertyDescriptor(
+        navigator,
+        "clipboard",
+      );
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value:
+          mode === "unavailable"
+            ? undefined
+            : {
+                writeText: vi.fn().mockRejectedValue(new Error("Copy denied")),
+              },
+      });
+      try {
+        render(<TagDesignerPanel listings={sampleListings} />);
+        await user.click(
+          screen.getByRole("button", { name: "Customize this template" }),
+        );
+        const trigger = screen.getByRole("button", {
+          name: "Get AI instructions",
+        });
+        await user.click(trigger);
+        const instructions = screen.getByRole<HTMLTextAreaElement>("textbox", {
+          name: "AI template instructions",
+        });
+        await user.click(
+          screen.getByRole("button", { name: "Copy instructions" }),
+        );
+        expect(await screen.findByRole("status")).toHaveTextContent(
+          "Automatic copy is not available",
+        );
+        expect(instructions).toHaveAccessibleDescription(
+          /Press Ctrl\+C or Command\+C/,
+        );
+        expect(instructions).toHaveFocus();
+        expect(instructions.selectionStart).toBe(0);
+        expect(instructions.selectionEnd).toBe(instructions.value.length);
+        await user.click(screen.getByRole("button", { name: "Close" }));
+        await waitFor(() => expect(trigger).toHaveFocus());
+        await user.click(trigger);
+        expect(screen.queryByRole("status")).not.toBeInTheDocument();
+      } finally {
+        if (clipboardDescriptor)
+          Object.defineProperty(navigator, "clipboard", clipboardDescriptor);
+        else Reflect.deleteProperty(navigator, "clipboard");
+      }
+    },
+  );
+
   it("guards and persists custom templates in this browser", () => {
     const { unmount } = render(<TagDesignerPanel listings={sampleListings} />);
 
@@ -448,11 +627,11 @@ describe("TagDesignerPanel", () => {
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Save as template" }));
     expect(
-      screen.getByRole("button", { name: "Propagation tag" }),
+      screen.getByRole("radio", { name: /Propagation tag/i }),
     ).toBeInTheDocument();
     expect(screen.queryByLabelText("Custom template")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Propagation tag" }));
+    fireEvent.click(screen.getByRole("radio", { name: /Propagation tag/i }));
     fireEvent.click(
       screen.getByRole("button", { name: "Customize this template" }),
     );
@@ -464,17 +643,17 @@ describe("TagDesignerPanel", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
     expect(
-      screen.queryByRole("button", { name: "Propagation tag" }),
+      screen.queryByRole("radio", { name: /^Propagation tag/i }),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Renamed propagation tag" }),
+      screen.getByRole("radio", { name: /Renamed propagation tag/i }),
     ).toBeInTheDocument();
     expect(screen.queryByLabelText("Custom template")).not.toBeInTheDocument();
 
     unmount();
     render(<TagDesignerPanel listings={sampleListings} />);
     expect(
-      screen.getByRole("button", { name: "Renamed propagation tag" }),
+      screen.getByRole("radio", { name: /Renamed propagation tag/i }),
     ).toBeInTheDocument();
   });
 
@@ -495,14 +674,13 @@ describe("TagDesignerPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
 
     expect(screen.queryByLabelText("Custom template")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Garden ID/i })).toHaveAttribute(
-      "aria-pressed",
+    expect(screen.getByRole("radio", { name: /Garden ID/i })).toHaveAttribute(
+      "aria-checked",
       "true",
     );
   });
 
   it("can discard after deleting the template being customized", () => {
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     render(<TagDesignerPanel listings={sampleListings} />);
 
     fireEvent.click(
@@ -512,7 +690,7 @@ describe("TagDesignerPanel", () => {
       target: { value: "Temporary template" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Save as template" }));
-    fireEvent.click(screen.getByRole("button", { name: "Temporary template" }));
+    fireEvent.click(screen.getByRole("radio", { name: /Temporary template/i }));
     fireEvent.click(
       screen.getByRole("button", { name: "Customize this template" }),
     );
@@ -521,11 +699,21 @@ describe("TagDesignerPanel", () => {
         name: "Delete template Temporary template",
       }),
     );
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(
+      screen.getByRole("radio", { name: /Temporary template/i }),
+    ).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Delete template Temporary template",
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /^Delete template$/ }));
     fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
 
     expect(screen.queryByLabelText("Custom template")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Garden ID/i })).toHaveAttribute(
-      "aria-pressed",
+    expect(screen.getByRole("radio", { name: /Garden ID/i })).toHaveAttribute(
+      "aria-checked",
       "true",
     );
   });

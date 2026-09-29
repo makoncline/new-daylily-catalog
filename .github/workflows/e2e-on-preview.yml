@@ -5,7 +5,11 @@ on:
   workflow_dispatch:
     inputs:
       commit_sha:
-        description: "Commit SHA to test (first 8 chars, e.g., abc12345)"
+        description: "Full commit SHA to test"
+        required: true
+        type: string
+      deployment_url:
+        description: "Immutable Vercel deployment URL for this commit"
         required: true
         type: string
 
@@ -29,14 +33,14 @@ jobs:
     env:
       SKIP_ENV_VALIDATION: "1"
     steps:
-      - name: Compute commit SHA
+      - name: Set preview target
         id: sha
+        env:
+          COMMIT_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.commit_sha || github.event.deployment.sha }}
+          BASE_URL: ${{ github.event_name == 'workflow_dispatch' && inputs.deployment_url || github.event.deployment_status.environment_url }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "COMMIT_SHA=${{ github.event.inputs.commit_sha }}" >> $GITHUB_OUTPUT
-          else
-            echo "COMMIT_SHA=${{ github.event.deployment.sha }}" >> $GITHUB_OUTPUT
-          fi
+          echo "COMMIT_SHA=$COMMIT_SHA" >> "$GITHUB_OUTPUT"
+          echo "BASE_URL=$BASE_URL" >> "$GITHUB_ENV"
 
       - name: Enable corepack
         run: corepack enable
@@ -68,13 +72,6 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: pnpm main exec playwright install chromium
 
-      - name: Compute BASE_URL (alias)
-        id: url
-        run: |
-          HASH=$(echo '${{ steps.sha.outputs.COMMIT_SHA }}' | cut -c1-8)
-          echo "BASE_URL=https://${HASH}.deploy-preview.daylilycatalog.com" >> $GITHUB_ENV
-
-      # Optional: wait until alias responds 200 to avoid races
       - name: Wait for ready
         env:
           BASE_URL: ${{ env.BASE_URL }}
