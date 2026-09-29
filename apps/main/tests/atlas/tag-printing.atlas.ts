@@ -141,9 +141,58 @@ test("Garden ID tags; Simple name tags; Sale tags; Grower detail tags; Custom ta
     page.getByRole("button", { name: "Print Sheets" }),
   ).toBeDisabled();
   await captureAtlasState(page, "tag-printing-sheet-invalid");
-  await page.getByRole("button", { name: "Reset to 1 Tag" }).click();
+  const resetSheet = page.getByRole("button", { name: "Reset to 1 Tag" });
+  await resetSheet.click();
 
-  await page.getByRole("button", { name: "Close" }).click();
+  const rows = page.getByRole("spinbutton", { name: "Rows", exact: true });
+  await rows.fill("3");
+  const increaseRows = page.getByRole("button", { name: "Increase Rows" });
+  await increaseRows.click();
+  await expect(rows).toHaveValue("4");
+  await expect(increaseRows).toBeFocused();
+  await expect(page.getByText(/4 tags per sheet/)).toBeVisible();
+  await rows.fill("");
+  await rows.press("Escape");
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await expect(rows).toHaveValue("4");
+  await expect(rows).toHaveAttribute("aria-invalid", "false");
+  await expect(rows).not.toBeFocused();
+  await rows.fill("");
+  await rows.blur();
+  await expect(rows).toHaveAttribute("aria-invalid", "true");
+  await expect(page.getByText(/4 tags per sheet/)).toBeVisible();
+  await resetSheet.click();
+  await expect(rows).toHaveValue("1");
+  await expect(rows).toHaveAttribute("aria-invalid", "false");
+  await expect(resetSheet).toBeFocused();
+  await expect(page.getByText(/1 tag per sheet/)).toBeVisible();
+  const pageHeight = page.getByRole("spinbutton", { name: "Page height (in)" });
+  await pageHeight.fill("12");
+  await pageHeight.press("Enter");
+  await rows.fill("2");
+  await increaseRows.click();
+  await expect(rows).toHaveValue("3");
+  await expect(page.getByText(/3 tags per sheet/)).toBeVisible();
+  await expect(page.getByText(/Page too small for this layout/)).toBeHidden();
+  await increaseRows.press("Space");
+  await expect(rows).toHaveValue("4");
+  await rows.fill("20");
+  await rows.press("Enter");
+  await increaseRows.click();
+  await expect(rows).toHaveValue("20");
+  await expect(page.getByText(/20 tags per sheet/)).toBeVisible();
+  const decreaseRows = page.getByRole("button", { name: "Decrease Rows" });
+  await decreaseRows.focus();
+  await decreaseRows.press("Enter");
+  await expect(rows).toHaveValue("19");
+  await rows.fill("1");
+  await rows.press("Enter");
+  await decreaseRows.click();
+  await expect(rows).toHaveValue("1");
+  await resetSheet.click();
+  await resetSheet.press("Escape");
+  await expect(page.getByRole("dialog")).toBeHidden();
+
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("radio", { name: /Garden ID/i }).click();
   await captureAtlasState(page, "tag-printing-mobile-garden-id");
@@ -251,4 +300,73 @@ test("Garden ID tags; Simple name tags; Sale tags; Grower detail tags; Custom ta
   await expect(savedTemplate).toBeHidden();
   await expect(page.getByLabel("Custom template")).toBeVisible();
   await expect(page.getByLabel("Custom template")).toBeFocused();
+
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const editor = page.getByLabel("Custom template");
+  await editor.fill("{{unknown}} | {{year}} | {{price}}");
+  await expect(editor).toHaveAccessibleDescription(/not an available field/);
+  await expect(editor).toHaveAccessibleDescription(
+    /Use no more than two columns per row/,
+  );
+  await expect(page.getByRole("radio", { checked: true })).toHaveCount(0);
+  await captureAtlasState(page, "tag-printing-template-errors");
+  await editor.fill("# replace me");
+  await editor.evaluate((element: HTMLTextAreaElement) => {
+    element.focus();
+    element.setSelectionRange(2, element.value.length);
+  });
+  await page.getByRole("button", { name: "Insert field" }).click();
+  await page.getByRole("menuitem", { name: /^Title/ }).click();
+  await expect(editor).toHaveValue("# {{title}}");
+  await expect(editor).toBeFocused();
+
+  await page.evaluate(() =>
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: () => Promise.reject(new Error("Clipboard denied")) },
+    }),
+  );
+  const aiTrigger = page.getByRole("button", { name: "Get AI instructions" });
+  await aiTrigger.click();
+  const aiInstructions = page.getByLabel("AI template instructions");
+  await page.getByRole("button", { name: "Copy instructions" }).click();
+  await expect(aiInstructions).toBeFocused();
+  await expect(aiInstructions).toHaveAccessibleDescription(
+    /Press Ctrl\+C or Command\+C/,
+  );
+  expect(
+    await aiInstructions.evaluate(
+      (element: HTMLTextAreaElement) =>
+        element.selectionStart === 0 &&
+        element.selectionEnd === element.value.length,
+    ),
+  ).toBe(true);
+  await captureAtlasState(page, "tag-printing-ai-manual-copy");
+  await page.getByRole("button", { name: "Close" }).click();
+  await expect(aiTrigger).toBeFocused();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() =>
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: undefined,
+    }),
+  );
+  await aiTrigger.click();
+  await expect(page.getByRole("status")).toHaveCount(0);
+  await page.getByRole("button", { name: "Copy instructions" }).click();
+  await expect(aiInstructions).toBeFocused();
+  await expect(page.getByRole("status")).toContainText(
+    "Automatic copy is not available",
+  );
+  expect(
+    await aiInstructions.evaluate(
+      (element: HTMLTextAreaElement) =>
+        element.selectionStart === 0 &&
+        element.selectionEnd === element.value.length,
+    ),
+  ).toBe(true);
+  await captureAtlasState(page, "tag-printing-mobile-ai-manual-copy");
+  await page.getByRole("button", { name: "Close" }).click();
+  await expect(aiTrigger).toBeFocused();
 });

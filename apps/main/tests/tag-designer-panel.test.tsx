@@ -5,7 +5,8 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createTagPrintDocumentHtml,
   createTagSheetDocumentHtml,
@@ -336,6 +337,59 @@ describe("TagDesignerPanel", () => {
     expect(screen.getByRole("button", { name: "Download" })).toBeDisabled();
   });
 
+  it("commits numeric drafts before a step, restores on Escape, and clears drafts on reset", async () => {
+    const user = userEvent.setup();
+    render(<TagDesignerPanel listings={sampleListings} />);
+    fireEvent.click(screen.getByRole("combobox", { name: "Tag Size" }));
+    fireEvent.click(screen.getByRole("option", { name: /Custom/i }));
+    const width = screen.getByLabelText("Width (in)");
+    await user.clear(width);
+    await user.type(width, "4.256");
+    expect(screen.getByRole("article")).toHaveStyle({ width: "3.5in" });
+    await user.keyboard("{Enter}");
+    expect(width).toHaveValue(4.26);
+    expect(screen.getByRole("article")).toHaveStyle({ width: "4.26in" });
+
+    await user.click(screen.getByRole("button", { name: "Make sheet" }));
+    const dialog = screen.getByRole("dialog");
+    const rows = within(dialog).getByLabelText("Rows");
+    await user.clear(rows);
+    await user.type(rows, "3");
+    expect(within(dialog).getByText(/1 tag per sheet/)).toBeInTheDocument();
+    const increase = within(dialog).getByRole("button", {
+      name: "Increase Rows",
+    });
+    await user.click(increase);
+    expect(rows).toHaveValue(4);
+    expect(increase).toHaveFocus();
+    expect(within(dialog).getByText(/4 tags per sheet/)).toBeInTheDocument();
+
+    await user.clear(rows);
+    await user.keyboard("{Escape}");
+    expect(dialog).toBeInTheDocument();
+    expect(rows).toHaveValue(4);
+    expect(rows).toHaveAttribute("aria-invalid", "false");
+    expect(rows).not.toHaveFocus();
+
+    await user.clear(rows);
+    await user.tab();
+    expect(rows).toHaveAttribute("aria-invalid", "true");
+    expect(within(dialog).getByText(/4 tags per sheet/)).toBeInTheDocument();
+    const reset = within(dialog).getByRole("button", {
+      name: "Reset to 1 Tag",
+    });
+    await user.click(reset);
+    expect(within(dialog).getByLabelText("Rows")).toHaveValue(1);
+    expect(within(dialog).getByLabelText("Rows")).toHaveAttribute(
+      "aria-invalid",
+      "false",
+    );
+    expect(within(dialog).getByText(/1 tag per sheet/)).toBeInTheDocument();
+    expect(reset).toHaveFocus();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
   it("keeps template content selected when size and QR settings change", () => {
     render(<TagDesignerPanel listings={sampleListings} />);
 
@@ -416,6 +470,41 @@ describe("TagDesignerPanel", () => {
     expect(editor).toHaveValue("# {{title}}\n");
   });
 
+  it("links editor instructions and errors, and inserts a field at the selection", async () => {
+    const user = userEvent.setup();
+    render(<TagDesignerPanel listings={sampleListings} />);
+    await user.click(
+      screen.getByRole("button", { name: "Customize this template" }),
+    );
+    const editor = screen.getByRole<HTMLTextAreaElement>("textbox", {
+      name: "Custom template",
+    });
+    const instructionsId = editor.getAttribute("aria-describedby");
+    expect(editor).toHaveAccessibleDescription(/One row per line/);
+    for (const radio of screen.getAllByRole("radio"))
+      expect(radio).not.toBeChecked();
+
+    fireEvent.change(editor, {
+      target: { value: "{{unknown}} | {{year}} | {{price}}" },
+    });
+    expect(editor).toHaveAccessibleDescription(/not an available field/);
+    expect(editor).toHaveAccessibleDescription(
+      /Use no more than two columns per row/,
+    );
+    expect(screen.getAllByRole("alert")).toHaveLength(2);
+    fireEvent.change(editor, { target: { value: "# replace me" } });
+    expect(editor).toHaveAttribute("aria-describedby", instructionsId);
+    editor.focus();
+    editor.setSelectionRange(2, editor.value.length);
+    await user.click(screen.getByRole("button", { name: "Insert field" }));
+    await user.click(screen.getByRole("menuitem", { name: /^Title/ }));
+    await waitFor(() => expect(editor).toHaveFocus());
+    expect(editor).toHaveValue("# {{title}}");
+    expect(editor.selectionStart).toBe(editor.value.length);
+    expect(editor.selectionEnd).toBe(editor.value.length);
+    expect(screen.getByText("Moonlit Smile")).toBeInTheDocument();
+  });
+
   it("checks readability warnings for selected tags beyond the visible eight", () => {
     const listings = Array.from({ length: 9 }, (_, index) => ({
       ...sampleListings[0]!,
@@ -456,6 +545,59 @@ describe("TagDesignerPanel", () => {
       'Tag size: 3.50" × 1.00"',
     );
   });
+
+  it.each(["rejected", "unavailable"])(
+    "supports manual AI prompt copy when the clipboard is %s",
+    async (mode) => {
+      const user = userEvent.setup();
+      const clipboardDescriptor = Object.getOwnPropertyDescriptor(
+        navigator,
+        "clipboard",
+      );
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value:
+          mode === "unavailable"
+            ? undefined
+            : {
+                writeText: vi.fn().mockRejectedValue(new Error("Copy denied")),
+              },
+      });
+      try {
+        render(<TagDesignerPanel listings={sampleListings} />);
+        await user.click(
+          screen.getByRole("button", { name: "Customize this template" }),
+        );
+        const trigger = screen.getByRole("button", {
+          name: "Get AI instructions",
+        });
+        await user.click(trigger);
+        const instructions = screen.getByRole<HTMLTextAreaElement>("textbox", {
+          name: "AI template instructions",
+        });
+        await user.click(
+          screen.getByRole("button", { name: "Copy instructions" }),
+        );
+        expect(await screen.findByRole("status")).toHaveTextContent(
+          "Automatic copy is not available",
+        );
+        expect(instructions).toHaveAccessibleDescription(
+          /Press Ctrl\+C or Command\+C/,
+        );
+        expect(instructions).toHaveFocus();
+        expect(instructions.selectionStart).toBe(0);
+        expect(instructions.selectionEnd).toBe(instructions.value.length);
+        await user.click(screen.getByRole("button", { name: "Close" }));
+        await waitFor(() => expect(trigger).toHaveFocus());
+        await user.click(trigger);
+        expect(screen.queryByRole("status")).not.toBeInTheDocument();
+      } finally {
+        if (clipboardDescriptor)
+          Object.defineProperty(navigator, "clipboard", clipboardDescriptor);
+        else Reflect.deleteProperty(navigator, "clipboard");
+      }
+    },
+  );
 
   it("guards and persists custom templates in this browser", () => {
     const { unmount } = render(<TagDesignerPanel listings={sampleListings} />);

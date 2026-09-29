@@ -7,8 +7,6 @@ import {
   FileDown,
   FileImage,
   FileText,
-  Minus,
-  Plus,
   Printer,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,11 +15,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Field,
   FieldDescription,
-  FieldError,
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,7 +40,6 @@ import {
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import {
-  CSS_PIXELS_PER_INCH,
   MAX_SHEET_COLUMNS,
   MAX_SHEET_COPIES_PER_LABEL,
   MAX_SHEET_MARGIN_INCHES,
@@ -59,9 +54,6 @@ import {
   MIN_SHEET_ROWS,
   MIN_TAG_HEIGHT_INCHES,
   MIN_TAG_WIDTH_INCHES,
-  formatSheetNumberForInput,
-  normalizeSheetNumber,
-  parseSheetNumberInput,
 } from "./tag-designer-model";
 import type {
   ResolvedSheetMetrics,
@@ -69,7 +61,8 @@ import type {
   TagSheetCreatorState,
   UpdateTagSheetCreatorState,
 } from "./tag-designer-model";
-import { TagPreviewCard } from "./tag-preview";
+import { TagNumberField } from "./tag-number-field";
+import { TagSheetPreview } from "./tag-sheet-preview";
 
 type SheetNumberStateKey = {
   [Key in keyof TagSheetCreatorState]: TagSheetCreatorState[Key] extends number
@@ -160,136 +153,6 @@ const SHEET_NUMBER_FIELDS: Array<{
   },
 ];
 
-interface SheetNumberFieldProps {
-  id: string;
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  decimals: number;
-  onCommit: (nextValue: number) => void;
-}
-
-function SheetNumberField({
-  id,
-  label,
-  value,
-  min,
-  max,
-  step,
-  decimals,
-  onCommit,
-}: SheetNumberFieldProps) {
-  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
-
-  const rangeText = React.useMemo(() => {
-    const minText = formatSheetNumberForInput(min, decimals);
-    const maxText = formatSheetNumberForInput(max, decimals);
-    const prefix = decimals === 0 ? "whole number" : "number";
-    return `Enter a ${prefix} between ${minText} and ${maxText}.`;
-  }, [decimals, max, min]);
-
-  const commitDraftValue = React.useCallback(
-    (inputElement: HTMLInputElement) => {
-      const trimmedValue = inputElement.value.trim();
-      const parsedValue = parseSheetNumberInput(trimmedValue, decimals);
-      if (parsedValue === null || parsedValue < min || parsedValue > max) {
-        setErrorMessage(`${rangeText} Type a value and leave the field.`);
-        return;
-      }
-
-      const normalizedValue = normalizeSheetNumber(
-        parsedValue,
-        min,
-        max,
-        decimals,
-      );
-      onCommit(normalizedValue);
-      inputElement.value = formatSheetNumberForInput(normalizedValue, decimals);
-      setErrorMessage(null);
-    },
-    [decimals, max, min, onCommit, rangeText],
-  );
-
-  const stepValue = React.useCallback(
-    (direction: -1 | 1) => {
-      const nextValue = normalizeSheetNumber(
-        value + step * direction,
-        min,
-        max,
-        decimals,
-      );
-      onCommit(nextValue);
-      setErrorMessage(null);
-    },
-    [decimals, max, min, onCommit, step, value],
-  );
-
-  return (
-    <Field data-invalid={Boolean(errorMessage)}>
-      <FieldLabel htmlFor={id}>{label}</FieldLabel>
-      <div className="flex items-center gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          className="shrink-0"
-          aria-label={`Decrease ${label}`}
-          onClick={() => stepValue(-1)}
-        >
-          <Minus />
-        </Button>
-
-        <Input
-          key={`${id}-${value}`}
-          id={id}
-          type="number"
-          min={min}
-          max={max}
-          step={step}
-          inputMode={decimals === 0 ? "numeric" : "decimal"}
-          defaultValue={formatSheetNumberForInput(value, decimals)}
-          onChange={() => {
-            if (errorMessage) setErrorMessage(null);
-          }}
-          onBlur={(event) => commitDraftValue(event.currentTarget)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.currentTarget.blur();
-            }
-            if (event.key === "Escape") {
-              event.currentTarget.value = formatSheetNumberForInput(
-                value,
-                decimals,
-              );
-              setErrorMessage(null);
-              event.currentTarget.blur();
-            }
-          }}
-          aria-invalid={Boolean(errorMessage)}
-          aria-describedby={errorMessage ? `${id}-error` : undefined}
-        />
-
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          className="shrink-0"
-          aria-label={`Increase ${label}`}
-          onClick={() => stepValue(1)}
-        >
-          <Plus />
-        </Button>
-      </div>
-
-      {errorMessage ? (
-        <FieldError id={`${id}-error`}>{errorMessage}</FieldError>
-      ) : null}
-    </Field>
-  );
-}
-
 interface TagSheetCreatorDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -308,7 +171,7 @@ interface TagSheetCreatorDialogProps {
   isPreparingDownload: boolean;
 }
 
-function useTagSheetCreatorDialogController({
+export function TagSheetCreatorDialog({
   open,
   onOpenChange,
   selectedLabelCount,
@@ -325,84 +188,21 @@ function useTagSheetCreatorDialogController({
   onResetToSingleTag,
   isPreparingDownload,
 }: TagSheetCreatorDialogProps) {
-  const [isPrintQuantityOpen, setIsPrintQuantityOpen] = React.useState(false);
-
-  React.useEffect(() => {
-    if (!open) return;
-    setIsPrintQuantityOpen(false);
-  }, [open]);
-
-  const totalLabelCount = selectedLabelCount * copiesPerLabel;
-  const estimatedSheetCount =
-    sheetMetrics.tagsPerSheet > 0
-      ? Math.ceil(totalLabelCount / sheetMetrics.tagsPerSheet)
-      : 0;
-  const firstSheetPreviewTags = React.useMemo(
-    () => previewTags.slice(0, sheetMetrics.tagsPerSheet),
-    [previewTags, sheetMetrics.tagsPerSheet],
-  );
-  const pageWidthPx = sheetState.pageWidthInches * CSS_PIXELS_PER_INCH;
-  const pageHeightPx = sheetState.pageHeightInches * CSS_PIXELS_PER_INCH;
-  const slotWidthPx = sheetMetrics.slotWidthInches * CSS_PIXELS_PER_INCH;
-  const slotHeightPx = sheetMetrics.slotHeightInches * CSS_PIXELS_PER_INCH;
-  const marginXPx = sheetState.marginXInches * CSS_PIXELS_PER_INCH;
-  const marginYPx = sheetState.marginYInches * CSS_PIXELS_PER_INCH;
-  const paddingXPx = sheetState.paddingXInches * CSS_PIXELS_PER_INCH;
-  const paddingYPx = sheetState.paddingYInches * CSS_PIXELS_PER_INCH;
-  const previewMaxWidthPx = 560;
-  const previewScale =
-    pageWidthPx > 0 ? Math.min(previewMaxWidthPx / pageWidthPx, 1) : 1;
-  const canExport = sheetMetrics.isValid && totalLabelCount > 0;
-
-  return {
-    canExport,
-    copiesPerLabel,
-    estimatedSheetCount,
-    firstSheetPreviewTags,
-    isPreparingDownload,
-    isPrintQuantityOpen,
-    marginXPx,
-    marginYPx,
-    onCopiesPerLabelChange,
-    onDownloadSheetImages,
-    onDownloadSheetPages,
-    onDownloadSheetPdf,
-    onOpenChange,
-    onPrintSheets,
-    onResetToSingleTag,
-    open,
-    paddingXPx,
-    paddingYPx,
-    pageHeightPx,
-    pageWidthPx,
-    previewScale,
-    selectedLabelCount,
-    setIsPrintQuantityOpen,
-    sheetMetrics,
-    sheetState,
-    slotHeightPx,
-    slotWidthPx,
-    totalLabelCount,
-    updateSheetState,
-  };
-}
-
-export function TagSheetCreatorDialog(props: TagSheetCreatorDialogProps) {
-  const controller = useTagSheetCreatorDialogController(props);
-
-  return <TagSheetCreatorDialogView controller={controller} />;
-}
-
-function TagSheetCreatorDialogView({
-  controller,
-}: {
-  controller: ReturnType<typeof useTagSheetCreatorDialogController>;
-}) {
-  const { onOpenChange, open } = controller;
+  const [settingsVersion, setSettingsVersion] = React.useState(0);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent
+        className="sm:max-w-2xl"
+        onEscapeKeyDown={(event) => {
+          if (
+            event.target instanceof HTMLInputElement &&
+            event.target.type === "number"
+          ) {
+            event.preventDefault();
+          }
+        }}
+      >
         <DialogHeader>
           <DialogTitle>Sheet Creator</DialogTitle>
           <DialogDescription>
@@ -410,37 +210,58 @@ function TagSheetCreatorDialogView({
             print on paper or Save as PDF.
           </DialogDescription>
         </DialogHeader>
-
-        <TagSheetSettings controller={controller} />
-
-        <TagSheetSummary controller={controller} />
-
-        <TagSheetPreview controller={controller} />
-
-        <TagSheetActions controller={controller} />
+        <TagSheetSettings
+          key={settingsVersion}
+          copiesPerLabel={copiesPerLabel}
+          onCopiesPerLabelChange={onCopiesPerLabelChange}
+          sheetState={sheetState}
+          updateSheetState={updateSheetState}
+        />
+        <TagSheetSummary
+          copiesPerLabel={copiesPerLabel}
+          selectedLabelCount={selectedLabelCount}
+          sheetMetrics={sheetMetrics}
+        />
+        <TagSheetPreview
+          previewTags={previewTags}
+          sheetState={sheetState}
+          sheetMetrics={sheetMetrics}
+        />
+        <TagSheetActions
+          canExport={sheetMetrics.isValid && previewTags.length > 0}
+          isPreparingDownload={isPreparingDownload}
+          onDownloadSheetPages={onDownloadSheetPages}
+          onDownloadSheetPdf={onDownloadSheetPdf}
+          onDownloadSheetImages={onDownloadSheetImages}
+          onPrintSheets={onPrintSheets}
+          onResetToSingleTag={() => {
+            onResetToSingleTag();
+            setSettingsVersion((version) => version + 1);
+          }}
+        />
       </DialogContent>
     </Dialog>
   );
 }
 
 function TagSheetSettings({
-  controller,
+  copiesPerLabel,
+  onCopiesPerLabelChange,
+  sheetState,
+  updateSheetState,
 }: {
-  controller: ReturnType<typeof useTagSheetCreatorDialogController>;
+  copiesPerLabel: number;
+  onCopiesPerLabelChange: (value: number) => void;
+  sheetState: TagSheetCreatorState;
+  updateSheetState: UpdateTagSheetCreatorState;
 }) {
-  const {
-    copiesPerLabel,
-    isPrintQuantityOpen,
-    onCopiesPerLabelChange,
-    setIsPrintQuantityOpen,
-    sheetState,
-    updateSheetState,
-  } = controller;
+  const [isPrintQuantityOpen, setIsPrintQuantityOpen] = React.useState(false);
 
   return (
     <FieldGroup className="grid md:grid-cols-2">
       {SHEET_NUMBER_FIELDS.map((field) => (
-        <SheetNumberField
+        <TagNumberField
+          showSteppers
           key={field.id}
           id={field.id}
           label={field.label}
@@ -497,7 +318,8 @@ function TagSheetSettings({
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-3">
             <FieldGroup>
-              <SheetNumberField
+              <TagNumberField
+                showSteppers
                 id="sheet-copies-per-label"
                 label="Copies of each selected label"
                 value={copiesPerLabel}
@@ -520,17 +342,19 @@ function TagSheetSettings({
 }
 
 function TagSheetSummary({
-  controller,
+  copiesPerLabel,
+  selectedLabelCount,
+  sheetMetrics,
 }: {
-  controller: ReturnType<typeof useTagSheetCreatorDialogController>;
+  copiesPerLabel: number;
+  selectedLabelCount: number;
+  sheetMetrics: ResolvedSheetMetrics;
 }) {
-  const {
-    copiesPerLabel,
-    estimatedSheetCount,
-    selectedLabelCount,
-    sheetMetrics,
-    totalLabelCount,
-  } = controller;
+  const totalLabelCount = selectedLabelCount * copiesPerLabel;
+  const estimatedSheetCount =
+    sheetMetrics.tagsPerSheet > 0
+      ? Math.ceil(totalLabelCount / sheetMetrics.tagsPerSheet)
+      : 0;
 
   return (
     <div className="flex flex-col gap-1 text-sm">
@@ -564,104 +388,23 @@ function TagSheetSummary({
   );
 }
 
-function TagSheetPreview({
-  controller,
-}: {
-  controller: ReturnType<typeof useTagSheetCreatorDialogController>;
-}) {
-  const {
-    estimatedSheetCount,
-    firstSheetPreviewTags,
-    marginXPx,
-    marginYPx,
-    paddingXPx,
-    paddingYPx,
-    pageHeightPx,
-    pageWidthPx,
-    previewScale,
-    selectedLabelCount,
-    sheetMetrics,
-    sheetState,
-    slotHeightPx,
-    slotWidthPx,
-  } = controller;
-
-  return (
-    <div className="flex flex-col gap-2">
-      <h4 className="text-sm font-medium">Sheet Preview</h4>
-      {sheetMetrics.isValid && firstSheetPreviewTags.length > 0 ? (
-        <>
-          <div className="overflow-auto py-1">
-            <div
-              className="mx-auto"
-              style={{
-                width: `${pageWidthPx * previewScale}px`,
-                height: `${pageHeightPx * previewScale}px`,
-              }}
-            >
-              <div
-                className="origin-top-left"
-                style={{
-                  width: `${pageWidthPx}px`,
-                  height: `${pageHeightPx}px`,
-                  transform: `scale(${previewScale})`,
-                }}
-              >
-                <div
-                  className="border-border grid size-full content-start justify-start border bg-white"
-                  style={{
-                    padding: `${marginYPx}px ${marginXPx}px`,
-                    gridTemplateColumns: `repeat(${sheetState.columns}, ${slotWidthPx}px)`,
-                    gridTemplateRows: `repeat(${sheetState.rows}, ${slotHeightPx}px)`,
-                    columnGap: `${paddingXPx}px`,
-                    rowGap: `${paddingYPx}px`,
-                  }}
-                >
-                  {firstSheetPreviewTags.map((tag) => (
-                    <TagPreviewCard
-                      key={`sheet-preview-${tag.id}`}
-                      tag={tag}
-                      widthInches={sheetMetrics.slotWidthInches}
-                      heightInches={sheetMetrics.slotHeightInches}
-                      className="border-muted-foreground/40"
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-          {estimatedSheetCount > 1 ? (
-            <p className="text-muted-foreground text-xs">
-              Preview shows the first sheet only.
-            </p>
-          ) : null}
-        </>
-      ) : (
-        <p className="text-muted-foreground text-sm">
-          {selectedLabelCount === 0
-            ? "Select listings below to preview sheet output."
-            : "Adjust settings so the selected page can fit the tag grid."}
-        </p>
-      )}
-    </div>
-  );
-}
-
 function TagSheetActions({
-  controller,
+  canExport,
+  isPreparingDownload,
+  onDownloadSheetImages,
+  onDownloadSheetPages,
+  onDownloadSheetPdf,
+  onPrintSheets,
+  onResetToSingleTag,
 }: {
-  controller: ReturnType<typeof useTagSheetCreatorDialogController>;
+  canExport: boolean;
+  isPreparingDownload: boolean;
+  onDownloadSheetImages: () => void;
+  onDownloadSheetPages: () => void;
+  onDownloadSheetPdf: () => void;
+  onPrintSheets: () => void;
+  onResetToSingleTag: () => void;
 }) {
-  const {
-    canExport,
-    isPreparingDownload,
-    onDownloadSheetImages,
-    onDownloadSheetPages,
-    onDownloadSheetPdf,
-    onPrintSheets,
-    onResetToSingleTag,
-  } = controller;
-
   return (
     <DialogFooter>
       <Button type="button" variant="ghost" onClick={onResetToSingleTag}>
