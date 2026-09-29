@@ -31,6 +31,7 @@ type CultivarReferenceAhsListing =
 interface AhsListingLinkProps {
   listing: RouterOutputs["dashboardDb"]["listing"]["list"][number];
   linkedAhs: CultivarReferenceAhsListing | null;
+  cultivarHref?: string | null;
   cultivarReferenceImage?: OptimizedImageSource | null;
   onNameChange?: (name: string) => void;
   onMutationSuccess?: (listing: ListingCollectionItem) => void;
@@ -39,6 +40,7 @@ interface AhsListingLinkProps {
 export function AhsListingLink({
   listing,
   linkedAhs,
+  cultivarHref,
   cultivarReferenceImage,
   onNameChange,
   onMutationSuccess,
@@ -155,6 +157,7 @@ export function AhsListingLink({
             </div>
             <AhsListingDisplay
               ahsListing={linkedAhs}
+              cultivarHref={cultivarHref}
               cultivarReferenceImage={cultivarReferenceImage}
             />
           </CardContent>

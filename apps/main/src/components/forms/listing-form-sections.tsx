@@ -79,12 +79,14 @@ export function ListingListsSection({
 
 export function ListingCultivarLinkSection({
   linkedAhs,
+  linkedCultivarHref,
   linkedCultivarReferenceImage,
   listing,
   onMutationSuccess,
   onNameChange,
 }: {
   linkedAhs: LinkedAhsListing | null;
+  linkedCultivarHref: string | null;
   linkedCultivarReferenceImage: LinkedCultivarReferenceImage | null;
   listing: ListingCollectionItem;
   onMutationSuccess: (listing: ListingCollectionItem) => void;
@@ -99,6 +101,7 @@ export function ListingCultivarLinkSection({
       <AhsListingLink
         listing={listing}
         linkedAhs={linkedAhs}
+        cultivarHref={linkedCultivarHref}
         cultivarReferenceImage={linkedCultivarReferenceImage}
         onNameChange={onNameChange}
         onMutationSuccess={onMutationSuccess}

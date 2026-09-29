@@ -12,6 +12,7 @@ import {
 } from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
 import { imagesCollection } from "@/app/dashboard/_lib/dashboard-db/images-collection";
 import { listsCollection } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
+import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
 
 type LinkedAhsListing = CultivarReferenceCollectionItem["ahsListing"];
 type LinkedCultivarReferenceImage =
@@ -21,6 +22,7 @@ export interface ListingEditorResource {
   images: Image[];
   isReady: boolean;
   linkedAhs: LinkedAhsListing | null;
+  linkedCultivarHref: string | null;
   linkedCultivarReferenceImage: LinkedCultivarReferenceImage | null;
   listing: ListingCollectionItem | null;
   selectedListIds: string[];
@@ -68,6 +70,12 @@ export function useListingEditorResource(
       ) ?? null)
     : null;
   const linkedAhs = linkedCultivarReference?.ahsListing ?? null;
+  const cultivarRouteSegment = toCultivarRouteSegment(
+    linkedCultivarReference?.normalizedName,
+  );
+  const linkedCultivarHref = cultivarRouteSegment
+    ? `/cultivar/${cultivarRouteSegment}`
+    : null;
   const linkedCultivarReferenceImage =
     linkedCultivarReference?.cultivarReferenceImage ?? null;
 
@@ -79,6 +87,7 @@ export function useListingEditorResource(
       isImagesReady &&
       isListsReady,
     linkedAhs,
+    linkedCultivarHref,
     linkedCultivarReferenceImage,
     listing,
     selectedListIds,
