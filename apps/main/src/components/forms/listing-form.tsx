@@ -111,6 +111,7 @@ function useListingFormController({
   listingId,
   listing,
   linkedAhs,
+  linkedCultivarHref,
   linkedCultivarReferenceImage,
   images,
   selectedListIds,
@@ -122,6 +123,7 @@ function useListingFormController({
   listingId: string;
   listing: ListingCollectionItem;
   linkedAhs: LinkedAhsListing | null;
+  linkedCultivarHref: string | null;
   linkedCultivarReferenceImage: LinkedCultivarReferenceImage | null;
   images: Image[];
   selectedListIds: string[];
@@ -309,6 +311,7 @@ function useListingFormController({
     isSaving,
     isDeleteDialogOpen,
     linkedAhs,
+    linkedCultivarHref,
     linkedCultivarReferenceImage,
     listing,
     listingId,
@@ -341,6 +344,7 @@ function ListingFormFields({
   isSaving,
   isDeleteDialogOpen,
   linkedAhs,
+  linkedCultivarHref,
   linkedCultivarReferenceImage,
   listing,
   listingId,
@@ -489,6 +493,7 @@ function ListingFormFields({
         <ListingCultivarLinkSection
           listing={listing}
           linkedAhs={linkedAhs}
+          linkedCultivarHref={linkedCultivarHref}
           linkedCultivarReferenceImage={linkedCultivarReferenceImage}
           onNameChange={(name) => {
             form.setValue("title", name);
@@ -544,6 +549,7 @@ function ListingFormLive({
     images,
     isReady,
     linkedAhs,
+    linkedCultivarHref,
     linkedCultivarReferenceImage,
     listing,
     selectedListIds,
@@ -558,6 +564,7 @@ function ListingFormLive({
       listingId={listingId}
       listing={listing}
       linkedAhs={linkedAhs}
+      linkedCultivarHref={linkedCultivarHref}
       linkedCultivarReferenceImage={linkedCultivarReferenceImage}
       images={images}
       selectedListIds={selectedListIds}
