@@ -300,6 +300,7 @@ test("Garden ID tags; Simple name tags; Sale tags; Grower detail tags; Custom ta
   await expect(savedTemplate).toBeHidden();
   await expect(page.getByLabel("Custom template")).toBeVisible();
   await expect(page.getByLabel("Custom template")).toBeFocused();
+  await expect(page.getByText("Template deleted.", { exact: true })).toBeHidden();
 
   await page.setViewportSize({ width: 1440, height: 1000 });
   const editor = page.getByLabel("Custom template");
