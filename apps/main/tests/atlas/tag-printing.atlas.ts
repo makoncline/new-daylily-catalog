@@ -39,6 +39,21 @@ async function openTagsWithMixedListings(
   await expect(page.getByText("8 selected listings.")).toBeVisible();
 }
 
+async function expectSquareSheetSteppers(
+  page: Parameters<typeof captureAtlasState>[0],
+) {
+  const steppers = page
+    .getByRole("dialog")
+    .getByRole("button", { name: /^(Decrease|Increase) / });
+  const count = await steppers.count();
+  expect(count).toBeGreaterThan(0);
+  for (let index = 0; index < count; index += 1) {
+    const bounds = await steppers.nth(index).boundingBox();
+    expect(bounds).not.toBeNull();
+    expect(Math.abs(bounds!.width - bounds!.height)).toBeLessThanOrEqual(1);
+  }
+}
+
 test("Garden ID tags; Simple name tags; Sale tags; Grower detail tags; Custom tag template; AI template instructions; Sheet creator", async ({
   page,
 }) => {
@@ -109,6 +124,7 @@ test("Garden ID tags; Simple name tags; Sale tags; Grower detail tags; Custom ta
   await expect(
     page.getByRole("heading", { name: "Sheet Creator" }),
   ).toBeVisible();
+  await expectSquareSheetSteppers(page);
   await captureAtlasState(page, "tag-printing-sheet");
 
   await page.getByRole("button", { name: "Print quantity" }).click();
@@ -163,6 +179,7 @@ test("Garden ID tags; Simple name tags; Sale tags; Grower detail tags; Custom ta
   await page.getByRole("option", { name: 'Card 2.00" × 4.00"' }).click();
 
   await page.getByRole("button", { name: "Make sheet" }).click();
+  await expectSquareSheetSteppers(page);
   await captureAtlasState(page, "tag-printing-mobile-sheet");
   await page.getByRole("button", { name: "Close" }).click();
   await expect(page.getByRole("dialog")).toBeHidden();
@@ -170,4 +187,68 @@ test("Garden ID tags; Simple name tags; Sale tags; Grower detail tags; Custom ta
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.evaluate(() => document.documentElement.classList.add("dark"));
   await captureAtlasState(page, "tag-printing-dark-garden-id");
+
+  await page.evaluate(() => document.documentElement.classList.remove("dark"));
+  await page.getByRole("button", { name: "Customize this template" }).click();
+  await page.getByLabel("Custom template").fill("# {{title}}\n- {{price}}");
+  await page.getByLabel("Template name").fill("Atlas saved template");
+  await page.getByRole("button", { name: "Save as template" }).click();
+  const savedTemplate = page.getByRole("radio", {
+    name: /Atlas saved template/i,
+  });
+  await savedTemplate.click();
+  await expect(savedTemplate).toBeChecked();
+  await captureAtlasState(page, "tag-printing-saved-template");
+
+  const deleteTrigger = page.getByRole("button", {
+    name: "Delete template Atlas saved template",
+  });
+  await deleteTrigger.click();
+  const deleteAction = page.getByRole("button", {
+    name: /^Delete template$/,
+  });
+  await expect(deleteAction).toBeVisible();
+  const deleteColors = await deleteAction.evaluate((button) => {
+    const reference = document.createElement("div");
+    reference.className = "bg-destructive text-destructive-foreground";
+    document.body.append(reference);
+    const actual = getComputedStyle(button);
+    const expected = getComputedStyle(reference);
+    const colors = {
+      actualBackground: actual.backgroundColor,
+      expectedBackground: expected.backgroundColor,
+      actualText: actual.color,
+      expectedText: expected.color,
+    };
+    reference.remove();
+    return colors;
+  });
+  expect(deleteColors.actualBackground).toBe(deleteColors.expectedBackground);
+  expect(deleteColors.actualText).toBe(deleteColors.expectedText);
+  await captureAtlasState(page, "tag-printing-delete-confirmation");
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(deleteTrigger).toBeFocused();
+  await expect(savedTemplate).toBeChecked();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await previews.evaluate((element) => {
+    element.scrollLeft = 0;
+  });
+  const firstSavedTag = previews.getByRole("article").first();
+  await firstSavedTag.scrollIntoViewIfNeeded();
+  await expect(firstSavedTag).toBeInViewport({
+    ratio: 0.25,
+  });
+  await expect(previews.getByText("Bee-ba-tized")).toBeInViewport();
+  await expect(page.getByText("Template saved.", { exact: true })).toBeHidden();
+  await captureAtlasState(page, "tag-printing-mobile-saved-template");
+  await deleteTrigger.click();
+  await captureAtlasState(page, "tag-printing-mobile-delete-confirmation");
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(deleteTrigger).toBeFocused();
+  await deleteTrigger.click();
+  await deleteAction.click();
+  await expect(savedTemplate).toBeHidden();
+  await expect(page.getByLabel("Custom template")).toBeVisible();
+  await expect(page.getByLabel("Custom template")).toBeFocused();
 });

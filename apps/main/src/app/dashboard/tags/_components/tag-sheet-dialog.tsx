@@ -234,6 +234,7 @@ function SheetNumberField({
           type="button"
           variant="outline"
           size="icon"
+          className="shrink-0"
           aria-label={`Decrease ${label}`}
           onClick={() => stepValue(-1)}
         >
@@ -274,6 +275,7 @@ function SheetNumberField({
           type="button"
           variant="outline"
           size="icon"
+          className="shrink-0"
           aria-label={`Increase ${label}`}
           onClick={() => stepValue(1)}
         >

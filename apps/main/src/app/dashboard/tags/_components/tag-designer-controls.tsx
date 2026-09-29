@@ -226,6 +226,7 @@ export function TagDesignerControls({
   const [isCustomEditorOpen, setIsCustomEditorOpen] =
     React.useState(isCustomLayout);
   const [isAiInstructionsOpen, setIsAiInstructionsOpen] = React.useState(false);
+  const [focusAfterDelete, setFocusAfterDelete] = React.useState(false);
   const [templateName, setTemplateName] = React.useState("");
   const [customSourceTemplateId, setCustomSourceTemplateId] = React.useState<
     string | null
@@ -233,6 +234,7 @@ export function TagDesignerControls({
   const [customTemplateDraft, setCustomTemplateDraft] =
     React.useState(customTemplateText);
   const templateTextareaRef = React.useRef<HTMLTextAreaElement>(null);
+  const templateChoicesRef = React.useRef<HTMLDivElement>(null);
   const unknownFields = findUnknownTagTemplateFields(customTemplateDraft);
   const validationIssues = getTagTemplateValidationIssues(customTemplateDraft);
   const usedFields = getTagTextTemplateFieldIds(customTemplateDraft);
@@ -253,6 +255,18 @@ export function TagDesignerControls({
   React.useEffect(() => {
     if (!isCustomEditorOpen) setCustomTemplateDraft(customTemplateText);
   }, [customTemplateText, isCustomEditorOpen]);
+
+  React.useEffect(() => {
+    if (!focusAfterDelete) return;
+    const target = isCustomEditorOpen
+      ? templateTextareaRef.current
+      : templateChoicesRef.current?.querySelector<HTMLElement>(
+          '[role="radio"][aria-checked="true"]',
+        );
+    if (!target) return;
+    target.focus();
+    setFocusAfterDelete(false);
+  }, [focusAfterDelete, isCustomEditorOpen, userTemplates]);
 
   const changeCustomTemplate = (template: string) => {
     setCustomTemplateDraft(template);
@@ -374,6 +388,7 @@ export function TagDesignerControls({
         </FieldDescription>
 
         <RadioGroup
+          ref={templateChoicesRef}
           aria-label="Choose a template"
           value={isCustomEditorOpen ? "" : selectedTemplateId}
           onValueChange={applyTemplate}
@@ -425,22 +440,20 @@ export function TagDesignerControls({
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction asChild>
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        onClick={() => {
-                          const didDelete = onDeleteTemplate(template.id);
-                          if (
-                            didDelete &&
-                            customSourceTemplateId === template.id
-                          ) {
-                            setCustomSourceTemplateId(null);
-                          }
-                        }}
-                      >
-                        Delete template
-                      </Button>
+                    <AlertDialogAction
+                      variant="destructive"
+                      onClick={() => {
+                        const didDelete = onDeleteTemplate(template.id);
+                        if (didDelete) setFocusAfterDelete(true);
+                        if (
+                          didDelete &&
+                          customSourceTemplateId === template.id
+                        ) {
+                          setCustomSourceTemplateId(null);
+                        }
+                      }}
+                    >
+                      Delete template
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
