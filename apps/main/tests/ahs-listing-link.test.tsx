@@ -22,10 +22,6 @@ vi.mock("sonner", () => ({
   },
 }));
 
-vi.mock("@/components/ahs-listing-display", () => ({
-  AhsListingDisplay: () => <div data-testid="ahs-listing-display" />,
-}));
-
 vi.mock("@/components/ahs-listing-select", () => ({
   AhsListingSelect: ({
     onSelect,
@@ -106,6 +102,20 @@ function createListing(overrides: Partial<Listing> = {}): Listing {
 describe("AhsListingLink", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("opens the linked cultivar page from the database display", () => {
+    render(
+      <AhsListingLink
+        listing={createListing({ title: "Seller's custom listing name" })}
+        linkedAhs={createLinkedAhs()}
+        cultivarHref="/cultivar/coffee-frenzy"
+      />,
+    );
+
+    const link = screen.getByRole("link", { name: "Open cultivar page" });
+    expect(link.getAttribute("href")).toBe("/cultivar/coffee-frenzy");
+    expect(link.getAttribute("target")).toBe("_blank");
   });
 
   it("calls unlinkAhs when unlinking", async () => {
