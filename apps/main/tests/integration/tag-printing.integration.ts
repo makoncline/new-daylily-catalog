@@ -5,7 +5,7 @@ test("seller prepares a grower-details tag sheet", async ({ page }) => {
 
   await page.goto("/dashboard/tags");
   await expect(
-    page.getByRole("heading", { name: "Choose a template" }),
+    page.getByRole("group", { name: "Choose a template" }),
   ).toBeVisible();
 
   await page.getByPlaceholder("Filter listings to tag...").fill(listingTitle);
@@ -21,11 +21,13 @@ test("seller prepares a grower-details tag sheet", async ({ page }) => {
   await expect(tagPreview).toContainText(listingTitle);
   await expect(tagPreview).toContainText("Test Garden, 2026");
 
-  await page.getByRole("button", { name: /Grower details/i }).click();
-  await expect(page.getByLabel("Tag Size")).toHaveValue("card-2x4");
+  await page.getByRole("radio", { name: /Grower details/i }).click();
+  await expect(page.getByRole("combobox", { name: "Tag Size" })).toContainText(
+    'Card 2.00" × 4.00"',
+  );
   await expect(
-    page.getByRole("button", { name: /Grower details/i }),
-  ).toHaveAttribute("aria-pressed", "true");
+    page.getByRole("radio", { name: /Grower details/i }),
+  ).toBeChecked();
 
   await page.getByRole("button", { name: "Make sheet" }).click();
   const sheetCreator = page.getByRole("dialog", { name: "Sheet Creator" });
@@ -41,4 +43,10 @@ test("seller prepares a grower-details tag sheet", async ({ page }) => {
   await expect(sheetCreator.getByRole("article")).toContainText(
     "Test Garden, 2026",
   );
+
+  await sheetCreator.getByRole("button", { name: "Close" }).click();
+  await page.getByRole("button", { name: "Output options" }).click();
+  const download = page.waitForEvent("download");
+  await page.getByRole("menuitem", { name: "Pages (.html)" }).click();
+  expect((await download).suggestedFilename()).toMatch(/\.html$/);
 });

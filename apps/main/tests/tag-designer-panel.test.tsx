@@ -5,7 +5,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import {
   createTagPrintDocumentHtml,
   createTagSheetDocumentHtml,
@@ -79,13 +79,13 @@ describe("TagDesignerPanel", () => {
   it("shows tag sizes in a select and reveals custom size inputs", () => {
     render(<TagDesignerPanel listings={sampleListings} />);
 
-    const sizeSelect = screen.getByLabelText("Tag Size");
+    const sizeSelect = screen.getByRole("combobox", { name: "Tag Size" });
     expect(sizeSelect).toBeInTheDocument();
+    fireEvent.click(sizeSelect);
     expect(
       screen.getByRole("option", { name: /Brother TZe/i }),
     ).toBeInTheDocument();
-
-    fireEvent.change(sizeSelect, { target: { value: "custom" } });
+    fireEvent.click(screen.getByRole("option", { name: /Custom/i }));
 
     expect(screen.getByLabelText("Width (in)")).toBeInTheDocument();
     expect(screen.getByLabelText("Height (in)")).toBeInTheDocument();
@@ -94,8 +94,8 @@ describe("TagDesignerPanel", () => {
   it("lets custom tag size inputs stay empty until blur", async () => {
     render(<TagDesignerPanel listings={sampleListings} />);
 
-    const sizeSelect = screen.getByLabelText("Tag Size");
-    fireEvent.change(sizeSelect, { target: { value: "custom" } });
+    fireEvent.click(screen.getByRole("combobox", { name: "Tag Size" }));
+    fireEvent.click(screen.getByRole("option", { name: /Custom/i }));
 
     const widthInput = screen.getByLabelText("Width (in)");
     const heightInput = screen.getByLabelText("Height (in)");
@@ -114,6 +114,27 @@ describe("TagDesignerPanel", () => {
       expect(widthInput).toHaveValue(4.2);
       expect(heightInput).toHaveValue(1.75);
     });
+  });
+
+  it("keeps the last valid tag size while an invalid custom width is shown", () => {
+    render(<TagDesignerPanel listings={sampleListings} />);
+    fireEvent.click(screen.getByRole("combobox", { name: "Tag Size" }));
+    fireEvent.click(screen.getByRole("option", { name: /Custom/i }));
+
+    const width = screen.getByLabelText("Width (in)");
+    const preview = screen.getByRole("article");
+    expect(preview).toHaveStyle({ width: "3.5in" });
+
+    fireEvent.change(width, { target: { value: "0.1" } });
+    fireEvent.blur(width);
+    expect(width).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByText(/Enter a number from/)).toBeInTheDocument();
+    expect(preview).toHaveStyle({ width: "3.5in" });
+
+    fireEvent.change(width, { target: { value: "4.2" } });
+    fireEvent.blur(width);
+    expect(width).toHaveAttribute("aria-invalid", "false");
+    expect(preview).toHaveStyle({ width: "4.2in" });
   });
 
   it("shows sample preview when no listings selected", () => {
@@ -300,42 +321,58 @@ describe("TagDesignerPanel", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("blocks sheet output when the page cannot fit a tag", () => {
+    render(<TagDesignerPanel listings={sampleListings} />);
+    openSheetCreator();
+
+    const width = screen.getByLabelText("Page width (in)");
+    fireEvent.change(width, { target: { value: "1" } });
+    fireEvent.blur(width);
+
+    expect(
+      screen.getByText(/Page too small for this layout/),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Print Sheets" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Download" })).toBeDisabled();
+  });
+
   it("keeps template content selected when size and QR settings change", () => {
     render(<TagDesignerPanel listings={sampleListings} />);
 
-    const gardenId = screen.getByRole("button", { name: /Garden ID/i });
-    expect(gardenId).toHaveAttribute("aria-pressed", "true");
+    const gardenId = screen.getByRole("radio", { name: /Garden ID/i });
+    expect(gardenId).toBeChecked();
 
-    fireEvent.change(screen.getByLabelText("Tag Size"), {
-      target: { value: "card-2x3.5" },
-    });
+    fireEvent.click(screen.getByRole("combobox", { name: "Tag Size" }));
+    fireEvent.click(screen.getByRole("option", { name: /Card 2.00.*3.50/i }));
     fireEvent.click(screen.getByLabelText("Include QR code"));
 
-    expect(gardenId).toHaveAttribute("aria-pressed", "true");
+    expect(gardenId).toBeChecked();
     expect(screen.queryByLabelText("Custom template")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /Grower details/i }));
+    fireEvent.click(screen.getByRole("radio", { name: /Grower details/i }));
     expect(screen.getByLabelText("Include QR code")).not.toBeChecked();
-    expect(screen.getByLabelText("Tag Size")).toHaveValue("card-2x4");
+    expect(
+      screen.getByRole("combobox", { name: "Tag Size" }),
+    ).toHaveTextContent(/2.00.*4.00/i);
   });
 
   it("uses presets by default and reveals a simple custom template editor", () => {
     render(<TagDesignerPanel listings={sampleListings} />);
 
     expect(
-      screen.getByRole("button", { name: /Simple name/i }),
+      screen.getByRole("radio", { name: /Simple name/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /Garden ID/i }),
+      screen.getByRole("radio", { name: /Garden ID/i }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /^Grower ID/i }),
+      screen.queryByRole("radio", { name: /^Grower ID/i }),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /Sale tag/i }),
+      screen.getByRole("radio", { name: /Sale tag/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /Grower details/i }),
+      screen.getByRole("radio", { name: /Grower details/i }),
     ).toBeInTheDocument();
     expect(screen.queryByTitle("Column width (fr units)")).toBeNull();
     expect(screen.queryByRole("button", { name: "Add Row" })).toBeNull();
@@ -356,7 +393,7 @@ describe("TagDesignerPanel", () => {
   it("applies the two-line Garden ID template with an auto-sized title", () => {
     render(<TagDesignerPanel listings={sampleListings} />);
 
-    fireEvent.click(screen.getByRole("button", { name: /Garden ID/i }));
+    fireEvent.click(screen.getByRole("radio", { name: /Garden ID/i }));
 
     expect(screen.getByText("Smith, 2015 tet")).toBeInTheDocument();
     expect(
@@ -448,11 +485,11 @@ describe("TagDesignerPanel", () => {
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Save as template" }));
     expect(
-      screen.getByRole("button", { name: "Propagation tag" }),
+      screen.getByRole("radio", { name: /Propagation tag/i }),
     ).toBeInTheDocument();
     expect(screen.queryByLabelText("Custom template")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Propagation tag" }));
+    fireEvent.click(screen.getByRole("radio", { name: /Propagation tag/i }));
     fireEvent.click(
       screen.getByRole("button", { name: "Customize this template" }),
     );
@@ -464,17 +501,17 @@ describe("TagDesignerPanel", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
     expect(
-      screen.queryByRole("button", { name: "Propagation tag" }),
+      screen.queryByRole("radio", { name: /^Propagation tag/i }),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Renamed propagation tag" }),
+      screen.getByRole("radio", { name: /Renamed propagation tag/i }),
     ).toBeInTheDocument();
     expect(screen.queryByLabelText("Custom template")).not.toBeInTheDocument();
 
     unmount();
     render(<TagDesignerPanel listings={sampleListings} />);
     expect(
-      screen.getByRole("button", { name: "Renamed propagation tag" }),
+      screen.getByRole("radio", { name: /Renamed propagation tag/i }),
     ).toBeInTheDocument();
   });
 
@@ -495,14 +532,13 @@ describe("TagDesignerPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
 
     expect(screen.queryByLabelText("Custom template")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Garden ID/i })).toHaveAttribute(
-      "aria-pressed",
+    expect(screen.getByRole("radio", { name: /Garden ID/i })).toHaveAttribute(
+      "aria-checked",
       "true",
     );
   });
 
   it("can discard after deleting the template being customized", () => {
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     render(<TagDesignerPanel listings={sampleListings} />);
 
     fireEvent.click(
@@ -512,7 +548,7 @@ describe("TagDesignerPanel", () => {
       target: { value: "Temporary template" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Save as template" }));
-    fireEvent.click(screen.getByRole("button", { name: "Temporary template" }));
+    fireEvent.click(screen.getByRole("radio", { name: /Temporary template/i }));
     fireEvent.click(
       screen.getByRole("button", { name: "Customize this template" }),
     );
@@ -521,11 +557,21 @@ describe("TagDesignerPanel", () => {
         name: "Delete template Temporary template",
       }),
     );
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(
+      screen.getByRole("radio", { name: /Temporary template/i }),
+    ).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Delete template Temporary template",
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /^Delete template$/ }));
     fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
 
     expect(screen.queryByLabelText("Custom template")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Garden ID/i })).toHaveAttribute(
-      "aria-pressed",
+    expect(screen.getByRole("radio", { name: /Garden ID/i })).toHaveAttribute(
+      "aria-checked",
       "true",
     );
   });
