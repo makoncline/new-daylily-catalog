@@ -1,6 +1,8 @@
 import * as React from "react";
+import { TRPCClientError } from "@trpc/client";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { AppRouter } from "@/server/api/root";
 import {
   ContentManagerFormItem,
   type ContentManagerFormHandle,
@@ -207,7 +209,14 @@ describe("ContentManagerFormItem", () => {
     );
     fireEvent.click(screen.getByTestId("editor-change"));
     mutateAsyncMock.mockRejectedValueOnce(
-      new Error("The profile changed. Load the latest version before saving."),
+      TRPCClientError.from<AppRouter>({
+        error: {
+          code: -32009,
+          message:
+            "Profile changed. Read it again before replacing its content.",
+          data: { code: "CONFLICT", httpStatus: 409, zodError: null },
+        },
+      }),
     );
 
     await act(async () => {

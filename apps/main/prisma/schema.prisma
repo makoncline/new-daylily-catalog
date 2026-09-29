@@ -157,7 +157,7 @@ model List {
   listings    Listing[] @relation("ListToListing")
   user        User      @relation(fields: [userId], references: [id])
 
-  @@index([userId])
+  @@index([userId, id])
 }
 
 model UserProfile {

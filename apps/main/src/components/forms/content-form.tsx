@@ -1,7 +1,9 @@
 "use client";
 
 import * as React from "react";
+import { isTRPCClientError } from "@trpc/client";
 import type EditorJS from "@editorjs/editorjs";
+import type { AppRouter } from "@/server/api/root";
 import { type RouterOutputs } from "@/trpc/react";
 import { api } from "@/trpc/react";
 import { getTrpcClient } from "@/trpc/client";
@@ -138,7 +140,10 @@ export function ContentManagerFormItem({
 
         return true;
       } catch (error) {
-        if (getErrorMessage(error).includes("changed. Load the latest")) {
+        if (
+          isTRPCClientError<AppRouter>(error) &&
+          error.data?.code === "CONFLICT"
+        ) {
           setHasRemoteChange(true);
           try {
             const latest =

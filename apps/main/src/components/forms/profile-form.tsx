@@ -411,7 +411,9 @@ function useProfileFormController({
   async function discardFieldsAndLoadLatest() {
     setSaveState((current) => ({ ...current, isUpdating: true }));
     try {
-      const latest = await utils.dashboardDb.userProfile.get.fetch();
+      const latest = await utils.dashboardDb.userProfile.get.fetch(undefined, {
+        staleTime: 0,
+      });
       committedProfileRef.current = latest;
       syncedProfileTimestampRef.current = profileTimestamp(latest);
       setProfileOverride(latest);

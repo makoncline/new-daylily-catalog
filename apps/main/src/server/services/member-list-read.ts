@@ -65,9 +65,9 @@ export async function pageOwnedMemberLists(args: {
     Array<Prisma.ListGetPayload<{ select: typeof memberListPageSelect }>>
   >(Prisma.sql`
     SELECT id, title, description, status, updatedAt
-    FROM "List" INDEXED BY "List_userId_idx"
+    FROM "List" INDEXED BY "List_userId_id_idx"
     WHERE userId = ${args.userId}
-    ${args.cursor ? Prisma.sql`AND id > ${args.cursor}` : Prisma.empty}
+      AND id ${args.cursor ? Prisma.sql`> ${args.cursor}` : Prisma.sql`>= ${""}`}
     ORDER BY id
     LIMIT ${args.limit + 1}
   `);

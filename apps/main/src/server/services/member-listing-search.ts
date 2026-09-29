@@ -197,17 +197,25 @@ async function findGeneralFilteredRows(args: {
       AND: [
         // Candidate IDs are owner-scoped. Check the owner again after these
         // primary-key lookups, including if ownership changed between queries.
-        buildMemberListingWhere(userId, input, {
-          includeIdRange: false,
-          includeOwner: false,
-        }),
+        // Filter the cultivar after hydration so SQLite cannot choose a broad
+        // cultivar-index scan instead of these bounded primary-key lookups.
+        buildMemberListingWhere(
+          userId,
+          { ...input, cultivarReferenceId: undefined },
+          { includeIdRange: false, includeOwner: false },
+        ),
         { id: { in: scanned.map((item) => item.id) } },
       ],
     },
     select: ownedListingSummarySelect,
     orderBy: { id: "asc" },
   });
-  const ownedMatching = matching.filter((item) => item.userId === userId);
+  const ownedMatching = matching.filter(
+    (item) =>
+      item.userId === userId &&
+      (!input.cultivarReferenceId ||
+        item.cultivarReferenceId === input.cultivarReferenceId),
+  );
   const rows = ownedMatching
     .slice(0, input.limit)
     .map(({ userId: _, ...item }) => item);
@@ -218,40 +226,6 @@ async function findGeneralFilteredRows(args: {
         ? `i:${scanned.at(-1)?.id}`
         : null;
   return { rows, nextCursor };
-}
-
-async function findExactCultivarRows(args: {
-  database: typeof db;
-  input: MemberListingSearchInput & { cultivarReferenceId: string };
-  userId: string;
-}): Promise<{ rows: ListingSummary[]; nextCursor: string | null }> {
-  const { database, input, userId } = args;
-  const candidates = await database.$queryRaw<Array<{ id: string }>>(
-    Prisma.sql`
-      SELECT id
-      FROM Listing INDEXED BY Listing_userId_id_idx
-      WHERE userId = ${userId}
-        AND cultivarReferenceId = ${input.cultivarReferenceId}
-        AND id ${input.cursor ? Prisma.sql`> ${input.cursor.slice(2)}` : Prisma.sql`>= ${""}`}
-      ORDER BY id
-      LIMIT ${input.limit + 1}
-    `,
-  );
-  const pageIds = candidates.slice(0, input.limit).map((item) => item.id);
-  const rows = pageIds.length
-    ? await database.listing.findMany({
-        where: { userId, id: { in: pageIds } },
-        select: listingSummarySelect,
-        orderBy: { id: "asc" },
-      })
-    : [];
-  return {
-    rows,
-    nextCursor:
-      candidates.length > input.limit
-        ? `i:${candidates[input.limit - 1]?.id}`
-        : null,
-  };
 }
 
 export async function searchOwnedMemberListings(args: {
@@ -280,24 +254,12 @@ export async function searchOwnedMemberListings(args: {
       key !== "cursor" &&
       key !== "limit" &&
       key !== "listId" &&
-      key !== "cultivarReferenceId" &&
       value !== undefined,
   );
-  const exactCultivarPage =
-    !listPage && !hasGeneralFilters && args.input.cultivarReferenceId
-      ? await findExactCultivarRows({
-          ...args,
-          input: {
-            ...args.input,
-            cultivarReferenceId: args.input.cultivarReferenceId,
-          },
-        })
-      : null;
   const generalFilteredPage =
     !listPage && hasGeneralFilters ? await findGeneralFilteredRows(args) : null;
   const rows =
     listPage?.rows ??
-    exactCultivarPage?.rows ??
     generalFilteredPage?.rows ??
     (await args.database.listing.findMany({
       where: buildMemberListingWhere(args.userId, args.input),
@@ -329,12 +291,10 @@ export async function searchOwnedMemberListings(args: {
     items,
     nextCursor: listPage
       ? listPage.nextCursor
-      : exactCultivarPage
-        ? exactCultivarPage.nextCursor
-        : generalFilteredPage
-          ? generalFilteredPage.nextCursor
-          : rows.length > args.input.limit
-            ? `i:${items.at(-1)?.id}`
-            : null,
+      : generalFilteredPage
+        ? generalFilteredPage.nextCursor
+        : rows.length > args.input.limit
+          ? `i:${items.at(-1)?.id}`
+          : null,
   };
 }

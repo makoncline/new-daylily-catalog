@@ -341,7 +341,7 @@ async function getPublicSellerListSummariesByUserIds(userIds: string[]) {
         WHERE relation.A = l.id
           AND (listing.status IS NULL OR listing.status <> ${STATUS.HIDDEN})
       ) AS listingCount
-    FROM List AS l INDEXED BY List_userId_idx
+    FROM List AS l INDEXED BY List_userId_id_idx
     WHERE l.userId IN (${Prisma.join(userIds)})
       AND (l.status IS NULL OR l.status <> ${STATUS.HIDDEN})
     ORDER BY (

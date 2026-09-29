@@ -8,7 +8,46 @@ The member MCP does not need catalog totals. It now exposes current, paged recor
 
 Turso's [Usage and Billing documentation](https://docs.turso.tech/help/usage-and-billing) says an aggregate function scans every row it considers. An index can limit the scan to one member's rows, but `COUNT(*) WHERE userId = ?` still examines every row for that member. On the local seed, Rolling Oaks has 3,079 listings. The removed overview query would have examined all of them on every call, plus indexed image lookups. A maintained tally would add writes and schema work. No current member MCP task needs that tradeoff. If a real task later needs a total, start with a clearly labelled local replica snapshot.
 
-## Current revision, 2026-09-26
+## Review fixes, 2026-09-29
+
+Exact cultivar filters now use the same bounded candidate window as other
+member listing filters. Each call reads at most 201 owner-scoped candidate IDs
+and hydrates at most 200 IDs. The service checks ownership and the cultivar
+after hydration. A rare or absent cultivar cannot make this path scan the
+rest of the member's listings in one call. Follow `nextCursor` until it is
+null, including after an empty page.
+
+The SQLite integration uses 450 owned and 450 foreign listings. It checks an
+absent cultivar, an empty first window, and matches in two later windows. It
+also checks the actual Prisma query plans. Candidate reads use
+`Listing_userId_id_idx` with an owner and ID range. Hydration uses the listing
+primary key.
+
+List paging now uses `List_userId_id_idx`, an index on `(userId, id)`. The
+Prisma-generated migration replaces the old owner-only index. It adds no
+columns or records. First and later pages use the owner and ID range without
+a temporary sort. The integration checks both pages with 500 owned and 500
+foreign lists. The public seller summary uses the new index name too.
+
+The migration passed on a disposable copy of the sanitized local seed. The
+copy kept 59 lists and 8,990 listings, passed `quick_check`, and had no foreign
+key violations. The same index change was then applied to this worktree's
+local development seed. No remote database was used.
+
+Story conflict recovery now uses the typed tRPC `CONFLICT` code. The component
+test uses the server's actual error message and proves that the latest
+profile loads while the unsaved story stays in the editor. Profile field
+recovery forces a fresh read with `staleTime: 0`. Its test uses the installed
+tRPC query utilities and the app's 30-second query cache. It proves one
+network read, the latest visible fields, and the new version token on the
+next save.
+
+The focused checks passed 41 tests across form recovery, query plans, member
+versioning, public seller reads, MCP reads, and seeded member HTTP/MCP proofs.
+The seeded proofs stub Clerk and use local SQLite. They do not measure Turso
+billed rows or establish a new live OAuth result.
+
+## Previous revision, 2026-09-26
 
 Member listing pages now use an immutable ID cursor and `Listing_userId_id_idx`. A slug edit between pages cannot move a record across the cursor. The seeded bearer integration changed a first-page listing slug, fetched the next page, and found no repeat. A regenerated 8,990-listing seed and a disposable database with the migration applied both passed `PRAGMA quick_check`. Their ordinary page plan uses the covering owner/ID index with `userId=? AND id>?`, without a full owner sort. The earlier no-schema slug-cursor notes below describe a superseded revision.
 

@@ -334,7 +334,7 @@ describe.skipIf(!enabled)("member OAuth HTTP with realistic SQLite", () => {
     expect(exactCultivarFiltered.response.status).toBe(200);
     expect(
       cultivarQueries.some((query) =>
-        query.includes("INDEXED BY Listing_userId_id_idx"),
+        query.startsWith("SELECT `main`.`Listing`.`id` FROM `main`.`Listing`"),
       ),
     ).toBe(true);
     expect(exactCultivarFiltered.body.result?.data?.json?.items).toMatchObject([

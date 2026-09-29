@@ -1,6 +1,12 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createTRPCQueryUtils } from "@trpc/react-query";
+import { createTRPCClient, TRPCClientError } from "@trpc/client";
+import { observable } from "@trpc/server/observable";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProfileForm } from "@/components/forms/profile-form";
+import { getQueryClient, resetQueryClient } from "@/trpc/query-client";
+import type { AppRouter } from "@/server/api/root";
+import type { RouterOutputs } from "@/trpc/react";
 
 const state = vi.hoisted(() => ({
   initial: {
@@ -12,6 +18,7 @@ const state = vi.hoisted(() => ({
     location: "Denver",
     logoUrl: null,
     content: null,
+    createdAt: new Date("2026-09-25T12:00:00.000Z"),
     updatedAt: new Date("2026-09-25T12:00:00.000Z"),
   },
   saved: {
@@ -23,6 +30,7 @@ const state = vi.hoisted(() => ({
     location: "Denver",
     logoUrl: null,
     content: null,
+    createdAt: new Date("2026-09-25T12:00:00.000Z"),
     updatedAt: new Date("2026-09-25T13:00:00.000Z"),
   },
 }));
@@ -40,7 +48,13 @@ const profileUtils = vi.hoisted(() => ({
       get: {
         setData: vi.fn(),
         invalidate: vi.fn(async () => undefined),
-        fetch: vi.fn(async () => state.saved),
+        fetch: vi.fn(
+          async (
+            _input?: void,
+            _options?: { staleTime?: number },
+          ): Promise<RouterOutputs["dashboardDb"]["userProfile"]["get"]> =>
+            state.saved,
+        ),
       },
     },
   },
@@ -86,7 +100,11 @@ vi.mock("@/components/forms/content-form", () => ({
 
 describe("profile fields after a story save", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     updateProfile.mockReset();
+    profileUtils.dashboardDb.userProfile.get.fetch.mockImplementation(
+      async () => state.saved,
+    );
     state.saved = {
       ...state.initial,
       description: "Remote description",
@@ -94,9 +112,11 @@ describe("profile fields after a story save", () => {
     };
   });
 
+  afterEach(resetQueryClient);
+
   it("keeps a local garden name and adopts the latest description", async () => {
     updateProfile.mockResolvedValue(state.saved);
-    render(<ProfileForm initialProfile={state.initial as never} />);
+    render(<ProfileForm initialProfile={state.initial} />);
 
     fireEvent.change(screen.getByRole("textbox", { name: "Garden Name" }), {
       target: { value: "Local garden" },
@@ -120,7 +140,7 @@ describe("profile fields after a story save", () => {
     updateProfile.mockRejectedValue(
       new Error("Profile changed. Load the latest version."),
     );
-    render(<ProfileForm initialProfile={state.initial as never} />);
+    render(<ProfileForm initialProfile={state.initial} />);
 
     fireEvent.change(screen.getByRole("textbox", { name: "Garden Name" }), {
       target: { value: "Local garden" },
@@ -137,5 +157,65 @@ describe("profile fields after a story save", () => {
     expect(updateProfile.mock.calls[0]?.[0].expectedUpdatedAt).toBe(
       "2026-09-25T12:00:00.000Z",
     );
+  });
+
+  it("reads the server profile during conflict recovery even when the cache is fresh", async () => {
+    const queryClient = getQueryClient();
+    const networkRead = vi.fn(() => state.saved);
+    const client = createTRPCClient<AppRouter>({
+      links: [
+        () => () =>
+          observable((observer) => {
+            observer.next({ result: { data: networkRead() } });
+            observer.complete();
+          }),
+      ],
+    });
+    const realUtils = createTRPCQueryUtils<AppRouter>({ client, queryClient });
+    realUtils.dashboardDb.userProfile.get.setData(undefined, state.initial);
+    profileUtils.dashboardDb.userProfile.get.fetch.mockImplementation(
+      (input, options) =>
+        realUtils.dashboardDb.userProfile.get.fetch(input, options),
+    );
+    state.saved.title = "Latest server garden";
+    updateProfile.mockRejectedValueOnce(
+      TRPCClientError.from<AppRouter>({
+        error: {
+          code: -32009,
+          message:
+            "The profile changed. Load the latest version before saving.",
+          data: { code: "CONFLICT", httpStatus: 409, zodError: null },
+        },
+      }),
+    );
+    render(<ProfileForm initialProfile={state.initial} />);
+    fireEvent.change(screen.getByRole("textbox", { name: "Garden Name" }), {
+      target: { value: "Local draft" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+    await screen.findByRole("status");
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Discard unsaved profile fields and load the latest profile",
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("textbox", { name: "Garden Name" })).toHaveValue(
+        "Latest server garden",
+      ),
+    );
+    expect(networkRead).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+
+    updateProfile.mockResolvedValue(state.saved);
+    fireEvent.change(screen.getByRole("textbox", { name: "Garden Name" }), {
+      target: { value: "New local garden" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+    await waitFor(() => expect(updateProfile).toHaveBeenCalledTimes(2));
+    expect(updateProfile.mock.calls[1]?.[0]).toMatchObject({
+      expectedUpdatedAt: state.saved.updatedAt.toISOString(),
+      data: { title: "New local garden" },
+    });
   });
 });
