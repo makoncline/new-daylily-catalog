@@ -67,7 +67,7 @@ function CandidateChoice({
       >
         <CatalogImporterCultivarSummary candidate={candidate} />
         {suggestionReason ? (
-          <p className="text-muted-foreground pl-[4.75rem] text-xs">
+          <p className="text-muted-foreground pl-19 text-xs">
             {suggestionReason}
           </p>
         ) : null}

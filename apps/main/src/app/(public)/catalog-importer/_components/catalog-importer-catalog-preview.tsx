@@ -460,7 +460,7 @@ export function CatalogImporterCatalogPreview({
               onScroll={(event) =>
                 setListingAreaScrolled(event.currentTarget.scrollTop > 24)
               }
-              className="bg-muted/10 max-h-[52rem] scroll-mt-24 overflow-y-auto overscroll-y-auto rounded-lg border p-3 pr-1 outline-none [scrollbar-gutter:stable] lg:max-h-[69rem] lg:pr-2 xl:max-h-[62rem]"
+              className="bg-muted/10 max-h-208 scroll-mt-24 overflow-y-auto overscroll-y-auto rounded-lg border p-3 pr-1 outline-none [scrollbar-gutter:stable] lg:max-h-276 lg:pr-2 xl:max-h-248"
             >
               <CatalogListingGrid
                 className="gap-3"

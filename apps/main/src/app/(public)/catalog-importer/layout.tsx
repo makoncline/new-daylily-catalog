@@ -12,7 +12,7 @@ export default function CatalogImporterLayout({
     >
       <div
         data-slot="catalog-importer-page-container"
-        className="mx-auto w-full max-w-[1024px]"
+        className="max-w-public mx-auto w-full"
       >
         {children}
       </div>

@@ -47,19 +47,19 @@ export function PublicHeader() {
   return (
     <header
       className={cn(
-        "public-header relative z-50 flex min-h-16 w-full shrink-0 items-center border-none bg-transparent px-3 py-2 before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:-bottom-5 before:z-[-1] before:[mask-image:linear-gradient(to_bottom,#000_0%,#000_calc(100%_-_20px),transparent_100%)] before:backdrop-blur-[5px] before:content-[''] before:[-webkit-mask-image:linear-gradient(to_bottom,#000_0%,#000_calc(100%_-_20px),transparent_100%)] lg:h-20 lg:px-8 lg:py-0",
-        usesDarkHeroNav ? "text-white" : "text-[#142118]",
+        "relative z-50 flex min-h-16 w-full shrink-0 items-center border-none bg-transparent px-3 py-2 before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:-bottom-5 before:z-[-1] before:[mask-image:linear-gradient(to_bottom,#000_0%,#000_calc(100%_-_20px),transparent_100%)] before:backdrop-blur-[5px] before:content-[''] before:[-webkit-mask-image:linear-gradient(to_bottom,#000_0%,#000_calc(100%_-_20px),transparent_100%)] lg:h-20 lg:px-8 lg:py-0",
+        usesDarkHeroNav ? "text-white" : "text-brand-ink",
       )}
     >
-      <nav className="mx-auto flex w-full max-w-[1024px] items-center justify-between gap-2 py-1 lg:gap-4">
+      <nav className="max-w-public mx-auto flex w-full items-center justify-between gap-2 py-1 lg:gap-4">
         <Link
           href="/"
-          className="flex shrink-0 items-center gap-1.5 text-current transition-opacity hover:opacity-80 focus-visible:ring-1 focus-visible:ring-[#f4c477] focus-visible:outline-none lg:gap-3"
+          className="focus-visible:ring-brand-gold flex shrink-0 items-center gap-1.5 text-current transition-opacity hover:opacity-80 focus-visible:ring-1 focus-visible:outline-none lg:gap-3"
         >
           <span
             className={cn(
               "flex h-7 w-7 items-center justify-center lg:h-8 lg:w-8",
-              usesDarkHeroNav ? "text-[#f4c477]" : "text-[#b7791f]",
+              usesDarkHeroNav ? "text-brand-gold" : "text-brand-ochre",
             )}
           >
             <Flower2 className="h-5 w-5 lg:h-6 lg:w-6" />
@@ -77,23 +77,23 @@ export function PublicHeader() {
           <summary
             aria-label="Open public navigation"
             className={cn(
-              "flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-md border bg-transparent transition-colors focus-visible:ring-1 focus-visible:ring-[#f4c477] focus-visible:outline-none [&::-webkit-details-marker]:hidden",
+              "focus-visible:ring-brand-gold flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-md border bg-transparent transition-colors focus-visible:ring-1 focus-visible:outline-none [&::-webkit-details-marker]:hidden",
               usesDarkHeroNav
                 ? "border-white/30 text-white hover:bg-white/10"
-                : "border-[#142118]/20 text-[#142118] hover:bg-[#142118]/5",
+                : "border-brand-ink/20 text-brand-ink hover:bg-brand-ink/5",
             )}
           >
             <Menu className="size-4" />
             <span className="sr-only">Open public navigation</span>
           </summary>
-          <ul className="absolute top-[calc(100%+0.25rem)] right-0 w-56 overflow-hidden rounded-md border border-[#142118]/10 bg-white/85 p-1 text-sm text-[#142118] shadow-md backdrop-blur-xl">
+          <ul className="border-brand-ink/10 text-brand-ink absolute top-[calc(100%+0.25rem)] right-0 w-56 overflow-hidden rounded-md border bg-white/85 p-1 text-sm shadow-md backdrop-blur-xl">
             {cultivarSearchEnabled ? (
               <li>
                 <Link
                   href="/cultivars"
                   aria-current={isCultivarsActive ? "page" : undefined}
                   className={cn(
-                    "block rounded-sm px-2 py-1.5 hover:bg-[#142118]/8",
+                    "hover:bg-brand-ink/8 block rounded-sm px-2 py-1.5",
                     isCultivarsActive && activeNavClassName,
                   )}
                 >
@@ -107,7 +107,7 @@ export function PublicHeader() {
                   href="/catalog-importer"
                   aria-current={isCatalogImporterActive ? "page" : undefined}
                   className={cn(
-                    "block rounded-sm px-2 py-1.5 hover:bg-[#142118]/8",
+                    "hover:bg-brand-ink/8 block rounded-sm px-2 py-1.5",
                     isCatalogImporterActive && activeNavClassName,
                   )}
                 >
@@ -120,7 +120,7 @@ export function PublicHeader() {
                 href="/catalogs"
                 aria-current={isCatalogsActive ? "page" : undefined}
                 className={cn(
-                  "block rounded-sm px-2 py-1.5 hover:bg-[#142118]/8",
+                  "hover:bg-brand-ink/8 block rounded-sm px-2 py-1.5",
                   isCatalogsActive && activeNavClassName,
                 )}
               >
@@ -132,17 +132,17 @@ export function PublicHeader() {
                 href="/start-membership"
                 aria-current={isGrowersActive ? "page" : undefined}
                 className={cn(
-                  "block rounded-sm px-2 py-1.5 hover:bg-[#142118]/8",
+                  "hover:bg-brand-ink/8 block rounded-sm px-2 py-1.5",
                   isGrowersActive && activeNavClassName,
                 )}
               >
                 For growers
               </Link>
             </li>
-            <li className="mt-1 border-t border-[#142118]/10 pt-1">
+            <li className="border-brand-ink/10 mt-1 border-t pt-1">
               <Link
                 href={SUBSCRIPTION_CONFIG.PATHS.DASHBOARD_SIGN_IN}
-                className="block rounded-sm px-2 py-1.5 hover:bg-[#142118]/8"
+                className="hover:bg-brand-ink/8 block rounded-sm px-2 py-1.5"
               >
                 Dashboard
               </Link>
@@ -201,10 +201,10 @@ export function PublicHeader() {
           <form action={SUBSCRIPTION_CONFIG.PATHS.DASHBOARD_SIGN_IN}>
             <Button
               className={cn(
-                "ml-2 h-10 rounded-md border bg-transparent px-5 text-sm shadow-none disabled:opacity-100",
+                "ml-2 h-10 border bg-transparent px-5 text-sm shadow-none disabled:opacity-100",
                 usesDarkHeroNav
-                  ? "border-white/35 text-white hover:bg-white hover:text-[#142118]"
-                  : "border-[#142118]/25 text-[#142118] hover:bg-[#142118] hover:text-white",
+                  ? "hover:text-brand-ink border-white/35 text-white hover:bg-white"
+                  : "border-brand-ink/25 text-brand-ink hover:bg-brand-ink hover:text-white",
               )}
               size="sm"
               type="submit"

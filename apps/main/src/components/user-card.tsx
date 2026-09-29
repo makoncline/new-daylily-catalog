@@ -151,10 +151,7 @@ export function UserCard({
             </div>
 
             <div className="text-muted-foreground flex gap-3 text-sm">
-              <Badge
-                variant="secondary"
-                className="flex items-center gap-1 text-xs"
-              >
+              <Badge variant="secondary" className="flex items-center gap-1">
                 <Flower2 className="size-3" />
                 <span>{listingCount} listings</span>
               </Badge>

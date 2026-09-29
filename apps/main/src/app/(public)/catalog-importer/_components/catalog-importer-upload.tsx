@@ -298,7 +298,7 @@ export function CatalogImporterUpload({
           type="button"
           variant="link"
           size="sm"
-          className="h-auto px-0 text-xs"
+          className="h-auto px-0"
           data-ph-capture-attribute-action="download-template"
           onClick={controller.downloadTemplate}
         >

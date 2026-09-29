@@ -57,7 +57,7 @@ export function FloatingCartButton({
       <DialogTrigger asChild>
         <Button
           type="button"
-          className="fixed right-4 bottom-[calc(2.5rem+env(safe-area-inset-bottom))] z-50 flex items-center gap-2 rounded-full shadow-md"
+          className="fixed right-4 bottom-[calc(2.5rem+env(safe-area-inset-bottom))] z-50 flex items-center rounded-full shadow-md"
           variant="default"
           onClick={() => {
             setIncludeInquiryItem(false);

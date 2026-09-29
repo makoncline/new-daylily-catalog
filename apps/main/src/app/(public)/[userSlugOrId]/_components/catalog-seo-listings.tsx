@@ -52,7 +52,7 @@ export function CatalogSeoListings({
                 >
                   <Card className="group h-full transition-all hover:shadow-md">
                     <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-4">
-                      <CardTitle className="group-hover:text-primary text-lg font-semibold">
+                      <CardTitle className="group-hover:text-primary text-lg">
                         For Sale
                       </CardTitle>
                       <Badge variant="secondary" className="h-7">
@@ -76,7 +76,7 @@ export function CatalogSeoListings({
                 >
                   <Card className="group h-full transition-all hover:shadow-md">
                     <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-4">
-                      <CardTitle className="group-hover:text-primary text-lg font-semibold">
+                      <CardTitle className="group-hover:text-primary text-lg">
                         {list.title}
                       </CardTitle>
                       <Badge variant="secondary" className="h-7">

@@ -75,7 +75,7 @@ export function UsedByWave() {
         />
       </svg>
 
-      <div className="relative z-10 mx-auto mt-3 max-w-[1024px]">
+      <div className="max-w-public relative z-10 mx-auto mt-3">
         <div className="flex items-baseline gap-5 overflow-hidden">
           <p className="shrink-0 text-[0.72rem] leading-none font-light text-white/55">
             featured catalogs

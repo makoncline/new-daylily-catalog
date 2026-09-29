@@ -82,10 +82,7 @@ export function CultivarOfferRow({ sellerSlug, offer }: CultivarOfferRowProps) {
 
           <div className="flex flex-wrap items-center gap-2">
             {offer.price !== null ? (
-              <Badge
-                variant="secondary"
-                className="text-sm font-semibold whitespace-nowrap"
-              >
+              <Badge variant="secondary" className="text-sm whitespace-nowrap">
                 {formatPrice(offer.price)}
               </Badge>
             ) : (
@@ -94,7 +91,7 @@ export function CultivarOfferRow({ sellerSlug, offer }: CultivarOfferRowProps) {
               </Badge>
             )}
 
-            <Badge variant="outline" className="text-xs whitespace-nowrap">
+            <Badge variant="outline" className="whitespace-nowrap">
               {updatedLabel}
             </Badge>
           </div>
@@ -108,10 +105,7 @@ export function CultivarOfferRow({ sellerSlug, offer }: CultivarOfferRowProps) {
                   key={list.id}
                   href={getOfferListHref(sellerSlug, list.id)}
                 >
-                  <Badge
-                    variant="secondary"
-                    className="hover:bg-secondary/80 max-w-[220px]"
-                  >
+                  <Badge variant="secondary" className="max-w-[220px]">
                     <TruncatedText text={list.title} lines={1} />
                   </Badge>
                 </Link>

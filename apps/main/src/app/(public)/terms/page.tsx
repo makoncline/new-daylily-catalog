@@ -29,8 +29,8 @@ function Section({
 }) {
   return (
     <section className="space-y-4">
-      <h2 className="text-2xl font-semibold text-[#142118]">{title}</h2>
-      <div className="space-y-4 text-base leading-7 text-[#536357]">
+      <h2 className="text-brand-ink text-2xl font-semibold">{title}</h2>
+      <div className="text-brand-copy space-y-4 text-base leading-7">
         {children}
       </div>
     </section>
@@ -39,14 +39,14 @@ function Section({
 
 export default function TermsPage() {
   return (
-    <div className="bg-[#f6f8f3] px-4 py-12 lg:px-8 lg:py-16">
+    <div className="bg-brand-surface px-4 py-12 lg:px-8 lg:py-16">
       <article className="mx-auto max-w-3xl space-y-10">
         <header className="space-y-4">
-          <p className="text-sm font-semibold tracking-[0.08em] text-[#a94e38] uppercase">
+          <p className="text-brand-rust text-sm font-semibold tracking-[0.08em] uppercase">
             Last updated {updatedAt}
           </p>
-          <h1 className="text-4xl font-semibold text-[#142118]">Terms</h1>
-          <p className="text-lg leading-8 text-[#536357]">
+          <h1 className="text-brand-ink text-4xl font-semibold">Terms</h1>
+          <p className="text-brand-copy text-lg leading-8">
             Daylily Catalog is a small tool for daylily growers and buyers.
             These are the basic rules for using it.
           </p>
@@ -150,7 +150,7 @@ export default function TermsPage() {
           <p>
             The{" "}
             <Link
-              className="font-semibold text-[#173126] underline underline-offset-4"
+              className="text-brand-forest font-semibold underline underline-offset-4"
               href="/privacy"
             >
               Privacy Policy
@@ -163,7 +163,7 @@ export default function TermsPage() {
           <p>
             Questions, takedown requests, or account requests can go to{" "}
             <a
-              className="font-semibold text-[#173126] underline underline-offset-4"
+              className="text-brand-forest font-semibold underline underline-offset-4"
               href="mailto:admin@daylilycatalog.com"
             >
               admin@daylilycatalog.com

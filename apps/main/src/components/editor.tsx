@@ -116,7 +116,7 @@ export function Editor({
 
   return (
     <div className={cn("grid w-full gap-10", className)}>
-      <div className="prose prose-stone dark:prose-invert mx-auto w-full">
+      <div className="mx-auto w-full">
         <div ref={holderRef} id="editor" className="bg-background text-sm" />
       </div>
     </div>

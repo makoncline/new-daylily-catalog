@@ -124,7 +124,7 @@ export function CatalogImporterOverview({
       }
       className="flex max-w-5xl flex-col gap-3"
     >
-      <p className="text-sm font-medium text-[#b7791f]">
+      <p className="text-brand-ochre text-sm font-medium">
         {hasLinkedListings ? "Catalog preview ready" : "Spreadsheet processed"}
       </p>
       <h2

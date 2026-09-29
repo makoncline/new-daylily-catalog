@@ -28,8 +28,8 @@ function Section({
 }) {
   return (
     <section className="space-y-4">
-      <h2 className="text-2xl font-semibold text-[#142118]">{title}</h2>
-      <div className="space-y-4 text-base leading-7 text-[#536357]">
+      <h2 className="text-brand-ink text-2xl font-semibold">{title}</h2>
+      <div className="text-brand-copy space-y-4 text-base leading-7">
         {children}
       </div>
     </section>
@@ -38,16 +38,16 @@ function Section({
 
 export default function PrivacyPage() {
   return (
-    <div className="bg-[#f6f8f3] px-4 py-12 lg:px-8 lg:py-16">
+    <div className="bg-brand-surface px-4 py-12 lg:px-8 lg:py-16">
       <article className="mx-auto max-w-3xl space-y-10">
         <header className="space-y-4">
-          <p className="text-sm font-semibold tracking-[0.08em] text-[#a94e38] uppercase">
+          <p className="text-brand-rust text-sm font-semibold tracking-[0.08em] uppercase">
             Last updated {updatedAt}
           </p>
-          <h1 className="text-4xl font-semibold text-[#142118]">
+          <h1 className="text-brand-ink text-4xl font-semibold">
             Privacy Policy
           </h1>
-          <p className="text-lg leading-8 text-[#536357]">
+          <p className="text-brand-copy text-lg leading-8">
             We keep this simple, but Daylily Catalog does collect some data so
             the site can work. This page explains what we collect, why we use
             it, who helps us process it, how long we keep it, and what control
@@ -212,7 +212,7 @@ export default function PrivacyPage() {
           <p>
             For privacy requests or questions, contact{" "}
             <a
-              className="font-semibold text-[#173126] underline underline-offset-4"
+              className="text-brand-forest font-semibold underline underline-offset-4"
               href="mailto:admin@daylilycatalog.com"
             >
               admin@daylilycatalog.com

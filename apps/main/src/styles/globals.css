@@ -5,6 +5,26 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  --color-brand-ink: #142118;
+  --color-brand-gold: #f4c477;
+  --color-brand-night: #07120e;
+  --color-brand-copy: #536357;
+  --color-brand-forest: #173126;
+  --color-brand-rule: #d8dfd2;
+  --color-brand-rust: #a94e38;
+  --color-brand-ochre: #b7791f;
+  --color-brand-leaf: #dfe9dc;
+  --color-brand-paper: #fbfaf4;
+  --color-brand-rule-soft: #dbe3d5;
+  --color-brand-action: #ef533f;
+  --color-brand-action-hover: #d94734;
+  --color-brand-copy-strong: #617064;
+  --color-brand-surface: #f6f8f3;
+  --color-warning-surface: oklch(96.2% 0.059 95.617);
+  --color-warning-ink: oklch(27.9% 0.077 45.635);
+  --color-warning-label: oklch(55.5% 0.163 48.998);
+  --color-warning-label-dark: oklch(82.8% 0.189 84.429);
+  --container-public: 1024px;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);

@@ -793,7 +793,7 @@ function DonutInsightChart({
             <Button
               type="button"
               variant="ghost"
-              className="w-full justify-start gap-2 px-2 font-normal"
+              className="w-full justify-start px-2 font-normal"
               onClick={() => onSelect(item)}
             >
               <span

@@ -1442,7 +1442,7 @@ function TagDesignerControls({
             ))}
 
             {includesPrivateNote ? (
-              <p className="flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400">
+              <p className="text-warning-label dark:text-warning-label-dark flex items-center gap-1.5 text-xs">
                 <TriangleAlert className="size-3.5 shrink-0" />
                 Private notes will be printed on the tag.
               </p>
@@ -1567,7 +1567,7 @@ function TagDesignerPreview({
           {previewWarnings.map((warning) => (
             <p
               key={warning}
-              className="flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400"
+              className="text-warning-label dark:text-warning-label-dark flex items-center gap-1.5 text-xs"
             >
               <TriangleAlert className="size-3.5 shrink-0" />
               {warning}

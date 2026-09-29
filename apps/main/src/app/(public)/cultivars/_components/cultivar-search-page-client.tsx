@@ -852,8 +852,8 @@ function RemoteCultivarFacetFilter({
                       <span
                         className={
                           selected
-                            ? "flex size-4 items-center justify-center rounded-sm bg-[#173126] text-white"
-                            : "flex size-4 items-center justify-center rounded-sm border border-[#173126]/35"
+                            ? "bg-brand-forest flex size-4 items-center justify-center rounded-sm text-white"
+                            : "border-brand-forest/35 flex size-4 items-center justify-center rounded-sm border"
                         }
                       >
                         {selected ? <Check className="size-3.5" /> : null}
@@ -930,7 +930,7 @@ function ResponsiveAdvancedFilterSection({
         <span className="flex items-center gap-2">
           {title}
           {activeCount > 0 ? (
-            <span className="rounded-full bg-[#f4c477] px-1.5 py-0.5 text-[10px] leading-none font-bold text-[#142118]">
+            <span className="bg-brand-gold text-brand-ink rounded-full px-1.5 py-0.5 text-[10px] leading-none font-bold">
               {activeCount}
             </span>
           ) : null}
@@ -1053,9 +1053,7 @@ function AdvancedFilters({
               definitionId="bloomSeason"
               label="Rebloomers only"
               testId="cultivar-filter-rebloom"
-              onToggle={() =>
-                updateImmediately({ rebloom: !filters.rebloom })
-              }
+              onToggle={() => updateImmediately({ rebloom: !filters.rebloom })}
             />
           </div>
           <CultivarRangeFilter
@@ -1229,15 +1227,12 @@ function CultivarDetailsPopover({
     { label: "Seedling", value: traits.seedlingNumber },
     {
       label: "Rebloom",
-      value:
-        traits.rebloom === null ? null : traits.rebloom ? "Yes" : "No",
+      value: traits.rebloom === null ? null : traits.rebloom ? "Yes" : "No",
     },
     {
       label: "Double",
       value:
-        traits.doublePercentage === null
-          ? null
-          : `${traits.doublePercentage}%`,
+        traits.doublePercentage === null ? null : `${traits.doublePercentage}%`,
     },
     {
       label: "Polymerous",
@@ -1248,8 +1243,7 @@ function CultivarDetailsPopover({
     },
     {
       label: "Spider ratio",
-      value:
-        traits.spiderRatio === null ? null : `${traits.spiderRatio}:1`,
+      value: traits.spiderRatio === null ? null : `${traits.spiderRatio}:1`,
     },
     {
       label: "Petal",
@@ -1293,7 +1287,7 @@ function CultivarDetailsPopover({
       <PopoverTrigger asChild>
         <Button
           aria-label={`Show full details for ${result.name}`}
-          className="absolute right-4 bottom-4 z-20 size-10 rounded-full border border-white/55 bg-[#07120e]/78 p-0 text-white shadow-lg backdrop-blur-md hover:bg-[#07120e] hover:text-white focus-visible:ring-[#f4c477]"
+          className="bg-brand-night/78 hover:bg-brand-night focus-visible:ring-brand-gold absolute right-4 bottom-4 z-20 size-10 rounded-full border border-white/55 p-0 text-white shadow-lg backdrop-blur-md hover:text-white"
           onClick={(event) => event.stopPropagation()}
           size="icon"
           type="button"
@@ -1306,7 +1300,7 @@ function CultivarDetailsPopover({
         align="end"
         side="top"
         sideOffset={10}
-        className="max-h-[min(70vh,38rem)] w-[min(25rem,calc(100vw-2rem))] overflow-y-auto rounded-2xl border-[#dbe3d5] p-0 shadow-2xl"
+        className="border-brand-rule-soft max-h-[min(70vh,38rem)] w-[min(25rem,calc(100vw-2rem))] overflow-y-auto rounded-2xl p-0 shadow-2xl"
       >
         <div className="px-5 pt-4">
           <p className="text-xs font-semibold tracking-[0.12em] text-[#8a5a14] uppercase">
@@ -1328,9 +1322,9 @@ function CultivarDetailsPopover({
           }
         />
         {canonicalPath ? (
-          <div className="border-t border-[#142118]/10 bg-[#f7f3e9] p-4">
+          <div className="border-brand-ink/10 border-t bg-[#f7f3e9] p-4">
             <Link
-              className="inline-flex text-sm font-semibold text-[#173126] underline decoration-[#8ca184] underline-offset-4"
+              className="text-brand-forest inline-flex text-sm font-semibold underline decoration-[#8ca184] underline-offset-4"
               href={canonicalPath}
             >
               Open full cultivar page
@@ -1359,7 +1353,7 @@ function CultivarCard({
     .join(", ");
 
   const content = (
-    <article className="group relative isolate flex min-h-76 overflow-hidden rounded-3xl border border-[#dbe3d5] bg-[#173126] text-white shadow-[0_24px_80px_-58px_rgba(24,50,32,0.9)] transition-transform duration-300 hover:-translate-y-1">
+    <article className="group border-brand-rule-soft bg-brand-forest relative isolate flex min-h-76 overflow-hidden rounded-3xl border text-white shadow-[0_24px_80px_-58px_rgba(24,50,32,0.9)] transition-transform duration-300 hover:-translate-y-1">
       {result.imageUrl ? (
         <OptimizedImage
           alt={`${result.name} daylily`}
@@ -1387,7 +1381,7 @@ function CultivarCard({
             {result.name}
           </h2>
           {attribution ? (
-            <p className="mt-1 text-sm font-semibold text-[#f4c477] [text-shadow:0_1px_2px_rgba(0,0,0,1),0_0_8px_rgba(0,0,0,0.95),0_0_18px_rgba(0,0,0,0.8)]">
+            <p className="text-brand-gold mt-1 text-sm font-semibold [text-shadow:0_1px_2px_rgba(0,0,0,1),0_0_8px_rgba(0,0,0,0.95),0_0_18px_rgba(0,0,0,0.8)]">
               {attribution}
             </p>
           ) : null}
@@ -1413,7 +1407,7 @@ function CultivarCard({
               source_path: "/cultivars",
             });
           }}
-          className="block rounded-3xl focus-visible:ring-2 focus-visible:ring-[#b7791f] focus-visible:ring-offset-2 focus-visible:outline-none"
+          className="focus-visible:ring-brand-ochre block rounded-3xl focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
         >
           {content}
         </Link>
@@ -1929,7 +1923,10 @@ export function CultivarSearchPageClient({
   return (
     <div className="bg-white">
       <section className="relative isolate overflow-clip px-4 pt-28 text-white lg:px-8 lg:pt-28">
-        <div className="absolute inset-0 -z-10 bg-[#07120e]" aria-hidden="true">
+        <div
+          className="bg-brand-night absolute inset-0 -z-10"
+          aria-hidden="true"
+        >
           <Image
             src="/assets/home-redesign/daylily-hero-grid.webp"
             alt=""
@@ -1946,11 +1943,11 @@ export function CultivarSearchPageClient({
           <h1 className="text-4xl leading-tight font-semibold tracking-tight text-white sm:text-5xl">
             Search over 100,000 daylily cultivars
           </h1>
-          <p className="mt-2 max-w-2xl text-base text-[#dfe9dc]">
+          <p className="text-brand-leaf mt-2 max-w-2xl text-base">
             Find cultivars by name, hybridizer, awards, color, form, and more.
           </p>
 
-          <div className="mt-7 space-y-2 border-y border-white/28 bg-[#07120e]/35 py-3 backdrop-blur-[2px]">
+          <div className="bg-brand-night/35 mt-7 space-y-2 border-y border-white/28 py-3 backdrop-blur-[2px]">
             <div className="flex items-center justify-between gap-3">
               <div className="text-sm font-semibold">Search</div>
               <div className="flex min-w-0 flex-1 items-center justify-end gap-3 text-xs text-white/70">
@@ -1981,7 +1978,7 @@ export function CultivarSearchPageClient({
 
             <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 max-sm:gap-y-1.5">
               <div className="space-y-1.5 max-sm:contents">
-                <div className="text-xs font-medium tracking-wide text-[#f4c477] uppercase">
+                <div className="text-brand-gold text-xs font-medium tracking-wide uppercase">
                   Cultivar search
                 </div>
                 <PublicCatalogSearchQueryInput
@@ -1989,11 +1986,11 @@ export function CultivarSearchPageClient({
                   onChange={setQuery}
                   placeholder="Search names, hybridizers, colors, awards, or parentage…"
                   className="max-sm:col-span-2"
-                  inputClassName="h-10 border-white/30 bg-white/95 text-[#142118] shadow-none placeholder:text-[#617064] focus-visible:ring-[#f4c477]"
+                  inputClassName="h-10 border-white/30 bg-white/95 text-brand-ink shadow-none placeholder:text-brand-copy-strong focus-visible:ring-brand-gold"
                 />
               </div>
 
-              <div className="text-white max-sm:col-start-2 max-sm:row-start-1 [&_[data-testid=search-mode-toggle]>span]:text-[#f4c477]">
+              <div className="[&_[data-testid=search-mode-toggle]>span]:text-brand-gold text-white max-sm:col-start-2 max-sm:row-start-1">
                 <PublicCatalogSearchModeToggle
                   id="cultivar-search-mode-switch"
                   checked={advanced}
@@ -2089,29 +2086,29 @@ export function CultivarSearchPageClient({
         aria-labelledby="cultivar-results-heading"
         className="mx-auto max-w-[1180px] px-4 py-8 lg:px-8 lg:py-10"
       >
-        <div className="mb-5 border-b border-[#142118]/14 pb-4">
+        <div className="border-brand-ink/14 mb-5 border-b pb-4">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <h2
                 id="cultivar-results-heading"
-                className="text-2xl font-semibold text-[#142118]"
+                className="text-brand-ink text-2xl font-semibold"
               >
                 {debouncedQuery ? "Search results" : "Browse cultivars"}
               </h2>
-              <p className="mt-1 text-sm text-[#617064]">
+              <p className="text-brand-copy-strong mt-1 text-sm">
                 Open a cultivar to see its details, photos, parentage, and
                 public listings.
               </p>
             </div>
           </div>
 
-          <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3 border-t border-[#142118]/10 pt-4">
+          <div className="border-brand-ink/10 mt-5 flex flex-wrap items-center gap-x-5 gap-y-3 border-t pt-4">
             <div
               aria-label="Sort cultivars"
               className="flex flex-wrap items-center gap-2"
               role="group"
             >
-              <span className="mr-1 text-xs font-semibold tracking-[0.12em] text-[#617064] uppercase">
+              <span className="text-brand-copy-strong mr-1 text-xs font-semibold tracking-[0.12em] uppercase">
                 Sort
               </span>
               {SORT_OPTIONS.map((option) => {
@@ -2121,8 +2118,8 @@ export function CultivarSearchPageClient({
                     aria-pressed={active}
                     className={
                       active
-                        ? "h-9 border-[#173126] bg-[#173126] px-3.5 text-white shadow-none hover:bg-[#294635]"
-                        : "h-9 border-[#142118]/20 bg-white px-3.5 text-[#294635] shadow-none hover:border-[#142118]/35 hover:bg-[#f2f5ef]"
+                        ? "border-brand-forest bg-brand-forest h-9 px-3.5 text-white shadow-none hover:bg-[#294635]"
+                        : "border-brand-ink/20 hover:border-brand-ink/35 h-9 bg-white px-3.5 text-[#294635] shadow-none hover:bg-[#f2f5ef]"
                     }
                     key={option.value}
                     onClick={() => setSort(option.value)}
@@ -2141,13 +2138,13 @@ export function CultivarSearchPageClient({
         {loading ? (
           <ResultsSkeleton />
         ) : error && results.length === 0 ? (
-          <div className="border-y border-[#142118]/15 py-14 text-center">
+          <div className="border-brand-ink/15 border-y py-14 text-center">
             <h3 className="text-xl font-semibold">
               The index needs another moment
             </h3>
-            <p className="mt-2 text-sm text-[#617064]">{error}</p>
+            <p className="text-brand-copy-strong mt-2 text-sm">{error}</p>
             <Button
-              className="mt-5 bg-[#142118] text-white hover:bg-[#294635]"
+              className="bg-brand-ink mt-5 text-white hover:bg-[#294635]"
               onClick={() => {
                 retryPendingRef.current = true;
                 setRetryKey((value) => value + 1);
@@ -2157,9 +2154,9 @@ export function CultivarSearchPageClient({
             </Button>
           </div>
         ) : results.length === 0 ? (
-          <div className="border-y border-[#142118]/15 py-14 text-center">
+          <div className="border-brand-ink/15 border-y py-14 text-center">
             <h3 className="text-xl font-semibold">No cultivars found</h3>
-            <p className="mt-2 text-sm text-[#617064]">
+            <p className="text-brand-copy-strong mt-2 text-sm">
               Try a shorter name or remove one of the filters.
             </p>
             <Button variant="outline" className="mt-5" onClick={clearAll}>
@@ -2180,7 +2177,7 @@ export function CultivarSearchPageClient({
             </div>
 
             {error ? (
-              <p className="mt-5 border-y border-[#b7791f]/25 py-3 text-sm text-[#765721]">
+              <p className="border-brand-ochre/25 mt-5 border-y py-3 text-sm text-[#765721]">
                 {error}
               </p>
             ) : null}
@@ -2191,7 +2188,7 @@ export function CultivarSearchPageClient({
                   variant="outline"
                   onClick={loadMore}
                   disabled={loadingMore}
-                  className="h-11 min-w-48 border-[#142118]/25 bg-white shadow-none"
+                  className="border-brand-ink/25 h-11 min-w-48 bg-white shadow-none"
                 >
                   {loadingMore ? (
                     <>

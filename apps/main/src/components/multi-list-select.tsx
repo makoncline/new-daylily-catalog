@@ -102,10 +102,7 @@ export function MultiListSelect({
       >
         {!searchValue && (
           <>
-            <CommandItem
-              onSelect={handleClearAll}
-              className="flex items-center px-2 py-1.5"
-            >
+            <CommandItem onSelect={handleClearAll}>
               <X className="mr-2 size-4" />
               <span>None</span>
             </CommandItem>
@@ -122,10 +119,7 @@ export function MultiListSelect({
         )}
 
         {filteredLists?.length === 0 && searchValue && (
-          <CommandItem
-            onSelect={handleCreateList}
-            className="flex items-center px-2 py-1.5"
-          >
+          <CommandItem onSelect={handleCreateList}>
             <Plus className="mr-2 size-4" />
             <span>Create &quot;{searchValue}&quot;</span>
           </CommandItem>
@@ -169,7 +163,7 @@ export function MultiListSelect({
               <TruncatedListBadge
                 key={list.id}
                 name={list.title}
-                className="text-xs font-normal"
+                className="font-normal"
               />
             ))
           : "Select lists..."}

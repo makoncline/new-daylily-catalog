@@ -239,7 +239,7 @@ export default async function PublicListingPage({ params }: PageProps) {
         />
       </div>
 
-      <div className="mx-auto max-w-lg rounded-lg border border-[#d8dfd2] bg-white p-4 shadow-sm md:p-6">
+      <div className="border-brand-rule mx-auto max-w-lg rounded-lg border bg-white p-4 shadow-sm md:p-6">
         <ListingDisplay listing={listing} />
       </div>
     </MainContent>

@@ -66,12 +66,7 @@ function SortableItem({ id, children, className }: SortableItemProps) {
     >
       <div className="flex w-full rounded-md">
         <div className="flex w-full items-center">
-          <div
-            className="px-2"
-            {...attributes}
-            {...listeners}
-            style={{ touchAction: "none" }}
-          >
+          <div className="touch-none px-2" {...attributes} {...listeners}>
             <DragHandleDots2Icon className="size-4 cursor-grab" />
           </div>
           {children}

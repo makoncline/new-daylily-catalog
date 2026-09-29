@@ -70,10 +70,10 @@ const GROWER_TESTIMONIALS = [
 ] as const;
 
 const marketingButtonBase =
-  "h-14 w-full rounded-xl px-8 text-base font-bold shadow-none lg:w-auto lg:min-w-[17rem]";
-const marketingPrimaryButton = `${marketingButtonBase} bg-[#ef533f] text-white hover:bg-[#d94734]`;
-const marketingSecondaryButton = `${marketingButtonBase} border border-[#f4c477]/60 bg-transparent text-[#f4c477] transition-colors hover:bg-[#f4c477] hover:text-[#07120e]`;
-const marketingDarkSecondaryButton = `${marketingButtonBase} border border-white/35 bg-white/12 text-white backdrop-blur-md transition-colors hover:bg-white hover:text-[#142118]`;
+  "h-14 w-full rounded-xl px-8 text-base font-bold shadow-none lg:w-auto lg:min-w-68";
+const marketingPrimaryButton = `${marketingButtonBase} bg-brand-action text-white hover:bg-brand-action-hover`;
+const marketingSecondaryButton = `${marketingButtonBase} border border-brand-gold/60 bg-transparent text-brand-gold transition-colors hover:bg-brand-gold hover:text-brand-night`;
+const marketingDarkSecondaryButton = `${marketingButtonBase} border border-white/35 bg-white/12 text-white backdrop-blur-md transition-colors hover:bg-white hover:text-brand-ink`;
 
 const HOW_IT_WORKS_STEPS = [
   {
@@ -173,7 +173,7 @@ function StartMembershipHero() {
   return (
     <MarketingHero>
       <MarketingHeroContent
-        className="grid items-start gap-7 lg:min-h-[25rem] lg:grid-cols-[minmax(0,1fr)_31.5rem] lg:items-center lg:gap-8"
+        className="grid items-start gap-7 lg:min-h-100 lg:grid-cols-[minmax(0,1fr)_31.5rem] lg:items-center lg:gap-8"
         data-testid="start-membership-page"
       >
         <div>
@@ -183,12 +183,12 @@ function StartMembershipHero() {
 
           <h1 className="max-w-4xl text-5xl leading-[0.95] font-semibold tracking-normal text-balance text-white lg:text-[4.8rem] lg:leading-[0.94]">
             <span className="block">Your whole daylily catalog.</span>
-            <span className="block text-[#f4c477]">
+            <span className="text-brand-gold block">
               One link buyers can browse.
             </span>
           </h1>
 
-          <p className="mt-6 max-w-[34rem] text-xl leading-8 font-medium text-pretty text-[#dfe9dc] lg:mt-4 lg:text-lg lg:leading-7">
+          <p className="text-brand-leaf mt-6 max-w-136 text-xl leading-8 font-medium text-pretty lg:mt-4 lg:text-lg lg:leading-7">
             Add photos, prices, availability, notes, and contact info.{" "}
             {SUBSCRIPTION_CONFIG.COPY.MARKETING.HERO}
           </p>
@@ -218,13 +218,13 @@ function StartMembershipHero() {
           id="pricing"
           className="border-y border-white/28 py-6 text-white backdrop-blur-[2px] lg:border-y-0 lg:border-l lg:py-1 lg:pl-10"
         >
-          <p className="text-sm font-bold tracking-[0.18em] text-[#f4c477] uppercase">
+          <p className="text-brand-gold text-sm font-bold tracking-[0.18em] uppercase">
             Grower membership
           </p>
           <h2 className="mt-4 text-4xl leading-tight font-semibold tracking-normal text-white lg:text-5xl">
             Publish when you are ready
           </h2>
-          <p className="mt-3 max-w-lg text-lg leading-7 text-[#dfe9dc]">
+          <p className="text-brand-leaf mt-3 max-w-lg text-lg leading-7">
             {SUBSCRIPTION_CONFIG.COPY.MARKETING.VALUE_PANEL}
           </p>
 
@@ -237,7 +237,7 @@ function StartMembershipHero() {
                   key={feature.id}
                   className="grid grid-cols-[1.75rem_1fr] items-center gap-4"
                 >
-                  <span className="flex size-7 items-center justify-center text-[#f4c477]">
+                  <span className="text-brand-gold flex size-7 items-center justify-center">
                     <Icon className="size-5" aria-hidden="true" />
                   </span>
                   <p className="text-base leading-6 font-semibold text-white lg:text-lg">
@@ -257,7 +257,7 @@ function StartMembershipHero() {
 
 function GrowerTestimonialsSection() {
   return (
-    <section className="relative isolate overflow-hidden bg-[#07120e] px-4 pt-12 pb-12 text-white lg:px-8 lg:pt-14 lg:pb-16">
+    <section className="bg-brand-night relative isolate overflow-hidden px-4 pt-12 pb-12 text-white lg:px-8 lg:pt-14 lg:pb-16">
       <div className="absolute inset-0 -z-10 opacity-40" aria-hidden="true">
         <div className="grid size-full grid-cols-3 gap-2 lg:grid-cols-6">
           {[
@@ -279,20 +279,20 @@ function GrowerTestimonialsSection() {
             </div>
           ))}
         </div>
-        <div className="absolute inset-0 bg-[#07120e]/84" />
+        <div className="bg-brand-night/84 absolute inset-0" />
       </div>
       <div
         className="pointer-events-none absolute inset-x-0 top-0 z-0 h-16 bg-linear-to-b from-black via-black/75 to-transparent lg:h-20"
         aria-hidden="true"
       />
 
-      <div className="relative z-10 mx-auto max-w-[1024px]">
+      <div className="max-w-public relative z-10 mx-auto">
         <div className="grid gap-7 lg:grid-cols-3 lg:gap-10">
           {GROWER_TESTIMONIALS.map((quote, quoteIndex) => (
             <figure
               key={quote}
               className={[
-                "flex min-h-[15rem] items-center justify-center rounded-3xl border-4 border-[#ef533f] bg-white p-7 text-center text-[#07120e] shadow-[0_30px_90px_-58px_rgba(0,0,0,0.95)] lg:min-h-[18rem] lg:p-8 lg:will-change-transform lg:[backface-visibility:hidden] lg:[transform-style:preserve-3d]",
+                "border-brand-action text-brand-night flex min-h-60 items-center justify-center rounded-3xl border-4 bg-white p-7 text-center shadow-[0_30px_90px_-58px_rgba(0,0,0,0.95)] lg:min-h-72 lg:p-8 lg:will-change-transform lg:[backface-visibility:hidden] lg:[transform-style:preserve-3d]",
                 quoteIndex === 0
                   ? "lg:[transform-origin:left_center] lg:[transform:perspective(620px)_rotateY(10deg)_rotateZ(-0.18deg)]"
                   : "",
@@ -314,26 +314,26 @@ function GrowerTestimonialsSection() {
 
 function SellerBenefitsSection() {
   return (
-    <section className="bg-[#fbfaf4] px-4 py-12 text-[#142118] lg:px-8 lg:py-16">
-      <div className="mx-auto grid max-w-[1024px] gap-8 lg:grid-cols-[0.48fr_1fr] lg:gap-14">
-        <div className="lg:max-w-[31rem]">
-          <p className="text-sm font-bold text-[#a94e38]">What you get</p>
+    <section className="bg-brand-paper text-brand-ink px-4 py-12 lg:px-8 lg:py-16">
+      <div className="max-w-public mx-auto grid gap-8 lg:grid-cols-[0.48fr_1fr] lg:gap-14">
+        <div className="lg:max-w-124">
+          <p className="text-brand-rust text-sm font-bold">What you get</p>
           <h2 className="mt-4 text-4xl leading-tight font-semibold tracking-normal text-balance lg:text-5xl lg:leading-[1.04]">
             Show buyers what you have before they ask.
           </h2>
-          <p className="mt-5 max-w-xl text-lg leading-8 text-[#536357]">
+          <p className="text-brand-copy mt-5 max-w-xl text-lg leading-8">
             Put your daylily listings, photos, prices, availability, notes, and
             contact info in one public catalog.
           </p>
         </div>
 
-        <ul className="grid border-t border-[#d8dfd2] lg:grid-cols-2">
+        <ul className="border-brand-rule grid border-t lg:grid-cols-2">
           {SELLER_BENEFITS.map((benefit) => (
             <li
               key={benefit}
-              className="flex min-h-24 items-start gap-4 border-b border-[#d8dfd2] py-5 lg:pr-8 lg:odd:border-r lg:odd:border-[#d8dfd2] lg:even:pl-8"
+              className="border-brand-rule lg:odd:border-brand-rule flex min-h-24 items-start gap-4 border-b py-5 lg:pr-8 lg:odd:border-r lg:even:pl-8"
             >
-              <CheckCircle2 className="mt-1 size-5 shrink-0 text-[#a94e38]" />
+              <CheckCircle2 className="text-brand-rust mt-1 size-5 shrink-0" />
               <p className="text-lg leading-7 font-semibold">{benefit}</p>
             </li>
           ))}
@@ -347,10 +347,10 @@ function HowItWorksSection() {
   return (
     <section
       id="how-it-works"
-      className="bg-[#173126] px-4 py-14 text-[#f7faf2] lg:px-8 lg:py-20"
+      className="bg-brand-forest px-4 py-14 text-[#f7faf2] lg:px-8 lg:py-20"
     >
-      <div className="mx-auto max-w-[1024px]">
-        <p className="text-sm font-bold text-[#f4c477]">How it works</p>
+      <div className="max-w-public mx-auto">
+        <p className="text-brand-gold text-sm font-bold">How it works</p>
         <h2 className="mt-4 max-w-3xl text-4xl leading-tight font-semibold tracking-normal text-balance lg:text-6xl">
           {SUBSCRIPTION_CONFIG.COPY.MARKETING.HOW_IT_WORKS_TITLE}
         </h2>
@@ -362,7 +362,7 @@ function HowItWorksSection() {
               className="grid grid-cols-[3rem_1fr] gap-4 border-b border-white/20 py-6 last:border-b-0 lg:border-r lg:border-b-0 lg:px-6 lg:first:pl-0 lg:last:border-r-0"
             >
               <div
-                className="flex size-12 items-center justify-center bg-[#f4c477] text-base font-bold text-[#07120e]"
+                className="bg-brand-gold text-brand-night flex size-12 items-center justify-center text-base font-bold"
                 aria-hidden="true"
               >
                 {index + 1}
@@ -390,24 +390,24 @@ function HowItWorksSection() {
 
 function BuyerPreviewSection() {
   return (
-    <section className="bg-[#fbfaf4] px-4 py-12 text-[#142118] lg:px-8 lg:py-16">
-      <div className="mx-auto max-w-[1024px]">
-        <div className="grid gap-6 border-b border-[#d8dfd2] pb-8 lg:grid-cols-[0.72fr_1fr] lg:items-end">
+    <section className="bg-brand-paper text-brand-ink px-4 py-12 lg:px-8 lg:py-16">
+      <div className="max-w-public mx-auto">
+        <div className="border-brand-rule grid gap-6 border-b pb-8 lg:grid-cols-[0.72fr_1fr] lg:items-end">
           <div>
-            <p className="text-sm font-bold text-[#a94e38]">What buyers see</p>
+            <p className="text-brand-rust text-sm font-bold">What buyers see</p>
             <h2 className="mt-4 max-w-2xl text-4xl leading-tight font-semibold tracking-normal text-balance lg:text-6xl">
               See what buyers will see.
             </h2>
           </div>
-          <p className="max-w-2xl text-lg leading-8 text-[#536357]">
+          <p className="text-brand-copy max-w-2xl text-lg leading-8">
             Your catalog can show buyers your profile, listings, photos, prices,
             availability, notes, and contact info.
           </p>
         </div>
 
         <div className="mt-10 grid gap-5 lg:grid-cols-2">
-          <article className="group overflow-hidden rounded-3xl border border-[#dbe3d5] bg-white shadow-[0_24px_80px_-64px_rgba(24,50,32,0.8)]">
-            <div className="relative aspect-[16/9] overflow-hidden">
+          <article className="group border-brand-rule-soft overflow-hidden rounded-3xl border bg-white shadow-[0_24px_80px_-64px_rgba(24,50,32,0.8)]">
+            <div className="relative aspect-video overflow-hidden">
               <Image
                 src="/assets/home-redesign/garden-path-proof.webp"
                 alt="Example public catalog card"
@@ -419,13 +419,13 @@ function BuyerPreviewSection() {
             </div>
 
             <div className="p-6 lg:p-8">
-              <p className="text-sm font-bold text-[#a94e38]">
+              <p className="text-brand-rust text-sm font-bold">
                 Example catalog
               </p>
               <p className="mt-3 text-3xl font-semibold">
                 Rolling Oaks Daylilies
               </p>
-              <p className="mt-3 text-base leading-7 text-[#536357]">
+              <p className="text-brand-copy mt-3 text-base leading-7">
                 See a public grower profile, catalog page, and listings.
               </p>
 
@@ -433,7 +433,7 @@ function BuyerPreviewSection() {
                 ctaId="seller-landing-proof-catalog-example"
                 ctaLabel="View example catalog"
                 href="/rollingoaksdaylilies"
-                className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-[#142118] underline-offset-4 hover:underline"
+                className="text-brand-ink mt-5 inline-flex items-center gap-2 text-sm font-bold underline-offset-4 hover:underline"
               >
                 View example catalog
                 <ArrowRight className="size-4" />
@@ -441,8 +441,8 @@ function BuyerPreviewSection() {
             </div>
           </article>
 
-          <article className="group overflow-hidden rounded-3xl border border-[#dbe3d5] bg-white shadow-[0_24px_80px_-64px_rgba(24,50,32,0.8)]">
-            <div className="relative aspect-[16/9] overflow-hidden">
+          <article className="group border-brand-rule-soft overflow-hidden rounded-3xl border bg-white shadow-[0_24px_80px_-64px_rgba(24,50,32,0.8)]">
+            <div className="relative aspect-video overflow-hidden">
               <Image
                 src="/assets/home-redesign/listing-workspace.webp"
                 alt="Daylily blooms and grower notes on a work table"
@@ -454,11 +454,11 @@ function BuyerPreviewSection() {
             </div>
 
             <div className="p-6 lg:p-8">
-              <p className="text-sm font-bold text-[#a94e38]">
+              <p className="text-brand-rust text-sm font-bold">
                 Example listing
               </p>
               <p className="mt-3 text-3xl font-semibold">Starman Spring Fan</p>
-              <p className="mt-3 text-base leading-7 text-[#536357]">
+              <p className="text-brand-copy mt-3 text-base leading-7">
                 See how a listing can show photos, notes, price, availability,
                 and cultivar details.
               </p>
@@ -467,7 +467,7 @@ function BuyerPreviewSection() {
                 ctaId="seller-landing-proof-catalog-index"
                 ctaLabel="View example listing"
                 href="/starcrossedseeds?viewing=6168"
-                className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-[#142118] underline-offset-4 hover:underline"
+                className="text-brand-ink mt-5 inline-flex items-center gap-2 text-sm font-bold underline-offset-4 hover:underline"
               >
                 View example listing
                 <ArrowRight className="size-4" />
@@ -482,11 +482,11 @@ function BuyerPreviewSection() {
 
 function StartMembershipFaqSection() {
   return (
-    <section className="bg-[#fbfaf4] px-4 pb-14 text-[#142118] lg:px-8 lg:pb-20">
-      <div className="mx-auto max-w-[1024px]">
+    <section className="bg-brand-paper text-brand-ink px-4 pb-14 lg:px-8 lg:pb-20">
+      <div className="max-w-public mx-auto">
         <h2 className="text-4xl font-semibold tracking-normal">FAQ</h2>
 
-        <div className="mt-6 divide-y divide-[#d8dfd2] border-y border-[#d8dfd2]">
+        <div className="divide-brand-rule border-brand-rule mt-6 divide-y border-y">
           {FAQ_ITEMS.map((item) => (
             <details
               key={item.question}
@@ -495,10 +495,10 @@ function StartMembershipFaqSection() {
             >
               <summary className="flex cursor-pointer list-none items-start justify-between gap-3 text-xl font-semibold [&::-webkit-details-marker]:hidden">
                 <span>{item.question}</span>
-                <ChevronDown className="mt-0.5 size-5 shrink-0 text-[#536357] transition-transform duration-200 group-open:rotate-180" />
+                <ChevronDown className="text-brand-copy mt-0.5 size-5 shrink-0 transition-transform duration-200 group-open:rotate-180" />
               </summary>
 
-              <p className="mt-3 max-w-3xl text-base leading-7 text-[#536357]">
+              <p className="text-brand-copy mt-3 max-w-3xl text-base leading-7">
                 {item.answer}
               </p>
             </details>
@@ -511,7 +511,7 @@ function StartMembershipFaqSection() {
 
 function StartMembershipFinalCta() {
   return (
-    <section className="relative isolate overflow-hidden bg-[#07120e] px-4 py-16 text-white lg:px-8 lg:py-24">
+    <section className="bg-brand-night relative isolate overflow-hidden px-4 py-16 text-white lg:px-8 lg:py-24">
       <div className="absolute inset-0">
         <Image
           src="/assets/home-redesign/open-garden-path.webp"
@@ -521,14 +521,14 @@ function StartMembershipFinalCta() {
           className="object-cover object-center"
           priority
         />
-        <div className="absolute inset-0 bg-[#07120e]/58 lg:bg-[#07120e]/72" />
+        <div className="bg-brand-night/58 lg:bg-brand-night/72 absolute inset-0" />
       </div>
 
-      <div className="relative z-20 mx-auto max-w-[1024px]">
+      <div className="max-w-public relative z-20 mx-auto">
         <p className="max-w-4xl text-5xl leading-[0.96] font-semibold tracking-normal text-balance lg:text-8xl">
           Ready to create your daylily catalog?
         </p>
-        <p className="mt-6 max-w-2xl text-lg leading-8 text-[#dfe9dc]">
+        <p className="text-brand-leaf mt-6 max-w-2xl text-lg leading-8">
           {SUBSCRIPTION_CONFIG.COPY.MARKETING.FINAL_CTA}
         </p>
 

@@ -160,7 +160,7 @@ export function PublicCatalogSearchBooleanFilter({
         active && "shadow-sm",
         tone === "dark" &&
           (active
-            ? "bg-[#f4c477] text-[#142118] hover:bg-[#eab663] max-sm:h-11 max-sm:px-3"
+            ? "bg-brand-gold text-brand-ink hover:bg-[#eab663] max-sm:h-11 max-sm:px-3"
             : "border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white max-sm:h-11 max-sm:px-3"),
       )}
       onClick={onToggle}
@@ -190,8 +190,8 @@ export function PublicCatalogSearchTextFilter({
     <div className="space-y-2">
       <Label
         className={cn(
-          "text-xs font-medium tracking-wide uppercase",
-          tone === "dark" && "text-[#f4c477]",
+          "text-xs tracking-wide uppercase",
+          tone === "dark" && "text-brand-gold",
         )}
       >
         {label}
@@ -202,7 +202,7 @@ export function PublicCatalogSearchTextFilter({
         placeholder={placeholder}
         className={cn(
           tone === "dark" &&
-            "border-white/25 bg-[#07120e]/55 text-white shadow-none placeholder:text-white/45 max-sm:h-11",
+            "bg-brand-night/55 border-white/25 text-white shadow-none placeholder:text-white/45 max-sm:h-11",
         )}
         onChange={(event) => onChange(event.target.value)}
       />
@@ -291,8 +291,8 @@ export function PublicCatalogSearchRangeFilter({
       <div className="flex items-center justify-between gap-2">
         <Label
           className={cn(
-            "text-xs font-medium tracking-wide uppercase",
-            tone === "dark" && "text-[#f4c477]",
+            "text-xs tracking-wide uppercase",
+            tone === "dark" && "text-brand-gold",
           )}
         >
           {displayLabel}
@@ -331,7 +331,7 @@ export function PublicCatalogSearchRangeFilter({
           <SliderPrimitive.Range
             className={cn(
               "bg-primary absolute h-full",
-              tone === "dark" && "bg-[#f4c477]",
+              tone === "dark" && "bg-brand-gold",
             )}
           />
         </SliderPrimitive.Track>
@@ -340,7 +340,7 @@ export function PublicCatalogSearchRangeFilter({
           aria-label={`${label} minimum`}
           className={cn(
             "border-primary/50 bg-background focus-visible:ring-ring block size-4 rounded-full border shadow transition-colors focus-visible:ring-1 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50",
-            tone === "dark" && "border-[#f4c477] bg-[#07120e]",
+            tone === "dark" && "border-brand-gold bg-brand-night",
           )}
         />
         <SliderPrimitive.Thumb
@@ -348,7 +348,7 @@ export function PublicCatalogSearchRangeFilter({
           aria-label={`${label} maximum`}
           className={cn(
             "border-primary/50 bg-background focus-visible:ring-ring block size-4 rounded-full border shadow transition-colors focus-visible:ring-1 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50",
-            tone === "dark" && "border-[#f4c477] bg-[#07120e]",
+            tone === "dark" && "border-brand-gold bg-brand-night",
           )}
         />
       </SliderPrimitive.Root>
@@ -361,7 +361,7 @@ export function PublicCatalogSearchRangeFilter({
           className={cn(
             "h-7 w-20 text-xs tabular-nums",
             tone === "dark" &&
-              "border-white/25 bg-[#07120e]/55 text-white shadow-none max-sm:h-10",
+              "bg-brand-night/55 border-white/25 text-white shadow-none max-sm:h-10",
           )}
           min={bounds.min}
           max={bounds.max}
@@ -382,7 +382,7 @@ export function PublicCatalogSearchRangeFilter({
           className={cn(
             "h-7 w-20 text-right text-xs tabular-nums",
             tone === "dark" &&
-              "border-white/25 bg-[#07120e]/55 text-white shadow-none max-sm:h-10",
+              "bg-brand-night/55 border-white/25 text-white shadow-none max-sm:h-10",
           )}
           min={bounds.min}
           max={bounds.max}
@@ -535,11 +535,7 @@ export function PublicCatalogSearchFilterSection({
       <AccordionTrigger>
         <span className="flex items-center gap-2">
           {definition.label}
-          {count > 0 ? (
-            <Badge variant="secondary">
-              {count}
-            </Badge>
-          ) : null}
+          {count > 0 ? <Badge variant="secondary">{count}</Badge> : null}
         </span>
       </AccordionTrigger>
       <AccordionContent>{children}</AccordionContent>

@@ -63,10 +63,7 @@ export function CultivarCard({
             </H3>
 
             {secondaryLine && (
-              <Badge
-                variant="secondary"
-                className="inline-flex items-center text-xs"
-              >
+              <Badge variant="secondary" className="inline-flex items-center">
                 <TruncatedText text={secondaryLine} lines={1} />
               </Badge>
             )}

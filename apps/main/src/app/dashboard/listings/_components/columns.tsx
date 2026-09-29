@@ -235,7 +235,7 @@ export function getBaseListingColumns(): ColumnDef<ListingData>[] {
               <TruncatedListBadge
                 key={list.id}
                 name={list.title}
-                className="shrink-0 text-xs font-normal"
+                className="shrink-0 font-normal"
               />
             ))}
           </div>
@@ -264,7 +264,7 @@ export function getBaseListingColumns(): ColumnDef<ListingData>[] {
       ),
       cell: ({ row }) =>
         row.original.status ? (
-          <Badge variant="secondary" className="text-xs font-normal">
+          <Badge variant="secondary" className="font-normal">
             {row.original.status}
           </Badge>
         ) : null,

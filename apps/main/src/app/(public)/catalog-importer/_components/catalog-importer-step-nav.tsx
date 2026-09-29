@@ -92,7 +92,7 @@ export function CatalogImporterStepNav({
             {activeStep === step.id ? (
               <span
                 aria-hidden="true"
-                className="size-1.5 rounded-full bg-[#b7791f]"
+                className="bg-brand-ochre size-1.5 rounded-full"
               />
             ) : null}
             {step.complete ? (

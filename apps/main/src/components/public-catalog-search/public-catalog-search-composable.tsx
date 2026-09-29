@@ -116,7 +116,7 @@ export function PublicCatalogSearchResetButton<TData>({
       variant="outline"
       onClick={() => resetTableState(table)}
       size="sm"
-      className="h-6 gap-1 rounded-full px-2 text-xs"
+      className="h-6 gap-1 rounded-full px-2"
     >
       Reset
       <X className="size-3" />
@@ -162,7 +162,7 @@ export function PublicCatalogSearchFilterChipList({
           type="button"
           variant="outline"
           size="sm"
-          className={cn("h-6 gap-1 rounded-full px-2 text-xs", buttonClassName)}
+          className={cn("h-6 gap-1 rounded-full px-2", buttonClassName)}
           onClick={chip.onClear}
         >
           {chip.label}

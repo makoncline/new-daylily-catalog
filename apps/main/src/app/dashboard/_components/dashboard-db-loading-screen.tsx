@@ -149,7 +149,7 @@ export function DashboardDbLoadingScreen({
               : "Fetching your catalog..."}
           </div>
 
-          <div className="text-muted-foreground min-h-[2.5rem] text-sm leading-5">
+          <div className="text-muted-foreground min-h-10 text-sm leading-5">
             {status === "error" ? (
               "Please refresh the page."
             ) : (

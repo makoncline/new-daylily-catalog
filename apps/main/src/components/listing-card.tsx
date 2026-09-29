@@ -127,7 +127,7 @@ export function ListingCard({
                   <TooltipTrigger>
                     <Badge
                       variant="secondary"
-                      className="flex cursor-pointer items-center gap-1 text-xs"
+                      className="flex cursor-pointer items-center gap-1"
                     >
                       <ListChecks className="size-3" />
                       <span>

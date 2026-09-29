@@ -127,7 +127,7 @@ function SelectedListingsBadges({
         type="button"
         variant="ghost"
         size="sm"
-        className="h-6 px-2 text-xs"
+        className="h-6 px-2"
         onClick={() => table.setRowSelection({})}
       >
         Remove all
@@ -141,7 +141,7 @@ function SelectedListingsBadges({
             variant="secondary"
             className="group flex items-center gap-1 pr-1"
           >
-            <span className="max-w-[12rem] truncate" title={title}>
+            <span className="max-w-48 truncate" title={title}>
               {title}
             </span>
             <button

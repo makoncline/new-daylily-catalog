@@ -17,7 +17,6 @@ interface ManagedCreateDialogProps {
   children: ReactNode;
   confirmDisabled?: boolean;
   confirmLabel: ReactNode;
-  contentClassName?: string;
   description: ReactNode;
   onCancel: () => void;
   onConfirm: () => void;
@@ -32,7 +31,6 @@ export function ManagedCreateDialog({
   children,
   confirmDisabled,
   confirmLabel,
-  contentClassName,
   description,
   onCancel,
   onConfirm,
@@ -42,7 +40,7 @@ export function ManagedCreateDialog({
 }: ManagedCreateDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={contentClassName}>
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>

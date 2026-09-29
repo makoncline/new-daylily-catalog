@@ -23,7 +23,7 @@ export function CheckoutStatusPage({
         <div className="flex max-w-2xl flex-col gap-8">
           <div className="flex flex-col gap-3">
             {eyebrow ? (
-              <p className="text-xs font-semibold tracking-wide text-[#b7791f] uppercase">
+              <p className="text-brand-ochre text-xs font-semibold tracking-wide uppercase">
                 {eyebrow}
               </p>
             ) : null}

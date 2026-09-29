@@ -22,7 +22,7 @@ export function LocationBadge({ location }: { location: string }) {
 
 export function ListingCountBadge({ count }: { count: number }) {
   return (
-    <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+    <Badge variant="secondary" className="flex items-center gap-1">
       <Flower2 className="size-3" />
       <span>{count} listings</span>
     </Badge>
@@ -37,7 +37,7 @@ export function ListCountBadge({
   lists?: { id: string; title: string; listingCount: number }[];
 }) {
   const badge = (
-    <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+    <Badge variant="secondary" className="flex items-center gap-1">
       <ListChecks className="size-3" />
       <span>{count} lists</span>
     </Badge>
@@ -59,9 +59,7 @@ export function ListCountBadge({
                 className="flex items-center justify-between gap-4"
               >
                 <span className="font-medium">{list.title}</span>
-                <Badge variant="secondary" className="text-xs">
-                  {list.listingCount} listings
-                </Badge>
+                <Badge variant="secondary">{list.listingCount} listings</Badge>
               </div>
             ))}
           </div>

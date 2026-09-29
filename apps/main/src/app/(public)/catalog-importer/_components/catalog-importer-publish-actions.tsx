@@ -125,7 +125,7 @@ function CatalogImporterMembershipPrompt({
     >
       <ProUpgradeHeader>
         {placement === "finish" ? (
-          <p className="text-xs font-semibold tracking-wide text-[#b7791f] uppercase">
+          <p className="text-brand-ochre text-xs font-semibold tracking-wide uppercase">
             Recommended
           </p>
         ) : null}

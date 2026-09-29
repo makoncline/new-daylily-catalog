@@ -12,14 +12,14 @@ function MarketingHero({
     <section
       data-slot="marketing-hero"
       className={cn(
-        "relative isolate overflow-hidden bg-[#07120e] px-4 pt-24 pb-36 text-white lg:px-8 lg:pt-24 lg:pb-32",
+        "bg-brand-night relative isolate overflow-hidden px-4 pt-24 pb-36 text-white lg:px-8 lg:pt-24 lg:pb-32",
         className,
       )}
       {...props}
     >
       <div
         data-slot="marketing-hero-backdrop"
-        className="absolute inset-0 -z-10 bg-[#07120e]"
+        className="bg-brand-night absolute inset-0 -z-10"
         aria-hidden="true"
       >
         <Image
@@ -76,7 +76,7 @@ function MarketingHeroContent({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
       data-slot="marketing-hero-content"
-      className={cn("mx-auto max-w-[1024px]", className)}
+      className={cn("max-w-public mx-auto", className)}
       {...props}
     />
   );

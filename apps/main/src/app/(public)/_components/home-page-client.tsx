@@ -29,9 +29,9 @@ export interface HomePageCatalog {
 }
 
 const marketingButtonBase =
-  "h-14 w-full rounded-xl px-8 text-base font-bold shadow-none lg:w-auto lg:min-w-[17rem]";
-const marketingPrimaryButton = `${marketingButtonBase} bg-[#ef533f] text-white hover:bg-[#d94734]`;
-const marketingSecondaryButton = `${marketingButtonBase} border border-[#f4c477]/60 bg-transparent text-[#f4c477] hover:bg-[#f4c477] hover:text-[#07120e]`;
+  "h-14 w-full rounded-xl px-8 text-base font-bold shadow-none lg:w-auto lg:min-w-68";
+const marketingPrimaryButton = `${marketingButtonBase} bg-brand-action text-white hover:bg-brand-action-hover`;
+const marketingSecondaryButton = `${marketingButtonBase} border border-brand-gold/60 bg-transparent text-brand-gold hover:bg-brand-gold hover:text-brand-night`;
 const START_MEMBERSHIP_PATH = "/start-membership";
 
 function SellerIntentButton({
@@ -142,14 +142,14 @@ function NomadsCatalogCard({
   return (
     <div className="relative">
       {hasBadge ? (
-        <div className="absolute -top-4 -left-3 z-20 rounded-xl border border-[#d6ded3] bg-white px-4 py-2 text-lg font-bold text-[#142118] shadow-[0_10px_28px_-22px_rgba(20,33,24,0.8)]">
+        <div className="text-brand-ink absolute -top-4 -left-3 z-20 rounded-xl border border-[#d6ded3] bg-white px-4 py-2 text-lg font-bold shadow-[0_10px_28px_-22px_rgba(20,33,24,0.8)]">
           Featured
         </div>
       ) : null}
 
       <Link
         href={visiblePath}
-        className="group relative isolate flex min-h-[18rem] min-w-[18rem] overflow-hidden rounded-3xl border border-[#dbe3d5] bg-[#173126] text-white shadow-[0_24px_80px_-58px_rgba(24,50,32,0.9)] transition-transform duration-300 hover:-translate-y-1"
+        className="group border-brand-rule-soft bg-brand-forest relative isolate flex min-h-72 min-w-72 overflow-hidden rounded-3xl border text-white shadow-[0_24px_80px_-58px_rgba(24,50,32,0.9)] transition-transform duration-300 hover:-translate-y-1"
       >
         {image?.url ? (
           <OptimizedImage
@@ -163,9 +163,9 @@ function NomadsCatalogCard({
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_35%_30%,#6b8f63,#173126_62%)]" />
         )}
 
-        <div className="absolute inset-0 bg-linear-to-t from-[#07120e]/95 via-[#07120e]/58 to-[#07120e]/18" />
+        <div className="from-brand-night/95 via-brand-night/58 to-brand-night/18 absolute inset-0 bg-linear-to-t" />
 
-        <div className="relative z-10 flex min-h-[18rem] w-full flex-col p-5">
+        <div className="relative z-10 flex min-h-72 w-full flex-col p-5">
           <div className="flex flex-1 items-center">
             <div className="w-full">
               <div className="flex h-11 items-center">
@@ -200,7 +200,7 @@ function NomadsCatalogCard({
 
           <div className="flex h-11 items-center justify-between gap-4 text-sm font-bold text-white">
             <span className="shrink-0">{catalog.listingCount} listings</span>
-            <span className="inline-flex min-w-[8.25rem] shrink-0 items-center justify-center rounded-full bg-white px-4 py-2 whitespace-nowrap text-[#173126]">
+            <span className="text-brand-forest inline-flex min-w-33 shrink-0 items-center justify-center rounded-full bg-white px-4 py-2 whitespace-nowrap">
               Open catalog
             </span>
           </div>
@@ -220,7 +220,7 @@ function LandingVariantTwoWithCatalogs({
     .slice(0, 6);
 
   return (
-    <div className="mx-auto overflow-hidden bg-[#07120e] text-white">
+    <div className="bg-brand-night mx-auto overflow-hidden text-white">
       <HomeHeroSection />
 
       <BuyerTestimonialsSection />
@@ -245,18 +245,18 @@ export default function HomePageClient({
 function HomeHeroSection() {
   return (
     <MarketingHero>
-      <MarketingHeroContent className="grid items-start gap-8 lg:min-h-[25rem] lg:grid-cols-[minmax(0,1fr)_29rem] lg:items-center lg:gap-8">
+      <MarketingHeroContent className="grid items-start gap-8 lg:min-h-100 lg:grid-cols-[minmax(0,1fr)_29rem] lg:items-center lg:gap-8">
         <div>
           <div className="mb-4 -ml-3 lg:mb-2 lg:-ml-4">
             <LaurelRatingBadge />
           </div>
           <H1 className="max-w-4xl text-6xl leading-[0.93] tracking-normal text-balance text-white lg:text-[4.8rem] lg:leading-[0.94]">
             <span className="block">The daylily you want.</span>
-            <span className="block text-[#f4c477]">
+            <span className="text-brand-gold block">
               From the grower who has it.
             </span>
           </H1>
-          <P className="mt-7 max-w-[28rem] text-2xl leading-10 font-medium text-pretty text-[#dfe9dc] lg:mt-4 lg:text-lg lg:leading-7">
+          <P className="text-brand-leaf mt-7 max-w-112 text-2xl leading-10 font-medium text-pretty lg:mt-4 lg:text-lg lg:leading-7">
             Browse grower catalogs with photos, prices, availability, notes, and
             contact info. Details vary by catalog.
           </P>
@@ -291,7 +291,7 @@ function HomeHeroSection() {
                 href="/catalogs"
                 className="grid grid-cols-[7rem_1fr] gap-4 py-4 transition-colors hover:bg-white/[0.04] lg:grid-cols-[8rem_1fr]"
               >
-                <div className="relative aspect-[4/3] overflow-hidden lg:aspect-auto">
+                <div className="relative aspect-4/3 overflow-hidden lg:aspect-auto">
                   <Image
                     src={card.image}
                     alt={card.alt}
@@ -316,7 +316,7 @@ function HomeHeroSection() {
           </div>
           <Link
             href="/catalogs"
-            className="mt-4 flex h-10 items-center justify-start text-base font-bold text-[#f4c477] hover:underline lg:justify-center"
+            className="text-brand-gold mt-4 flex h-10 items-center justify-start text-base font-bold hover:underline lg:justify-center"
           >
             Browse catalogs
             <ArrowRight className="ml-2 size-4" />
@@ -331,7 +331,7 @@ function HomeHeroSection() {
 
 function BuyerTestimonialsSection() {
   return (
-    <section className="relative isolate overflow-hidden bg-[#07120e] px-4 pt-12 pb-10 text-white lg:px-8 lg:pt-14 lg:pb-14">
+    <section className="bg-brand-night relative isolate overflow-hidden px-4 pt-12 pb-10 text-white lg:px-8 lg:pt-14 lg:pb-14">
       <div className="absolute inset-0 -z-10 opacity-42" aria-hidden="true">
         <div className="grid size-full grid-cols-3 gap-2 lg:grid-cols-6">
           {[
@@ -353,20 +353,20 @@ function BuyerTestimonialsSection() {
             </div>
           ))}
         </div>
-        <div className="absolute inset-0 bg-[#07120e]/82" />
+        <div className="bg-brand-night/82 absolute inset-0" />
       </div>
       <div
         className="pointer-events-none absolute inset-x-0 top-0 z-0 h-16 bg-linear-to-b from-black via-black/75 to-transparent lg:h-20"
         aria-hidden="true"
       />
 
-      <div className="relative z-10 mx-auto max-w-[1024px]">
+      <div className="max-w-public relative z-10 mx-auto">
         <div className="grid gap-7 lg:grid-cols-3 lg:gap-10">
           {buyerTestimonials.map((quote, quoteIndex) => (
             <figure
               key={quote}
               className={cn(
-                "flex min-h-[15rem] items-center justify-center rounded-3xl border-4 border-[#ef533f] bg-white p-7 text-center text-[#07120e] shadow-[0_30px_90px_-58px_rgba(0,0,0,0.95)] lg:min-h-[18rem] lg:p-8 lg:will-change-transform lg:[backface-visibility:hidden] lg:[transform-style:preserve-3d]",
+                "border-brand-action text-brand-night flex min-h-60 items-center justify-center rounded-3xl border-4 bg-white p-7 text-center shadow-[0_30px_90px_-58px_rgba(0,0,0,0.95)] lg:min-h-72 lg:p-8 lg:will-change-transform lg:[backface-visibility:hidden] lg:[transform-style:preserve-3d]",
                 quoteIndex === 0 &&
                   "lg:[transform-origin:left_center] lg:[transform:perspective(620px)_rotateY(10deg)_rotateZ(-0.18deg)]",
                 quoteIndex === 2 &&
@@ -392,19 +392,19 @@ function FeaturedCatalogsSection({
   return (
     <section
       id="home-catalogs"
-      className="bg-[#fbfaf4] px-4 py-12 text-[#142118] lg:px-8 lg:py-16"
+      className="bg-brand-paper text-brand-ink px-4 py-12 lg:px-8 lg:py-16"
     >
-      <div className="mx-auto max-w-[1024px]">
-        <div className="grid gap-5 border-b border-[#d8dfd2] pb-7 lg:grid-cols-[minmax(0,0.9fr)_minmax(22rem,0.55fr)] lg:items-start lg:gap-10">
+      <div className="max-w-public mx-auto">
+        <div className="border-brand-rule grid gap-5 border-b pb-7 lg:grid-cols-[minmax(0,0.9fr)_minmax(22rem,0.55fr)] lg:items-start lg:gap-10">
           <div>
-            <p className="text-sm font-bold text-[#a94e38]">
+            <p className="text-brand-rust text-sm font-bold">
               Active grower catalogs
             </p>
             <H2 className="mt-4 max-w-3xl pb-0 text-4xl leading-tight tracking-normal text-balance lg:text-5xl lg:leading-[1.04]">
               Open a catalog to see what is available.
             </H2>
           </div>
-          <p className="max-w-xl text-lg leading-8 text-pretty text-[#536357] lg:pt-10">
+          <p className="text-brand-copy max-w-xl text-lg leading-8 text-pretty lg:pt-10">
             Each grower chooses what to show, including photos, prices,
             availability, notes, and contact info.
           </p>
@@ -422,14 +422,14 @@ function FeaturedCatalogsSection({
             ))}
           </div>
         ) : (
-          <div className="mt-8 rounded-3xl border border-[#dbe3d5] bg-white p-8 text-[#536357]">
+          <div className="border-brand-rule-soft text-brand-copy mt-8 rounded-3xl border bg-white p-8">
             Public catalog cards will appear here when catalogs are available.
           </div>
         )}
 
-        <div className="mt-10 grid gap-8 border border-[#264235] bg-[#173126] p-6 text-white shadow-[0_28px_90px_-64px_rgba(24,50,32,0.9)] lg:grid-cols-[1fr_0.72fr] lg:p-8">
+        <div className="bg-brand-forest mt-10 grid gap-8 border border-[#264235] p-6 text-white shadow-[0_28px_90px_-64px_rgba(24,50,32,0.9)] lg:grid-cols-[1fr_0.72fr] lg:p-8">
           <div>
-            <p className="text-sm font-bold text-[#f4c477]">For growers</p>
+            <p className="text-brand-gold text-sm font-bold">For growers</p>
             <h2 className="mt-4 max-w-3xl text-3xl leading-tight font-semibold text-balance lg:text-5xl">
               Create a daylily catalog buyers can browse.
             </h2>
@@ -437,7 +437,7 @@ function FeaturedCatalogsSection({
               Add photos, prices, availability, notes, and contact info in one
               public place. Buyers can contact you directly.
             </p>
-            <div className="mt-6 flex flex-col items-start gap-3 text-sm font-bold text-[#f4c477] sm:flex-row sm:gap-6">
+            <div className="text-brand-gold mt-6 flex flex-col items-start gap-3 text-sm font-bold sm:flex-row sm:gap-6">
               <Link
                 href="/daylily-database-software"
                 className="inline-flex items-center hover:underline"
@@ -479,21 +479,21 @@ function FeaturedCatalogsSection({
 
 function CultivarDiscoverySection() {
   return (
-    <section className="bg-[#f1f4ec] px-4 py-12 text-[#142118] lg:px-8 lg:py-16">
-      <div className="mx-auto grid max-w-[1024px] gap-10 lg:grid-cols-[0.72fr_1fr] lg:items-start">
+    <section className="text-brand-ink bg-[#f1f4ec] px-4 py-12 lg:px-8 lg:py-16">
+      <div className="max-w-public mx-auto grid gap-10 lg:grid-cols-[0.72fr_1fr] lg:items-start">
         <div>
-          <p className="text-sm font-bold text-[#a94e38]">Cultivar pages</p>
+          <p className="text-brand-rust text-sm font-bold">Cultivar pages</p>
           <H2 className="mt-4 max-w-3xl pb-0 text-4xl leading-tight tracking-normal text-balance lg:text-6xl">
             Research a cultivar, then see listings.
           </H2>
-          <p className="mt-5 max-w-2xl text-lg leading-8 text-[#536357]">
+          <p className="text-brand-copy mt-5 max-w-2xl text-lg leading-8">
             If a grower links a listing to a cultivar, buyers can find it on
             that cultivar&apos;s page.
           </p>
           <Button
             size="lg"
             variant="outline"
-            className="mt-8 h-14 border-[#173126] bg-transparent px-7 text-base font-bold text-[#173126] hover:bg-[#173126] hover:text-white"
+            className="border-brand-forest text-brand-forest hover:bg-brand-forest mt-8 h-14 bg-transparent px-7 text-base font-bold hover:text-white"
             asChild
           >
             <Link href="/cultivar/coffee-frenzy">
@@ -507,9 +507,9 @@ function CultivarDiscoverySection() {
           {discoverySteps.map((step) => (
             <div
               key={step.title}
-              className="overflow-hidden border border-[#d1dbc9] bg-[#fbfaf4] shadow-[0_18px_54px_-48px_rgba(24,50,32,0.75)]"
+              className="bg-brand-paper overflow-hidden border border-[#d1dbc9] shadow-[0_18px_54px_-48px_rgba(24,50,32,0.75)]"
             >
-              <div className="relative aspect-[16/9] border-b border-[#d1dbc9] lg:aspect-[4/3]">
+              <div className="relative aspect-video border-b border-[#d1dbc9] lg:aspect-4/3">
                 <Image
                   src={step.image}
                   alt={step.alt}
@@ -524,7 +524,7 @@ function CultivarDiscoverySection() {
                 <h3 className="text-2xl leading-8 font-semibold">
                   {step.title}
                 </h3>
-                <p className="mt-3 text-base leading-7 text-[#536357]">
+                <p className="text-brand-copy mt-3 text-base leading-7">
                   {step.body}
                 </p>
               </div>

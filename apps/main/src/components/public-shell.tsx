@@ -17,21 +17,21 @@ export function PublicShell({ children, mainClassName }: PublicShellProps) {
     pathname === "/" || isGrowerMarketingPage || pathname === "/cultivars";
   const shellBackgroundClassName =
     isGrowerMarketingPage || pathname === "/cultivars"
-      ? "bg-[#07120e]"
+      ? "bg-brand-night"
       : pathname === "/"
         ? "bg-[#f1f4ec]"
-        : "bg-[#f6f8f3]";
+        : "bg-brand-surface";
 
   return (
     <div
       className={cn(
-        "flex min-h-svh flex-col text-[#142118]",
+        "text-brand-ink flex min-h-svh flex-col",
         shellBackgroundClassName,
       )}
     >
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[60] focus:rounded-md focus:bg-[#142118] focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white"
+        className="focus:bg-brand-ink sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[60] focus:rounded-md focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white"
       >
         Skip to content
       </a>

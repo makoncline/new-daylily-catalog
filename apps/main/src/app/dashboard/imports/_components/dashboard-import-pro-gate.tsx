@@ -43,7 +43,7 @@ export function DashboardImportProGate({
     >
       <ProUpgrade aria-labelledby="dashboard-import-pro-heading">
         <ProUpgradeHeader>
-          <p className="text-xs font-semibold tracking-wide text-[#b7791f] uppercase">
+          <p className="text-brand-ochre text-xs font-semibold tracking-wide uppercase">
             Pro required
           </p>
           <ProUpgradeTitle id="dashboard-import-pro-heading">

@@ -267,7 +267,7 @@ export function DashboardImportTable({
       <div className="relative">
         <div
           ref={scrollAreaRef}
-          className="max-h-[60vh] overflow-y-auto lg:max-h-[42rem]"
+          className="max-h-[60vh] overflow-y-auto lg:max-h-168"
           data-slot="dashboard-import-scroll-area"
           onScroll={(event) => {
             const shouldShow = event.currentTarget.scrollTop > 32;

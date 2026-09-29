@@ -224,7 +224,7 @@ function DuplicateGroupTable({
             >
               <TableHead
                 scope="row"
-                className="text-muted-foreground flex h-auto font-mono text-xs font-normal md:table-cell"
+                className="flex h-auto font-mono text-xs font-normal md:table-cell"
               >
                 <span className="md:hidden">Row </span>
                 {row.sourceRow}
@@ -354,7 +354,7 @@ function PriceIssuesTable({
 
       <IssueTable
         aria-label="Price format rows"
-        className="min-w-0 md:min-w-[34rem]"
+        className="min-w-0 md:min-w-136"
         containerClassName="mt-3"
       >
         <TableHeader className="hidden md:table-header-group">
@@ -380,7 +380,7 @@ function PriceIssuesTable({
             >
               <TableHead
                 scope="row"
-                className="text-muted-foreground col-span-2 flex h-auto items-baseline gap-2 p-0 font-mono text-xs font-normal md:table-cell md:p-2"
+                className="col-span-2 flex h-auto items-baseline gap-2 p-0 font-mono text-xs font-normal md:table-cell md:p-2"
               >
                 <span className="md:hidden">Row {row.sourceRow}</span>
                 <span className="hidden md:inline">{row.sourceRow}</span>
@@ -571,7 +571,7 @@ function SavedIdIssuesTable({
             >
               <TableHead
                 scope="row"
-                className="text-muted-foreground flex h-auto items-center gap-2 p-0 font-mono text-xs font-normal sm:table-cell sm:p-2"
+                className="flex h-auto items-center gap-2 p-0 font-mono text-xs font-normal sm:table-cell sm:p-2"
               >
                 <span className="font-sans font-medium sm:hidden">Row</span>
                 {row.sourceRow}

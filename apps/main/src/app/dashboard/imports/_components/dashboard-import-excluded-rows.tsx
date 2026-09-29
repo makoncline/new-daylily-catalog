@@ -152,7 +152,7 @@ export function DashboardImportExcludedRows({
                       tableRow.original.row,
                     ) && "font-medium",
                   highlighted &&
-                    "bg-amber-100 px-1.5 py-1 text-amber-950 dark:bg-amber-950/50 dark:text-amber-100",
+                    "bg-warning-surface text-warning-ink dark:bg-warning-ink/50 dark:text-warning-surface px-1.5 py-1",
                 )}
               >
                 {String(getValue()) || (
@@ -218,7 +218,7 @@ export function DashboardImportExcludedRows({
           imported.
         </p>
       </div>
-      <div className="max-h-[32rem] max-w-full min-w-0 overflow-y-auto">
+      <div className="max-h-128 max-w-full min-w-0 overflow-y-auto">
         <DataTable density="compact" table={table} />
       </div>
     </section>

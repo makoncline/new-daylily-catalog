@@ -88,3 +88,25 @@ test("Unavailable listing", async ({ page }) => {
   ).toBeVisible();
   await captureAtlasState(page, "listing-unavailable");
 });
+
+test("Public pages fit a phone viewport", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  for (const path of [
+    "/",
+    "/start-membership",
+    "/sell-daylilies-online",
+    "/daylily-database-software",
+  ]) {
+    const response = await page.goto(path);
+    expect(response?.status()).toBe(200);
+    await expect(page.locator("h1").first()).toBeVisible();
+
+    const overflow = await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth -
+        document.documentElement.clientWidth,
+    );
+    expect(overflow, `${path} has horizontal overflow`).toBeLessThanOrEqual(1);
+  }
+});

@@ -94,14 +94,14 @@ export function CultivarOfferGardenCard({
             <div className="flex flex-wrap items-center gap-2">
               <Badge
                 variant="secondary"
-                className="flex items-center gap-1 text-xs whitespace-nowrap"
+                className="flex items-center gap-1 whitespace-nowrap"
               >
                 <Flower2 className="size-3" />
                 <span>{gardenCard.listingCount} listings</span>
               </Badge>
               <Badge
                 variant="secondary"
-                className="flex items-center gap-1 text-xs whitespace-nowrap"
+                className="flex items-center gap-1 whitespace-nowrap"
               >
                 <ListChecks className="size-3" />
                 <span>{gardenCard.listCount} lists</span>

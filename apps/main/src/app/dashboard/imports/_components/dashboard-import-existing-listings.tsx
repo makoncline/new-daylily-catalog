@@ -76,7 +76,7 @@ export function DashboardImportAlreadyExistingRows({
                       asChild
                       size="sm"
                       variant="link"
-                      className="text-foreground h-auto justify-start p-0 font-medium"
+                      className="text-foreground h-auto justify-start p-0"
                     >
                       <Link
                         href={`/dashboard/listings?editing=${encodeURIComponent(existing.id)}`}

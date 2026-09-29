@@ -72,11 +72,11 @@ const FAQ_ITEMS = [
 
 const primaryCtaClassName = cn(
   buttonVariants({ variant: "gradient", size: "lg" }),
-  "h-14 w-full rounded-xl bg-[#ef533f] px-8 text-base font-bold shadow-none hover:bg-[#d94734] lg:w-auto lg:min-w-[17rem]",
+  "h-14 w-full rounded-xl bg-brand-action px-8 text-base font-bold shadow-none hover:bg-brand-action-hover lg:w-auto lg:min-w-68",
 );
 const secondaryCtaClassName = cn(
   buttonVariants({ variant: "outline", size: "lg" }),
-  "h-14 w-full rounded-xl border-[#f4c477]/60 bg-transparent px-8 text-base font-bold text-[#f4c477] shadow-none hover:bg-[#f4c477] hover:text-[#07120e] lg:w-auto lg:min-w-[17rem]",
+  "h-14 w-full rounded-xl border-brand-gold/60 bg-transparent px-8 text-base font-bold text-brand-gold shadow-none hover:bg-brand-gold hover:text-brand-night lg:w-auto lg:min-w-68",
 );
 
 export const metadata = buildPublicPageMetadata({
@@ -123,7 +123,7 @@ function createPageJsonLd() {
 
 export default function SellDayliliesOnlinePage() {
   return (
-    <div className="bg-[#fbfaf4] text-[#142118]">
+    <div className="bg-brand-paper text-brand-ink">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -132,18 +132,18 @@ export default function SellDayliliesOnlinePage() {
       />
 
       <MarketingHero>
-        <MarketingHeroContent className="grid items-start gap-8 lg:min-h-[25rem] lg:grid-cols-[minmax(0,1fr)_29rem] lg:items-center lg:gap-8">
+        <MarketingHeroContent className="grid items-start gap-8 lg:min-h-100 lg:grid-cols-[minmax(0,1fr)_29rem] lg:items-center lg:gap-8">
           <div>
             <div className="mb-6 lg:mb-3">
               <LaurelRatingBadge />
             </div>
             <h1 className="max-w-4xl text-5xl leading-[0.95] font-semibold tracking-normal text-balance text-white lg:text-[4.8rem] lg:leading-[0.94]">
               <span className="block">Sell daylilies online.</span>
-              <span className="block text-[#f4c477]">
+              <span className="text-brand-gold block">
                 Keep every sale personal.
               </span>
             </h1>
-            <p className="mt-6 max-w-[34rem] text-xl leading-8 font-medium text-pretty text-[#dfe9dc] lg:mt-4 lg:text-lg lg:leading-7">
+            <p className="text-brand-leaf mt-6 max-w-136 text-xl leading-8 font-medium text-pretty lg:mt-4 lg:text-lg lg:leading-7">
               Give buyers one catalog for your available daylilies. They send
               their cart to you, and you handle the sale your way.
             </p>
@@ -169,7 +169,7 @@ export default function SellDayliliesOnlinePage() {
           </div>
 
           <aside className="border-y border-white/28 py-6 text-white backdrop-blur-[2px] lg:border-y-0 lg:border-l lg:py-1 lg:pl-10">
-            <p className="text-sm font-bold tracking-[0.18em] text-[#f4c477] uppercase">
+            <p className="text-brand-gold text-sm font-bold tracking-[0.18em] uppercase">
               A direct selling workflow
             </p>
             <div className="mt-6 grid gap-5">
@@ -179,7 +179,7 @@ export default function SellDayliliesOnlinePage() {
                   className="grid grid-cols-[1.75rem_1fr] items-center gap-4"
                 >
                   <CheckCircle2
-                    className="size-5 text-[#f4c477]"
+                    className="text-brand-gold size-5"
                     aria-hidden="true"
                   />
                   <p className="text-base leading-6 font-semibold text-white lg:text-lg">
@@ -194,9 +194,11 @@ export default function SellDayliliesOnlinePage() {
       </MarketingHero>
 
       <section className="bg-black px-4 py-14 text-white lg:px-8 lg:py-20">
-        <div className="mx-auto grid max-w-[1024px] gap-8 lg:grid-cols-[0.8fr_1fr] lg:gap-16">
+        <div className="max-w-public mx-auto grid gap-8 lg:grid-cols-[0.8fr_1fr] lg:gap-16">
           <div>
-            <p className="text-sm font-bold text-[#f4c477]">The short answer</p>
+            <p className="text-brand-gold text-sm font-bold">
+              The short answer
+            </p>
             <h2 className="mt-4 text-4xl leading-tight font-semibold text-balance lg:text-5xl">
               You do not need to hand your whole sales process to a store.
             </h2>
@@ -216,22 +218,22 @@ export default function SellDayliliesOnlinePage() {
       </section>
 
       <section className="px-4 py-14 lg:px-8 lg:py-20">
-        <div className="mx-auto max-w-[1024px]">
-          <p className="text-sm font-bold text-[#a94e38]">How it works</p>
+        <div className="max-w-public mx-auto">
+          <p className="text-brand-rust text-sm font-bold">How it works</p>
           <h2 className="mt-4 max-w-3xl text-4xl leading-tight font-semibold text-balance lg:text-5xl">
             Make it easy to browse. Keep the sale in your hands.
           </h2>
-          <ol className="mt-10 grid border-y border-[#d8dfd2] lg:grid-cols-3">
+          <ol className="border-brand-rule mt-10 grid border-y lg:grid-cols-3">
             {SELLING_STEPS.map((step, index) => (
               <li
                 key={step.title}
-                className="border-b border-[#d8dfd2] py-6 last:border-b-0 lg:border-r lg:border-b-0 lg:px-7 lg:first:pl-0 lg:last:border-r-0 lg:last:pr-0"
+                className="border-brand-rule border-b py-6 last:border-b-0 lg:border-r lg:border-b-0 lg:px-7 lg:first:pl-0 lg:last:border-r-0 lg:last:pr-0"
               >
-                <p className="text-sm font-bold text-[#a94e38]">
+                <p className="text-brand-rust text-sm font-bold">
                   Step {index + 1}
                 </p>
                 <h3 className="mt-3 text-xl font-bold">{step.title}</h3>
-                <p className="mt-3 text-base leading-7 text-[#536357]">
+                <p className="text-brand-copy mt-3 text-base leading-7">
                   {step.description}
                 </p>
               </li>
@@ -241,24 +243,24 @@ export default function SellDayliliesOnlinePage() {
       </section>
 
       <section className="bg-white px-4 py-14 lg:px-8 lg:py-20">
-        <div className="mx-auto max-w-[1024px]">
-          <p className="text-sm font-bold text-[#a94e38]">Common questions</p>
+        <div className="max-w-public mx-auto">
+          <p className="text-brand-rust text-sm font-bold">Common questions</p>
           <h2 className="mt-4 text-4xl leading-tight font-semibold lg:text-5xl">
             Selling daylilies online FAQ
           </h2>
-          <div className="mt-8 border-b border-[#d8dfd2]">
+          <div className="border-brand-rule mt-8 border-b">
             {FAQ_ITEMS.map((item) => (
               <details
                 key={item.question}
-                className="group border-t border-[#d8dfd2] py-5"
+                className="group border-brand-rule border-t py-5"
               >
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-6 text-lg font-bold">
                   {item.question}
-                  <span aria-hidden="true" className="text-[#a94e38]">
+                  <span aria-hidden="true" className="text-brand-rust">
                     +
                   </span>
                 </summary>
-                <p className="mt-4 max-w-3xl text-base leading-7 text-[#536357]">
+                <p className="text-brand-copy mt-4 max-w-3xl text-base leading-7">
                   {item.answer}
                 </p>
               </details>
@@ -268,9 +270,9 @@ export default function SellDayliliesOnlinePage() {
       </section>
 
       <section className="px-4 pt-14 pb-24 lg:px-8 lg:pt-20 lg:pb-28">
-        <div className="mx-auto grid max-w-[1024px] gap-8 border border-[#d8dfd2] bg-[#173126] p-7 text-white lg:grid-cols-[1fr_auto] lg:items-end lg:p-10">
+        <div className="max-w-public border-brand-rule bg-brand-forest mx-auto grid gap-8 border p-7 text-white lg:grid-cols-[1fr_auto] lg:items-end lg:p-10">
           <div>
-            <p className="text-sm font-bold text-[#f4c477]">For growers</p>
+            <p className="text-brand-gold text-sm font-bold">For growers</p>
             <h2 className="mt-4 max-w-3xl text-4xl leading-tight font-semibold text-balance lg:text-5xl">
               Give buyers one current catalog for the daylilies you sell.
             </h2>

@@ -35,7 +35,7 @@ export function ErrorFallback({
 
         <Button
           variant="link"
-          className="text-muted-foreground hover:text-foreground text-sm"
+          className="text-muted-foreground hover:text-foreground"
           asChild
         >
           <a href={feedbackUrl} target="_blank" rel="noopener noreferrer">
