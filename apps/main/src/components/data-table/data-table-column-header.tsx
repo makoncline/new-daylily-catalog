@@ -75,7 +75,7 @@ export function DataTableColumnHeader<TData, TValue>({
         <Button
           variant="ghost"
           size="sm"
-          className="data-[state=open]:bg-accent -ml-1 h-8"
+          className="-ml-1"
           onClick={(event) => {
             event.stopPropagation();
             onQueryChange?.();
@@ -84,11 +84,11 @@ export function DataTableColumnHeader<TData, TValue>({
         >
           <span>{title}</span>
           {column.getIsSorted() === "desc" ? (
-            <ArrowDownIcon className="size-4" />
+            <ArrowDownIcon aria-hidden="true" />
           ) : column.getIsSorted() === "asc" ? (
-            <ArrowUpIcon className="size-4" />
+            <ArrowUpIcon aria-hidden="true" />
           ) : (
-            <CaretSortIcon className="size-4" />
+            <CaretSortIcon aria-hidden="true" />
           )}
         </Button>
       ) : (
@@ -100,20 +100,19 @@ export function DataTableColumnHeader<TData, TValue>({
           <PopoverTrigger asChild>
             <Button
               variant="ghost"
-              size="sm"
-              className="hover:bg-muted size-8 p-0"
+              size="icon"
               onClick={(event) => {
                 event.stopPropagation();
               }}
             >
-              <Search className="size-4" />
+              <Search aria-hidden="true" />
               <span className="sr-only">
                 Filter {typeof title === "string" ? title.toLowerCase() : ""}
               </span>
             </Button>
           </PopoverTrigger>
           <PopoverContent
-            className="w-[200px] p-2"
+            className="w-64"
             align="start"
             onOpenAutoFocus={(event) => {
               event.preventDefault();
@@ -122,10 +121,10 @@ export function DataTableColumnHeader<TData, TValue>({
           >
             <Input
               ref={filterInputRef}
+              aria-label={`Filter ${typeof title === "string" ? title.toLowerCase() : "column"}`}
               placeholder={`Filter ${typeof title === "string" ? title.toLowerCase() : ""}...`}
               value={value}
               onChange={updateColumnFilter}
-              className="h-8"
             />
           </PopoverContent>
         </Popover>

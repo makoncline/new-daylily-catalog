@@ -4,7 +4,12 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { api } from "@/trpc/react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   AhsListingSelect,
@@ -50,11 +55,6 @@ export function useCreateListing() {
   };
 }
 
-/**
- * Full-page surface for creating a new daylily listing.
- * Allows selecting an AHS database entry and/or setting a custom title.
- * After successful creation, automatically opens the full-page editor.
- */
 export function CreateListingSurface({
   onClose,
   onCreated,
@@ -84,10 +84,6 @@ export function CreateListingSurface({
     },
   );
 
-  /**
-   * Handles selection of an AHS listing.
-   * If title is empty, automatically uses the AHS listing name.
-   */
   const handleAhsListingSelect = (result: AhsSearchResult) => {
     setSelectedResult(result);
     if (!title) {
@@ -95,20 +91,14 @@ export function CreateListingSurface({
     }
   };
 
-  /**
-   * Syncs the title input with the selected AHS listing name.
-   */
   const syncTitleWithAhs = () => {
     if (selectedResult) {
       setTitle(selectedResult.name ?? "");
     }
   };
 
-  /**
-   * Handles the create button click.
-   * Submits form data to create a new listing.
-   */
   const handleCreate = async () => {
+    if (isSaving) return;
     setIsSaving(true);
     try {
       const normalizedTitle = title.trim();
@@ -172,7 +162,7 @@ export function CreateListingSurface({
 
       <PageHeader
         heading="Create New Listing"
-        text="Create a new daylily listing by providing a title or selecting from the AHS database."
+        text="Enter a title or select a cultivar from the AHS database."
       >
         <Button
           ref={backButtonRef}
@@ -181,74 +171,84 @@ export function CreateListingSurface({
           onClick={handleBack}
           disabled={isSaving}
         >
-          <ArrowLeft aria-hidden="true" />
+          <ArrowLeft aria-hidden="true" data-icon="inline-start" />
           Back to listings
         </Button>
       </PageHeader>
 
-      <div className="space-y-6 pb-16">
-        <div className="space-y-2">
-          <Label htmlFor="ahs-listing">AHS Database Listing (optional)</Label>
-          <AhsListingSelect
-            onSelect={handleAhsListingSelect}
-            disabled={isSaving}
-          />
-
-          {selectedResult && detailedAhsListing && (
-            <div className="mt-4">
-              <Separator className="my-4" />
-              <AhsListingDisplay
-                ahsListing={detailedAhsListing}
-                cultivarReferenceImage={
-                  detailedAhsListing.cultivarReferenceImage
-                }
-              />
-              <Separator className="my-4" />
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          void handleCreate();
+        }}
+        className="pb-16"
+      >
+        <FieldGroup>
+          <Field data-disabled={isSaving}>
+            <FieldLabel htmlFor="ahs-listing-select">
+              AHS Database Listing (optional)
+            </FieldLabel>
+            <AhsListingSelect
+              onSelect={handleAhsListingSelect}
+              disabled={isSaving}
+            />
+            <FieldDescription>
+              Select a cultivar to use its database details and photo.
+            </FieldDescription>
+            {selectedResult && detailedAhsListing && (
+              <div className="flex flex-col gap-4">
+                <Separator />
+                <AhsListingDisplay
+                  ahsListing={detailedAhsListing}
+                  cultivarReferenceImage={
+                    detailedAhsListing.cultivarReferenceImage
+                  }
+                />
+                <Separator />
+              </div>
+            )}
+          </Field>
+          <Field data-disabled={isSaving}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <FieldLabel htmlFor="title">Listing Title</FieldLabel>
+              {selectedResult && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={syncTitleWithAhs}
+                  disabled={isSaving}
+                >
+                  Sync with AHS name
+                </Button>
+              )}
             </div>
-          )}
-        </div>
-
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="title">Listing Title</Label>
-            {selectedResult && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={syncTitleWithAhs}
-                disabled={isSaving}
-              >
-                Sync with AHS name
-              </Button>
-            )}
+            <Input
+              id="title"
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder={selectedResult?.name ?? "Enter a title"}
+              disabled={isSaving}
+              aria-describedby="create-title-help"
+            />
+            <FieldDescription id="create-title-help">
+              Leave this blank to create a listing named New Listing.
+            </FieldDescription>
+          </Field>
+          <div className="flex justify-end">
+            <Button type="submit" disabled={isSaving}>
+              {isSaving ? (
+                <>
+                  <Spinner aria-hidden="true" data-icon="inline-start" />
+                  Creating…
+                </>
+              ) : (
+                "Create Listing"
+              )}
+            </Button>
           </div>
-          <Input
-            id="title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder={selectedResult?.name ?? "Enter a title"}
-            disabled={isSaving}
-          />
-        </div>
-
-        <div className="flex justify-end">
-          <Button
-            type="button"
-            onClick={() => void handleCreate()}
-            disabled={isSaving || (!title.trim() && !selectedResult)}
-          >
-            {isSaving ? (
-              <>
-                <Spinner aria-hidden="true" />
-                Creating…
-              </>
-            ) : (
-              "Create Listing"
-            )}
-          </Button>
-        </div>
-      </div>
+        </FieldGroup>
+      </form>
     </section>
   );
 }

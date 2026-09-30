@@ -184,7 +184,7 @@ export function ImageCropper({
   };
 
   return (
-    <div ref={containerRef} className="space-y-4">
+    <div ref={containerRef} className="flex flex-col gap-4">
       <div className="relative overflow-hidden rounded-lg border">
         <ReactCrop
           crop={crop}
@@ -199,17 +199,16 @@ export function ImageCropper({
           minHeight={dynamicMin}
           keepSelection
           className={cn(
-            "max-w-full",
+            "block max-w-full",
             isDisabled && "pointer-events-none opacity-50",
           )}
-          style={{ display: "block" }}
         >
           <Image
             ref={imageRef}
             src={src}
             alt="Crop preview"
             onLoad={handleImageLoad}
-            className="block max-h-[500px] w-full object-contain"
+            className="block max-h-125 w-full object-contain"
             width={1920}
             height={1080}
             unoptimized

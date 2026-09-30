@@ -334,6 +334,16 @@ describe("public catalog search advanced filters", () => {
     fireEvent.change(screen.getByTestId("advanced-filter-hybridizer"), {
       target: { value: "Reed" },
     });
+    const minimumYear = screen.getByTestId("advanced-filter-year-input-min");
+    fireEvent.change(minimumYear, { target: { value: "2010" } });
+    expect(minimumYear).toHaveValue(2010);
+    fireEvent.keyDown(minimumYear, { key: "Enter" });
+    await waitFor(() =>
+      expect(navigationState.getParams().get("year")).toBe("2010:"),
+    );
+    fireEvent.change(minimumYear, { target: { value: "" } });
+    fireEvent.blur(minimumYear);
+    expect(minimumYear).toHaveValue(2010);
     fireEvent.keyDown(screen.getByTestId("advanced-filter-year-thumb-min"), {
       key: "ArrowRight",
       code: "ArrowRight",

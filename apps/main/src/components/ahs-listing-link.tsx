@@ -5,10 +5,15 @@ import { toast } from "sonner";
 import { LISTING_CONFIG } from "@/config/constants";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { AhsListingSelect } from "./ahs-listing-select";
 import { AhsListingDisplay } from "./ahs-listing-display";
-import { Muted } from "@/components/typography";
 
 import type { AhsSearchResult } from "./ahs-listing-select";
 import {
@@ -119,40 +124,36 @@ export function AhsListingLink({
   }
 
   return (
-    <div className="space-y-2">
+    <div className="flex flex-col gap-2">
       {linkedAhs ? (
         <Card>
-          <CardContent className="pt-6">
-            <div className="mb-4 flex items-center justify-between">
-              <Muted>
-                Linked to{" "}
-                <span className="text-foreground font-medium">
-                  {linkedAhs.name}
-                </span>
-              </Muted>
-              <div className="flex gap-2">
-                {listing.title !== linkedAhs.name && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={syncName}
-                    disabled={isSaving}
-                  >
-                    {isSaving ? "Syncing..." : "Sync Name"}
-                  </Button>
-                )}
+          <CardHeader>
+            <CardTitle>Linked to {linkedAhs.name}</CardTitle>
+            <CardDescription>Data from the AHS database.</CardDescription>
+            <div className="flex flex-wrap gap-2">
+              {listing.title !== linkedAhs.name && (
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => updateAhsListing(null)}
+                  onClick={syncName}
                   disabled={isSaving}
                 >
-                  {isSaving ? "Unlinking..." : "Unlink"}
+                  {isSaving ? "Syncing..." : "Sync Name"}
                 </Button>
-              </div>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => updateAhsListing(null)}
+                disabled={isSaving}
+              >
+                {isSaving ? "Unlinking..." : "Unlink"}
+              </Button>
             </div>
+          </CardHeader>
+          <CardContent>
             <AhsListingDisplay
               ahsListing={linkedAhs}
               cultivarHref={cultivarHref}
@@ -161,12 +162,10 @@ export function AhsListingLink({
           </CardContent>
         </Card>
       ) : (
-        <div>
-          <AhsListingSelect
-            onSelect={(result) => updateAhsListing(result)}
-            disabled={isSaving}
-          />
-        </div>
+        <AhsListingSelect
+          onSelect={(result) => updateAhsListing(result)}
+          disabled={isSaving}
+        />
       )}
     </div>
   );
@@ -174,17 +173,15 @@ export function AhsListingLink({
 
 export function AhsListingLinkSkeleton() {
   return (
-    <div className="space-y-2">
+    <div className="flex flex-col gap-2">
       <Card>
-        <CardContent className="pt-6">
-          <div className="mb-4 flex items-center justify-between">
+        <CardHeader>
+          <div className="flex items-center justify-between">
             <Skeleton className="h-6 w-48" />
             <Skeleton className="h-8 w-20" />
           </div>
-          <div className="text-muted-foreground text-sm">
-            <Skeleton className="h-4 w-64" />
-          </div>
-        </CardContent>
+          <Skeleton className="h-4 w-64" />
+        </CardHeader>
       </Card>
     </div>
   );

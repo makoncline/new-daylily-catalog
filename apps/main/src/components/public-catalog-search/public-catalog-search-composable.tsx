@@ -116,10 +116,9 @@ export function PublicCatalogSearchResetButton<TData>({
       variant="outline"
       onClick={() => resetTableState(table)}
       size="sm"
-      className="h-6 gap-1 rounded-full px-2 text-xs"
     >
       Reset
-      <X className="size-3" />
+      <X aria-hidden="true" data-icon="inline-end" />
     </Button>
   );
 }
@@ -162,11 +161,11 @@ export function PublicCatalogSearchFilterChipList({
           type="button"
           variant="outline"
           size="sm"
-          className={cn("h-6 gap-1 rounded-full px-2 text-xs", buttonClassName)}
+          className={buttonClassName}
           onClick={chip.onClear}
         >
           {chip.label}
-          <X className="size-3" />
+          <X aria-hidden="true" data-icon="inline-end" />
         </Button>
       ))}
     </div>
@@ -190,7 +189,7 @@ export function PublicCatalogSearchActiveFilterChips<TData>({
 
   return (
     <div
-      className={cn("space-y-2", className)}
+      className={cn("flex flex-col gap-2", className)}
       data-testid="active-filter-chips"
     >
       <div className="flex flex-wrap items-center gap-2">
@@ -339,8 +338,8 @@ export function PublicCatalogSearchSection({
   title: string;
 }) {
   return (
-    <section className={cn("space-y-2", className)}>
-      <div className="text-muted-foreground flex items-center gap-1.5 text-[11px] font-medium tracking-wide uppercase">
+    <section className={cn("flex flex-col gap-2", className)}>
+      <div className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium tracking-wide uppercase">
         <Search className="size-3" />
         {title}
       </div>

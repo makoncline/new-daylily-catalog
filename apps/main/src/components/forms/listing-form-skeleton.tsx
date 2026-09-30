@@ -7,56 +7,48 @@ import { ImageManagerSkeleton } from "@/components/image-manager";
 
 export function ListingFormSkeleton() {
   return (
-    <div className="space-y-8">
-      {/* Name field */}
-      <div className="space-y-2">
+    <div className="flex flex-col gap-7">
+      <div className="flex flex-col gap-3">
         <Skeleton className="h-4 w-12" />
         <Skeleton className="h-10 w-full" />
       </div>
 
-      {/* Price field */}
-      <div className="space-y-2">
+      <div className="flex flex-col gap-3">
         <Skeleton className="h-4 w-12" />
         <Skeleton className="h-10 w-full" />
         <Skeleton className="h-4 w-48" />
       </div>
 
-      {/* Public Note field */}
-      <div className="space-y-2">
+      <div className="flex flex-col gap-3">
         <Skeleton className="h-4 w-24" />
         <Skeleton className="h-24 w-full" />
         <Skeleton className="h-4 w-64" />
       </div>
 
-      {/* Private Note field */}
-      <div className="space-y-2">
+      <div className="flex flex-col gap-3">
         <Skeleton className="h-4 w-24" />
         <Skeleton className="h-24 w-full" />
         <Skeleton className="h-4 w-64" />
       </div>
 
-      {/* AHS Listing field */}
-      <div className="space-y-2">
+      <div className="flex flex-col gap-3">
         <Skeleton className="h-4 w-24" />
         <AhsListingLinkSkeleton />
-        <Skeleton className="h-4 w-96" />
+        <Skeleton className="h-4 w-full" />
       </div>
 
-      {/* Lists field */}
-      <div className="space-y-2">
+      <div className="flex flex-col gap-3">
         <Skeleton className="h-4 w-12" />
         <MultiListSelectSkeleton />
         <Skeleton className="h-4 w-64" />
       </div>
 
-      {/* Images field */}
-      <div className="space-y-2">
+      <div className="flex flex-col gap-3">
         <Skeleton className="h-4 w-16" />
-        <Skeleton className="h-4 w-96" />
+        <Skeleton className="h-4 w-full" />
         <ImageManagerSkeleton />
       </div>
 
-      {/* Delete button */}
       <div className="flex justify-end">
         <Skeleton className="h-10 w-32" />
       </div>

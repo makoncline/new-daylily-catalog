@@ -31,15 +31,6 @@ vi.mock("@/app/dashboard/_lib/dashboard-timing", () => ({
   logDashboardTiming: vi.fn(),
 }));
 
-vi.mock(
-  "@/app/dashboard/listings/_components/create-listing-dialog",
-  () => ({
-    useCreateListing: () => ({
-      openCreateListing: mocks.openCreateListing,
-    }),
-  }),
-);
-
 vi.mock("@/app/dashboard/lists/_components/create-list-dialog", () => ({
   useCreateList: () => {
     const pro = mocks.usePro();
@@ -81,7 +72,9 @@ describe("dashboard create buttons", () => {
     mocks.listings.mockReturnValue({ data: [], isReady: false });
     mocks.listCount.mockReturnValue({ data: undefined, isLoading: true });
 
-    const listing = render(<CreateListingButton />);
+    const listing = render(
+      <CreateListingButton onCreate={mocks.openCreateListing} />,
+    );
     expect(
       screen.getByRole("button", { name: "Create Listing" }),
     ).toBeDisabled();
@@ -102,7 +95,9 @@ describe("dashboard create buttons", () => {
       isLoading: false,
     });
 
-    const listing = render(<CreateListingButton />);
+    const listing = render(
+      <CreateListingButton onCreate={mocks.openCreateListing} />,
+    );
     fireEvent.click(screen.getByRole("button", { name: "Create Listing" }));
     expect(mocks.openCreateListing).toHaveBeenCalledOnce();
     listing.unmount();
@@ -123,7 +118,9 @@ describe("dashboard create buttons", () => {
       isLoading: false,
     });
 
-    const listing = render(<CreateListingButton />);
+    const listing = render(
+      <CreateListingButton onCreate={mocks.openCreateListing} />,
+    );
     fireEvent.click(screen.getByRole("button", { name: "Create Listing" }));
     expect(screen.getByRole("dialog")).toHaveTextContent("Upgrade Required");
     expect(mocks.openCreateListing).not.toHaveBeenCalled();

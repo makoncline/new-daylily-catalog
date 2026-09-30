@@ -3,7 +3,7 @@
 import * as SliderPrimitive from "@radix-ui/react-slider";
 import { type Column, type Table } from "@tanstack/react-table";
 import { Camera, DollarSign, Link2 } from "lucide-react";
-import { type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
 import {
   AccordionContent,
@@ -124,11 +124,11 @@ function getRangeValue<TData>(
 function getFilterIcon(kind: "camera" | "dollar" | "link" | undefined) {
   switch (kind) {
     case "camera":
-      return <Camera className="size-4" />;
+      return <Camera aria-hidden="true" />;
     case "dollar":
-      return <DollarSign className="size-4" />;
+      return <DollarSign aria-hidden="true" />;
     case "link":
-      return <Link2 className="size-4" />;
+      return <Link2 aria-hidden="true" />;
     default:
       return null;
   }
@@ -157,7 +157,6 @@ export function PublicCatalogSearchBooleanFilter({
       size="sm"
       variant={active ? "default" : "outline"}
       className={cn(
-        active && "shadow-sm",
         tone === "dark" &&
           (active
             ? "bg-[#f4c477] text-[#142118] hover:bg-[#eab663] max-sm:h-11 max-sm:px-3"
@@ -189,6 +188,7 @@ export function PublicCatalogSearchTextFilter({
   return (
     <div className="space-y-2">
       <Label
+        htmlFor={testId}
         className={cn(
           "text-xs font-medium tracking-wide uppercase",
           tone === "dark" && "text-[#f4c477]",
@@ -197,6 +197,7 @@ export function PublicCatalogSearchTextFilter({
         {label}
       </Label>
       <Input
+        id={testId}
         data-testid={testId}
         value={value}
         placeholder={placeholder}
@@ -243,6 +244,13 @@ export function PublicCatalogSearchRangeFilter({
     [sliderMin, sliderMax] = [sliderMax, sliderMin];
   }
 
+  const [draftMin, setDraftMin] = useState(formatRangeNumber(sliderMin));
+  const [draftMax, setDraftMax] = useState(formatRangeNumber(sliderMax));
+  useEffect(() => {
+    setDraftMin(formatRangeNumber(sliderMin));
+    setDraftMax(formatRangeNumber(sliderMax));
+  }, [sliderMin, sliderMax]);
+
   const getNextRange = (
     nextMinValue: number,
     nextMaxValue: number,
@@ -275,11 +283,17 @@ export function PublicCatalogSearchRangeFilter({
 
   const handleInputCommit = (which: "min" | "max", raw: string) => {
     const parsed = Number.parseFloat(raw);
-    if (!Number.isFinite(parsed)) return;
+    if (!Number.isFinite(parsed)) {
+      setDraftMin(formatRangeNumber(sliderMin));
+      setDraftMax(formatRangeNumber(sliderMax));
+      return;
+    }
     const nextRange =
       which === "min"
         ? getNextRange(parsed, sliderMax)
         : getNextRange(sliderMin, parsed);
+    setDraftMin(formatRangeNumber(nextRange.min ?? bounds.min));
+    setDraftMax(formatRangeNumber(nextRange.max ?? bounds.max));
     onChange(nextRange);
     onCommit?.(nextRange);
   };
@@ -289,12 +303,7 @@ export function PublicCatalogSearchRangeFilter({
   return (
     <div className="w-full max-w-64 space-y-2" data-testid={testId}>
       <div className="flex items-center justify-between gap-2">
-        <Label
-          className={cn(
-            "text-xs font-medium tracking-wide uppercase",
-            tone === "dark" && "text-[#f4c477]",
-          )}
-        >
+        <Label className={cn(tone === "dark" && "text-[#f4c477]")}>
           {displayLabel}
         </Label>
         <span
@@ -359,18 +368,19 @@ export function PublicCatalogSearchRangeFilter({
           data-testid={`${testId}-input-min`}
           aria-label={`${label} minimum`}
           className={cn(
-            "h-7 w-20 text-xs tabular-nums",
+            "w-20",
             tone === "dark" &&
               "border-white/25 bg-[#07120e]/55 text-white shadow-none max-sm:h-10",
           )}
           min={bounds.min}
           max={bounds.max}
           step={step}
-          value={formatRangeNumber(sliderMin)}
-          onChange={() => undefined}
+          value={draftMin}
+          onChange={(event) => setDraftMin(event.target.value)}
           onBlur={(e) => handleInputCommit("min", e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
+              e.preventDefault();
               handleInputCommit("min", e.currentTarget.value);
             }
           }}
@@ -380,18 +390,19 @@ export function PublicCatalogSearchRangeFilter({
           data-testid={`${testId}-input-max`}
           aria-label={`${label} maximum`}
           className={cn(
-            "h-7 w-20 text-right text-xs tabular-nums",
+            "w-20",
             tone === "dark" &&
               "border-white/25 bg-[#07120e]/55 text-white shadow-none max-sm:h-10",
           )}
           min={bounds.min}
           max={bounds.max}
           step={step}
-          value={formatRangeNumber(sliderMax)}
-          onChange={() => undefined}
+          value={draftMax}
+          onChange={(event) => setDraftMax(event.target.value)}
           onBlur={(e) => handleInputCommit("max", e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
+              e.preventDefault();
               handleInputCommit("max", e.currentTarget.value);
             }
           }}
@@ -535,11 +546,7 @@ export function PublicCatalogSearchFilterSection({
       <AccordionTrigger>
         <span className="flex items-center gap-2">
           {definition.label}
-          {count > 0 ? (
-            <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">
-              {count}
-            </Badge>
-          ) : null}
+          {count > 0 ? <Badge variant="secondary">{count}</Badge> : null}
         </span>
       </AccordionTrigger>
       <AccordionContent>{children}</AccordionContent>

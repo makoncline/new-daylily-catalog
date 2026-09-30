@@ -20,7 +20,7 @@ export function DataTableLayout<TData>({
   const hasRows = table.getRowModel().rows.length > 0;
 
   return (
-    <div id="data-table" className="space-y-4">
+    <div id="data-table" className="flex flex-col gap-4">
       {toolbar}
       {children}
       {hasRows
@@ -34,9 +34,9 @@ export function DataTableLayout<TData>({
 
 export function DataTableLayoutSkeleton() {
   return (
-    <div className="space-y-4">
-      <Skeleton className="h-8 w-[120px]" />
-      <Skeleton className="h-[400px]" />
+    <div className="flex flex-col gap-4">
+      <Skeleton className="h-8 w-30" />
+      <Skeleton className="h-100" />
       <DataTablePaginationSkeleton />
     </div>
   );

@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -70,24 +71,27 @@ export function DataTablePagination<TData>({
               }}
             >
               <SelectTrigger
-                className="h-8 w-[70px]"
+                className="w-20"
+                aria-label="Rows per page"
                 data-testid="pager-per-page"
               >
-                <SelectValue placeholder={pageSize} />
+                <SelectValue>{pageSize}</SelectValue>
               </SelectTrigger>
               <SelectContent side="top">
-                {pageSizeOptions.map((size) => (
-                  <SelectItem key={size} value={`${size}`}>
-                    {size}
-                  </SelectItem>
-                ))}
+                <SelectGroup>
+                  {pageSizeOptions.map((size) => (
+                    <SelectItem key={size} value={`${size}`}>
+                      {size}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
               </SelectContent>
             </Select>
           </div>
 
           <div className="flex items-center gap-2">
             <div
-              className="flex w-[100px] items-center justify-center text-sm font-medium"
+              className="flex w-28 items-center justify-center text-sm font-medium"
               data-testid="pager-page-indicator"
             >
               Page {pageIndex + 1} of {pageCount}
@@ -96,7 +100,8 @@ export function DataTablePagination<TData>({
             <div className="flex items-center gap-x-2">
               <Button
                 variant="outline"
-                className="hidden size-8 p-0 lg:flex"
+                size="icon"
+                className="hidden lg:flex"
                 onClick={() => {
                   table.firstPage();
                   scrollToTable();
@@ -105,11 +110,11 @@ export function DataTablePagination<TData>({
                 data-testid="pager-first"
               >
                 <span className="sr-only">Go to first page</span>
-                <DoubleArrowLeftIcon className="size-4" />
+                <DoubleArrowLeftIcon aria-hidden="true" />
               </Button>
               <Button
                 variant="outline"
-                className="size-8 p-0"
+                size="icon"
                 onClick={() => {
                   table.previousPage();
                   scrollToTable();
@@ -118,11 +123,11 @@ export function DataTablePagination<TData>({
                 data-testid="pager-prev"
               >
                 <span className="sr-only">Go to previous page</span>
-                <ChevronLeftIcon className="size-4" />
+                <ChevronLeftIcon aria-hidden="true" />
               </Button>
               <Button
                 variant="outline"
-                className="size-8 p-0"
+                size="icon"
                 onClick={() => {
                   table.nextPage();
                   scrollToTable();
@@ -131,11 +136,12 @@ export function DataTablePagination<TData>({
                 data-testid="pager-next"
               >
                 <span className="sr-only">Go to next page</span>
-                <ChevronRightIcon className="size-4" />
+                <ChevronRightIcon aria-hidden="true" />
               </Button>
               <Button
                 variant="outline"
-                className="hidden size-8 p-0 lg:flex"
+                size="icon"
+                className="hidden lg:flex"
                 onClick={() => {
                   table.lastPage();
                   scrollToTable();
@@ -144,7 +150,7 @@ export function DataTablePagination<TData>({
                 data-testid="pager-last"
               >
                 <span className="sr-only">Go to last page</span>
-                <DoubleArrowRightIcon className="size-4" />
+                <DoubleArrowRightIcon aria-hidden="true" />
               </Button>
             </div>
           </div>
