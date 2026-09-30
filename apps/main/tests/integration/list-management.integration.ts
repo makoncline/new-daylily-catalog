@@ -173,6 +173,9 @@ for (const [device, viewport] of [
     await expect(
       page.getByRole("heading", { name: "List not found" }),
     ).toBeVisible();
+    await expect(
+      page.getByRole("navigation", { name: "breadcrumb" }),
+    ).toContainText("List not found", { timeout: 15_000 });
     await page.goto("/dashboard/listings");
     await expect(page.getByTestId("listing-table")).toContainText(listingTitle);
   });
