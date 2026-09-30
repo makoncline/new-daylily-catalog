@@ -23,9 +23,9 @@ describe("temp list matching", () => {
     );
     await matchTempListings(listings);
     expect(fetchMock).toHaveBeenCalledOnce();
-    const body: unknown = JSON.parse(
-      String(fetchMock.mock.calls[0]?.[1]?.body),
-    );
+    const requestBody = fetchMock.mock.calls[0]?.[1]?.body;
+    if (typeof requestBody !== "string") throw new Error("Expected JSON body");
+    const body: unknown = JSON.parse(requestBody);
     expect(body).toMatchObject({
       names: listings.map((listing) => listing.name),
       includeCandidates: false,
