@@ -3,52 +3,48 @@
 import {
   Activity,
   useEffect,
+  useCallback,
   useLayoutEffect,
   useRef,
-  type MouseEvent as ReactMouseEvent,
+  type SyntheticEvent,
 } from "react";
 import { CreateListButton } from "./_components/create-list-button";
-import {
-  CreateListSurface,
-  useCreateList,
-} from "./_components/create-list-dialog";
+import { CreateListSurface } from "./_components/create-list-dialog";
 import { ListsTable } from "./_components/lists-table";
 import { PageHeader } from "@/components/page-header";
-import {
-  EditListSurface,
-  useEditList,
-} from "./_components/edit-list-dialog";
+import { EditListSurface } from "./_components/edit-list-dialog";
+import { useCreateList, useEditList } from "./_hooks/use-list-surface-state";
 
 export default function ListsPage() {
-  const { closeEditList, editingId } = useEditList();
+  const { closeEditList, editingId, editList } = useEditList();
   const {
     canCreateList,
     closeCreateList,
     finishCreateList,
     isCreateRequested,
     isEligibilityLoading,
+    openCreateList,
   } = useCreateList();
+  const editListRef = useRef(editList);
+  useLayoutEffect(() => {
+    editListRef.current = editList;
+  }, [editList]);
+  const handleEdit = useCallback((id: string) => {
+    editListRef.current(id);
+  }, []);
   const isCreating = isCreateRequested && canCreateList;
   const isShowingSurface = isCreating || Boolean(editingId);
   const dashboardScrollYRef = useRef(0);
   const dashboardRef = useRef<HTMLDivElement | null>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const wasEditingRef = useRef(false);
+  const restoreFrameRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (
-      isCreateRequested &&
-      !isEligibilityLoading &&
-      !canCreateList
-    ) {
+    if (isCreateRequested && !isEligibilityLoading && !canCreateList) {
       closeCreateList();
     }
-  }, [
-    canCreateList,
-    closeCreateList,
-    isCreateRequested,
-    isEligibilityLoading,
-  ]);
+  }, [canCreateList, closeCreateList, isCreateRequested, isEligibilityLoading]);
 
   useLayoutEffect(() => {
     if (isShowingSurface) {
@@ -62,6 +58,7 @@ export default function ListsPage() {
     }
 
     const frame = requestAnimationFrame(() => {
+      restoreFrameRef.current = null;
       wasEditingRef.current = false;
       window.scrollTo({ top: dashboardScrollYRef.current });
       const focusTarget = returnFocusRef.current?.isConnected
@@ -70,19 +67,27 @@ export default function ListsPage() {
       focusTarget?.focus({ preventScroll: true });
     });
 
-    return () => cancelAnimationFrame(frame);
+    restoreFrameRef.current = frame;
+    return () => {
+      cancelAnimationFrame(frame);
+      restoreFrameRef.current = null;
+    };
   }, [isShowingSurface]);
 
-  const rememberDashboardState = (event: ReactMouseEvent) => {
+  const rememberDashboardState = (event: SyntheticEvent) => {
+    if (restoreFrameRef.current !== null) {
+      cancelAnimationFrame(restoreFrameRef.current);
+      restoreFrameRef.current = null;
+      wasEditingRef.current = false;
+    }
     dashboardScrollYRef.current = window.scrollY;
     const openedFromRow =
       event.target instanceof Element &&
       event.target.closest('[data-testid="list-row-action-edit"]');
-    returnFocusRef.current = openedFromRow
-      ? document.querySelector<HTMLElement>(
-          '[data-testid="list-row-actions-trigger"][data-state="open"]',
-        )
-      : null;
+    if (!openedFromRow && event.target instanceof Element) {
+      const button = event.target.closest<HTMLElement>("button");
+      if (button) returnFocusRef.current = button;
+    }
   };
 
   return (
@@ -90,18 +95,19 @@ export default function ListsPage() {
       <Activity mode={isShowingSurface ? "hidden" : "visible"}>
         <div
           ref={dashboardRef}
-          className="space-y-4"
-          onClickCapture={rememberDashboardState}
+          className="flex min-w-0 flex-col gap-4"
+          onPointerDownCapture={rememberDashboardState}
+          onFocusCapture={rememberDashboardState}
           tabIndex={-1}
         >
           <PageHeader
             heading="Lists"
             text="Organize your daylilies into collections."
           >
-            <CreateListButton />
+            <CreateListButton onCreate={openCreateList} />
           </PageHeader>
 
-          <ListsTable />
+          <ListsTable onEdit={handleEdit} onCreate={openCreateList} />
         </div>
       </Activity>
 

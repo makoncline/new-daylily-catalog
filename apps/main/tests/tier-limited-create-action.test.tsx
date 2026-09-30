@@ -31,20 +31,6 @@ vi.mock("@/app/dashboard/_lib/dashboard-timing", () => ({
   logDashboardTiming: vi.fn(),
 }));
 
-vi.mock("@/app/dashboard/lists/_components/create-list-dialog", () => ({
-  useCreateList: () => {
-    const pro = mocks.usePro();
-    const count = mocks.listCount();
-
-    return {
-      isEligibilityLoading: pro.isLoading || count.isLoading,
-      isPro: pro.isPro,
-      listCount: count.data,
-      openCreateList: mocks.openCreateList,
-    };
-  },
-}));
-
 vi.mock("@/trpc/react", () => ({
   api: {
     dashboardDb: {
@@ -80,7 +66,7 @@ describe("dashboard create buttons", () => {
     ).toBeDisabled();
     listing.unmount();
 
-    render(<CreateListButton />);
+    render(<CreateListButton onCreate={mocks.openCreateList} />);
     expect(screen.getByRole("button", { name: "Create List" })).toBeDisabled();
   });
 
@@ -102,7 +88,7 @@ describe("dashboard create buttons", () => {
     expect(mocks.openCreateListing).toHaveBeenCalledOnce();
     listing.unmount();
 
-    render(<CreateListButton />);
+    render(<CreateListButton onCreate={mocks.openCreateList} />);
     fireEvent.click(screen.getByRole("button", { name: "Create List" }));
     expect(mocks.openCreateList).toHaveBeenCalledOnce();
   });
@@ -126,7 +112,7 @@ describe("dashboard create buttons", () => {
     expect(mocks.openCreateListing).not.toHaveBeenCalled();
     listing.unmount();
 
-    render(<CreateListButton />);
+    render(<CreateListButton onCreate={mocks.openCreateList} />);
     fireEvent.click(screen.getByRole("button", { name: "Create List" }));
     expect(screen.getByRole("dialog")).toHaveTextContent("Upgrade to Pro");
     expect(mocks.openCreateList).not.toHaveBeenCalled();

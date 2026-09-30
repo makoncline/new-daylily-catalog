@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
 
 function GuardHarness() {
@@ -9,7 +9,13 @@ function GuardHarness() {
 }
 
 describe("useUnsavedChangesGuard", () => {
+  let navigation: EventTarget;
+  beforeEach(() => {
+    navigation = new EventTarget();
+    vi.stubGlobal("navigation", navigation);
+  });
   afterEach(() => {
+    vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
@@ -28,16 +34,15 @@ describe("useUnsavedChangesGuard", () => {
     expect(window.confirm).toHaveBeenCalledTimes(1);
   });
 
-  it("restores the editor when browser Back is cancelled", () => {
+  it("cancels traversal before the router removes the editor", () => {
     vi.spyOn(window, "confirm").mockReturnValue(false);
-    const forward = vi
-      .spyOn(window.history, "forward")
-      .mockImplementation(() => {});
     render(<GuardHarness />);
 
-    fireEvent(window, new PopStateEvent("popstate"));
+    const traversal = new Event("navigate", { cancelable: true });
+    Object.defineProperty(traversal, "navigationType", { value: "traverse" });
+    navigation.dispatchEvent(traversal);
 
     expect(window.confirm).toHaveBeenCalledTimes(1);
-    expect(forward).toHaveBeenCalledTimes(1);
+    expect(traversal.defaultPrevented).toBe(true);
   });
 });

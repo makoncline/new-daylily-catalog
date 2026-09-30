@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { ChevronsUpDown } from "lucide-react";
+import { useState, useMemo, useRef } from "react";
+import { Search } from "lucide-react";
+import { useListResource } from "@/app/dashboard/_lib/dashboard-db/use-list-resource";
+import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -37,11 +39,13 @@ export function AddListingsCombobox({
   listId,
   onMutationSuccess,
 }: AddListingsComboboxProps) {
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const { list } = useListResource(listId);
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
-  const { data: listings = [] } =
+  const { data: listings = [], isReady } =
     useSeededDashboardDbQuery<ListingCollectionItem>({
       query: (q) =>
         q
@@ -66,15 +70,19 @@ export function AddListingsCombobox({
       toast.error("Failed to add listing to list");
     } finally {
       setIsSaving(false);
+      requestAnimationFrame(() =>
+        triggerRef.current?.focus({ preventScroll: true }),
+      );
     }
   };
 
   const filteredListings = useMemo(() => {
     return listings.filter((listing) => {
+      if (list?.listings.some(({ id }) => id === listing.id)) return false;
       if (!searchValue) return true;
       return listing.title.toLowerCase().includes(searchValue.toLowerCase());
     });
-  }, [listings, searchValue]);
+  }, [list, listings, searchValue]);
 
   const handleOpenChange = (isOpen: boolean) => {
     setOpen(isOpen);
@@ -86,15 +94,17 @@ export function AddListingsCombobox({
   const triggerButton = (
     <Button
       variant="outline"
-      role="combobox"
-      aria-expanded={open}
-      aria-controls="add-listings-list"
-      className="w-full justify-between"
-      disabled={isSaving}
+      ref={triggerRef}
+      className="w-full"
+      disabled={isSaving || !isReady}
       data-testid="add-listings-trigger"
     >
+      {isSaving ? (
+        <Spinner data-icon="inline-start" />
+      ) : (
+        <Search data-icon="inline-start" />
+      )}
       Search your listings…
-      <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
     </Button>
   );
 
@@ -102,56 +112,43 @@ export function AddListingsCombobox({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{triggerButton}</DialogTrigger>
       <DialogContent
+        className="h-auto"
         onCloseAutoFocus={(event) => {
-          // Don't restore focus to the trigger on close.
           event.preventDefault();
+          triggerRef.current?.focus({ preventScroll: true });
         }}
       >
-        <div className="flex h-full flex-col overflow-hidden">
-          <DialogHeader className="shrink-0 px-4 pt-4 pb-2">
-            <DialogTitle>Add Listings to List</DialogTitle>
-            <DialogDescription>
-              Search your listings and select one to add it to this list.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex-1 overflow-hidden">
-            <Command shouldFilter={false} className="flex h-full flex-col">
-              <CommandInput
-                placeholder="Search your listings…"
-                value={searchValue}
-                onValueChange={setSearchValue}
-                className="border-none pl-3 focus:ring-0"
-                data-testid="add-listings-search-input"
-              />
-              <CommandList
-                id="add-listings-list"
-                className="flex-1 overflow-x-hidden overflow-y-auto pb-2"
-              >
-                {listings.length === 0 && (
-                  <CommandEmpty>
-                    <p className="text-muted-foreground p-2 text-sm">
-                      No listings found.
-                    </p>
-                  </CommandEmpty>
-                )}
-                <CommandGroup>
-                  {filteredListings?.map((listing) => (
-                    <CommandItem
-                      key={listing.id}
-                      onSelect={() => void handleSelect(listing.id)}
-                      className="px-6"
-                      disabled={isSaving}
-                    >
-                      <div className="flex w-full items-center justify-between">
-                        <span>{listing.title}</span>
-                      </div>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </div>
-        </div>
+        <DialogHeader>
+          <DialogTitle>Add Listings to List</DialogTitle>
+          <DialogDescription>
+            Search your listings and select one to add it to this list.
+          </DialogDescription>
+        </DialogHeader>
+        <Command shouldFilter={false}>
+          <CommandInput
+            placeholder="Search your listings…"
+            value={searchValue}
+            onValueChange={setSearchValue}
+            data-testid="add-listings-search-input"
+          />
+          <CommandList id="add-listings-list">
+            <CommandEmpty>
+              No listings found. Only listings outside this list are shown.
+            </CommandEmpty>
+            <CommandGroup>
+              {filteredListings.map((listing) => (
+                <CommandItem
+                  key={listing.id}
+                  value={listing.id}
+                  onSelect={() => void handleSelect(listing.id)}
+                  disabled={isSaving}
+                >
+                  {listing.title}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
       </DialogContent>
     </Dialog>
   );

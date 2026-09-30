@@ -1,6 +1,11 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ListFormSkeleton } from "@/components/forms/list-form-skeleton";
+import { ListMissingState } from "@/components/list-missing-state";
 import { ListListingsTable } from "./_components/list-listings-table";
 import { PageHeader } from "../../_components/page-header";
 import { ListForm, type ListFormHandle } from "@/components/forms/list-form";
@@ -27,23 +32,36 @@ export function ManageListPageLive({ listId }: { listId: string }) {
     formRef.current?.markNeedsCommit();
   }, []);
 
-  const { list } = useListResource(listId);
+  const { isReady, list } = useListResource(listId);
+
+  if (!isReady) return <ListFormSkeleton />;
 
   if (!list) {
-    return <div className="p-4">List not found</div>;
+    return <ListMissingState />;
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex min-w-0 flex-col gap-6">
       <PageHeader
         heading={`Manage List: ${list.title}`}
         text="Manage list details and organize your listings."
-      />
-      <ListForm listId={listId} formRef={formRef} />
-      <AddListingsSection
-        listId={listId}
-        onMutationSuccess={markListNeedsCommit}
-      />
+      >
+        <Button variant="outline" asChild>
+          <Link href="/dashboard/lists">
+            <ArrowLeft data-icon="inline-start" />
+            Back to lists
+          </Link>
+        </Button>
+      </PageHeader>
+      <div className="grid items-start gap-6 lg:grid-cols-3">
+        <div className="min-w-0 lg:col-span-2">
+          <ListForm listId={listId} formRef={formRef} />
+        </div>
+        <AddListingsSection
+          listId={listId}
+          onMutationSuccess={markListNeedsCommit}
+        />
+      </div>
       <ListListingsTable
         listId={listId}
         onMutationSuccess={markListNeedsCommit}

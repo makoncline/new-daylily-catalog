@@ -28,8 +28,6 @@ export function useUnsavedChangesGuard(
       return;
     }
 
-    let isRestoringHistory = false;
-
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
       if (!hasPendingChangesRef.current()) {
         return;
@@ -79,27 +77,27 @@ export function useUnsavedChangesGuard(
       }
     };
 
-    const onPopState = () => {
-      if (isRestoringHistory) {
-        isRestoringHistory = false;
+    // Navigate runs before popstate and before the router removes this editor.
+    // TypeScript 5.9 does not declare Window.navigation yet.
+    const navigation = (window as Window & { navigation?: EventTarget })
+      .navigation;
+    const onNavigate = (event: Event) => {
+      if (
+        (event as Event & { navigationType: string }).navigationType !==
+          "traverse" ||
+        !event.cancelable
+      )
         return;
-      }
-
-      if (!hasPendingChangesRef.current() || window.confirm(LEAVE_MESSAGE)) {
-        return;
-      }
-
-      isRestoringHistory = true;
-      window.history.forward();
+      if (!confirmDiscard()) event.preventDefault();
     };
+    navigation?.addEventListener("navigate", onNavigate);
 
     window.addEventListener("beforeunload", onBeforeUnload);
-    window.addEventListener("popstate", onPopState);
     document.addEventListener("click", onClick, true);
 
     return () => {
       window.removeEventListener("beforeunload", onBeforeUnload);
-      window.removeEventListener("popstate", onPopState);
+      navigation?.removeEventListener("navigate", onNavigate);
       document.removeEventListener("click", onClick, true);
     };
   }, [confirmDiscard, enabled]);
