@@ -105,6 +105,7 @@ function SelectedItemsActions({
           void confirmRemoveSelected();
         }}
         title="Remove Listings"
+        actionLabel="Remove"
         description={`Are you sure you want to remove ${selectedRows.length} listing${selectedRows.length === 1 ? "" : "s"} from this list? The listings will stay in your catalog.`}
       />
     </>
