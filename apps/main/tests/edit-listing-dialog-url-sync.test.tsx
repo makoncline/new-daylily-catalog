@@ -78,7 +78,7 @@ describe("useEditListing URL sync", () => {
     navigationState.replace.mockClear();
   });
 
-  it("replaces the editing query without pushing a bare '?' URL", async () => {
+  it("keeps the editor open until its editing URL is removed", async () => {
     const { rerender } = render(<EditListingHookHarness />);
 
     await waitFor(() => {
@@ -87,7 +87,7 @@ describe("useEditListing URL sync", () => {
 
     fireEvent.click(screen.getByRole("button"));
 
-    expect(screen.getByRole("button")).toHaveTextContent("none");
+    expect(screen.getByRole("button")).toHaveTextContent("listing-1");
 
     await waitFor(() => {
       expect(navigationState.replace).toHaveBeenCalledWith(
@@ -102,9 +102,7 @@ describe("useEditListing URL sync", () => {
 
     navigationState.setSearch("");
     rerender(<EditListingHookHarness />);
-    await act(async () => {
-      await new Promise((resolve) => window.setTimeout(resolve, 0));
-    });
+    expect(screen.getByRole("button")).toHaveTextContent("none");
 
     navigationState.setSearch("editing=listing-1");
     rerender(<EditListingHookHarness />);

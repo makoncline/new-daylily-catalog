@@ -19,6 +19,8 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/trpc/react";
 
 export interface AhsSearchResult {
@@ -41,7 +43,6 @@ export function AhsListingSelect({
   const [debouncedSearchValue, setDebouncedSearchValue] = useState("");
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Debounce search value to prevent excessive API calls
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchValue(searchValue);
@@ -50,7 +51,6 @@ export function AhsListingSelect({
     return () => clearTimeout(timer);
   }, [searchValue]);
 
-  // Clear search when dialog closes
   const handleOpenChange = (isOpen: boolean) => {
     setOpen(isOpen);
     if (!isOpen) {
@@ -78,13 +78,11 @@ export function AhsListingSelect({
     });
   }, [open]);
 
-  // Handler for selecting an item
   const handleSelect = (result: AhsSearchResult) => {
     onSelect(result);
     setOpen(false);
   };
 
-  // Render the search content
   const renderSearchContent = () => (
     <Command shouldFilter={false} className="flex h-full flex-col">
       <CommandInput
@@ -92,11 +90,10 @@ export function AhsListingSelect({
         ref={searchInputRef}
         value={searchValue}
         onValueChange={setSearchValue}
-        className="border-none pl-3 focus:ring-0"
       />
       <CommandList
         id="ahs-listing-select-list"
-        className="flex-1 overflow-x-hidden overflow-y-auto pb-2"
+        className="flex-1 overflow-x-hidden overflow-y-auto"
       >
         {!searchValue && (
           <CommandEmpty>Type to search AHS listings…</CommandEmpty>
@@ -104,10 +101,27 @@ export function AhsListingSelect({
         {searchValue &&
           (debouncedSearchValue !== searchValue ||
             ahsSearchQuery.isLoading) && (
-            <div className="flex h-full items-center justify-center">
-              <p className="text-muted-foreground text-sm">Loading…</p>
+            <div
+              role="status"
+              className="flex items-center justify-center gap-2 p-6"
+            >
+              <Spinner aria-hidden="true" />
+              Loading…
             </div>
           )}
+        {ahsSearchQuery.isError && debouncedSearchValue === searchValue && (
+          <Alert variant="destructive">
+            <AlertTitle>Search failed</AlertTitle>
+            <AlertDescription>Try the search again.</AlertDescription>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void ahsSearchQuery.refetch()}
+            >
+              Retry
+            </Button>
+          </Alert>
+        )}
         {searchValue &&
           debouncedSearchValue === searchValue &&
           !ahsSearchQuery.isLoading &&
@@ -125,7 +139,6 @@ export function AhsListingSelect({
                 <CommandItem
                   key={result.id}
                   onSelect={() => handleSelect(result)}
-                  className="px-6"
                 >
                   {result.name}
                 </CommandItem>
@@ -136,9 +149,9 @@ export function AhsListingSelect({
     </Command>
   );
 
-  // Trigger button
   const triggerButton = (
     <Button
+      type="button"
       variant="outline"
       role="combobox"
       aria-label="Select Daylily Database listing"
@@ -149,26 +162,23 @@ export function AhsListingSelect({
       id="ahs-listing-select"
     >
       Select Daylily Database listing…
-      <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+      <ChevronsUpDown aria-hidden="true" />
     </Button>
   );
   const searchContent = renderSearchContent();
 
-  // Always use Dialog
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{triggerButton}</DialogTrigger>
-      <DialogContent aria-describedby={undefined}>
-        <div className="flex h-full flex-col overflow-hidden">
-          <DialogHeader className="shrink-0 px-4 pt-4 pb-2">
-            <DialogTitle>Select Daylily Database Listing</DialogTitle>
-            <DialogDescription>
-              Search by cultivar name and select the matching database listing
-              to link details to this listing.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex-1 overflow-hidden">{searchContent}</div>
-        </div>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Select Daylily Database Listing</DialogTitle>
+          <DialogDescription>
+            Search by cultivar name and select the matching database listing to
+            link details to this listing.
+          </DialogDescription>
+        </DialogHeader>
+        {searchContent}
       </DialogContent>
     </Dialog>
   );

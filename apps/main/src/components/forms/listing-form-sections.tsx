@@ -1,18 +1,17 @@
 "use client";
 
 import { type ComponentProps } from "react";
-import { Label } from "@/components/ui/label";
+import {
+  Field,
+  FieldDescription,
+  FieldLabel,
+  FieldTitle,
+} from "@/components/ui/field";
 import { ImageManager } from "@/components/image-manager";
 import { ImageUpload } from "@/components/image-upload";
 import { MultiListSelect } from "@/components/multi-list-select";
 import { AhsListingLink } from "@/components/ahs-listing-link";
 import { LISTING_CONFIG } from "@/config/constants";
-import { type ListingCollectionItem } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
-import { type CultivarReferenceCollectionItem } from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
-
-type LinkedAhsListing = CultivarReferenceCollectionItem["ahsListing"];
-type LinkedCultivarReferenceImage =
-  CultivarReferenceCollectionItem["cultivarReferenceImage"];
 
 export function ListingMediaSection({
   images,
@@ -24,30 +23,27 @@ export function ListingMediaSection({
   onMutationSuccess: () => void;
 }) {
   return (
-    <div className="space-y-2">
-      <Label htmlFor="image-upload-input">Images</Label>
-      <p className="text-muted-foreground text-[0.8rem]">
-        Upload images of your listing. You can reorder them by dragging.
-      </p>
-      <div className="space-y-4">
-        <ImageManager
+    <Field>
+      <FieldLabel htmlFor="image-upload-input">Images</FieldLabel>
+      <FieldDescription>
+        Upload images of your listing. Drag an image to change its order. Image
+        changes are saved at once.
+      </FieldDescription>
+      <ImageManager
+        type="listing"
+        images={images}
+        referenceId={listingId}
+        onMutationSuccess={onMutationSuccess}
+      />
+      {images.length < LISTING_CONFIG.IMAGES.MAX_COUNT && (
+        <ImageUpload
           type="listing"
-          images={images}
           referenceId={listingId}
+          isFirstImageUpload={images.length === 0}
           onMutationSuccess={onMutationSuccess}
         />
-        {images.length < LISTING_CONFIG.IMAGES.MAX_COUNT && (
-          <div className="p-4">
-            <ImageUpload
-              type="listing"
-              referenceId={listingId}
-              isFirstImageUpload={images.length === 0}
-              onMutationSuccess={onMutationSuccess}
-            />
-          </div>
-        )}
-      </div>
-    </div>
+      )}
+    </Field>
   );
 }
 
@@ -61,17 +57,18 @@ export function ListingListsSection({
   selectedListIds: string[];
 }) {
   return (
-    <div className="space-y-2">
-      <Label htmlFor="list-select">Lists</Label>
+    <Field data-disabled={disabled}>
+      <FieldLabel htmlFor="list-select">Lists</FieldLabel>
       <MultiListSelect
         values={selectedListIds}
         onSelect={onSelect}
         disabled={disabled}
       />
-      <p className="text-muted-foreground text-[0.8rem]">
-        Optional. Add this listing to one or more lists.
-      </p>
-    </div>
+      <FieldDescription>
+        Optional. Add this listing to one or more lists. List changes are saved
+        at once.
+      </FieldDescription>
+    </Field>
   );
 }
 
@@ -83,18 +80,18 @@ export function ListingCultivarLinkSection({
   onMutationSuccess,
   onNameChange,
 }: {
-  linkedAhs: LinkedAhsListing | null;
+  linkedAhs: ComponentProps<typeof AhsListingLink>["linkedAhs"];
   linkedCultivarHref: string | null;
-  linkedCultivarReferenceImage: LinkedCultivarReferenceImage | null;
-  listing: ListingCollectionItem;
+  linkedCultivarReferenceImage: ComponentProps<
+    typeof AhsListingLink
+  >["cultivarReferenceImage"];
+  listing: ComponentProps<typeof AhsListingLink>["listing"];
   onMutationSuccess: () => void;
   onNameChange: (name: string) => void;
 }) {
   return (
-    <div className="space-y-2">
-      <Label htmlFor="ahs-listing-select">
-        Link to Daylily Database Listing
-      </Label>
+    <Field>
+      <FieldTitle>Link to Daylily Database Listing</FieldTitle>
       <AhsListingLink
         listing={listing}
         linkedAhs={linkedAhs}
@@ -103,11 +100,10 @@ export function ListingCultivarLinkSection({
         onNameChange={onNameChange}
         onMutationSuccess={onMutationSuccess}
       />
-      <p className="text-muted-foreground text-[0.8rem]">
-        Optional. Link your listing to a daylily database listing to
-        automatically populate details like hybridizer, year, and photo from our
-        database.
-      </p>
-    </div>
+      <FieldDescription>
+        Optional. Link a cultivar to show its database details and photo. Link
+        and name sync changes are saved at once.
+      </FieldDescription>
+    </Field>
   );
 }

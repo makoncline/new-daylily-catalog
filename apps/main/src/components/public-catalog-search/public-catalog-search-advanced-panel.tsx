@@ -51,7 +51,7 @@ function AdvancedSectionFields<TData>({
   section: PublicCatalogSearchSectionDefinition;
 }) {
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       {section.groups.map((group) => {
         const groupFilters = getSectionGroupFilters(section, group.filterIds);
 
@@ -62,7 +62,7 @@ function AdvancedSectionFields<TData>({
         return (
           <div
             key={group.filterIds.join("-")}
-            className={cn(group.className ?? "space-y-4")}
+            className={cn(group.className ?? "flex flex-col gap-4")}
           >
             {groupFilters.map((definition) => (
               <PublicCatalogSearchFilterField
@@ -91,14 +91,13 @@ function AdvancedSectionsAccordion<TData>({
     <Accordion
       type="multiple"
       defaultValue={["listing"]}
-      className={cn("mt-4 space-y-1", className)}
+      className={cn("mt-4", className)}
     >
       {sectionDefinitions.map((section) => (
         <PublicCatalogSearchFilterSection
           key={section.id}
           definition={section}
           count={countPublicCatalogSearchSectionFilters(context.table, section)}
-          className={cn(section.id === "details" && "border-b-0")}
         >
           <AdvancedSectionFields context={context} section={section} />
         </PublicCatalogSearchFilterSection>
@@ -148,11 +147,10 @@ export function PublicCatalogSearchAdvancedPanel<TData>({
           type="button"
           variant="ghost"
           size="icon"
-          className="size-8"
           onClick={() => onCollapsedChange(false)}
           data-testid="search-panel-expand"
         >
-          <Search className="size-4" />
+          <Search aria-hidden="true" />
           <span className="sr-only">Expand search panel</span>
         </Button>
       </div>
@@ -171,11 +169,10 @@ export function PublicCatalogSearchAdvancedPanel<TData>({
             type="button"
             variant="ghost"
             size="icon"
-            className="size-6"
             onClick={() => onCollapsedChange(true)}
             data-testid="search-panel-collapse"
           >
-            <PanelLeftClose className="size-3.5" />
+            <PanelLeftClose aria-hidden="true" />
             <span className="sr-only">Collapse search panel</span>
           </Button>
           <span className="text-sm font-semibold">Search</span>
@@ -231,7 +228,7 @@ export function PublicCatalogSearchAdvancedPanel<TData>({
               {wideSectionColumns.map((sections) => (
                 <div
                   key={sections.map((section) => section.id).join("-")}
-                  className="space-y-6"
+                  className="flex flex-col gap-6"
                 >
                   {sections.map((section) => (
                     <PublicCatalogSearchSection

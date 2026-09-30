@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -22,7 +23,6 @@ import {
 } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import { TruncatedListBadge } from "@/components/data-table/truncated-list-badge";
-import { Muted } from "@/components/typography";
 import { useLiveQuery } from "@tanstack/react-db";
 import {
   insertList,
@@ -43,162 +43,140 @@ export function MultiListSelect({
 }: MultiListSelectProps) {
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
-
+  const [isCreating, setIsCreating] = useState(false);
   const { data: lists = [] } = useLiveQuery((q) =>
     q.from({ list: listsCollection }).orderBy(({ list }) => list.title, "asc"),
   );
-
-  const filteredLists = lists?.filter((list) =>
+  const filteredLists = lists.filter((list) =>
     list.title.toLowerCase().includes(searchValue.toLowerCase()),
   );
+  const selectedLists = lists.filter((list) => values.includes(list.id));
+  const isBusy = isCreating || disabled === true;
 
-  const selectedLists = lists?.filter((list) => values.includes(list.id));
-
-  const handleOpenChange = (isOpen: boolean) => {
-    setOpen(isOpen);
-    if (!isOpen) {
-      setSearchValue("");
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+    if (!nextOpen) setSearchValue("");
+  };
+  const handleToggleList = (listId: string) => {
+    onSelect(
+      values.includes(listId)
+        ? values.filter((id) => id !== listId)
+        : [...values, listId],
+    );
+  };
+  const handleCreateList = async () => {
+    if (!searchValue || isBusy) return;
+    setIsCreating(true);
+    try {
+      const newList = await insertList({ title: searchValue });
+      onSelect([...values, newList.id]);
+      handleOpenChange(false);
+    } catch {
+      toast.error("Failed to create list");
+    } finally {
+      setIsCreating(false);
     }
   };
 
-  const handleToggleList = (listId: string) => {
-    const newValues = values.includes(listId)
-      ? values.filter((id) => id !== listId)
-      : [...values, listId];
-    onSelect(newValues);
-  };
-
-  const handleClearAll = () => {
-    onSelect([]);
-    setOpen(false);
-  };
-
-  const handleCreateList = () => {
-    if (!searchValue) return;
-
-    void insertList({ title: searchValue })
-      .then((newList) => {
-        onSelect([...values, newList.id]);
-        setOpen(false);
-        setSearchValue("");
-      })
-      .catch(() => {
-        toast.error("Failed to create list");
-      });
-  };
-
-  // Render the list content
-  const renderContent = () => (
-    <Command shouldFilter={false} className="flex h-full flex-col">
-      <CommandInput
-        placeholder="Search lists..."
-        value={searchValue}
-        onValueChange={setSearchValue}
-        className="border-none pl-3 focus:ring-0"
-      />
-      <CommandList
-        id="list-select-list"
-        className="flex-1 overflow-x-hidden overflow-y-auto pb-2"
-      >
-        {!searchValue && (
-          <>
-            <CommandItem
-              onSelect={handleClearAll}
-              className="flex items-center px-2 py-1.5"
-            >
-              <X className="mr-2 size-4" />
-              <span>None</span>
-            </CommandItem>
-            <CommandSeparator />
-          </>
-        )}
-
-        {lists?.length === 0 && (
-          <CommandEmpty>
-            <Muted className="p-2 text-sm">
-              No lists found. Create a list first.
-            </Muted>
-          </CommandEmpty>
-        )}
-
-        {filteredLists?.length === 0 && searchValue && (
-          <CommandItem
-            onSelect={handleCreateList}
-            className="flex items-center px-2 py-1.5"
-          >
-            <Plus className="mr-2 size-4" />
-            <span>Create &quot;{searchValue}&quot;</span>
-          </CommandItem>
-        )}
-
-        <CommandGroup>
-          {filteredLists?.map((list) => (
-            <CommandItem
-              key={list.id}
-              onSelect={() => handleToggleList(list.id)}
-              className="px-6"
-            >
-              <Check
-                className={cn(
-                  "mr-2 size-4",
-                  values.includes(list.id) ? "opacity-100" : "opacity-0",
-                )}
-              />
-              <span>{list.title}</span>
-            </CommandItem>
-          ))}
-        </CommandGroup>
-      </CommandList>
-    </Command>
-  );
-
-  // Trigger button
-  const triggerButton = (
-    <Button
-      id="list-select"
-      variant="outline"
-      role="combobox"
-      aria-expanded={open}
-      aria-controls="list-select-list"
-      className="w-full justify-between"
-      disabled={disabled}
-    >
-      <div className="flex flex-wrap gap-1 truncate">
-        {selectedLists?.length
-          ? selectedLists.map((list) => (
-              <TruncatedListBadge
-                key={list.id}
-                name={list.title}
-                className="text-xs font-normal"
-              />
-            ))
-          : "Select lists..."}
-      </div>
-      <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
-    </Button>
-  );
-  const content = renderContent();
-
-  // Always use Dialog
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>{triggerButton}</DialogTrigger>
+      <DialogTrigger asChild>
+        <Button
+          id="list-select"
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          aria-controls="list-select-list"
+          className="w-full justify-between"
+          disabled={isBusy}
+        >
+          <span className="flex min-w-0 gap-1 overflow-hidden">
+            {selectedLists.length
+              ? selectedLists.map((list) => (
+                  <TruncatedListBadge
+                    key={list.id}
+                    name={list.title}
+                    className="shrink-0"
+                  />
+                ))
+              : "Select lists..."}
+          </span>
+          <ChevronsUpDown aria-hidden="true" />
+        </Button>
+      </DialogTrigger>
       <DialogContent>
-        <div className="flex h-full flex-col overflow-hidden">
-          <DialogHeader className="shrink-0 px-4 pt-4 pb-2">
-            <DialogTitle>Select Lists</DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 overflow-hidden">{content}</div>
-        </div>
+        <DialogHeader>
+          <DialogTitle>Select Lists</DialogTitle>
+          <DialogDescription>
+            Select one or more lists. You can also create a list.
+          </DialogDescription>
+        </DialogHeader>
+        <Command shouldFilter={false}>
+          <CommandInput
+            placeholder="Search lists..."
+            value={searchValue}
+            onValueChange={setSearchValue}
+            disabled={isCreating}
+          />
+          <CommandList id="list-select-list">
+            {!searchValue && (
+              <>
+                <CommandGroup>
+                  <CommandItem
+                    disabled={isBusy}
+                    onSelect={() => {
+                      onSelect([]);
+                      handleOpenChange(false);
+                    }}
+                  >
+                    <X aria-hidden="true" />
+                    None
+                  </CommandItem>
+                </CommandGroup>
+                <CommandSeparator />
+              </>
+            )}
+            {lists.length === 0 && !searchValue && (
+              <CommandEmpty>
+                No lists found. Search for a name to create a list.
+              </CommandEmpty>
+            )}
+            {filteredLists.length === 0 && searchValue && (
+              <CommandGroup>
+                <CommandItem
+                  disabled={isBusy}
+                  onSelect={() => void handleCreateList()}
+                >
+                  <Plus aria-hidden="true" />
+                  Create &quot;{searchValue}&quot;
+                </CommandItem>
+              </CommandGroup>
+            )}
+            <CommandGroup>
+              {filteredLists.map((list) => (
+                <CommandItem
+                  key={list.id}
+                  disabled={isBusy}
+                  onSelect={() => handleToggleList(list.id)}
+                >
+                  <Check
+                    className={cn(
+                      values.includes(list.id) ? "opacity-100" : "opacity-0",
+                    )}
+                    aria-hidden="true"
+                  />
+                  {list.title}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
       </DialogContent>
     </Dialog>
   );
 }
 
 export function MultiListSelectSkeleton() {
-  return (
-    <div>
-      <Skeleton className="h-10 w-full" />
-    </div>
-  );
+  return <Skeleton className="h-9 w-full" />;
 }

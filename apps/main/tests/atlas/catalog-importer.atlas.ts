@@ -404,6 +404,6 @@ test("Mobile importer preview", async ({ page }) => {
         return getComputedStyle(element).gridTemplateColumns.split(" ").length;
       }),
     )
-    .toBe(2);
+    .toBe(1);
   await captureAtlasState(page, "catalog-importer-mobile-preview");
 });

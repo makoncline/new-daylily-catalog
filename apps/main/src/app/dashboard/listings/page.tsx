@@ -3,9 +3,10 @@
 import {
   Activity,
   useEffect,
+  useCallback,
   useLayoutEffect,
   useRef,
-  type MouseEvent as ReactMouseEvent,
+  type SyntheticEvent,
 } from "react";
 import { CreateListingButton } from "./_components/create-listing-button";
 import {
@@ -21,14 +22,26 @@ import { PageHeader } from "@/components/page-header";
 import { logDashboardTiming } from "@/app/dashboard/_lib/dashboard-timing";
 
 export default function ListingsPage() {
-  const { closeEditListing, editingId } = useEditListing();
-  const { closeCreateListing, finishCreateListing, isCreating } =
-    useCreateListing();
+  const { closeEditListing, editingId, editListing } = useEditListing();
+  const {
+    closeCreateListing,
+    finishCreateListing,
+    isCreating,
+    openCreateListing,
+  } = useCreateListing();
+  const editListingRef = useRef(editListing);
+  useLayoutEffect(() => {
+    editListingRef.current = editListing;
+  }, [editListing]);
+  const handleEdit = useCallback((id: string) => {
+    editListingRef.current(id);
+  }, []);
   const isShowingSurface = isCreating || Boolean(editingId);
   const dashboardScrollYRef = useRef(0);
   const dashboardRef = useRef<HTMLDivElement | null>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const wasEditingRef = useRef(false);
+  const restoreFrameRef = useRef<number | null>(null);
 
   useEffect(() => {
     logDashboardTiming("listings-page.mounted");
@@ -46,6 +59,7 @@ export default function ListingsPage() {
     }
 
     const frame = requestAnimationFrame(() => {
+      restoreFrameRef.current = null;
       wasEditingRef.current = false;
       window.scrollTo({ top: dashboardScrollYRef.current });
       const focusTarget = returnFocusRef.current?.isConnected
@@ -54,19 +68,27 @@ export default function ListingsPage() {
       focusTarget?.focus({ preventScroll: true });
     });
 
-    return () => cancelAnimationFrame(frame);
+    restoreFrameRef.current = frame;
+    return () => {
+      cancelAnimationFrame(frame);
+      restoreFrameRef.current = null;
+    };
   }, [isShowingSurface]);
 
-  const rememberDashboardState = (event: ReactMouseEvent) => {
+  const rememberDashboardState = (event: SyntheticEvent) => {
+    if (restoreFrameRef.current !== null) {
+      cancelAnimationFrame(restoreFrameRef.current);
+      restoreFrameRef.current = null;
+      wasEditingRef.current = false;
+    }
     dashboardScrollYRef.current = window.scrollY;
     const openedFromRow =
       event.target instanceof Element &&
       event.target.closest('[data-testid="listing-row-action-edit"]');
-    returnFocusRef.current = openedFromRow
-      ? document.querySelector<HTMLElement>(
-          '[data-testid="listing-row-actions-trigger"][data-state="open"]',
-        )
-      : null;
+    if (!openedFromRow && event.target instanceof Element) {
+      const button = event.target.closest<HTMLElement>("button");
+      if (button) returnFocusRef.current = button;
+    }
   };
 
   return (
@@ -74,18 +96,20 @@ export default function ListingsPage() {
       <Activity mode={isShowingSurface ? "hidden" : "visible"}>
         <div
           ref={dashboardRef}
-          className="space-y-4"
-          onClickCapture={rememberDashboardState}
+          data-testid="listings-dashboard"
+          className="flex flex-col gap-4"
+          onPointerDownCapture={rememberDashboardState}
+          onFocusCapture={rememberDashboardState}
           tabIndex={-1}
         >
           <PageHeader
             heading="Listings"
             text="Manage and showcase your daylilies."
           >
-            <CreateListingButton />
+            <CreateListingButton onCreate={openCreateListing} />
           </PageHeader>
 
-          <ListingsTable />
+          <ListingsTable onEdit={handleEdit} onCreate={openCreateListing} />
         </div>
       </Activity>
 

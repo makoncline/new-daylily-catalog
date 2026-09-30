@@ -184,9 +184,9 @@ export function ImageManager({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       <div
-        className="grid max-w-[800px] grid-cols-2 gap-4 md:grid-cols-4"
+        className="grid max-w-200 grid-cols-2 gap-4 md:grid-cols-4"
         data-testid="image-manager-grid"
       >
         <DndContext
@@ -211,18 +211,17 @@ export function ImageManager({
                         type="button"
                         variant="secondary"
                         size="icon"
-                        className="absolute top-2 left-2 size-8 cursor-grab touch-none"
+                        className="absolute top-2 left-2 cursor-grab touch-none"
                         data-testid="image-drag-handle"
                         data-image-id={image.id}
                         {...attributes}
                         {...listeners}
                       >
-                        <GripVertical className="size-4" />
+                        <GripVertical aria-hidden="true" />
                         <span className="sr-only">Drag to reorder</span>
                       </Button>
                       <ImagePreviewDialog
                         images={[image]}
-                        size="sm"
                         className="absolute top-2 right-2"
                       />
                       <Button
@@ -230,7 +229,7 @@ export function ImageManager({
                         variant="destructive"
                         size="icon"
                         disabled={isPending}
-                        className="absolute right-2 bottom-2 size-8"
+                        className="absolute right-2 bottom-2"
                         data-testid="image-delete-button"
                         data-image-id={image.id}
                         onClick={() => {
@@ -238,7 +237,7 @@ export function ImageManager({
                           openDeleteDialog();
                         }}
                       >
-                        <Trash2 className="size-4" />
+                        <Trash2 aria-hidden="true" />
                         <span className="sr-only">Delete image</span>
                       </Button>
                     </>
@@ -274,11 +273,11 @@ export function ImageManager({
 
 export function ImageManagerSkeleton() {
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <div key={i} className="relative aspect-square">
-            <Skeleton className="size-full rounded-lg" />
+            <Skeleton className="size-full" />
           </div>
         ))}
       </div>

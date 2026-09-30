@@ -1,15 +1,12 @@
 "use client";
 
-import {
-  ListingForm,
-  type ListingFormHandle,
-} from "@/components/forms/listing-form";
+import { ListingForm } from "@/components/forms/listing-form";
+import type { ListingFormHandle } from "@/components/forms/use-listing-form";
 import { ListingFormSkeleton } from "@/components/forms/listing-form-skeleton";
 import { ArrowLeft } from "lucide-react";
 import {
   Suspense,
   useCallback,
-  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -22,49 +19,19 @@ import { ErrorFallback } from "@/components/error-fallback";
 import { PageHeader } from "@/components/page-header";
 import { ListingSurfaceSaveBar } from "./listing-surface-save-bar";
 
-/**
- * Custom hook for editing listings with URL-backed state.
- */
 export const useEditListing = () => {
   const { setValue, value } = useQueryParamDialogState({
     history: "push",
     paramName: "editing",
     scroll: false,
   });
-  const [optimisticEditing, setOptimisticEditing] = useState<{
-    from: string | null;
-    to: string | null;
-  } | null>(null);
-
-  const editingId =
-    optimisticEditing?.from === value ? optimisticEditing.to : value;
-
-  useEffect(() => {
-    if (optimisticEditing?.to !== value) {
-      return;
-    }
-
-    const timeout = window.setTimeout(() => setOptimisticEditing(null), 0);
-    return () => window.clearTimeout(timeout);
-  }, [optimisticEditing, value]);
-
   return {
-    editListing: (id: string) => {
-      setOptimisticEditing({ from: value, to: id });
-      setValue(id);
-    },
-    closeEditListing: () => {
-      setOptimisticEditing({ from: editingId, to: null });
-      setValue(null, "replace");
-    },
-    editingId,
+    editListing: (id: string) => setValue(id),
+    closeEditListing: () => setValue(null, "replace"),
+    editingId: value,
   };
 };
 
-/**
- * Full-page surface for editing a listing without modal viewport geometry.
- * Keeps edits local until the user explicitly saves or discards them.
- */
 export function EditListingSurface({
   listingId,
   onClose,
@@ -123,8 +90,9 @@ export function EditListingSurface({
           type="button"
           variant="outline"
           onClick={handleBack}
+          disabled={isSaving}
         >
-          <ArrowLeft aria-hidden="true" />
+          <ArrowLeft aria-hidden="true" data-icon="inline-start" />
           Back to listings
         </Button>
       </PageHeader>

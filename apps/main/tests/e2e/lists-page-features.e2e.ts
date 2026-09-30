@@ -232,6 +232,13 @@ test.describe("lists page features @local", () => {
     await expect(page.locator(".animate-pulse:visible")).toHaveCount(0);
     await expect(page).not.toHaveURL(/editing=/);
     releaseDeleteRequest();
+    await expect(
+      page
+        .locator("[data-sonner-toast]")
+        .filter({ hasText: "Your list has been deleted successfully" })
+        .first(),
+    ).toBeVisible();
+    await page.reload();
 
     await expect(
       page.getByRole("heading", { name: "No lists found" }),

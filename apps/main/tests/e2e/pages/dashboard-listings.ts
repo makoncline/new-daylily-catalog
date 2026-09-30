@@ -199,7 +199,7 @@ export class DashboardListings {
           rowActionButtonFactory?.() ?? this.firstVisibleRowActionButton();
         await trigger.waitFor({ state: "visible", timeout: 5000 });
         await trigger.scrollIntoViewIfNeeded();
-        await trigger.click({ force: true });
+        await trigger.click();
         await this.rowActionMenu().waitFor({ state: "visible", timeout: 2000 });
         return;
       } catch {}
