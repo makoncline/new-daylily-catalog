@@ -96,6 +96,9 @@ describe("dashboardDb.userProfile slug namespace", () => {
     ).resolves.toEqual({
       available: false,
     });
+    await expect(caller.checkSlug({ slug: "temp-list" })).resolves.toEqual({
+      available: false,
+    });
     expect(db.userProfile.findFirst).not.toHaveBeenCalled();
     expect(db.user.findFirst).not.toHaveBeenCalled();
   });
