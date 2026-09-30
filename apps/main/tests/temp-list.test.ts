@@ -1,11 +1,41 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import writeExcelFile from "write-excel-file/node";
 import readExcelFile from "read-excel-file/node";
 import {
   createTempListSpreadsheet,
+  createTempListing,
+  matchTempListings,
+  MAX_TEMP_LISTINGS,
   tempListSchema,
   toTempPreviewRow,
 } from "@/app/(public)/temp-list/_lib/temp-list";
+
+afterEach(() => vi.unstubAllGlobals());
+
+describe("temp list matching", () => {
+  it("uses one exact lookup and rejects oversized lists before making a request", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(Response.json({ results: [] }));
+    vi.stubGlobal("fetch", fetchMock);
+    const listings = Array.from({ length: MAX_TEMP_LISTINGS }, (_, index) =>
+      createTempListing(`Flower ${index}`),
+    );
+    await matchTempListings(listings);
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const body: unknown = JSON.parse(
+      String(fetchMock.mock.calls[0]?.[1]?.body),
+    );
+    expect(body).toMatchObject({
+      names: listings.map((listing) => listing.name),
+      includeCandidates: false,
+    });
+    await expect(
+      matchTempListings([...listings, createTempListing("One too many")]),
+    ).rejects.toThrow("up to 100 flowers");
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+});
 
 describe("temp list spreadsheet", () => {
   it("exports restored browser fields without losing decimals, notes, or unlinked entries", async () => {

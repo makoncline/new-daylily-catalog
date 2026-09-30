@@ -14,6 +14,7 @@ export const TEMP_TEXT_CARD_COLORS = {
 };
 
 export const TEMP_LIST_STORAGE_KEY = "daylily-catalog:temp-list";
+export const MAX_TEMP_LISTINGS = 100;
 export const tempListingSchema = z.object({
   id: z.string(),
   name: z.string().trim().min(1).max(160),
@@ -22,7 +23,7 @@ export const tempListingSchema = z.object({
   privateNote: z.string(),
   cultivarReferenceId: z.string().nullable(),
 });
-export const tempListSchema = z.array(tempListingSchema);
+export const tempListSchema = z.array(tempListingSchema).max(MAX_TEMP_LISTINGS);
 export type TempListing = z.infer<typeof tempListingSchema>;
 export interface TempPreviewRow extends CatalogSearchListingRow {
   listing: TempListing;
@@ -44,19 +45,17 @@ export async function matchTempListings(
   listings: TempListing[],
   signal?: AbortSignal,
 ) {
-  const results = [];
-  for (let offset = 0; offset < listings.length; offset += 100) {
-    const batch = listings.slice(offset, offset + 100);
-    results.push(
-      ...(await requestCultivarMatches({
-        names: batch.map((row) => row.name),
-        cultivarReferenceIds: batch.map((row) => row.cultivarReferenceId),
-        includeCandidates: true,
-        signal,
-      })),
+  if (listings.length > MAX_TEMP_LISTINGS) {
+    throw new Error(
+      `A temp list can contain up to ${MAX_TEMP_LISTINGS} flowers.`,
     );
   }
-  return results;
+  return requestCultivarMatches({
+    names: listings.map((row) => row.name),
+    cultivarReferenceIds: listings.map((row) => row.cultivarReferenceId),
+    includeCandidates: false,
+    signal,
+  });
 }
 
 export function toTempPreviewRow(

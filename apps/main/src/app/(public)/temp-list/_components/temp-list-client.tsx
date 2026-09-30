@@ -26,6 +26,7 @@ import type { CultivarMatchCandidate } from "@/lib/catalog-importer";
 import {
   createTempListing,
   matchTempListings,
+  MAX_TEMP_LISTINGS,
   TEMP_LIST_STORAGE_KEY,
   tempListSchema,
   toTempPreviewRow,
@@ -115,6 +116,12 @@ export function TempListClient() {
       .filter(Boolean)
       .map(createTempListing);
     if (!added.length) return;
+    if (listings.length + added.length > MAX_TEMP_LISTINGS) {
+      toast.error(
+        `A temp list can contain up to ${MAX_TEMP_LISTINGS} flowers.`,
+      );
+      return;
+    }
     if (added.some((row) => row.name.length > 160)) {
       toast.error("Each name must be 160 characters or fewer.");
       return;
@@ -190,7 +197,8 @@ export function TempListClient() {
           <CardTitle>Add flowers</CardTitle>
           <CardDescription>
             Paste cultivar names, one per line. Exact names link to the database
-            automatically. You can review other names yourself.
+            automatically. You can review other names yourself. Each list can
+            contain up to {MAX_TEMP_LISTINGS} flowers.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -225,7 +233,9 @@ export function TempListClient() {
               <Button
                 type="button"
                 variant="outline"
-                disabled={!ready || busy}
+                disabled={
+                  !ready || busy || listings.length >= MAX_TEMP_LISTINGS
+                }
                 onClick={() => setEditing(createTempListing(""))}
               >
                 Add listing manually
