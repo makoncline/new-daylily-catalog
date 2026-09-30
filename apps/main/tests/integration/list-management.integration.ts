@@ -42,6 +42,15 @@ for (const [device, viewport] of [
     ).toBeVisible();
     await lists.editTitleInput().fill(editedTitle);
     await lists.editDescriptionInput().fill(description);
+    await page.route("**/api/trpc/*dashboardDb.list.update*", (route) =>
+      route.abort("failed"),
+    );
+    await lists.surfaceSaveButton().click();
+    await expect(toast("Failed to update list")).toBeVisible();
+    await expect(lists.editTitleInput()).toHaveValue(editedTitle);
+    await expect(lists.editDescriptionInput()).toHaveValue(description);
+    await expect(lists.surfaceSaveButton()).toBeEnabled();
+    await page.unroute("**/api/trpc/*dashboardDb.list.update*");
     await lists.surfaceSaveButton().click();
     await expect(toast("List updated")).toBeVisible();
     await expect(lists.editDialog()).toBeHidden();

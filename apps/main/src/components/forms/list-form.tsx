@@ -217,6 +217,9 @@ function ListFormInner({
   }, [form, hasPendingChanges, needsParentCommit, onPendingChangesChange]);
 
   useEffect(() => {
+    // Keep the saved baseline while the collection holds an optimistic write.
+    if (isSaving) return;
+
     const nextCommittedValues = toFormValues(list);
     const previousCommittedValues = committedValuesRef.current;
     const currentValues = form.getValues();
@@ -234,7 +237,7 @@ function ListFormInner({
     if (!areListValuesEqual(currentValues, nextCommittedValues)) {
       form.reset(nextCommittedValues, { keepIsValid: true });
     }
-  }, [form, list, needsParentCommitRef]);
+  }, [form, isSaving, list, needsParentCommitRef]);
 
   async function onSubmit() {
     await saveChanges("manual");
