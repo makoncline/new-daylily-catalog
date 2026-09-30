@@ -30,6 +30,19 @@ export interface TempPreviewRow extends CatalogSearchListingRow {
   match: CultivarMatchCandidate | null;
 }
 
+export function getTempCultivarQueryKey(listings: TempListing[]) {
+  return [
+    "temp-list-cultivars",
+    [
+      ...new Set(
+        listings.flatMap((listing) =>
+          listing.cultivarReferenceId ? [listing.cultivarReferenceId] : [],
+        ),
+      ),
+    ].sort(),
+  ] as const;
+}
+
 export function createTempListing(name: string): TempListing {
   return {
     id: crypto.randomUUID(),

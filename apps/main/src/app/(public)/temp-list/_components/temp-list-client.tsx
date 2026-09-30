@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Plus, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -23,90 +24,83 @@ import {
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import type { CultivarMatchCandidate } from "@/lib/catalog-importer";
+import { getQueryClient } from "@/trpc/query-client";
 import {
   createTempListing,
+  getTempCultivarQueryKey,
   matchTempListings,
   MAX_TEMP_LISTINGS,
-  TEMP_LIST_STORAGE_KEY,
-  tempListSchema,
   toTempPreviewRow,
   type TempListing,
 } from "../_lib/temp-list";
+import {
+  getTempListServerSnapshot,
+  getTempListSnapshot,
+  subscribeToTempList,
+  writeTempList,
+} from "../_lib/temp-list-store";
 import { TempListEditor } from "./temp-list-editor";
 import { TempListPreview } from "./temp-list-preview";
 
 export function TempListClient() {
-  const [listings, setListings] = useState<TempListing[]>([]);
-  const [matches, setMatches] = useState<
-    Record<string, CultivarMatchCandidate>
-  >({});
-  const [ready, setReady] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const { listings, storageError, ready } = useSyncExternalStore(
+    subscribeToTempList,
+    getTempListSnapshot,
+    getTempListServerSnapshot,
+  );
+  const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [storageError, setStorageError] = useState<string | null>(null);
   const [names, setNames] = useState("");
   const [editing, setEditing] = useState<TempListing | null>(null);
   const [resetOpen, setResetOpen] = useState(false);
 
-  useEffect(() => {
-    const abort = new AbortController();
-    async function load() {
-      let saved: TempListing[] = [];
-      try {
-        const raw = localStorage.getItem(TEMP_LIST_STORAGE_KEY);
-        if (raw) saved = tempListSchema.parse(JSON.parse(raw));
-      } catch {
-        setStorageError(
-          "The saved list could not be read. You can still use this page and download your list.",
+  const queryClient = getQueryClient();
+  const linked = listings.filter((listing) => listing.cultivarReferenceId);
+  const details = useQuery(
+    {
+      queryKey: getTempCultivarQueryKey(listings),
+      queryFn: async ({ signal }) => {
+        const results = await matchTempListings(linked, signal);
+        return Object.fromEntries(
+          results.flatMap((result) =>
+            result.exactMatch &&
+            result.exactMatch.cultivarReferenceId ===
+              result.inputCultivarReferenceId
+              ? [[result.exactMatch.cultivarReferenceId, result.exactMatch]]
+              : [],
+          ),
         );
-      }
-      setListings(saved);
-      setReady(true);
-      const linked = saved.filter(
-        (listing) => listing.cultivarReferenceId !== null,
-      );
-      if (!linked.length) return;
-      setBusy(true);
-      try {
-        const results = await matchTempListings(linked, abort.signal);
-        if (!abort.signal.aborted)
-          setMatches(
-            Object.fromEntries(
-              results.flatMap((result, index) => {
-                const match = result.exactMatch;
-                return match &&
-                  linked[index]?.cultivarReferenceId ===
-                    match.cultivarReferenceId
-                  ? [[match.cultivarReferenceId, match]]
-                  : [];
-              }),
-            ),
-          );
-      } catch (failure) {
-        if (!abort.signal.aborted)
-          setError(
-            failure instanceof Error
-              ? failure.message
-              : "Could not load cultivar details.",
-          );
-      } finally {
-        if (!abort.signal.aborted) setBusy(false);
-      }
-    }
-    void load();
-    return () => abort.abort();
-  }, []);
+      },
+      enabled: ready && linked.length > 0,
+      staleTime: Infinity,
+      retry: false,
+      retryOnMount: false,
+      refetchOnMount: false,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+    },
+    queryClient,
+  );
+  const matches = details.data;
+  const busy = adding || details.isFetching;
+  const loadError = error ?? details.error?.message;
 
-  function save(next: TempListing[]) {
-    setListings(next);
-    try {
-      localStorage.setItem(TEMP_LIST_STORAGE_KEY, JSON.stringify(next));
-      setStorageError(null);
-    } catch {
-      setStorageError(
-        "This browser could not save the list. Download it before you leave this page.",
-      );
+  function save(next: TempListing[], found: CultivarMatchCandidate[] = []) {
+    const known = {
+      ...matches,
+      ...Object.fromEntries(
+        found.map((match) => [match.cultivarReferenceId, match]),
+      ),
+    };
+    if (
+      next.every(
+        (listing) =>
+          !listing.cultivarReferenceId || known[listing.cultivarReferenceId],
+      )
+    ) {
+      queryClient.setQueryData(getTempCultivarQueryKey(next), known);
     }
+    writeTempList(next);
   }
 
   async function addNames() {
@@ -126,32 +120,23 @@ export function TempListClient() {
       toast.error("Each name must be 160 characters or fewer.");
       return;
     }
-    setBusy(true);
+    setAdding(true);
     setError(null);
     try {
       const results = await matchTempListings(added);
-      const newMatches = results.flatMap((result) =>
-        result.exactMatch
-          ? [
-              [
-                result.exactMatch.cultivarReferenceId,
-                result.exactMatch,
-              ] as const,
-            ]
-          : [],
+      save(
+        [
+          ...listings,
+          ...added.map((row, index) => ({
+            ...row,
+            cultivarReferenceId:
+              results[index]?.exactMatch?.cultivarReferenceId ?? null,
+          })),
+        ],
+        results.flatMap((result) =>
+          result.exactMatch ? [result.exactMatch] : [],
+        ),
       );
-      setMatches((current) => ({
-        ...current,
-        ...Object.fromEntries(newMatches),
-      }));
-      save([
-        ...listings,
-        ...added.map((row, index) => ({
-          ...row,
-          cultivarReferenceId:
-            results[index]?.exactMatch?.cultivarReferenceId ?? null,
-        })),
-      ]);
       setNames("");
       toast.success(
         `${added.length} ${added.length === 1 ? "listing added" : "listings added"}.`,
@@ -163,7 +148,7 @@ export function TempListClient() {
           : "Could not find cultivar details. Try again.",
       );
     } finally {
-      setBusy(false);
+      setAdding(false);
     }
   }
 
@@ -171,7 +156,7 @@ export function TempListClient() {
     toTempPreviewRow(
       listing,
       listing.cultivarReferenceId
-        ? (matches[listing.cultivarReferenceId] ?? null)
+        ? (matches?.[listing.cultivarReferenceId] ?? null)
         : null,
     ),
   );
@@ -183,12 +168,12 @@ export function TempListClient() {
           <AlertDescription>{storageError}</AlertDescription>
         </Alert>
       ) : null}
-      {error ? (
+      {loadError ? (
         <Alert variant="destructive">
           <AlertTitle>Could not load cultivar details</AlertTitle>
           <AlertDescription>
-            {error} Reload the page to retry saved cultivar links. Your listing
-            fields are still here.
+            {loadError} Reload the page to retry saved cultivar links. Your
+            listing fields are still here.
           </AlertDescription>
         </Alert>
       ) : null}
@@ -280,20 +265,16 @@ export function TempListClient() {
           listing={editing}
           initialMatch={
             editing.cultivarReferenceId
-              ? (matches[editing.cultivarReferenceId] ?? null)
+              ? (matches?.[editing.cultivarReferenceId] ?? null)
               : null
           }
           onClose={() => setEditing(null)}
           onSave={(listing, match) => {
-            if (match)
-              setMatches((current) => ({
-                ...current,
-                [match.cultivarReferenceId]: match,
-              }));
             save(
               listings.some((row) => row.id === listing.id)
                 ? listings.map((row) => (row.id === listing.id ? listing : row))
                 : [...listings, listing],
+              match ? [match] : [],
             );
             setEditing(null);
           }}
