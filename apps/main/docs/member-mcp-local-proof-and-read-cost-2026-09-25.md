@@ -2,6 +2,15 @@
 
 Date: 2026-09-25
 
+## Crop UI update (2026-10-01)
+
+The visible crop coordinate fields were removed. The normal drag, keyboard,
+Reset, Cancel and Upload controls remain. Browser agents can read and set
+the visible square selection through `daylily.get-image-crop` and
+`daylily.set-image-crop` while an image is open. These tools make no database
+or storage requests. Upload remains a separate UI action. The earlier photo
+videos show the old coordinate fields.
+
 ## Current feature proof (2026-09-30)
 
 See [feature videos and coverage](member-mcp-feature-proof-2026-09-30.md).
@@ -26,7 +35,7 @@ are recorded on the PR. Local SQLite does not measure billed Turso reads.
 
 Remote MCP photo addition and profile story writes were removed. Photo
 addition opens the existing listing or profile image manager. Browser
-WebMCP opens the same editor. The cropper has labelled numeric controls and
+WebMCP opens the same editor. At that revision, the cropper had labelled numeric controls and
 keeps square output at a maximum of 1,600 pixels. Current image storage proof
 uses `member-image-upload-loopback.test.ts` with
 `RUN_MEMBER_IMAGE_UPLOAD_PROOF=1`. Earlier MCP upload and story results below

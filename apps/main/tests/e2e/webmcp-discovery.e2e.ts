@@ -12,7 +12,7 @@ test.describe("WebMCP discovery @local", () => {
         inputSchema: unknown;
       }> = [];
 
-      Object.defineProperty(window.navigator, "modelContext", {
+      Object.defineProperty(document, "modelContext", {
         configurable: true,
         value: {
           registerTool(

@@ -14,31 +14,7 @@ import {
   addListingToList,
   insertList,
 } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
-
-type JsonSchema = Record<string, unknown>;
-
-interface WebMcpTool {
-  name: string;
-  title: string;
-  description: string;
-  inputSchema: JsonSchema;
-  execute: (input: Record<string, unknown>) => Promise<unknown>;
-  annotations?: {
-    readOnlyHint: boolean;
-    destructiveHint: boolean;
-    openWorldHint: boolean;
-    idempotentHint?: boolean;
-    untrustedContentHint?: boolean;
-  };
-}
-
-interface WebMcpModelContext {
-  registerTool?: (tool: WebMcpTool, options?: { signal?: AbortSignal }) => void;
-  provideContext?: (options: {
-    tools: WebMcpTool[];
-    signal?: AbortSignal;
-  }) => void;
-}
+import { registerWebMcpTools, toolResult, type WebMcpTool } from "@/lib/webmcp";
 
 function asString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -73,21 +49,6 @@ function asNullableNonNegativeNumber(value: unknown, fieldName = "value") {
   return parsed;
 }
 
-function toolResult(payload: unknown) {
-  const text = JSON.stringify(payload, null, 2);
-  return {
-    content: [{ type: "text", text }],
-    structuredContent: payload,
-  };
-}
-
-function getModelContext(): WebMcpModelContext | null {
-  const maybeNavigator = navigator as Navigator & {
-    modelContext?: WebMcpModelContext;
-  };
-  return maybeNavigator.modelContext ?? null;
-}
-
 const emptyObjectSchema = {
   type: "object",
   additionalProperties: false,
@@ -105,9 +66,6 @@ export function WebMcpProvider() {
     try {
       if (!pathname.startsWith("/dashboard")) return;
       if (!isLoaded || !isSignedIn) return;
-
-      const modelContext = getModelContext();
-      if (!modelContext) return;
 
       const client = getTrpcClient();
       const queryClient = getQueryClient();
@@ -501,7 +459,7 @@ export function WebMcpProvider() {
           name: "daylily.open-image-editor",
           title: "Open Image Editor",
           description:
-            "Open the listing or profile image manager. Choose a file through its labelled file input. Use the square crop controls, then select Upload. This uses the page's resize, moderation, and storage flow. It does not upload on navigation.",
+            "Open the listing or profile image manager. Choose a file through its labelled file input. Drag the square crop, or use daylily.get-image-crop and daylily.set-image-crop while the cropper is open. Then select Upload. This uses the page's resize, moderation, and storage flow. It does not upload on navigation.",
           inputSchema: {
             type: "object",
             additionalProperties: false,
@@ -577,24 +535,7 @@ export function WebMcpProvider() {
         },
       ];
 
-      if (typeof modelContext.registerTool === "function") {
-        for (const tool of tools) {
-          try {
-            modelContext.registerTool(tool, { signal: abortController.signal });
-          } catch (error) {
-            void error;
-          }
-        }
-      } else if (typeof modelContext.provideContext === "function") {
-        try {
-          modelContext.provideContext({
-            tools,
-            signal: abortController.signal,
-          });
-        } catch (error) {
-          void error;
-        }
-      }
+      void registerWebMcpTools(tools, abortController.signal);
     } catch (error) {
       void error;
     }

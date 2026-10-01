@@ -1,21 +1,19 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ReactCrop, {
   type PixelCrop,
   type PercentCrop,
   centerCrop,
-  convertToPercentCrop,
   convertToPixelCrop,
   makeAspectCrop,
 } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import { useImageCropWebMcp } from "@/hooks/use-image-crop-webmcp";
 import {
   getErrorMessage,
   normalizeError,
@@ -93,26 +91,7 @@ export function ImageCropper({
   const [initialCrop, setInitialCrop] = useState<PercentCrop>();
   const [naturalDims, setNaturalDims] = useState({ w: 0, h: 0 });
   const [displayDims, setDisplayDims] = useState({ w: 0, h: 0 });
-  const [cropInputs, setCropInputs] = useState({ left: "", top: "", size: "" });
-  const [cropError, setCropError] = useState<string | null>(null);
-  const cropControlId = useId();
   const imageRef = useRef<HTMLImageElement | null>(null);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-
-  const setSelection = (
-    next: PercentCrop,
-    width = naturalDims.w,
-    height = naturalDims.h,
-  ) => {
-    setCrop(next);
-    const pixels = convertToPixelCrop(next, width, height);
-    setCropInputs({
-      left: String(Math.round(pixels.x)),
-      top: String(Math.round(pixels.y)),
-      size: String(Math.round(pixels.width)),
-    });
-    setCropError(null);
-  };
 
   const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const { naturalWidth, naturalHeight } = e.currentTarget;
@@ -141,7 +120,7 @@ export function ImageCropper({
       naturalHeight,
     );
 
-    setSelection(initial, naturalWidth, naturalHeight);
+    setCrop(initial);
     setInitialCrop(initial);
   };
 
@@ -165,42 +144,15 @@ export function ImageCropper({
     return Math.min(minPx, naturalDims.w, naturalDims.h) * ratio;
   })();
 
-  const selectedPixels = crop
-    ? convertToPixelCrop(crop, naturalDims.w, naturalDims.h)
-    : null;
-  const hasPendingCrop = Boolean(
-    selectedPixels &&
-      (cropInputs.left !== String(Math.round(selectedPixels.x)) ||
-        cropInputs.top !== String(Math.round(selectedPixels.y)) ||
-        cropInputs.size !== String(Math.round(selectedPixels.width))),
-  );
-
-  const applyCropInputs = () => {
-    const left = cropInputs.left.trim() ? Number(cropInputs.left) : NaN;
-    const top = cropInputs.top.trim() ? Number(cropInputs.top) : NaN;
-    const size = cropInputs.size.trim() ? Number(cropInputs.size) : NaN;
-    const minimum = Math.min(minPx, naturalDims.w, naturalDims.h);
-    if (
-      ![left, top, size].every(Number.isInteger) ||
-      left < 0 ||
-      top < 0 ||
-      size < minimum ||
-      left + size > naturalDims.w ||
-      top + size > naturalDims.h
-    ) {
-      setCropError(
-        `Use whole pixels. The square must be at least ${minimum}px and stay inside the image.`,
-      );
-      return;
-    }
-    setSelection(
-      convertToPercentCrop(
-        { unit: "px", x: left, y: top, width: size, height: size },
-        naturalDims.w,
-        naturalDims.h,
-      ),
-    );
-  };
+  useImageCropWebMcp({
+    crop,
+    width: naturalDims.w,
+    height: naturalDims.h,
+    minPx,
+    maxOutputPx,
+    isDisabled,
+    onChange: setCrop,
+  });
 
   const handleCompleteCrop = async () => {
     const img = imageRef.current;
@@ -230,17 +182,17 @@ export function ImageCropper({
   };
 
   const handleReset = () => {
-    if (initialCrop) setSelection(initialCrop);
+    if (initialCrop) setCrop(initialCrop);
   };
 
   return (
-    <div ref={containerRef} className="flex flex-col gap-4">
+    <div role="group" aria-label="Image crop" className="flex flex-col gap-4">
       <div className="relative overflow-hidden rounded-lg border">
         <ReactCrop
           crop={crop}
           onChange={(_, percentCrop) => {
             if (!isDisabled) {
-              setSelection(percentCrop);
+              setCrop(percentCrop);
             }
           }}
           aspect={1}
@@ -265,77 +217,6 @@ export function ImageCropper({
           />
         </ReactCrop>
       </div>
-      <fieldset disabled={!crop || isDisabled === true} className="space-y-2">
-        <legend className="text-sm font-medium">Square crop</legend>
-        <p
-          id={`${cropControlId}-help`}
-          className="text-muted-foreground text-sm"
-        >
-          Drag the square, or enter pixels and select Apply crop. Image:{" "}
-          {naturalDims.w} × {naturalDims.h}px.
-        </p>
-        <div className="grid grid-cols-3 gap-2">
-          {(
-            [
-              ["left", "Left (px)", 0, naturalDims.w],
-              ["top", "Top (px)", 0, naturalDims.h],
-              [
-                "size",
-                "Size (px)",
-                Math.min(minPx, naturalDims.w, naturalDims.h),
-                Math.min(naturalDims.w, naturalDims.h),
-              ],
-            ] as const
-          ).map(([field, label, minimum, maximum]) => (
-            <div key={field} className="space-y-1">
-              <Label htmlFor={`${cropControlId}-${field}`}>{label}</Label>
-              <Input
-                id={`${cropControlId}-${field}`}
-                type="number"
-                inputMode="numeric"
-                min={minimum}
-                max={maximum}
-                step={1}
-                value={cropInputs[field]}
-                aria-describedby={`${cropControlId}-help`}
-                onChange={(event) => {
-                  setCropInputs((current) => ({
-                    ...current,
-                    [field]: event.target.value,
-                  }));
-                  setCropError(null);
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    applyCropInputs();
-                  }
-                }}
-              />
-            </div>
-          ))}
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={applyCropInputs}
-          disabled={!hasPendingCrop}
-        >
-          Apply crop
-        </Button>
-        {cropError && (
-          <p role="alert" className="text-destructive text-sm">
-            {cropError}
-          </p>
-        )}
-        {selectedPixels && (
-          <p role="status" className="text-muted-foreground text-sm">
-            Upload size:{" "}
-            {Math.min(maxOutputPx, Math.round(selectedPixels.width))} ×{" "}
-            {Math.min(maxOutputPx, Math.round(selectedPixels.height))}px.
-          </p>
-        )}
-      </fieldset>
       <div className="flex justify-end gap-2">
         <Button
           type="button"
@@ -356,7 +237,7 @@ export function ImageCropper({
         <Button
           type="button"
           onClick={handleCompleteCrop}
-          disabled={!crop || hasPendingCrop || isDisabled === true}
+          disabled={!crop || isDisabled === true}
         >
           {confirmButtonLabel}
         </Button>

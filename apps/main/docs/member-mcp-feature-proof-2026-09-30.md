@@ -4,12 +4,27 @@ Date: 2026-09-30
 
 ## Current behavior
 
-Remote MCP exposes 26 tools. Browser WebMCP exposes 10 separate page tools.
+Remote MCP exposes 26 tools. Browser WebMCP exposes 10 dashboard page tools.
+Two more page tools are available while an image is open for cropping:
+`daylily.get-image-crop` and `daylily.set-image-crop`.
 Remote MCP does not write profile stories or add photos. It does not accept
 `logoUrl` in profile edits. Photo addition opens the owned listing or profile
-image manager. The browser cropper supports labelled numeric controls and
+image manager. The browser cropper uses the normal drag and keyboard controls and
 square WebP output at a maximum of 1,600 pixels. Story edits open the rich
 text editor. The member API still supports the app's existing native flows.
+
+The 2026-10-01 update removed the visible crop coordinate fields. Browser
+agents read and set the same visible selection through the two crop tools.
+Setting a crop does not sign, upload, attach or save an image. Upload remains
+a separate UI action. Closing the cropper removes its tools. Normal crop
+controls also work in browsers without WebMCP.
+
+The update passed nine provider tests and two real-browser integration tests.
+The browser checks cover listing and profile crops, bounds rejection, keyboard
+control, Reset, Cancel, viewport changes and actual 1,600-pixel WebP bytes.
+They confirm that a crop tool call makes no signing or upload request. One
+test uses a WebMCP registry shim. The other uses no WebMCP API. Native browser
+WebMCP support was not tested. Typecheck and changed source lint passed.
 
 Safe writes create or edit one record per call. List additions accept one
 listing per call. A client can repeat that call. Deletion, list member removal,
@@ -24,6 +39,8 @@ records. They do not return catalog totals or run aggregate count queries.
 
 These are silent local recordings with captions. Total duration is about nine
 minutes. The ten MP4 files are attached to [PR 404](https://github.com/makoncline/new-daylily-catalog/pull/404).
+Videos 07 and 08 show the earlier crop coordinate fields. The current UI
+has removed those fields.
 
 | Video                                                                                                                   | Duration | Shown behavior                                                                                                                                |
 | ----------------------------------------------------------------------------------------------------------------------- | -------: | --------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -99,7 +116,7 @@ records are included in this report. Chrome first blocked the callback with
 `ERR_BLOCKED_BY_CLIENT`; the normal callback then completed. No credential
 extraction or browser protection bypass was used.
 
-## Validation
+## Earlier validation (2026-09-30)
 
 - Current affected Vitest run: 38 passed across four files. This includes
   the opt-in SQLite MCP write proof and member API image storage proof.

@@ -18,8 +18,11 @@ Remote MCP has no direct upload, signed-upload preparation, or image attachment
 tool. Use `manage_listing_images` with an owned listing ID or
 `manage_profile_images` with `open_dashboard`. These links open the existing
 browser image manager. Browser WebMCP has `daylily.open-image-editor` and no
-raw upload tools. Agents can choose a file through its labelled input, enter
-Left, Top, and Size pixel values, select Apply crop, then select Upload.
+raw upload tools. Agents can choose a file through its labelled input, read
+`daylily.get-image-crop`, set the visible square with `daylily.set-image-crop`,
+then select Upload. The two crop tools are available only while an image is
+open for cropping. They make no database or storage requests. The normal UI
+has no coordinate fields. Drag and keyboard crop controls remain available.
 The shared cropper keeps a square crop and caps output at 1,600 pixels.
 Moderation, storage, and R2 variants use the existing browser upload flow.
 The member API retains its image upload operations for separate clients.

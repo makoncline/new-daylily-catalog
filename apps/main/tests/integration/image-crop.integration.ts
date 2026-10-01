@@ -3,15 +3,93 @@ import { mkdirSync } from "node:fs";
 import sharp from "sharp";
 import { jsonlStreamProducer } from "@trpc/server/unstable-core-do-not-import";
 import SuperJSON from "superjson";
+import type { Page } from "@playwright/test";
+import type { WebMcpTool } from "@/lib/webmcp";
 import { expect, test } from "./fixtures";
 
 test.use({ video: process.env.IMAGE_CROP_PROOF_DIR ? "on" : "off" });
 
-test("browser agents can crop listing and profile photos with labelled inputs", async ({
+interface CropState {
+  image: { width: number; height: number };
+  crop: { left: number; top: number; size: number };
+  outputSize: number;
+  minimumSize: number;
+}
+
+interface CropModelContext {
+  getTools: () => Promise<WebMcpTool[]>;
+  executeTool: (
+    tool: WebMcpTool,
+    input: Record<string, unknown>,
+  ) => Promise<string>;
+}
+
+async function runCropTool(
+  page: Page,
+  name: string,
+  input: Record<string, unknown> = {},
+) {
+  return page.evaluate(
+    async ({ name, input }) => {
+      const context = (
+        document as Document & { modelContext: CropModelContext }
+      ).modelContext;
+      const tool = (await context.getTools()).find(
+        (tool) => tool.name === name,
+      );
+      if (!tool) throw new Error(`Missing crop tool: ${name}`);
+      const result = await context.executeTool(tool, input);
+      return (JSON.parse(result) as { structuredContent: CropState })
+        .structuredContent;
+    },
+    { name, input },
+  );
+}
+
+async function cropToolNames(page: Page) {
+  return page.evaluate(async () => {
+    const context = (document as Document & { modelContext: CropModelContext })
+      .modelContext;
+    return (await context.getTools())
+      .map((tool) => tool.name)
+      .filter((name) => name.endsWith("-image-crop"));
+  });
+}
+
+test("browser crop tools keep listing and profile UI free of coordinate fields", async ({
   page,
   baseURL,
 }) => {
   if (!baseURL) throw new Error("Integration baseURL is required.");
+  await page.addInitScript(() => {
+    const tools = new Map<string, WebMcpTool>();
+    Object.defineProperty(document, "modelContext", {
+      configurable: true,
+      value: {
+        async registerTool(tool: WebMcpTool, options: { signal: AbortSignal }) {
+          if (options.signal.aborted) return;
+          if (tools.has(tool.name))
+            throw new Error(`Duplicate tool: ${tool.name}`);
+          tools.set(tool.name, tool);
+          options.signal.addEventListener(
+            "abort",
+            () => {
+              if (tools.get(tool.name) === tool) tools.delete(tool.name);
+            },
+            { once: true },
+          );
+        },
+        async getTools() {
+          return Array.from(tools.values());
+        },
+        async executeTool(tool: WebMcpTool, input: Record<string, unknown>) {
+          if (tools.get(tool.name) !== tool)
+            throw new Error("Crop tool is unavailable.");
+          return JSON.stringify(await tool.execute(input));
+        },
+      },
+    });
+  });
   const source = await sharp(
     Buffer.from(
       '<svg xmlns="http://www.w3.org/2000/svg" width="3000" height="2000"><rect width="1000" height="2000" fill="red"/><rect x="1000" width="2000" height="2000" fill="blue"/></svg>',
@@ -57,9 +135,10 @@ test("browser agents can crop listing and profile photos with labelled inputs", 
   });
 
   for (const type of ["listing", "profile"] as const) {
-    const left = type === "listing" ? "1000" : "0";
-    const top = type === "listing" ? "0" : "1000";
+    const left = type === "listing" ? 1000 : 0;
+    const top = type === "listing" ? 0 : 1000;
     uploadedBytes = null;
+    photoRequests.length = 0;
     await page.setViewportSize(
       type === "listing"
         ? { width: 1280, height: 900 }
@@ -72,6 +151,7 @@ test("browser agents can crop listing and profile photos with labelled inputs", 
     );
     const fileInput = page.getByLabel(`Choose ${type} image`);
     await expect(fileInput).toBeAttached();
+    await expect.poll(() => cropToolNames(page)).toEqual([]);
     await fileInput.setInputFiles({
       name: "crop-proof.png",
       mimeType: "image/png",
@@ -79,6 +159,17 @@ test("browser agents can crop listing and profile photos with labelled inputs", 
     });
     const preview = page.getByRole("img", { name: "Crop preview" });
     await expect(preview).toBeVisible();
+    const cropper = page.getByRole("group", {
+      name: "Image crop",
+      exact: true,
+    });
+    await expect(cropper.getByRole("spinbutton")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Apply crop" })).toHaveCount(
+      0,
+    );
+    await expect
+      .poll(() => cropToolNames(page))
+      .toEqual(["daylily.get-image-crop", "daylily.set-image-crop"]);
     await expect
       .poll(() =>
         preview.evaluate((image) => {
@@ -92,41 +183,69 @@ test("browser agents can crop listing and profile photos with labelled inputs", 
         }),
       )
       .toBeLessThan(1);
-    const uploadButton = page.getByRole("button", {
+    const uploadButton = cropper.getByRole("button", {
       name: "Upload",
       exact: true,
     });
     await expect(uploadButton).toBeEnabled();
-    await page.getByLabel("Left (px)", { exact: true }).fill(left);
-    await page.getByLabel("Top (px)", { exact: true }).fill(top);
-    await page.getByLabel("Size (px)", { exact: true }).fill("2500");
-    await page.getByRole("button", { name: "Apply crop" }).click();
+    const initial = await runCropTool(page, "daylily.get-image-crop");
+    expect(initial.image).toEqual(
+      type === "listing"
+        ? { width: 3000, height: 2000 }
+        : { width: 2000, height: 3000 },
+    );
     await expect(
-      page.getByRole("alert").filter({ hasText: "Use whole pixels." }),
-    ).toContainText("stay inside the image");
-    await expect(uploadButton).toBeDisabled();
-    await page.getByLabel("Size (px)", { exact: true }).fill("2000");
-    await page.getByRole("button", { name: "Apply crop" }).click();
-    await expect(
-      page.getByRole("status").filter({ hasText: "Upload size:" }),
-    ).toHaveText("Upload size: 1600 × 1600px.");
+      runCropTool(page, "daylily.set-image-crop", { left, top, size: 2500 }),
+    ).rejects.toThrow("stay inside the image");
+    expect(await runCropTool(page, "daylily.get-image-crop")).toEqual(initial);
+    const updated = await runCropTool(page, "daylily.set-image-crop", {
+      left,
+      top,
+      size: 2000,
+    });
+    expect(updated.crop).toEqual({ left, top, size: 2000 });
+    expect(updated.outputSize).toBe(1600);
+    expect(uploadedBytes).toBeNull();
+    expect(
+      photoRequests.some((url) =>
+        decodeURIComponent(url).includes("dashboardDb.image.getPresignedUrl"),
+      ),
+    ).toBe(false);
     await expect(uploadButton).toBeEnabled();
     await page.setViewportSize(
       type === "listing"
         ? { width: 960, height: 900 }
         : { width: 360, height: 874 },
     );
-    await expect(page.getByLabel("Left (px)", { exact: true })).toHaveValue(
+    expect((await runCropTool(page, "daylily.get-image-crop")).crop).toEqual({
       left,
-    );
-    await expect(page.getByLabel("Size (px)", { exact: true })).toHaveValue(
-      "2000",
-    );
+      top,
+      size: 2000,
+    });
+    await cropper
+      .locator(".ReactCrop__crop-selection")
+      .press(type === "listing" ? "ArrowLeft" : "ArrowUp");
+    await expect
+      .poll(async () => {
+        const state = await runCropTool(page, "daylily.get-image-crop");
+        return type === "listing" ? state.crop.left : state.crop.top;
+      })
+      .toBeLessThan(1000);
+    await cropper.getByRole("button", { name: "Reset", exact: true }).click();
+    await expect
+      .poll(
+        async () => (await runCropTool(page, "daylily.get-image-crop")).crop,
+      )
+      .toEqual(initial.crop);
+    await runCropTool(page, "daylily.set-image-crop", {
+      left,
+      top,
+      size: 2000,
+    });
     if (process.env.IMAGE_CROP_PROOF_DIR) {
       mkdirSync(process.env.IMAGE_CROP_PROOF_DIR, { recursive: true });
-      await page.screenshot({
+      await cropper.screenshot({
         path: path.join(process.env.IMAGE_CROP_PROOF_DIR, `${type}-crop.png`),
-        fullPage: true,
       });
     }
     await uploadButton.click();
@@ -159,5 +278,47 @@ test("browser agents can crop listing and profile photos with labelled inputs", 
         decodeURIComponent(url).includes("dashboardDb.image.create"),
       ),
     ).toBe(false);
+    await cropper.getByRole("button", { name: "Cancel", exact: true }).click();
+    await expect.poll(() => cropToolNames(page)).toEqual([]);
+    await expect(fileInput).toBeAttached();
   }
+});
+
+test("normal image crop controls work without browser MCP", async ({
+  page,
+}) => {
+  const source = await sharp({
+    create: { width: 600, height: 400, channels: 3, background: "blue" },
+  })
+    .png()
+    .toBuffer();
+  await page.goto(
+    "/dashboard/listings?editing=integration-media-listing#listing-images",
+  );
+  const fileInput = page.getByLabel("Choose listing image");
+  await fileInput.setInputFiles({
+    name: "normal-crop.png",
+    mimeType: "image/png",
+    buffer: source,
+  });
+  const cropper = page.getByRole("group", { name: "Image crop", exact: true });
+  const selection = cropper.locator(".ReactCrop__crop-selection");
+  await expect(selection).toBeVisible();
+  await expect(cropper.getByRole("spinbutton")).toHaveCount(0);
+  const initial = await selection.boundingBox();
+  if (!initial) throw new Error("Expected the visible crop selection.");
+  await selection.press("ArrowLeft");
+  await expect
+    .poll(async () => (await selection.boundingBox())?.x)
+    .toBeLessThan(initial.x);
+  await cropper.getByRole("button", { name: "Reset", exact: true }).click();
+  await expect
+    .poll(async () => (await selection.boundingBox())?.x)
+    .toBe(initial.x);
+  await expect(
+    cropper.getByRole("button", { name: "Upload", exact: true }),
+  ).toBeEnabled();
+  await cropper.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(cropper).toHaveCount(0);
+  await expect(fileInput).toBeAttached();
 });

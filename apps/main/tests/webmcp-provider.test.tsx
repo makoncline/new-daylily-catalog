@@ -69,7 +69,7 @@ vi.mock("@/app/dashboard/_lib/dashboard-db/lists-collection", () => ({
 import { WebMcpProvider } from "@/components/webmcp-provider";
 
 function setModelContext(value: unknown) {
-  Object.defineProperty(navigator, "modelContext", {
+  Object.defineProperty(document, "modelContext", {
     configurable: true,
     value,
   });
@@ -140,32 +140,24 @@ describe("WebMcpProvider", () => {
     expect(registerTool).not.toHaveBeenCalled();
   });
 
-  test("uses provideContext when registerTool is unavailable", async () => {
-    const provideContext = vi.fn();
-    setModelContext({ provideContext });
-
-    render(<WebMcpProvider />);
-
-    await waitFor(() => {
-      expect(provideContext).toHaveBeenCalled();
-    });
-
-    const provideContextInput = provideContext.mock.calls[0]?.[0];
-    expect(provideContextInput?.tools).toHaveLength(10);
-    expect(provideContextInput?.tools[0]?.name).toBe("daylily.navigate");
-  });
-
-  test("ignores duplicate tool registration errors on dashboard rerenders", async () => {
+  test("unregisters tools before dashboard navigation registration", async () => {
     const registeredToolNames = new Set<string>();
-    const registerTool = vi.fn((tool: { name: string }) => {
-      if (registeredToolNames.has(tool.name)) {
-        throw new DOMException(
-          "Failed to execute 'registerTool' on 'ModelContext': Duplicate tool name",
-          "InvalidStateError",
+    const registerTool = vi.fn(
+      (tool: { name: string }, options: { signal: AbortSignal }) => {
+        if (registeredToolNames.has(tool.name)) {
+          throw new DOMException(
+            "Failed to execute 'registerTool' on 'ModelContext': Duplicate tool name",
+            "InvalidStateError",
+          );
+        }
+        registeredToolNames.add(tool.name);
+        options.signal.addEventListener(
+          "abort",
+          () => registeredToolNames.delete(tool.name),
+          { once: true },
         );
-      }
-      registeredToolNames.add(tool.name);
-    });
+      },
+    );
     setModelContext({ registerTool });
 
     const { rerender } = render(<WebMcpProvider />);
@@ -182,29 +174,16 @@ describe("WebMcpProvider", () => {
     expect(registeredToolNames.size).toBe(10);
   });
 
-  test("does not crash the dashboard when registerTool throws", async () => {
-    const registerTool = vi.fn(() => {
-      throw new Error("host WebMCP registration failed");
-    });
+  test("does not crash the dashboard when registerTool rejects", async () => {
+    const registerTool = vi.fn(() =>
+      Promise.reject(new Error("host WebMCP registration failed")),
+    );
     setModelContext({ registerTool });
 
     render(<WebMcpProvider />);
 
     await waitFor(() => {
       expect(registerTool).toHaveBeenCalledTimes(10);
-    });
-  });
-
-  test("does not crash the dashboard when provideContext throws", async () => {
-    const provideContext = vi.fn(() => {
-      throw new Error("host WebMCP context failed");
-    });
-    setModelContext({ provideContext });
-
-    render(<WebMcpProvider />);
-
-    await waitFor(() => {
-      expect(provideContext).toHaveBeenCalled();
     });
   });
 

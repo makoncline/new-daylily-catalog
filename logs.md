@@ -49,3 +49,5 @@ check current code before applying them.
 - [2026-09-29] Editor URL ownership: Optimistic editor closing exposes the table before the editing URL clears. A table URL update can retain the old editor ID. Use the committed editing query value to control the surface. Check Back followed by an immediate table action.
 
 - [2026-09-29] Sonner hover and row actions: Sonner pauses notification dismissal on hover. A notification can cover a table row button after Save. A Playwright click can keep the pointer over that notification and wait until test timeout. Before a row action in browser tests, hover the Listings heading, check that notification hover state clears, and wait for notifications to close. Moving to viewport coordinate 0,0 did not clear that state in the failed trace. Keep normal click actionability checks.
+
+- [2026-10-01] WebMCP registration: The current WebMCP specification uses document.modelContext and asynchronous registerTool calls. Abort the registration signal to remove page tools. For component tools, use the shared registration helper. Keep tool registration stable during crop changes and check cleanup without resetting the dashboard tool set.
