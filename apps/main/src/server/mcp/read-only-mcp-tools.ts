@@ -222,7 +222,7 @@ export function buildReadOnlyMcpTools(privateScopes: string[]): McpTool[] {
       name: "daylily.get_profile",
       title: "Get Profile",
       description:
-        "Use this when the signed-in user asks about their own Daylily Catalog profile, storefront copy, slug, logo, location, images, or public profile content. The image IDs support reorder and dashboard removal review. If imagesHasMore is true, call daylily.list_images to discover the full image set. Requires OAuth.",
+        "Use this when the signed-in user asks about their own Daylily Catalog profile, storefront copy, slug, location, images, or public profile content. Story content is read-only through remote MCP; use open_dashboard with edit_profile_content to edit it. The image IDs support reorder and dashboard removal review. If imagesHasMore is true, call daylily.list_images to discover the full image set. Requires OAuth.",
       inputSchema: {
         type: "object",
         additionalProperties: false,
@@ -328,7 +328,7 @@ export function buildReadOnlyMcpTools(privateScopes: string[]): McpTool[] {
       name: "daylily.open_dashboard",
       title: "Open Dashboard Task",
       description:
-        "Use this when the signed-in member needs a precise dashboard screen or approval step for profile URL changes, deletion, image removal, profile story block removal, cultivar unlinking, or removing list members. For story block removal, pass its current blockId from get_profile. A review link never performs the change on navigation. Requires OAuth.",
+        "Use this when the signed-in member needs a precise dashboard screen to add listing or profile photos, edit a profile story or URL, or review deletion, image removal, story block removal, cultivar unlinking, or list member removal. Use manage_listing_images with the owned listing id or manage_profile_images to add photos through the browser cropper. For story block removal, pass its current blockId from get_profile. A link never performs the change on navigation. Requires OAuth.",
       inputSchema: {
         type: "object",
         additionalProperties: false,

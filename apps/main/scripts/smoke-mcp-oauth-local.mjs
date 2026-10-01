@@ -21,24 +21,6 @@ if (
 ) {
   throw new Error("The write smoke must target a loopback development server.");
 }
-if (
-  process.env.MCP_SMOKE_IMAGE === "1" &&
-  process.env.MCP_SMOKE_WRITE !== "1"
-) {
-  throw new Error("The image smoke requires MCP_SMOKE_WRITE=1.");
-}
-if (process.env.MCP_SMOKE_IMAGE === "1") {
-  const storageOrigin = process.env.MCP_SMOKE_STORAGE_ORIGIN;
-  if (
-    !storageOrigin ||
-    !["localhost", "127.0.0.1", "[::1]"].includes(
-      new URL(storageOrigin).hostname,
-    )
-  ) {
-    throw new Error("The image smoke requires a loopback storage origin.");
-  }
-}
-
 const encodedHost = publishableKey.replace(/^pk_(?:test|live)_/, "");
 const issuerHost = Buffer.from(encodedHost, "base64")
   .toString("utf8")
@@ -198,6 +180,21 @@ try {
   const dashboardTool = toolList.body.result?.tools?.find(
     (tool) => tool.name === "daylily.open_dashboard",
   );
+  const removedTools = [
+    "daylily.append_profile_paragraph",
+    "daylily.edit_profile_paragraph",
+    "daylily.update_profile_content",
+    "daylily.upload_image",
+    "daylily.prepare_image_upload",
+    "daylily.attach_uploaded_image",
+  ];
+  const removedToolsAbsent = removedTools.every(
+    (name) => !toolList.body.result?.tools?.some((tool) => tool.name === name),
+  );
+  const profileFields = toolList.body.result?.tools?.find(
+    (tool) => tool.name === "daylily.update_profile",
+  )?.inputSchema?.properties;
+  const logoInputAbsent = profileFields && !("logoUrl" in profileFields);
   const profileBlockId = JSON.parse(
     profile.body.result?.structuredContent?.profile?.content ?? "null",
   )?.blocks?.find((block) => typeof block.id === "string")?.id;
@@ -221,14 +218,6 @@ try {
   const blockReviewPath = blockReviewUrl
     ? `${new URL(blockReviewUrl).pathname}${new URL(blockReviewUrl).search}${new URL(blockReviewUrl).hash}`
     : null;
-  if (
-    process.env.MCP_SMOKE_IMAGE === "1" &&
-    (profile.body.result?.structuredContent?.profile?.images?.length ?? 0) > 2
-  ) {
-    throw new Error(
-      "The disposable member profile needs two free image slots for this smoke.",
-    );
-  }
   const page = await call("tools/call", {
     name: "daylily.list_listings",
     arguments: { limit: 1 },
@@ -282,6 +271,34 @@ try {
     : null;
   const listingId = page.body.result?.structuredContent?.items?.[0]?.id;
   if (!listingId) throw new Error("The authenticated listing page was empty.");
+  const listingImageEditor = await call("tools/call", {
+    name: "daylily.open_dashboard",
+    arguments: { destination: "manage_listing_images", id: listingId },
+  });
+  const profileImageEditor = await call("tools/call", {
+    name: "daylily.open_dashboard",
+    arguments: { destination: "manage_profile_images" },
+  });
+  const memberListingImageEditor = await callMember("handoff.get", {
+    destination: "manage_listing_images",
+    id: listingId,
+  });
+  const memberProfileImageEditor = await callMember("handoff.get", {
+    destination: "manage_profile_images",
+  });
+  const imageEditorsMatch = [
+    [listingImageEditor, memberListingImageEditor, "listing-images"],
+    [profileImageEditor, memberProfileImageEditor, "profile-images"],
+  ].every(([mcp, member, anchor]) => {
+    const url = new URL(requireToolData(mcp, "Open image editor").url);
+    return (
+      url.origin === new URL(baseUrl).origin &&
+      url.hash === `#${anchor}` &&
+      member.httpStatus === 200 &&
+      `${url.pathname}${url.search}${url.hash}` ===
+        member.body.result?.data?.json?.dashboardPath
+    );
+  });
   const handoff = await call("tools/call", {
     name: "daylily.open_dashboard",
     arguments: { destination: "delete_listing", id: listingId },
@@ -337,10 +354,8 @@ try {
       name: "daylily.update_listing",
       arguments: {
         listingId: createdListingId,
-        expectedUpdatedAt: requireToolData(
-          listingCreated,
-          "Create listing",
-        )?.listing?.updatedAt,
+        expectedUpdatedAt: requireToolData(listingCreated, "Create listing")
+          ?.listing?.updatedAt,
         description: "Edited by local OAuth proof",
       },
     });
@@ -417,139 +432,52 @@ try {
         expectedUpdatedAt:
           profileBeforeUpdate.body.result?.data?.json?.updatedAt ?? null,
         location: "Local OAuth proof",
-        logoUrl: "https://example.invalid/local-oauth-logo.png",
       },
     });
     const updatedProfile = requireToolData(
       profileUpdated,
       "Update profile",
     )?.profile;
-    let imageProof = null;
-    if (process.env.MCP_SMOKE_IMAGE === "1") {
-      const imageDataUrl =
-        "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
-      const storageProbe = await call("tools/call", {
-        name: "daylily.prepare_image_upload",
-        arguments: {
-          type: "listing",
-          referenceId: createdListingId,
-          contentType: "image/png",
-          size: Buffer.from(imageDataUrl.split(",")[1], "base64").byteLength,
-        },
-      });
-      const storage = requireToolData(
-        storageProbe,
-        "Check image storage",
-      )?.upload;
-      if (
-        !storage?.presignedUrl ||
-        new URL(storage.presignedUrl).origin !==
-          process.env.MCP_SMOKE_STORAGE_ORIGIN ||
-        storage.r2
-      ) {
-        throw new Error("Image storage is not the expected loopback receiver.");
-      }
-      const targets = [
-        { type: "listing", referenceId: createdListingId },
-        { type: "profile", referenceId: updatedProfile?.id },
-      ];
-      const checks = [];
-      for (const target of targets) {
-        if (!target.referenceId) throw new Error("Image target is missing.");
-        const ids = [];
-        for (let index = 0; index < 2; index += 1) {
-          const uploaded = await call("tools/call", {
-            name: "daylily.upload_image",
-            arguments: {
-              ...target,
-              contentType: "image/png",
-              imageDataUrl,
-              requestId: randomUUID(),
-            },
-          });
-          const imageId = requireToolData(uploaded, "Upload image")?.image?.id;
-          if (!imageId) throw new Error("Image upload returned no image id.");
-          ids.push(imageId);
-        }
-        const reordered = await call("tools/call", {
-          name: "daylily.reorder_images",
-          arguments: { ...target, imageIds: [ids[1], ids[0]] },
-        });
-        requireToolData(reordered, "Reorder images");
-        const rows = await callMember("image.listForTarget", target);
-        const orderedImages = [
-          ...(rows.body.result?.data?.json?.items ?? []),
-        ].sort((left, right) => left.order - right.order);
-        checks.push({
-          uploaded: ids.length === 2,
-          reordered:
-            rows.httpStatus === 200 &&
-            orderedImages[0]?.id === ids[1] &&
-            orderedImages[1]?.id === ids[0],
-        });
-      }
-      imageProof = {
-        uploaded: checks.every((check) => check.uploaded),
-        reordered: checks.every((check) => check.reordered),
-      };
-    }
-    const appended = await call("tools/call", {
-      name: "daylily.append_profile_paragraph",
-      arguments: {
-        paragraph: "Local OAuth paragraph proof",
-        expectedUpdatedAt: updatedProfile?.updatedAt,
-      },
-    });
-    const appendedProfile = appended.body.result?.structuredContent?.profile;
-    const appendedBlocks = JSON.parse(
-      appendedProfile?.content ?? "null",
-    )?.blocks;
-    const blockId = appendedBlocks?.at(-1)?.id;
-    const paragraphEdit = blockId
-      ? await call("tools/call", {
-          name: "daylily.edit_profile_paragraph",
-          arguments: {
-            blockId,
-            text: "Edited by local OAuth proof",
-            expectedUpdatedAt: appendedProfile?.updatedAt,
-          },
-        })
-      : null;
-    const editedBlocks = JSON.parse(
-      paragraphEdit?.body.result?.structuredContent?.profile?.content ?? "null",
-    )?.blocks;
-    const richEdit = await call("tools/call", {
-      name: "daylily.update_profile_content",
-      arguments: {
-        content: JSON.stringify({
-          blocks: [
-            ...editedBlocks,
-            {
-              id: randomUUID(),
-              type: "header",
-              data: { text: "Local OAuth heading proof", level: 2 },
-            },
-          ],
-        }),
-        expectedUpdatedAt:
-          paragraphEdit?.body.result?.structuredContent?.profile?.updatedAt,
-      },
-    });
-    const richBlocks = JSON.parse(
-      requireToolData(richEdit, "Rich profile edit")?.profile?.content ??
-        "null",
-    )?.blocks;
-    const richReadBack = await callMember("profile.get", {});
     const memberUpdate = await callMember(
       "list.update",
       {
         id: listId,
-        expectedUpdatedAt: readBack.body.result?.structuredContent?.list?.updatedAt,
+        expectedUpdatedAt:
+          readBack.body.result?.structuredContent?.list?.updatedAt,
         data: { description: "Updated by member HTTP proof" },
       },
       true,
     );
     const memberReadBack = await callMember("list.get", { id: listId });
+    const imagesBeforeReorder = await callMember("image.listForTarget", {
+      type: "profile",
+      referenceId: profileId,
+      limit: 100,
+    });
+    const reorderedIds = imagesBeforeReorder.body.result?.data?.json?.items
+      ?.toSorted((a, b) => a.order - b.order)
+      .map((image) => image.id)
+      .reverse();
+    if (!reorderedIds || reorderedIds.length < 2) {
+      throw new Error("The seeded profile needs two images for reorder proof.");
+    }
+    const reordered = await call("tools/call", {
+      name: "daylily.reorder_images",
+      arguments: {
+        type: "profile",
+        referenceId: profileId,
+        imageIds: reorderedIds,
+      },
+    });
+    requireToolData(reordered, "Reorder profile images");
+    const imagesAfterReorder = await callMember("image.listForTarget", {
+      type: "profile",
+      referenceId: profileId,
+      limit: 100,
+    });
+    const storedImageIds = imagesAfterReorder.body.result?.data?.json?.items
+      ?.toSorted((a, b) => a.order - b.order)
+      .map((image) => image.id);
     writeProof = {
       listId,
       created: !created.body.error && !created.body.result?.isError,
@@ -584,24 +512,13 @@ try {
       nonemptyListDeletionBlocked:
         requireToolData(nonemptyListReview, "Review nonempty list deletion")
           ?.canComplete === false,
-      profileUpdated:
-        updatedProfile?.location === "Local OAuth proof" &&
-        updatedProfile?.logoUrl ===
-          "https://example.invalid/local-oauth-logo.png",
-      imageProof,
+      profileUpdated: updatedProfile?.location === "Local OAuth proof",
+      profileImagesReordered:
+        imagesAfterReorder.httpStatus === 200 &&
+        JSON.stringify(storedImageIds) === JSON.stringify(reorderedIds),
       readBack:
         readBack.body.result?.structuredContent?.list?.description ===
         "Updated by local OAuth proof",
-      paragraphEdited:
-        editedBlocks?.at(-1)?.id === blockId &&
-        editedBlocks?.at(-1)?.data?.text === "Edited by local OAuth proof",
-      richContentEdited:
-        richBlocks?.at(-1)?.type === "header" &&
-        richBlocks?.at(-1)?.data?.text === "Local OAuth heading proof" &&
-        richReadBack.httpStatus === 200 &&
-        JSON.parse(
-          richReadBack.body.result?.data?.json?.content ?? "null",
-        )?.blocks?.at(-1)?.id === richBlocks?.at(-1)?.id,
       memberHttpUpdated:
         memberUpdate.httpStatus === 200 &&
         memberReadBack.body.result?.data?.json?.description ===
@@ -640,6 +557,9 @@ try {
     tokenFormat,
     tokenAudience,
     toolCount: toolList.body.result?.tools?.length ?? null,
+    removedToolsAbsent,
+    logoInputAbsent: Boolean(logoInputAbsent),
+    imageEditorsMatch,
     unauthenticatedRejected: unauthenticated.body.result?.isError === true,
     profileSlug: profile.body.result?.structuredContent?.profile?.slug ?? null,
     listingPageCount: page.body.result?.structuredContent?.items?.length ?? 0,
@@ -672,6 +592,10 @@ try {
       memberHandoff,
       blockHandoff,
       memberBlockHandoff,
+      listingImageEditor,
+      profileImageEditor,
+      memberListingImageEditor,
+      memberProfileImageEditor,
       mcpImagePage,
       memberImagePage,
       mcpImageNextPage,
@@ -684,7 +608,10 @@ try {
   process.stdout.write(`${JSON.stringify(result)}\n`);
   if (
     result.initialize !== "2025-11-25" ||
-    result.toolCount !== 32 ||
+    result.toolCount !== 26 ||
+    !result.removedToolsAbsent ||
+    !result.logoInputAbsent ||
+    !result.imageEditorsMatch ||
     !result.unauthenticatedRejected ||
     !result.profileSlug ||
     result.memberHttpPageCount !== 1 ||
@@ -708,12 +635,8 @@ try {
         !result.writeProof?.removalReview ||
         !result.writeProof?.nonemptyListDeletionBlocked ||
         !result.writeProof?.profileUpdated ||
+        !result.writeProof?.profileImagesReordered ||
         !result.writeProof?.readBack ||
-        !result.writeProof?.paragraphEdited ||
-        !result.writeProof?.richContentEdited ||
-        (process.env.MCP_SMOKE_IMAGE === "1" &&
-          (!result.writeProof?.imageProof?.uploaded ||
-            !result.writeProof?.imageProof?.reordered)) ||
         !result.writeProof?.memberHttpUpdated))
   ) {
     process.exitCode = 1;

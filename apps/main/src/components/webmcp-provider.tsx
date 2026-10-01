@@ -14,7 +14,6 @@ import {
   addListingToList,
   insertList,
 } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
-import { createImage } from "@/app/dashboard/_lib/dashboard-db/images-collection";
 
 type JsonSchema = Record<string, unknown>;
 
@@ -72,22 +71,6 @@ function asNullableNonNegativeNumber(value: unknown, fieldName = "value") {
     throw new Error(`${fieldName} must be greater than or equal to 0.`);
   }
   return parsed;
-}
-
-function toEditorJsParagraphContent(text: string) {
-  return JSON.stringify({
-    time: Date.now(),
-    blocks: text
-      .split(/\n{2,}/)
-      .map((paragraph) => paragraph.trim())
-      .filter(Boolean)
-      .map((paragraph) => ({
-        id: crypto.randomUUID(),
-        type: "paragraph",
-        data: { text: paragraph },
-      })),
-    version: "2.30.8",
-  });
 }
 
 function toolResult(payload: unknown) {
@@ -260,10 +243,6 @@ export function WebMcpProvider() {
                 type: ["string", "null"],
                 description: "Public location label. Use null to clear.",
               },
-              logoUrl: {
-                type: ["string", "null"],
-                description: "Optional profile image URL. Use null to clear.",
-              },
             },
           },
           annotations: {
@@ -286,47 +265,12 @@ export function WebMcpProvider() {
                 slug: asOptionalString(input.slug),
                 description: asOptionalNullableString(input.description),
                 location: asOptionalNullableString(input.location),
-                logoUrl: asOptionalNullableString(input.logoUrl),
               },
             });
             queryClient.setQueryData(
               [["dashboardDb", "userProfile", "get"], { type: "query" }],
               profile,
             );
-            void queryClient.invalidateQueries();
-            return toolResult({ ok: true, profile });
-          },
-        },
-        {
-          name: "daylily.update-profile-content",
-          title: "Update Seller Profile Content",
-          description:
-            "Update the signed-in seller profile's long-form public story/content from plain paragraphs.",
-          inputSchema: {
-            type: "object",
-            additionalProperties: false,
-            required: ["content"],
-            properties: {
-              content: {
-                type: "string",
-                description:
-                  "Plain-text public profile content. Blank lines become paragraph breaks.",
-              },
-            },
-          },
-          annotations: {
-            readOnlyHint: false,
-            destructiveHint: true,
-            openWorldHint: true,
-          },
-          execute: async (input) => {
-            const content = asString(input.content);
-            const current = await client.dashboardDb.userProfile.get.query();
-            const profile =
-              await client.dashboardDb.userProfile.updateContent.mutate({
-                content: content ? toEditorJsParagraphContent(content) : null,
-                expectedUpdatedAt: new Date(current.updatedAt).toISOString(),
-              });
             void queryClient.invalidateQueries();
             return toolResult({ ok: true, profile });
           },
@@ -554,130 +498,49 @@ export function WebMcpProvider() {
           },
         },
         {
-          name: "daylily.prepare-image-upload",
-          title: "Prepare Image Upload",
+          name: "daylily.open-image-editor",
+          title: "Open Image Editor",
           description:
-            "Create signed upload URLs for a profile or listing image. If the result says moderationRequired, call this tool again with the same fields plus imageDataUrl. Upload the file to presignedUrl. When upload.contentMd5 is returned, include Content-MD5 with that value on every upload PUT. If upload.r2 is returned, also upload the same file to upload.r2.presignedUrl before calling daylily.attach-uploaded-image with imageId and r2OriginalKey.",
+            "Open the listing or profile image manager. Choose a file through its labelled file input. Use the square crop controls, then select Upload. This uses the page's resize, moderation, and storage flow. It does not upload on navigation.",
           inputSchema: {
             type: "object",
             additionalProperties: false,
-            required: ["type", "referenceId", "contentType", "size"],
+            required: ["type"],
             properties: {
-              type: { type: "string", enum: ["profile", "listing"] },
-              referenceId: {
+              type: { type: "string", enum: ["listing", "profile"] },
+              listingId: {
                 type: "string",
                 description:
-                  "Profile id or listing id that will own the image.",
-              },
-              contentType: {
-                type: "string",
-                enum: ["image/jpeg", "image/png", "image/webp"],
-              },
-              size: {
-                type: "integer",
-                minimum: 1,
-                description: "Image file size in bytes.",
-              },
-              imageDataUrl: {
-                type: "string",
-                description:
-                  "The exact image as a base64 data URL when moderation is required.",
+                  "Owned listing ID. Required only for listing photos.",
               },
             },
           },
           annotations: {
-            readOnlyHint: false,
+            readOnlyHint: true,
             destructiveHint: false,
             openWorldHint: false,
-            idempotentHint: false,
           },
           execute: async (input) => {
             const type = asString(input.type);
-            if (type !== "profile" && type !== "listing") {
-              throw new Error("type must be profile or listing.");
-            }
-            const referenceId = asString(input.referenceId);
-            const contentType = asString(input.contentType);
-            const imageDataUrl = asString(input.imageDataUrl);
-            const size =
-              typeof input.size === "number" ? Math.trunc(input.size) : 0;
-            if (
-              !referenceId ||
-              !["image/jpeg", "image/png", "image/webp"].includes(
-                contentType,
-              ) ||
-              size < 1
-            ) {
+            const listingId = asString(input.listingId);
+            let path: string;
+            if (type === "listing" && listingId) {
+              await client.dashboardDb.listing.get.query({ id: listingId });
+              path = `/dashboard/listings?editing=${encodeURIComponent(listingId)}#listing-images`;
+            } else if (type === "profile" && !listingId) {
+              path = "/dashboard/profile#profile-images";
+            } else {
               throw new Error(
-                "referenceId, supported contentType, and positive size are required.",
+                "Provide type=listing with a listingId, or type=profile without one.",
               );
             }
-            const upload =
-              await client.dashboardDb.image.getPresignedUrl.mutate({
-                type,
-                referenceId,
-                contentType: contentType as
-                  | "image/jpeg"
-                  | "image/png"
-                  | "image/webp",
-                size,
-                ...(imageDataUrl ? { imageDataUrl } : {}),
-              });
-            return toolResult({ ok: true, upload });
-          },
-        },
-        {
-          name: "daylily.attach-uploaded-image",
-          title: "Attach Uploaded Image",
-          description:
-            "Attach an image to a profile or listing after it has been uploaded to the Daylily Catalog signed upload URL. If daylily.prepare-image-upload returned upload.r2, include imageId and r2OriginalKey only after the same file has also been uploaded to upload.r2.presignedUrl.",
-          inputSchema: {
-            type: "object",
-            additionalProperties: false,
-            required: ["type", "referenceId", "url", "key"],
-            properties: {
-              type: { type: "string", enum: ["profile", "listing"] },
-              referenceId: {
-                type: "string",
-                description: "Profile id or listing id that owns the image.",
-              },
-              url: { type: "string" },
-              key: { type: "string" },
-              imageId: { type: "string" },
-              r2OriginalKey: { type: "string" },
-            },
-          },
-          annotations: {
-            readOnlyHint: false,
-            destructiveHint: false,
-            openWorldHint: true,
-            idempotentHint: false,
-          },
-          execute: async (input) => {
-            const type = asString(input.type);
-            if (type !== "profile" && type !== "listing") {
-              throw new Error("type must be profile or listing.");
-            }
-            const referenceId = asString(input.referenceId);
-            const url = asString(input.url);
-            const key = asString(input.key);
-            const imageId = asString(input.imageId);
-            const r2OriginalKey = asString(input.r2OriginalKey);
-            if (!referenceId || !url || !key) {
-              throw new Error("referenceId, url, and key are required.");
-            }
-            if (r2OriginalKey && !imageId) {
-              throw new Error("imageId is required with r2OriginalKey.");
-            }
-            const image = await createImage({
-              type,
-              referenceId,
-              url,
-              key,
-              ...(imageId ? { imageId } : {}),
-              ...(r2OriginalKey ? { r2OriginalKey } : {}),
+            router.push(path);
+            return toolResult({
+              ok: true,
+              path,
+              nextStep:
+                "Choose an image, adjust the square crop, and select Upload.",
             });
-            return toolResult({ ok: true, image });
           },
         },
         {

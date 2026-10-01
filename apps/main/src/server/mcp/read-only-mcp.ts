@@ -1,6 +1,5 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { APP_CONFIG } from "@/config/constants";
 import { getTrustedBaseUrl } from "@/lib/agent-readiness";
 import {
   getOwnedMemberListingDetail,
@@ -85,8 +84,7 @@ const SUPPORTED_MCP_PROTOCOL_VERSIONS = [
 ] as const;
 const MCP_SERVER_NAME = "daylily-catalog";
 const MCP_SERVER_VERSION = "0.1.0";
-const MAX_MCP_REQUEST_BYTES =
-  Math.ceil((APP_CONFIG.UPLOAD.MAX_FILE_SIZE * 4) / 3) + 64 * 1024;
+const MAX_MCP_REQUEST_BYTES = 128 * 1024;
 
 class McpError extends Error {
   constructor(

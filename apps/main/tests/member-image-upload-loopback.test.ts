@@ -16,7 +16,7 @@ const modifiedEnvNames = [
   "DATABASE_URL",
   "TURSO_DATABASE_AUTH_TOKEN",
   "TURSO_EMBEDDED_REPLICA_URL",
-  "DAYLILY_MCP_OAUTH_CLIENT_ID",
+  "DAYLILY_MEMBER_API_OAUTH_CLIENT_IDS",
   "INTEGRATION_MODE",
 ] as const;
 const previousEnv = new Map(
@@ -48,9 +48,9 @@ const seedPath = path.resolve(
   "local/realistic-data/realistic-data.sqlite",
 );
 const enabled =
-  process.env.RUN_MCP_IMAGE_UPLOAD_PROOF === "1" && existsSync(seedPath);
+  process.env.RUN_MEMBER_IMAGE_UPLOAD_PROOF === "1" && existsSync(seedPath);
 const tempDir = enabled
-  ? mkdtempSync(path.join(tmpdir(), "daylily-mcp-image-upload-"))
+  ? mkdtempSync(path.join(tmpdir(), "daylily-member-image-upload-"))
   : null;
 const databasePath = tempDir ? path.join(tempDir, "member.sqlite") : null;
 if (databasePath) copyFileSync(seedPath, databasePath);
@@ -61,7 +61,7 @@ vi.mock("@/server/clerk/client", () => ({
   getClerk: async () => ({
     authenticateRequest: async () => ({
       toAuth: () => ({
-        clientId: "mcp_image_upload_test",
+        clientId: "member_image_upload_test",
         isAuthenticated: true,
         scopes: ["catalog:read", "catalog:write"],
         userId: auth.clerkUserId,
@@ -91,12 +91,12 @@ afterAll(async () => {
 });
 
 function required<T>(value: T | null | undefined): T {
-  if (value == null) throw new Error("Expected MCP response value.");
+  if (value == null) throw new Error("Expected member API response value.");
   return value;
 }
 
 describe.skipIf(!enabled)(
-  "remote MCP image upload through loopback storage",
+  "member API image upload through loopback storage",
   () => {
     it("uploads and processes owned listing and profile images", async () => {
       const uploads = new Map<string, Buffer>();
@@ -169,11 +169,14 @@ describe.skipIf(!enabled)(
       process.env.DATABASE_URL = `file:${databasePath}`;
       process.env.TURSO_DATABASE_AUTH_TOKEN = "";
       process.env.TURSO_EMBEDDED_REPLICA_URL = "";
-      process.env.DAYLILY_MCP_OAUTH_CLIENT_ID = "mcp_image_upload_test";
+      process.env.DAYLILY_MEMBER_API_OAUTH_CLIENT_IDS =
+        "member_image_upload_test";
       process.env.INTEGRATION_MODE = "1";
 
       const { db } = await import("@/server/db");
-      const { handleMcpRequest } = await import("@/server/mcp/read-only-mcp");
+      const { handleMemberHttpRequest } = await import(
+        "@/server/api/member-http"
+      );
       const { processPendingImageAssetVariants } = await import(
         "@/server/services/image-asset-variant-processor"
       );
@@ -194,61 +197,45 @@ describe.skipIf(!enabled)(
       });
       expect(listing).toBeTruthy();
 
-      async function call(name: string, args: Record<string, unknown>) {
-        const response = await handleMcpRequest(
-          new Request("http://localhost:3217/api/mcp/server", {
+      async function call(
+        name: "image.prepareUpload" | "image.create",
+        args: Record<string, unknown>,
+      ) {
+        const response = await handleMemberHttpRequest(
+          new Request(`http://localhost:3217/api/v1/member/${name}`, {
             method: "POST",
-            body: JSON.stringify({
-              jsonrpc: "2.0",
-              id: crypto.randomUUID(),
-              method: "tools/call",
-              params: { name, arguments: args },
-            }),
+            headers: {
+              Authorization: "Bearer loopback-proof",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ json: args }),
           }),
+          name,
         );
         const result = (await response.json()) as {
-          error?: { message: string };
+          error?: { json?: { message: string }; message?: string };
           result?: {
-            isError?: boolean;
-            structuredContent?: {
-              error?: { code: string; message: string };
-              image?: { id: string };
-              upload?: {
+            data?: {
+              json?: {
+                id?: string;
                 imageId: string;
                 key: string;
                 presignedUrl: string;
                 url: string;
-                r2: {
-                  key: string;
-                  presignedUrl: string;
-                  url: string;
-                };
+                r2: { key: string; presignedUrl: string; url: string };
               };
             };
           };
         };
-        if (result.result && !result.result.isError) {
-          if (name === "daylily.prepare_image_upload") {
-            memberOperationResultSchemas["image.prepareUpload"].parse(
-              result.result.structuredContent?.upload,
-            );
-          }
-          if (
-            name === "daylily.upload_image" ||
-            name === "daylily.attach_uploaded_image"
-          ) {
-            memberOperationResultSchemas["image.create"].parse(
-              result.result.structuredContent?.image,
-            );
-          }
+        if (response.ok) {
+          memberOperationResultSchemas[name].parse(result.result?.data?.json);
         }
-        if (result.result?.isError && result.result.structuredContent?.error) {
-          return {
-            ...result,
-            error: { message: result.result.structuredContent.error.message },
-          };
-        }
-        return result;
+        return {
+          ...result,
+          error: result.error
+            ? { message: result.error.json?.message ?? result.error.message }
+            : undefined,
+        };
       }
 
       const imageBytes = Buffer.from(
@@ -256,7 +243,7 @@ describe.skipIf(!enabled)(
         "base64",
       );
       const { APP_CONFIG } = await import("@/config/constants");
-      const fullProfileUpload = await call("daylily.prepare_image_upload", {
+      const fullProfileUpload = await call("image.prepareUpload", {
         type: "profile",
         referenceId: owner!.profile!.id,
         contentType: "image/png",
@@ -271,29 +258,17 @@ describe.skipIf(!enabled)(
       await db.image.deleteMany({
         where: { userProfileId: owner!.profile!.id },
       });
-      const firstImageIds = new Map<string, string>();
-      const invalidDirectUpload = await call("daylily.upload_image", {
-        type: "listing",
-        referenceId: listing!.id,
-        contentType: "image/png",
-        imageDataUrl: `data:image/png;base64,${Buffer.from("not an image").toString("base64")}`,
-        requestId: crypto.randomUUID(),
-      });
-      expect(invalidDirectUpload.error?.message).toContain(
-        "Image data does not match its content type",
-      );
       for (const target of [
         { type: "listing", referenceId: listing!.id },
         { type: "profile", referenceId: owner!.profile!.id },
       ]) {
-        const prepared = await call("daylily.prepare_image_upload", {
+        const prepared = await call("image.prepareUpload", {
           ...target,
           contentType: "image/png",
           size: imageBytes.byteLength,
         });
         expect(prepared.error).toBeUndefined();
-        const upload = required(prepared.result?.structuredContent?.upload);
-        firstImageIds.set(target.type, upload.imageId);
+        const upload = required(prepared.result?.data?.json);
         expect(upload.r2).toBeTruthy();
         expect(new URL(upload.presignedUrl).origin).toBe(
           `http://127.0.0.1:${port}`,
@@ -304,10 +279,7 @@ describe.skipIf(!enabled)(
           key: upload.key,
           url: upload.url,
         };
-        const beforeUpload = await call(
-          "daylily.attach_uploaded_image",
-          attachment,
-        );
+        const beforeUpload = await call("image.create", attachment);
         expect(beforeUpload.error?.message).toContain(
           "Upload the image before attaching it",
         );
@@ -328,10 +300,7 @@ describe.skipIf(!enabled)(
           `/integration-mcp-images/${upload.key}`,
           Buffer.alloc(APP_CONFIG.UPLOAD.MAX_FILE_SIZE + 1),
         );
-        const oversizedAttachment = await call(
-          "daylily.attach_uploaded_image",
-          attachment,
-        );
+        const oversizedAttachment = await call("image.create", attachment);
         expect(oversizedAttachment.error?.message).toContain(
           "The uploaded image does not match its upload request",
         );
@@ -340,7 +309,7 @@ describe.skipIf(!enabled)(
         ).toBeNull();
         uploads.set(`/integration-mcp-images/${upload.key}`, imageBytes);
 
-        const beforeR2Upload = await call("daylily.attach_uploaded_image", {
+        const beforeR2Upload = await call("image.create", {
           ...attachment,
           r2OriginalKey: upload.r2.key,
         });
@@ -364,14 +333,9 @@ describe.skipIf(!enabled)(
           ...attachment,
           r2OriginalKey: upload.r2.key,
         };
-        const attached = await call(
-          "daylily.attach_uploaded_image",
-          completeAttachment,
-        );
+        const attached = await call("image.create", completeAttachment);
         expect(attached.error).toBeUndefined();
-        expect(attached.result?.structuredContent?.image?.id).toBe(
-          upload.imageId,
-        );
+        expect(attached.result?.data?.json?.id).toBe(upload.imageId);
         expect(
           await db.image.findUnique({ where: { id: upload.imageId } }),
         ).toMatchObject({ id: upload.imageId, url: upload.url });
@@ -404,14 +368,11 @@ describe.skipIf(!enabled)(
         const publicImage = await fetch(readyAsset!.displayUrl!);
         expect(publicImage.status).toBe(200);
         expect(publicImage.headers.get("Content-Type")).toBe("image/webp");
-        const retry = await call(
-          "daylily.attach_uploaded_image",
-          completeAttachment,
-        );
-        expect(retry.result?.structuredContent?.image?.id).toBe(upload.imageId);
+        const retry = await call("image.create", completeAttachment);
+        expect(retry.result?.data?.json?.id).toBe(upload.imageId);
         expect(await db.image.count({ where: { id: upload.imageId } })).toBe(1);
         const changedKey = `${owner!.id}/${target.referenceId}/different.png`;
-        const changedUpload = await call("daylily.attach_uploaded_image", {
+        const changedUpload = await call("image.create", {
           ...completeAttachment,
           key: changedKey,
           url: upload.url.replace(upload.key, changedKey),
@@ -420,146 +381,6 @@ describe.skipIf(!enabled)(
           "already used for another attachment",
         );
       }
-
-      for (const target of [
-        { type: "listing", referenceId: listing!.id },
-        { type: "profile", referenceId: owner!.profile!.id },
-      ]) {
-        const args = {
-          ...target,
-          contentType: "image/png",
-          imageDataUrl: `data:image/png;base64,${imageBytes.toString("base64")}`,
-          requestId: crypto.randomUUID(),
-        };
-        const direct = await call("daylily.upload_image", args);
-        expect(direct.error).toBeUndefined();
-        const image = required(direct.result?.structuredContent?.image);
-        expect(image.id).toBeTruthy();
-        const legacyImage = await db.image.findUnique({
-          where: { id: image.id },
-        });
-        expect(legacyImage).toBeTruthy();
-        const legacyKey = new URL(legacyImage!.url).pathname.replace(
-          /^\/+/,
-          "",
-        );
-        expect(uploads.get(`/integration-mcp-images/${legacyKey}`)).toEqual(
-          imageBytes,
-        );
-        const asset = await db.imageAsset.findUnique({
-          where: { id: image.id },
-        });
-        expect(asset?.originalKey).toBeTruthy();
-        expect(
-          uploads.get(`/integration-r2-images/${asset!.originalKey}`),
-        ).toEqual(imageBytes);
-
-        const retry = await call("daylily.upload_image", args);
-        expect(retry.result?.structuredContent?.image?.id).toBe(image.id);
-        expect(await db.image.count({ where: { id: image.id } })).toBe(1);
-
-        const firstImageId = firstImageIds.get(target.type);
-        expect(firstImageId).toBeTruthy();
-        const reordered = await call("daylily.reorder_images", {
-          type: target.type,
-          referenceId: target.referenceId,
-          imageIds: [image.id, firstImageId],
-        });
-        expect(reordered.error).toBeUndefined();
-        const orderedRows = await db.image.findMany({
-          where:
-            target.type === "listing"
-              ? { listingId: target.referenceId }
-              : { userProfileId: target.referenceId },
-          orderBy: { order: "asc" },
-          select: { id: true },
-        });
-        expect(orderedRows.slice(0, 2).map((row) => row.id)).toEqual([
-          image.id,
-          firstImageId,
-        ]);
-
-        const changedBytes = Buffer.from(imageBytes);
-        changedBytes[changedBytes.length - 1] =
-          changedBytes[changedBytes.length - 1]! ^ 1;
-        const changed = await call("daylily.upload_image", {
-          ...args,
-          imageDataUrl: `data:image/png;base64,${changedBytes.toString("base64")}`,
-        });
-        expect(changed.error?.message).toContain(
-          "already used for another attachment",
-        );
-        expect(
-          uploads.get(`/integration-r2-images/${asset!.originalKey}`),
-        ).toEqual(imageBytes);
-
-        const staleSlot = await call("daylily.prepare_image_upload", {
-          ...target,
-          contentType: "image/png",
-          size: imageBytes.byteLength,
-        });
-        const staleUpload = required(
-          staleSlot.result?.structuredContent?.upload,
-        );
-        for (let index = 0; index < 2; index += 1) {
-          const extra = await call("daylily.upload_image", {
-            ...args,
-            requestId: crypto.randomUUID(),
-          });
-          expect(extra.error).toBeUndefined();
-        }
-        const fullTargetUpload = await call("daylily.prepare_image_upload", {
-          ...target,
-          contentType: "image/png",
-          size: imageBytes.byteLength,
-        });
-        expect(fullTargetUpload.error?.message).toContain(
-          "maximum number of images",
-        );
-        expect(
-          (
-            await fetch(staleUpload.presignedUrl, {
-              method: "PUT",
-              headers: { "Content-Type": "image/png" },
-              body: imageBytes,
-            })
-          ).status,
-        ).toBe(200);
-        expect(
-          (
-            await fetch(staleUpload.r2.presignedUrl, {
-              method: "PUT",
-              headers: { "Content-Type": "image/png" },
-              body: imageBytes,
-            })
-          ).status,
-        ).toBe(200);
-        const staleAttachment = await call("daylily.attach_uploaded_image", {
-          ...target,
-          imageId: staleUpload.imageId,
-          key: staleUpload.key,
-          url: staleUpload.url,
-          r2OriginalKey: staleUpload.r2.key,
-        });
-        expect(staleAttachment.error?.message).toContain(
-          "maximum number of images",
-        );
-        expect(
-          await db.image.findUnique({ where: { id: staleUpload.imageId } }),
-        ).toBeNull();
-        const fullTargetRetry = await call("daylily.upload_image", args);
-        expect(fullTargetRetry.result?.structuredContent?.image?.id).toBe(
-          image.id,
-        );
-
-        await db.imageAsset.deleteMany({ where: { legacyImageId: image.id } });
-        await db.image.delete({ where: { id: image.id } });
-        const deletedImageRetry = await call("daylily.upload_image", args);
-        expect(deletedImageRetry.error?.message).toContain("image was deleted");
-        expect(
-          await db.image.findUnique({ where: { id: image.id } }),
-        ).toBeNull();
-      }
-    }, 60_000);
+    });
   },
 );

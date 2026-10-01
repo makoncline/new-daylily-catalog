@@ -132,9 +132,7 @@ export function buildOriginalImageAssetKey(
   }
   return `${buildUserImageAssetBaseKey(args)}/original${
     args.contentDigest ? `-${args.contentDigest}` : ""
-  }${
-    imageExtensionByContentType[args.contentType]
-  }`;
+  }${imageExtensionByContentType[args.contentType]}`;
 }
 
 export function isExpectedOriginalImageAssetKey(
@@ -194,22 +192,6 @@ export async function getR2PresignedPutUrl(args: {
   });
 
   return getSignedUrl(getR2Client(), command, { expiresIn: 3600 });
-}
-
-export async function uploadR2ImageBuffer(args: {
-  body: Buffer;
-  contentType: ImageContentType;
-  key: string;
-}) {
-  await getR2Client().send(
-    new PutObjectCommand({
-      Bucket: getR2BucketName(),
-      Key: args.key,
-      Body: args.body,
-      ContentType: args.contentType,
-      ContentLength: args.body.byteLength,
-    }),
-  );
 }
 
 export async function getR2OriginalUploadMetadata(args: {

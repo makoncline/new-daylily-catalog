@@ -128,7 +128,11 @@ export async function getMemberDashboardHandoff(args: {
       nextStep =
         "Open the profile URL field and confirm its warning before editing.";
     }
-    if (destination === "manage_profile_images") url.hash = "profile-images";
+    if (destination === "manage_profile_images") {
+      url.hash = "profile-images";
+      nextStep =
+        "Choose a photo in the profile image manager, adjust its square crop, and select Upload.";
+    }
     if (
       destination === "edit_profile_content" ||
       destination === "remove_profile_content_block"
@@ -188,7 +192,11 @@ export async function getMemberDashboardHandoff(args: {
       if (!listing) notFound("Listing not found.");
       title = listing.title;
       url.searchParams.set("editing", id!);
-      if (destination === "manage_listing_images") url.hash = "listing-images";
+      if (destination === "manage_listing_images") {
+        url.hash = "listing-images";
+        nextStep =
+          "Choose a photo in the listing image manager, adjust its square crop, and select Upload.";
+      }
       if (destination === "unlink_listing_cultivar") {
         if (!listing.cultivarReferenceId) {
           notFound("Listing has no linked cultivar.");

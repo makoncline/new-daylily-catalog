@@ -2,6 +2,39 @@
 
 Date: 2026-09-25
 
+## Current feature proof (2026-09-30)
+
+See [feature videos and coverage](member-mcp-feature-proof-2026-09-30.md).
+Ten local videos show all 26 remote tools, 19 dashboard handoff targets and
+10 browser tools. The photo videos complete successful loopback uploads and
+verify the real image variants. They use simulated authentication and provider
+boundaries. A separate fresh, normal Clerk OAuth run passed against the real
+local HTTP endpoints with the current 26-tool set. It verified owned image
+editor links, the removed story/photo tools, rejected logo input, safe writes,
+and profile image reorder readback. No token or authorization code is saved.
+
+The current four-file focused run passed 38 tests, including the opt-in SQLite
+write proof and member API image storage proof. Typecheck and source lint passed.
+These results precede the latest main-branch integration; final revision checks
+are recorded on the PR. Local SQLite does not measure billed Turso reads.
+
+## Scope update (2026-09-29)
+
+Remote MCP photo addition and profile story writes were removed. Photo
+addition opens the existing listing or profile image manager. Browser
+WebMCP opens the same editor. The cropper has labelled numeric controls and
+keeps square output at a maximum of 1,600 pixels. Current image storage proof
+uses `member-image-upload-loopback.test.ts` with
+`RUN_MEMBER_IMAGE_UPLOAD_PROOF=1`. Earlier MCP upload and story results below
+are historical and do not describe the current tool set.
+
+The current focused tool and image-input suite passed 42 tests. The member API
+loopback storage test passed. Six browser checks passed, including landscape
+and portrait crops, viewport changes, and actual 1,600 × 1,600 WebP upload bytes.
+The browser test stops at a deliberate local storage failure and verifies that
+no image is attached. The separate API test covers storage and image variants.
+These checks use disposable SQLite. No schema change was made for this update.
+
 ## Decision
 
 The member MCP does not need catalog totals. It now exposes current, paged records and exact details, with no aggregate count queries on the member primary. It uses an indexed `LIMIT 1` membership check to decide whether a list can open a deletion confirmation. The public seller profile still uses the local public replica and can include public catalog counts; those calls do not make per-request reads from the Turso primary when the replica is configured.
@@ -214,6 +247,6 @@ A signed-in development Chrome check opened `/dashboard/profile#profile-content`
 
 A later signed-in development Chrome check opened `/dashboard/profile#profile-url` on the seeded SQLite database. The page scrolled to the profile URL field. Selecting the field opened the existing “Before You Edit Your URL” dialog. Cancel left the slug `rollingoaksdaylilies` unchanged and Save Changes disabled. The remote member API and MCP now reject direct slug edits and return this exact dashboard location for URL changes.
 
-The opt-in `tests/mcp-image-upload-loopback.test.ts` copies the seeded SQLite file, uses placeholder storage credentials, and starts a loopback S3-compatible PUT, HEAD, and GET receiver. The AWS SDK's `AWS_ENDPOINT_URL_S3` setting sends the legacy signed upload there; a guarded integration endpoint sends R2's signed upload there. The test calls the real MCP `prepare_image_upload` tool for an owned listing and profile, proves attachment is rejected before the uploads finish, sends the exact PNG bytes to both signed URLs, calls `attach_uploaded_image`, and verifies received bytes, legacy `Image` rows, and R2 `ImageAsset` rows. It then runs the real Sharp variant processor, verifies three WebP variants and `ready` status, and fetches the public display image from loopback storage. It also proves a retry keeps one row and changed details conflict. Run it with `RUN_MCP_IMAGE_UPLOAD_PROOF=1 pnpm --filter main exec vitest run tests/mcp-image-upload-loopback.test.ts --reporter=dot`. The test passed locally. The loopback receiver checks the presence of a signature but does not enforce its cryptographic validity; real storage credentials, CORS, and delivery remain outside this local proof.
+The opt-in `tests/mcp-image-upload-loopback.test.ts` copies the seeded SQLite file, uses placeholder storage credentials, and starts a loopback S3-compatible PUT, HEAD, and GET receiver. The AWS SDK's `AWS_ENDPOINT_URL_S3` setting sends the legacy signed upload there; a guarded integration endpoint sends R2's signed upload there. The test calls the real MCP `prepare_image_upload` tool for an owned listing and profile, proves attachment is rejected before the uploads finish, sends the exact PNG bytes to both signed URLs, calls `attach_uploaded_image`, and verifies received bytes, legacy `Image` rows, and R2 `ImageAsset` rows. It then runs the real Sharp variant processor, verifies three WebP variants and `ready` status, and fetches the public display image from loopback storage. It also proves a retry keeps one row and changed details conflict. This historical test was replaced by `tests/member-image-upload-loopback.test.ts`; use `RUN_MEMBER_IMAGE_UPLOAD_PROOF=1` with that file for the current member API proof. The test passed locally. The loopback receiver checks the presence of a signature but does not enforce its cryptographic validity; real storage credentials, CORS, and delivery remain outside this local proof.
 
 An earlier revision added `edit_profile_paragraph` as the 26th tool. It edits one identified paragraph under an `updatedAt` precondition and keeps the other story blocks. The real SQLite MCP test passed for an edit and rejected a stale retry. That test exposed repeated HTML entity escaping in untouched blocks; the shared EditorJS sanitizer now produces the same stored content when it runs twice. A development OAuth HTTP smoke against `/tmp/daylily-mcp-oauth-paragraph-proof.sqlite` advertised 26 tools, rejected the unauthenticated profile read, and passed an authenticated paragraph append and edit. Its result reported `paragraphEdited=true` and `errors=[]`. An independent SQLite query found the edited paragraph and the created list with its updated description in that disposable database. The smoke script printed neither the authorization code nor the bearer token.

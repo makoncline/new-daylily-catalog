@@ -121,18 +121,21 @@ describe("read-only MCP server", () => {
       "list.update": "daylily.update_list",
       "list.addListing": "daylily.add_listing_to_list",
       "profile.update": "daylily.update_profile",
-      "profile.updateContent": "daylily.update_profile_content",
-      "profile.appendParagraph": "daylily.append_profile_paragraph",
-      "profile.updateParagraph": "daylily.edit_profile_paragraph",
-      "image.prepareUpload": "daylily.prepare_image_upload",
-      "image.create": "daylily.attach_uploaded_image",
+      "profile.updateContent": null,
+      "profile.appendParagraph": null,
+      "profile.updateParagraph": null,
+      "image.prepareUpload": null,
+      "image.create": null,
       "image.reorder": "daylily.reorder_images",
-    } satisfies Record<(typeof MEMBER_WRITE_OPERATIONS)[number][0], string>;
+    } satisfies Record<
+      (typeof MEMBER_WRITE_OPERATIONS)[number][0],
+      string | null
+    >;
     expect(Object.keys(safeApiTools).sort()).toEqual(
       MEMBER_WRITE_OPERATIONS.map(([operation]) => operation).sort(),
     );
     for (const toolName of Object.values(safeApiTools)) {
-      expect(toolNames.has(toolName)).toBe(true);
+      if (toolName) expect(toolNames.has(toolName)).toBe(true);
     }
     const managedApiReviewDestinations = {
       "listing.unlinkCultivar": "unlink_listing_cultivar",
@@ -149,6 +152,9 @@ describe("read-only MCP server", () => {
     );
     const reviewTool = parityTools.find(
       (tool) => tool.name === "daylily.open_dashboard",
+    );
+    expect(reviewTool?.inputSchema.properties.destination?.enum).toContain(
+      "edit_profile_content",
     );
     for (const destination of Object.values(managedApiReviewDestinations)) {
       expect(reviewTool?.inputSchema.properties.destination?.enum).toContain(
@@ -200,12 +206,6 @@ describe("read-only MCP server", () => {
           { name: "daylily.link_listing_to_cultivar" },
           { name: "daylily.sync_listing_cultivar_name" },
           { name: "daylily.update_profile" },
-          { name: "daylily.append_profile_paragraph" },
-          { name: "daylily.edit_profile_paragraph" },
-          { name: "daylily.update_profile_content" },
-          { name: "daylily.upload_image" },
-          { name: "daylily.prepare_image_upload" },
-          { name: "daylily.attach_uploaded_image" },
           { name: "daylily.reorder_images" },
         ],
       },
@@ -225,11 +225,6 @@ describe("read-only MCP server", () => {
         expect(tool.annotations?.destructiveHint).toBe(false);
       }
     }
-    const attachImageTool = body.result.tools.find(
-      (tool: { name: string }) => tool.name === "daylily.attach_uploaded_image",
-    );
-    expect(attachImageTool?.inputSchema.required).toContain("imageId");
-    expect(attachImageTool?.annotations.idempotentHint).toBe(true);
     const reorderTool = (
       body as unknown as {
         result: {
@@ -280,6 +275,47 @@ describe("read-only MCP server", () => {
     expect(listingPageTool?.inputSchema.properties).not.toHaveProperty(
       "cultivarName",
     );
+  });
+
+  it("rejects removed story and photo writes and logo fields before member lookup", async () => {
+    const { handleMcpRequest } = await import("@/server/mcp/read-only-mcp");
+    const calls = [
+      { name: "daylily.append_profile_paragraph", arguments: {} },
+      { name: "daylily.edit_profile_paragraph", arguments: {} },
+      { name: "daylily.update_profile_content", arguments: {} },
+      { name: "daylily.upload_image", arguments: {} },
+      { name: "daylily.prepare_image_upload", arguments: {} },
+      { name: "daylily.attach_uploaded_image", arguments: {} },
+      {
+        name: "daylily.update_profile",
+        arguments: {
+          expectedUpdatedAt: null,
+          logoUrl: "https://example.com/logo.png",
+        },
+      },
+    ];
+    for (const params of calls) {
+      const response = await handleMcpRequest(
+        new Request("https://daylilycatalog.com/api/mcp/server", {
+          method: "POST",
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/call",
+            params,
+          }),
+        }),
+      );
+      const body = (await response.json()) as {
+        error?: { code: number };
+        result?: { structuredContent?: { error?: { code: string } } };
+      };
+      expect(
+        body.error?.code ?? body.result?.structuredContent?.error?.code,
+      ).toBe(body.error ? -32602 : "INVALID_ARGUMENTS");
+    }
+    expect(mocks.memberDb.user.findUnique).not.toHaveBeenCalled();
+    expect(mocks.memberDb.userProfile.findUnique).not.toHaveBeenCalled();
   });
 
   it("implements basic Streamable HTTP response semantics", async () => {
@@ -1371,12 +1407,6 @@ describe("read-only MCP server", () => {
       "daylily.link_listing_to_cultivar",
       "daylily.sync_listing_cultivar_name",
       "daylily.update_profile",
-      "daylily.append_profile_paragraph",
-      "daylily.edit_profile_paragraph",
-      "daylily.update_profile_content",
-      "daylily.upload_image",
-      "daylily.prepare_image_upload",
-      "daylily.attach_uploaded_image",
       "daylily.reorder_images",
     ]);
     expect(tools.every((tool) => tool.name !== "daylily.delete_listing")).toBe(

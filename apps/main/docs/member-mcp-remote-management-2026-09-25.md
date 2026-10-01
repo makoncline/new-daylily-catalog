@@ -2,7 +2,55 @@
 
 Date: 2026-09-25
 
-## Current development status
+## Remote MCP scope update (2026-09-29)
+
+The remote MCP now has 26 tools. Profile writes accept only title, description,
+and location. They reject `logoUrl`. Photo additions use dashboard links. Image reads and reorder remain available. Remote and browser MCP story writes were removed. Browser profile inputs also exclude `logoUrl`. `get_profile` still
+returns the current formatted story. Use `open_dashboard` with
+`edit_profile_content` to open the rich text editor. The member API and web
+dashboard retain their existing story operations.
+
+List additions still accept one listing per call. Creating a listing and
+adding it to a list require two calls. A bounded batch-add command and an
+optional list ID on create are proposed additions, not current capabilities.
+
+Remote MCP has no direct upload, signed-upload preparation, or image attachment
+tool. Use `manage_listing_images` with an owned listing ID or
+`manage_profile_images` with `open_dashboard`. These links open the existing
+browser image manager. Browser WebMCP has `daylily.open-image-editor` and no
+raw upload tools. Agents can choose a file through its labelled input, enter
+Left, Top, and Size pixel values, select Apply crop, then select Upload.
+The shared cropper keeps a square crop and caps output at 1,600 pixels.
+Moderation, storage, and R2 variants use the existing browser upload flow.
+The member API retains its image upload operations for separate clients.
+The prior OAuth and loopback proof entries below describe the earlier tools.
+
+## Photo boundary verification (2026-09-29)
+
+The focused MCP, browser WebMCP, and image-input suite passed 42 tests.
+The member API loopback storage test passed. Six browser integration tests
+passed for crop and resize, listing create and edit, required listing fields,
+list management, existing image preview/reorder/delete, and profile URL validation.
+Typecheck and changed production-code lint passed. Lint retains one existing
+warning for the cropper's 500px height limit.
+
+The crop proof uses a landscape listing photo and a portrait profile photo.
+It rejects a square that extends past the image, preserves the selection after
+a viewport change, and checks that the crop wrapper matches the displayed image.
+Both actual browser upload files are square WebP files at 1,600 × 1,600 pixels.
+Their center pixels match the selected blue region. The test captures those
+files, then returns a deliberate local storage failure. It verifies the failure
+message and confirms that no image is attached after a failed upload.
+The separate member API test covers storage, attachment, retry, and variants.
+
+These checks use disposable SQLite and synthetic browser auth. They make no
+external storage requests. The current reduced tool set has not had a fresh
+real Clerk OAuth smoke. No schema change was made for this photo update.
+
+## Earlier development proof
+
+This section records earlier revisions. Upload and story-write results here
+describe tools that the scope update above has removed.
 
 The member API and remote MCP cover direct single-record creates and edits, owned reads, image uploads and reorder, and exact dashboard review links for destructive changes. The seeded bearer and MCP proofs pass. A later listing-cursor change added one `(userId, id)` index and removed the redundant owner-only listing index; this replaces the earlier no-schema cursor design described below. The latest Development Clerk OAuth smoke used the separate member API client and passed the owned managed flow against disposable SQLite. An earlier MCP-client OAuth smoke advertised 32 tools and completed the MCP and bearer member flow, including four loopback image uploads and two reorders, with `errors=[]`. Signed-in browser checks showed the profile story and exact approval targets. The bearer member API shares the dashboard handoff rules with MCP through `handoff.get`.
 
@@ -80,7 +128,7 @@ The current bearer API exposes the managed commands to a separately scoped OAuth
 
 ## Scope
 
-The remote MCP endpoint is `/api/mcp/server`. It accepts OAuth bearer tokens and works without a browser. Dashboard WebMCP is a separate browser feature. The remote endpoint now advertises 32 tools: nine public/help reads, eight private member reads and handoffs, and fifteen member write tools.
+The remote MCP endpoint is `/api/mcp/server`. It accepts OAuth bearer tokens and works without a browser. Dashboard WebMCP is a separate browser feature. The remote endpoint now advertises 26 tools: nine public/help reads, eight private member reads and handoffs, and nine member write tools.
 
 Private reads and `open_dashboard` require the `catalog:read` OAuth scope. Writes require `catalog:write`, a token issued to the configured Daylily MCP OAuth client, a matching local user, and a confirmed active or trialing membership. The existing dashboard procedures enforce record ownership again. The service checks membership before it starts a write. Public catalog reads use the local replica or search index boundary; they do not fall through to remote Turso when those local sources are absent.
 
@@ -152,7 +200,7 @@ Exact public MCP listing and profile reads now call the same read models as the 
 
 The development cultivar search-index refresh now passes the configured local SQLite database as its source. The old default path was absent in this worktree, which left a stale index usable while refresh failed. A focused refresh test checks the source argument, and a direct rebuild from the sanitized seed passed `quick_check` with 104,486 cultivar rows and 4,840 linked listing rows. The rebuilt local index contains the known cultivar reference used in the two-tool member search proof.
 
-A later API/MCP parity check found that `profile.update` accepted `logoUrl` while the MCP profile tool did not. The MCP now accepts it through the same owned dashboard procedure. A fresh development Clerk OAuth write smoke against `/tmp/daylily-mcp-logo-oauth-proof.sqlite` returned `profileUpdated=true` and `errors=[]`; an independent SQLite query found the new logo URL on the seeded member profile. The opt-in seeded MCP write test also verified the returned value. The logo URL is a basic profile field; profile image upload and reorder remain separate operations.
+Historical proof, superseded on 2026-09-30: A later API/MCP parity check found that `profile.update` accepted `logoUrl` while the MCP profile tool did not. The MCP now accepts it through the same owned dashboard procedure. A fresh development Clerk OAuth write smoke against `/tmp/daylily-mcp-logo-oauth-proof.sqlite` returned `profileUpdated=true` and `errors=[]`; an independent SQLite query found the new logo URL on the seeded member profile. The opt-in seeded MCP write test also verified the returned value. The logo URL is a basic profile field; profile image upload and reorder remain separate operations.
 
 The public listing search service now keeps seller resolution and subscription visibility on its supplied database client. Previously those lookups used the module's global public client even when the listing query received another local client. An opt-in SQLite proof changed a seller slug only in a second disposable database, found that seller through the injected client, then changed its subscription cache there and confirmed that discovery returned no listings. The source-boundary test still rejects remote-only public reads.
 
@@ -168,27 +216,27 @@ Profile field writes now use one bounded schema in the dashboard, bearer member 
 
 ## What a member can do
 
-The field audit against the current dashboard forms confirms the direct tools cover the editable listing fields (`title`, `description`, `price`, private note, and hidden state) and list fields (`title` and `description`). Separate tools cover listing membership, cultivar links, and listing or profile images. The profile tool covers the form's basic fields (`title`, `description`, `location`, and logo URL). Content tools edit, append, and reorder the editor's paragraph, heading, list, and table blocks without removing an existing block. The dashboard has no control to edit a list's stored `status` field.
+The direct tools cover the editable listing fields (`title`, `description`, `price`, private note, and hidden state) and list fields (`title` and `description`). Separate tools cover listing membership, cultivar links, and listing or profile images. The profile tool covers `title`, `description`, and `location`. Story edits use a dashboard link. The dashboard has no control to edit a list's stored `status` field.
 
 The dashboard shows a warning before unlocking profile URL editing because changing a slug can break links. The remote profile tool and bearer member API now reject `slug`; `open_dashboard` and `handoff.get` return `/dashboard/profile#profile-url`. That link scrolls to the URL field, where the dashboard warning still requires a click before editing. The existing dashboard session procedure retains the actual URL edit. This is the conservative development behavior pending owner review.
 
-| Task                                                                                     | Remote MCP action                                                                                                              |
-| ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| Search and inspect own listings, lists, images, and profile                              | Paged private reads and exact detail reads; `list_images` pages every owned image ID, and `get_image` resolves one owned image |
-| Create or edit one listing                                                               | Direct write                                                                                                                   |
-| Create or edit one list                                                                  | Direct write                                                                                                                   |
-| Add one listing to one list                                                              | Direct write                                                                                                                   |
-| Link a listing to a cultivar                                                             | Direct write; an existing different link must be unlinked in the dashboard first                                               |
-| Sync a linked cultivar name to a listing title and slug                                  | Direct write for one owned listing                                                                                             |
-| Edit basic profile fields, including the logo URL, or append or edit one story paragraph | Direct write; paragraph changes require the current `updatedAt` value                                                          |
-| Change the public profile URL                                                            | `open_dashboard` links to the URL field and its existing warning                                                               |
-| Edit, append, or reorder profile heading, list, table, and paragraph blocks              | Direct `update_profile_content` write with the current `updatedAt`; retain existing block IDs and types                        |
-| Add an image to a listing or profile                                                     | One `upload_image` MCP call with image data, or prepare a signed upload and attach it after the file PUT                       |
-| Reorder listing or profile images                                                        | Direct write with owned image IDs                                                                                              |
-| Delete a listing or empty list                                                           | `open_dashboard` returns the exact editor with its existing confirmation dialog                                                |
-| Remove one or several listings from a list                                               | `open_dashboard` selects those members and opens a named confirmation dialog                                                   |
-| Remove a listing or profile image                                                        | `open_dashboard` opens that image's confirmation dialog                                                                        |
-| Unlink a cultivar or remove a profile content block                                      | `open_dashboard` opens the relevant section; a block ID focuses the exact profile story block                                  |
+| Task                                                        | Remote MCP action                                                                                                              |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Search and inspect own listings, lists, images, and profile | Paged private reads and exact detail reads; `list_images` pages every owned image ID, and `get_image` resolves one owned image |
+| Create or edit one listing                                  | Direct write                                                                                                                   |
+| Create or edit one list                                     | Direct write                                                                                                                   |
+| Add one listing to one list                                 | Direct write                                                                                                                   |
+| Link a listing to a cultivar                                | Direct write; an existing different link must be unlinked in the dashboard first                                               |
+| Sync a linked cultivar name to a listing title and slug     | Direct write for one owned listing                                                                                             |
+| Edit profile title, description, or location                | Direct write with the current `updatedAt` value                                                                                |
+| Change the public profile URL                               | `open_dashboard` links to the URL field and its existing warning                                                               |
+| Edit profile story content                                  | `open_dashboard` opens the rich text editor at `#profile-content`                                                              |
+| Add an image to a listing or profile                        | `open_dashboard` opens the owned listing editor or profile image manager for crop and upload                                   |
+| Reorder listing or profile images                           | Direct write with owned image IDs                                                                                              |
+| Delete a listing or empty list                              | `open_dashboard` returns the exact editor with its existing confirmation dialog                                                |
+| Remove one or several listings from a list                  | `open_dashboard` selects those members and opens a named confirmation dialog                                                   |
+| Remove a listing or profile image                           | `open_dashboard` opens that image's confirmation dialog                                                                        |
+| Unlink a cultivar or remove a profile content block         | `open_dashboard` opens the relevant section; a block ID focuses the exact profile story block                                  |
 
 The dashboard's Tags page builds printable files from listings and saves layout choices in browser storage; it has no persistent tag record to manage. The import page uses a browser-held draft and can create many listings. `open_dashboard` links to both workflows. The remote single-listing create tool covers a prepared row without starting a batch import.
 
@@ -212,13 +260,13 @@ The dashboard's Sync Name action is now available as `daylily.sync_listing_culti
 
 MCP JSON-RPC tool calls must have a request ID. The only supported ID-free message is `notifications/initialized`; an ID-free tool call cannot start a write without returning an outcome. A JSON `null` body now returns HTTP 400 with the JSON-RPC invalid-request code instead of throwing from the transport; the focused regression test passes. Ordinary tool responses use `Cache-Control: no-store` because member results can include private notes and signed upload URLs.
 
-The MCP endpoint rejects a JSON body above the 10 MB image upload's base64 size plus request overhead with HTTP 413. It checks both a declared size and streamed bytes. Clerk OAuth verification receives a headers-only request, so parsing does not tee and buffer a second copy of the body. A real development OAuth read smoke passed after this change.
+The MCP endpoint now rejects JSON bodies above 128 KiB with HTTP 413. It checks both a declared size and streamed bytes. Clerk OAuth verification receives a headers-only request, so parsing does not tee and buffer a second copy of the body.
 
 The create tools require a caller-generated UUID `requestId`. Reusing the same UUID with the same creation payload returns the existing record. Reusing it with different data returns a conflict. This prevents accidental duplicates after a retry. The story tools append or edit one paragraph and keep other blocks intact. They reject a stale `updatedAt` value. Batch additions were omitted because repeated single additions already cover the workflow without a new batch mutation. The current conservative policy sends even single list removal through dashboard review.
 
 Cultivar linking now has a conditional final update. If two clients both read an unlinked listing and link different cultivars, one succeeds and the other gets a precondition error; the later request cannot silently replace the first link. A real SQLite integration test forces that interleaving.
 
-An agent can now add an image in one `upload_image` MCP call with a base64 data URL and a caller-generated UUID `requestId`. The server validates the file format, enforces ownership and the same enforced or shadow moderation behavior as the dashboard, uploads the bytes to legacy storage and optional R2 storage, then attaches the image through the same dashboard procedure. The request ID gives retries one deterministic image ID; object keys also include the file digest. Changed bytes with the same ID return a conflict without overwriting the first R2 original. The existing signed upload path remains useful for clients that prefer a direct file PUT: `prepare_image_upload` returns upload metadata, the client uploads to each signed URL, and `attach_uploaded_image` verifies the object before it creates a record. A local loopback storage test now covers both paths for listing and profile images, verifies uploaded bytes and SQLite rows, reorders the resulting images, processes R2 image variants, fetches a public WebP, rejects invalid image data, and checks safe retries. It also replaces a completed upload with an object above the 10 MB limit and confirms that attachment is rejected without creating an image row. The test uses placeholder credentials; R2's test endpoint is allowed only on loopback in integration mode.
+An earlier revision let an agent add an image in one `upload_image` MCP call with a base64 data URL and a caller-generated UUID `requestId`. The server validates the file format, enforces ownership and the same enforced or shadow moderation behavior as the dashboard, uploads the bytes to legacy storage and optional R2 storage, then attaches the image through the same dashboard procedure. The request ID gives retries one deterministic image ID; object keys also include the file digest. Changed bytes with the same ID return a conflict without overwriting the first R2 original. The existing signed upload path remains useful for clients that prefer a direct file PUT: `prepare_image_upload` returns upload metadata, the client uploads to each signed URL, and `attach_uploaded_image` verifies the object before it creates a record. A local loopback storage test now covers both paths for listing and profile images, verifies uploaded bytes and SQLite rows, reorders the resulting images, processes R2 image variants, fetches a public WebP, rejects invalid image data, and checks safe retries. It also replaces a completed upload with an object above the 10 MB limit and confirms that attachment is rejected without creating an image row. The test uses placeholder credentials; R2's test endpoint is allowed only on loopback in integration mode.
 
 A later safety pass moved the dashboard's four-image limit into the shared upload procedures. Presigning now refuses a full listing or profile before issuing an upload URL, and attachment checks the same limit inside its database transaction. Both checks read at most four indexed image rows and use no aggregate count. An attached image can still be retried with its existing request ID when the target is full. The loopback SQLite test covers the full-profile rejection, both targets reaching the limit, an attachment using a stale signed URL after the limit is reached, and a safe retry at the limit. The sanitized Rolling Oaks seed already has five old profile images, so an image OAuth smoke needs a disposable copy with room for two new photos; the original seed is not changed.
 
@@ -312,30 +360,18 @@ DATABASE_URL=file:/tmp/daylily-mcp-oauth-proof.sqlite TURSO_DATABASE_AUTH_TOKEN=
 MCP_SMOKE_WRITE=1 pnpm --filter main env:dev node scripts/smoke-mcp-oauth-local.mjs
 ```
 
-For the two-profile-image OAuth smoke, start with a fresh disposable copy and clear its old profile image rows before starting the app:
+Photo additions use the browser. To repeat the signed-upload and variant API
+proof with disposable SQLite and loopback storage:
 
 ```sh
-cp apps/main/local/realistic-data/realistic-data.sqlite /tmp/daylily-mcp-oauth-proof.sqlite
-sqlite3 /tmp/daylily-mcp-oauth-proof.sqlite <<'SQL'
-DELETE FROM "ImageAsset" WHERE "userProfileId" = (SELECT "id" FROM "UserProfile" WHERE "slug" = 'rollingoaksdaylilies');
-DELETE FROM "Image" WHERE "userProfileId" = (SELECT "id" FROM "UserProfile" WHERE "slug" = 'rollingoaksdaylilies');
-SQL
+RUN_MEMBER_IMAGE_UPLOAD_PROOF=1 pnpm main exec vitest run tests/member-image-upload-loopback.test.ts --maxWorkers=1
 ```
 
-Start the loopback receiver in one terminal and the app in another. The receiver holds files only in memory:
+To verify browser crop controls on listing and profile pages with the isolated
+integration app:
 
 ```sh
-node apps/main/scripts/mcp-loopback-storage-local.mjs
-```
-
-```sh
-DATABASE_URL=file:/tmp/daylily-mcp-oauth-proof.sqlite TURSO_DATABASE_AUTH_TOKEN= TURSO_EMBEDDED_REPLICA_URL= AWS_ACCESS_KEY_ID=local-test AWS_SECRET_ACCESS_KEY=local-test AWS_REGION=us-east-1 AWS_BUCKET_NAME=integration-mcp-images AWS_ENDPOINT_URL_S3=http://127.0.0.1:8791 R2_ACCOUNT_ID= R2_ACCESS_KEY_ID= R2_SECRET_ACCESS_KEY= R2_BUCKET_NAME= R2_PUBLIC_BASE_URL= pnpm --filter main dev --port 3217 --hostname localhost
-```
-
-Run the development consent smoke in a third terminal:
-
-```sh
-MCP_SMOKE_WRITE=1 MCP_SMOKE_IMAGE=1 MCP_SMOKE_STORAGE_ORIGIN=http://127.0.0.1:8791 pnpm --filter main env:dev node scripts/smoke-mcp-oauth-local.mjs
+pnpm main exec node scripts/run-integration-local.mjs image-crop.integration.ts
 ```
 
 Clerk's [OAuth documentation](https://clerk.com/docs/guides/configure/auth-strategies/oauth/how-clerk-implements-oauth) places custom scope creation and assignment in the OAuth applications Scopes tab. The original development MCP app has read and write scopes; the separate member API client also has manage scope. Both keep their consent screens enabled. Before changing a Clerk instance, compare its environment label and OAuth client ID with `DAYLILY_MCP_OAUTH_CLIENT_ID` to avoid modifying the production instance.

@@ -15,11 +15,14 @@ test.describe("WebMCP discovery @local", () => {
       Object.defineProperty(window.navigator, "modelContext", {
         configurable: true,
         value: {
-          registerTool(tool: {
-            name: string;
-            description: string;
-            inputSchema: unknown;
-          }, options?: { signal?: AbortSignal }) {
+          registerTool(
+            tool: {
+              name: string;
+              description: string;
+              inputSchema: unknown;
+            },
+            options?: { signal?: AbortSignal },
+          ) {
             const registration = {
               name: tool.name,
               description: tool.description,
@@ -63,13 +66,11 @@ test.describe("WebMCP discovery @local", () => {
         "daylily.dashboard-state",
         "daylily.search-cultivars",
         "daylily.update-profile",
-        "daylily.update-profile-content",
         "daylily.create-listing",
         "daylily.update-listing",
         "daylily.link-cultivar",
         "daylily.create-list",
-        "daylily.prepare-image-upload",
-        "daylily.attach-uploaded-image",
+        "daylily.open-image-editor",
         "daylily.add-listing-to-list",
       ]);
   });

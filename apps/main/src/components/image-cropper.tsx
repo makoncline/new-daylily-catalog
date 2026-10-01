@@ -1,18 +1,26 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import ReactCrop, {
   type PixelCrop,
   type PercentCrop,
   centerCrop,
+  convertToPercentCrop,
+  convertToPixelCrop,
   makeAspectCrop,
 } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
-import { getErrorMessage, normalizeError } from "@/lib/error-utils";
+import {
+  getErrorMessage,
+  normalizeError,
+  reportError,
+} from "@/lib/error-utils";
 
 async function getCroppedBlob(
   image: HTMLImageElement,
@@ -27,10 +35,8 @@ async function getCroppedBlob(
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("2D context not found");
 
-  const scaleX = image.naturalWidth / image.width;
-  const scaleY = image.naturalHeight / image.height;
-  const sourceWidth = Math.floor(crop.width * scaleX);
-  const sourceHeight = Math.floor(crop.height * scaleY);
+  const sourceWidth = Math.round(crop.width);
+  const sourceHeight = Math.round(crop.height);
   const maxOutputPx = options?.maxOutputPx ?? 1600;
   const outputScale = Math.min(
     1,
@@ -41,8 +47,8 @@ async function getCroppedBlob(
 
   ctx.drawImage(
     image,
-    crop.x * scaleX,
-    crop.y * scaleY,
+    Math.round(crop.x),
+    Math.round(crop.y),
     sourceWidth,
     sourceHeight,
     0,
@@ -72,10 +78,6 @@ interface ImageCropperProps {
   confirmButtonLabel?: string;
 }
 
-// This approach:
-// 1. Uses % cropping plus built-in helpers (centerCrop, makeAspectCrop).
-// 2. Dynamically calculates minWidth/minHeight in displayed px, ensuring the final crop is never below `minPx` in the full-res image.
-// 3. Recomputes upon window resize so the min crop adapts to any layout changes.
 export function ImageCropper({
   src,
   minPx = 300,
@@ -91,53 +93,66 @@ export function ImageCropper({
   const [initialCrop, setInitialCrop] = useState<PercentCrop>();
   const [naturalDims, setNaturalDims] = useState({ w: 0, h: 0 });
   const [displayDims, setDisplayDims] = useState({ w: 0, h: 0 });
+  const [cropInputs, setCropInputs] = useState({ left: "", top: "", size: "" });
+  const [cropError, setCropError] = useState<string | null>(null);
+  const cropControlId = useId();
   const imageRef = useRef<HTMLImageElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // Measure displayed image on load and create a large centered square crop in %.
-  const handleImageLoad = useCallback(
-    (e: React.SyntheticEvent<HTMLImageElement>) => {
-      const { naturalWidth, naturalHeight } = e.currentTarget;
-      setNaturalDims({ w: naturalWidth, h: naturalHeight });
-      setDisplayDims({
-        w: (e.currentTarget as HTMLImageElement).width,
-        h: (e.currentTarget as HTMLImageElement).height,
-      });
+  const setSelection = (
+    next: PercentCrop,
+    width = naturalDims.w,
+    height = naturalDims.h,
+  ) => {
+    setCrop(next);
+    const pixels = convertToPixelCrop(next, width, height);
+    setCropInputs({
+      left: String(Math.round(pixels.x)),
+      top: String(Math.round(pixels.y)),
+      size: String(Math.round(pixels.width)),
+    });
+    setCropError(null);
+  };
 
-      const aspect = 1;
-      const initial = centerCrop(
-        makeAspectCrop(
-          {
-            unit: "%",
-            width: 90, // Start at 90% of whichever dimension is smaller
-          },
-          aspect,
-          naturalWidth,
-          naturalHeight,
-        ),
+  const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const { naturalWidth, naturalHeight } = e.currentTarget;
+    setNaturalDims({ w: naturalWidth, h: naturalHeight });
+    setDisplayDims({
+      w: (e.currentTarget as HTMLImageElement).width,
+      h: (e.currentTarget as HTMLImageElement).height,
+    });
+
+    const shortestSide = Math.min(naturalWidth, naturalHeight);
+    const size = Math.max(
+      Math.min(minPx, shortestSide),
+      Math.floor(shortestSide * 0.9),
+    );
+    const initial = centerCrop(
+      makeAspectCrop(
+        {
+          unit: "%",
+          width: (size / naturalWidth) * 100,
+        },
+        1,
         naturalWidth,
         naturalHeight,
-      );
+      ),
+      naturalWidth,
+      naturalHeight,
+    );
 
-      setCrop(initial);
-      setInitialCrop(initial);
-    },
-    [],
-  );
+    setSelection(initial, naturalWidth, naturalHeight);
+    setInitialCrop(initial);
+  };
 
-  // Re-measure displayed width/height on window resize,
-  // so minWidth/minHeight can adapt. This uses a simple window resize approach.
   useEffect(() => {
-    function handleResize() {
-      if (imageRef.current) {
-        setDisplayDims({
-          w: imageRef.current.width,
-          h: imageRef.current.height,
-        });
-      }
-    }
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    const image = imageRef.current;
+    if (!image) return;
+    const observer = new ResizeObserver(() => {
+      setDisplayDims({ w: image.width, h: image.height });
+    });
+    observer.observe(image);
+    return () => observer.disconnect();
   }, []);
 
   // Dynamically compute the minWidth in displayed px
@@ -147,21 +162,56 @@ export function ImageCropper({
   const dynamicMin = (() => {
     if (!naturalDims.w || !displayDims.w) return 0;
     const ratio = displayDims.w / naturalDims.w; // how much the image is scaled down
-    return minPx * ratio; // min displayed px to ensure final crop is at least minPx
+    return Math.min(minPx, naturalDims.w, naturalDims.h) * ratio;
   })();
+
+  const selectedPixels = crop
+    ? convertToPixelCrop(crop, naturalDims.w, naturalDims.h)
+    : null;
+  const hasPendingCrop = Boolean(
+    selectedPixels &&
+      (cropInputs.left !== String(Math.round(selectedPixels.x)) ||
+        cropInputs.top !== String(Math.round(selectedPixels.y)) ||
+        cropInputs.size !== String(Math.round(selectedPixels.width))),
+  );
+
+  const applyCropInputs = () => {
+    const left = cropInputs.left.trim() ? Number(cropInputs.left) : NaN;
+    const top = cropInputs.top.trim() ? Number(cropInputs.top) : NaN;
+    const size = cropInputs.size.trim() ? Number(cropInputs.size) : NaN;
+    const minimum = Math.min(minPx, naturalDims.w, naturalDims.h);
+    if (
+      ![left, top, size].every(Number.isInteger) ||
+      left < 0 ||
+      top < 0 ||
+      size < minimum ||
+      left + size > naturalDims.w ||
+      top + size > naturalDims.h
+    ) {
+      setCropError(
+        `Use whole pixels. The square must be at least ${minimum}px and stay inside the image.`,
+      );
+      return;
+    }
+    setSelection(
+      convertToPercentCrop(
+        { unit: "px", x: left, y: top, width: size, height: size },
+        naturalDims.w,
+        naturalDims.h,
+      ),
+    );
+  };
 
   const handleCompleteCrop = async () => {
     const img = imageRef.current;
     if (!img || !crop) return;
 
     try {
-      const pxCrop: PixelCrop = {
-        unit: "px",
-        x: (crop.x / 100) * displayDims.w,
-        y: (crop.y / 100) * displayDims.h,
-        width: (crop.width / 100) * displayDims.w,
-        height: (crop.height / 100) * displayDims.h,
-      };
+      const pxCrop = convertToPixelCrop(
+        crop,
+        img.naturalWidth,
+        img.naturalHeight,
+      );
 
       const blob = await getCroppedBlob(img, pxCrop, mimeType, {
         maxOutputPx,
@@ -180,7 +230,7 @@ export function ImageCropper({
   };
 
   const handleReset = () => {
-    if (initialCrop) setCrop(initialCrop);
+    if (initialCrop) setSelection(initialCrop);
   };
 
   return (
@@ -190,7 +240,7 @@ export function ImageCropper({
           crop={crop}
           onChange={(_, percentCrop) => {
             if (!isDisabled) {
-              setCrop(percentCrop);
+              setSelection(percentCrop);
             }
           }}
           aspect={1}
@@ -202,20 +252,90 @@ export function ImageCropper({
             "max-w-full",
             isDisabled && "pointer-events-none opacity-50",
           )}
-          style={{ display: "block" }}
         >
           <Image
             ref={imageRef}
             src={src}
             alt="Crop preview"
             onLoad={handleImageLoad}
-            className="block max-h-[500px] w-full object-contain"
-            width={1920}
-            height={1080}
+            className="block h-auto max-h-[500px] w-auto max-w-full"
+            width={naturalDims.w || 1920}
+            height={naturalDims.h || 1080}
             unoptimized
           />
         </ReactCrop>
       </div>
+      <fieldset disabled={!crop || isDisabled === true} className="space-y-2">
+        <legend className="text-sm font-medium">Square crop</legend>
+        <p
+          id={`${cropControlId}-help`}
+          className="text-muted-foreground text-sm"
+        >
+          Drag the square, or enter pixels and select Apply crop. Image:{" "}
+          {naturalDims.w} × {naturalDims.h}px.
+        </p>
+        <div className="grid grid-cols-3 gap-2">
+          {(
+            [
+              ["left", "Left (px)", 0, naturalDims.w],
+              ["top", "Top (px)", 0, naturalDims.h],
+              [
+                "size",
+                "Size (px)",
+                Math.min(minPx, naturalDims.w, naturalDims.h),
+                Math.min(naturalDims.w, naturalDims.h),
+              ],
+            ] as const
+          ).map(([field, label, minimum, maximum]) => (
+            <div key={field} className="space-y-1">
+              <Label htmlFor={`${cropControlId}-${field}`}>{label}</Label>
+              <Input
+                id={`${cropControlId}-${field}`}
+                type="number"
+                inputMode="numeric"
+                min={minimum}
+                max={maximum}
+                step={1}
+                value={cropInputs[field]}
+                aria-describedby={`${cropControlId}-help`}
+                onChange={(event) => {
+                  setCropInputs((current) => ({
+                    ...current,
+                    [field]: event.target.value,
+                  }));
+                  setCropError(null);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    applyCropInputs();
+                  }
+                }}
+              />
+            </div>
+          ))}
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={applyCropInputs}
+          disabled={!hasPendingCrop}
+        >
+          Apply crop
+        </Button>
+        {cropError && (
+          <p role="alert" className="text-destructive text-sm">
+            {cropError}
+          </p>
+        )}
+        {selectedPixels && (
+          <p role="status" className="text-muted-foreground text-sm">
+            Upload size:{" "}
+            {Math.min(maxOutputPx, Math.round(selectedPixels.width))} ×{" "}
+            {Math.min(maxOutputPx, Math.round(selectedPixels.height))}px.
+          </p>
+        )}
+      </fieldset>
       <div className="flex justify-end gap-2">
         <Button
           type="button"
@@ -236,7 +356,7 @@ export function ImageCropper({
         <Button
           type="button"
           onClick={handleCompleteCrop}
-          disabled={isDisabled ?? !crop}
+          disabled={!crop || hasPendingCrop || isDisabled === true}
         >
           {confirmButtonLabel}
         </Button>

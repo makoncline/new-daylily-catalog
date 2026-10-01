@@ -35,7 +35,7 @@ const HELP_ENTRIES: HelpEntry[] = [
     id: "listing-photos",
     title: "Manage listing photos",
     answer:
-      "Use upload_image with a base64 data URL and retry UUID to add a photo in one call. A client that uploads files directly can use prepare_image_upload, send the bytes to each signed URL, then call attach_uploaded_image. Use reorder_images to change order. To remove a photo, open its dashboard review link.",
+      "Use open_dashboard with manage_listing_images and the owned listing ID to add a photo. Choose a file in the browser, adjust its square crop, and select Upload. Use reorder_images to change order. To remove a photo, open its dashboard review link.",
     path: "/dashboard/listings",
     terms: ["photo", "image", "upload", "reorder", "remove", "listing"],
   },
@@ -43,15 +43,15 @@ const HELP_ENTRIES: HelpEntry[] = [
     id: "profile-story",
     title: "Edit profile and story",
     answer:
-      "Use update_profile for basic fields. Use append_profile_paragraph or edit_profile_paragraph for one story paragraph. Use update_profile_content with the current content and updatedAt to edit, append, or reorder rich blocks while retaining existing block IDs. Give older ID-free blocks a new ID in place before you reorder them. Open the profile editor to remove a block.",
-    path: "/dashboard/profile",
+      "Use update_profile for the title, description, and location. Use the profile image manager for photos. Read the current story with get_profile, then use open_dashboard with edit_profile_content to edit it in the rich text editor. Remote MCP does not write profile story content.",
+    path: "/dashboard/profile#profile-content",
     terms: ["profile", "story", "paragraph", "content", "description"],
   },
   {
     id: "profile-photos",
     title: "Manage profile photos",
     answer:
-      "Use upload_image with a base64 data URL and retry UUID to add a profile photo in one call. A client that uploads files directly can use prepare_image_upload, send the bytes to each signed URL, then call attach_uploaded_image. Use reorder_images to change order. To remove a photo, open its dashboard review link.",
+      "Use open_dashboard with manage_profile_images to add a profile photo. Choose a file in the browser, adjust its square crop, and select Upload. Photos are attached to the profile ID. Use reorder_images to change order. To remove a photo, open its dashboard review link.",
     path: "/dashboard/profile",
     terms: ["profile", "photo", "image", "upload", "reorder", "remove"],
   },

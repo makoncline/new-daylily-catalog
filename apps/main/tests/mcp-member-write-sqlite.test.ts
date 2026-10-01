@@ -14,7 +14,6 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, describe, expect, it, vi } from "vitest";
-import { APP_CONFIG } from "@/config/constants";
 import { memberOperationResultSchemas } from "@/lib/member-result-contract";
 import { memberWriteMcpTools } from "@/server/mcp/member-write-mcp-tools";
 
@@ -91,25 +90,6 @@ describe.skipIf(!enabled)("remote member MCP with real local SQLite", () => {
     expect(new Set(Object.keys(memberWriteInputSchemas))).toEqual(
       new Set(memberWriteMcpTools.map((tool) => tool.name)),
     );
-    expect(
-      memberWriteMcpTools.find(
-        (tool) => tool.name === "daylily.prepare_image_upload",
-      ),
-    ).toMatchObject({
-      inputSchema: {
-        properties: {
-          size: { maximum: APP_CONFIG.UPLOAD.MAX_FILE_SIZE },
-        },
-      },
-    });
-    expect(
-      memberWriteMcpTools.find(
-        (tool) => tool.name === "daylily.attach_uploaded_image",
-      ),
-    ).toMatchObject({
-      inputSchema: { properties: { key: { maxLength: 512 } } },
-    });
-
     async function readSqlQueries() {
       await new Promise((resolve) => setTimeout(resolve, 20));
       const profilerPath = process.env.LOCAL_QUERY_PROFILER_OUTPUT;
@@ -162,7 +142,6 @@ describe.skipIf(!enabled)("remote member MCP with real local SQLite", () => {
               content: string | null;
               images?: Array<{ id: string; order: number }>;
               location: string | null;
-              logoUrl: string | null;
               updatedAt: string;
             };
             image?: { id: string; url: string };
@@ -183,12 +162,7 @@ describe.skipIf(!enabled)("remote member MCP with real local SQLite", () => {
         ) {
           memberOperationResultSchemas["listing.create"].parse(output?.listing);
         }
-        if (
-          name === "daylily.update_profile" ||
-          name === "daylily.append_profile_paragraph" ||
-          name === "daylily.edit_profile_paragraph" ||
-          name === "daylily.update_profile_content"
-        ) {
+        if (name === "daylily.update_profile") {
           memberOperationResultSchemas["profile.update"].parse(output?.profile);
         }
         if (name === "daylily.get_profile" && output?.profile) {
@@ -535,14 +509,16 @@ describe.skipIf(!enabled)("remote member MCP with real local SQLite", () => {
     const profileEdit = await call("daylily.update_profile", {
       expectedUpdatedAt: profileBeforeEdit?.updatedAt.toISOString() ?? null,
       location: "Test garden",
-      logoUrl: "https://example.invalid/mcp-test-logo.png",
     });
     expect(profileEdit.result?.structuredContent?.profile?.location).toBe(
       "Test garden",
     );
-    expect(profileEdit.result?.structuredContent?.profile?.logoUrl).toBe(
-      "https://example.invalid/mcp-test-logo.png",
-    );
+    const logoEdit = await call("daylily.update_profile", {
+      expectedUpdatedAt:
+        profileEdit.result?.structuredContent?.profile?.updatedAt,
+      logoUrl: "https://example.invalid/mcp-test-logo.png",
+    });
+    expect(logoEdit.error?.code).toBe(-32602);
     const staleProfileEdit = await call("daylily.update_profile", {
       expectedUpdatedAt: profileBeforeEdit?.updatedAt.toISOString() ?? null,
       location: "Stale overwrite",
@@ -575,278 +551,29 @@ describe.skipIf(!enabled)("remote member MCP with real local SQLite", () => {
     expect(profileImages.map((image) => image.order)).toEqual(
       [...profileImages.map((image) => image.order)].sort((a, b) => a - b),
     );
-    const updatedAt = required(
-      profileRead.result?.structuredContent?.profile?.updatedAt,
-    );
-    const originalContent = profileRead.result?.structuredContent?.profile
-      ?.content as string | null;
-    const changedContent = await call("daylily.append_profile_paragraph", {
-      paragraph: "A local MCP test paragraph.",
-      expectedUpdatedAt: updatedAt,
+    const originalContent =
+      profileRead.result?.structuredContent?.profile?.content;
+    for (const name of [
+      "daylily.append_profile_paragraph",
+      "daylily.edit_profile_paragraph",
+      "daylily.update_profile_content",
+    ]) {
+      expect((await call(name, {})).error?.code).toBe(-32602);
+    }
+    const storyReview = await call("daylily.open_dashboard", {
+      destination: "edit_profile_content",
     });
-    expect(changedContent.error).toBeUndefined();
-    const nextContent = required(
-      changedContent.result?.structuredContent?.profile?.content,
-    );
-    type ProfileBlock = {
-      id: string;
-      data: { text?: string };
-    };
-    const blocks = (JSON.parse(nextContent) as { blocks: ProfileBlock[] })
-      .blocks;
-    const originalBlocks = originalContent
-      ? (JSON.parse(originalContent) as { blocks: ProfileBlock[] }).blocks
-      : [];
-    expect(blocks).toHaveLength(originalBlocks.length + 1);
-    const paragraphId = blocks.at(-1)?.id;
-    expect(paragraphId).toBeTruthy();
-    const blockRemovalReview = await call("daylily.open_dashboard", {
-      destination: "remove_profile_content_block",
-      blockId: paragraphId,
-    });
-    expect(blockRemovalReview.result?.structuredContent?.url).toBe(
-      `https://daylilycatalog.com/dashboard/profile?contentBlock=${paragraphId}#profile-content`,
+    expect(storyReview.result?.structuredContent?.url).toBe(
+      "https://daylilycatalog.com/dashboard/profile#profile-content",
     );
     expect(
       (
-        await call("daylily.open_dashboard", {
-          destination: "remove_profile_content_block",
-          blockId: "missing-block",
+        await db.userProfile.findUniqueOrThrow({
+          where: { userId: owner!.id },
+          select: { content: true },
         })
-      ).error,
-    ).toBeTruthy();
-    expect(
-      await db.userProfile.findUnique({
-        where: { userId: owner!.id },
-        select: { content: true },
-      }),
-    ).toMatchObject({ content: nextContent });
-    const editedContent = await call("daylily.edit_profile_paragraph", {
-      blockId: paragraphId,
-      text: "An edited local MCP test paragraph.",
-      expectedUpdatedAt:
-        changedContent.result?.structuredContent?.profile?.updatedAt,
-    });
-    expect(editedContent.error).toBeUndefined();
-    const editedBlocks = (
-      JSON.parse(
-        required(editedContent.result?.structuredContent?.profile?.content),
-      ) as { blocks: ProfileBlock[] }
-    ).blocks;
-    expect(editedBlocks.slice(0, -1)).toEqual(blocks.slice(0, -1));
-    expect(editedBlocks.at(-1)?.data.text).toBe(
-      "An edited local MCP test paragraph.",
-    );
-    const richBlocks = [
-      ...editedBlocks,
-      {
-        id: crypto.randomUUID(),
-        type: "header",
-        data: {
-          text: "Garden <script>alert(1)</script><b>story</b>",
-          level: 2,
-        },
-      },
-      {
-        id: crypto.randomUUID(),
-        type: "list",
-        data: {
-          style: "checklist",
-          meta: {},
-          items: [
-            { content: "Plant divisions", meta: { checked: true }, items: [] },
-          ],
-        },
-      },
-      {
-        id: crypto.randomUUID(),
-        type: "table",
-        data: {
-          withHeadings: true,
-          content: [
-            ["Cultivar", "Bloom"],
-            ["Example", "June"],
-          ],
-        },
-      },
-    ];
-    const richEdit = await call("daylily.update_profile_content", {
-      content: JSON.stringify({ blocks: richBlocks }),
-      expectedUpdatedAt:
-        editedContent.result?.structuredContent?.profile?.updatedAt,
-    });
-    expect(richEdit.error).toBeUndefined();
-    const savedRichBlocks = (
-      JSON.parse(
-        required(richEdit.result?.structuredContent?.profile?.content),
-      ) as {
-        blocks: Array<{ id: string; type: string }>;
-      }
-    ).blocks;
-    expect(savedRichBlocks.map((block) => block.id)).toEqual(
-      richBlocks.map((block) => block.id),
-    );
-    expect(savedRichBlocks.slice(-3).map((block) => block.type)).toEqual([
-      "header",
-      "list",
-      "table",
-    ]);
-    expect(
-      (savedRichBlocks.at(-3) as { data: { text: string } } | undefined)?.data
-        .text,
-    ).toBe("Garden <b>story</b>");
-    const removedBlock = await call("daylily.update_profile_content", {
-      content: JSON.stringify({ blocks: richBlocks.slice(1) }),
-      expectedUpdatedAt: richEdit.result?.structuredContent?.profile?.updatedAt,
-    });
-    expect(removedBlock.error).toBeTruthy();
-    const persistedContent = await db.userProfile.findUniqueOrThrow({
-      where: { userId: owner!.id },
-      select: { content: true },
-    });
-    const persistedBlocks = (
-      JSON.parse(required(persistedContent.content)) as { blocks: unknown[] }
-    ).blocks;
-    expect(persistedBlocks).toEqual(savedRichBlocks);
-    const staleRichEdit = await call("daylily.update_profile_content", {
-      content: JSON.stringify({ blocks: richBlocks }),
-      expectedUpdatedAt:
-        editedContent.result?.structuredContent?.profile?.updatedAt,
-    });
-    expect(staleRichEdit.error).toBeTruthy();
-    const staleEdit = await call("daylily.edit_profile_paragraph", {
-      blockId: paragraphId,
-      text: "This must not replace the paragraph.",
-      expectedUpdatedAt:
-        changedContent.result?.structuredContent?.profile?.updatedAt,
-    });
-    expect(staleEdit.error).toBeTruthy();
-    const staleContent = await call("daylily.append_profile_paragraph", {
-      paragraph: "This must not overwrite the profile.",
-      expectedUpdatedAt: updatedAt,
-    });
-    expect(staleContent.error).toBeTruthy();
-
-    const legacyHeadingId = crypto.randomUUID();
-    await db.userProfile.update({
-      where: { userId: owner!.id },
-      data: {
-        content: JSON.stringify({
-          blocks: [
-            { type: "paragraph", data: { text: "Older story" } },
-            {
-              id: legacyHeadingId,
-              type: "header",
-              data: { text: "Older heading", level: 2 },
-            },
-          ],
-        }),
-      },
-    });
-    const legacyRead = await call("daylily.get_profile", {});
-    const legacyUpdatedAt = required(
-      legacyRead.result?.structuredContent?.profile?.updatedAt,
-    );
-    const newStoryId = crypto.randomUUID();
-    const legacyBlocks = [
-      { type: "paragraph", data: { text: "Edited older story" } },
-      {
-        id: legacyHeadingId,
-        type: "header",
-        data: { text: "Older heading", level: 2 },
-      },
-      {
-        id: newStoryId,
-        type: "paragraph",
-        data: { text: "New story" },
-      },
-    ];
-    const legacyEdit = await call("daylily.update_profile_content", {
-      content: JSON.stringify({ blocks: legacyBlocks }),
-      expectedUpdatedAt: legacyUpdatedAt,
-    });
-    expect(legacyEdit.error).toBeUndefined();
-    const legacySaved = JSON.parse(
-      required(legacyEdit.result?.structuredContent?.profile?.content),
-    ) as { blocks: Array<{ id?: string; data: { text: string } }> };
-    expect(legacySaved.blocks[0]).toMatchObject({
-      data: { text: "Edited older story" },
-    });
-    expect(legacySaved.blocks[0]?.id).toBeUndefined();
-    const movedLegacyBlock = await call("daylily.update_profile_content", {
-      content: JSON.stringify({ blocks: legacyBlocks.slice(1) }),
-      expectedUpdatedAt:
-        legacyEdit.result?.structuredContent?.profile?.updatedAt,
-    });
-    expect(movedLegacyBlock.error).toBeTruthy();
-
-    const claimedLegacyId = crypto.randomUUID();
-    const claimedBlocks = [
-      { ...legacyBlocks[0], id: claimedLegacyId },
-      ...legacyBlocks.slice(1),
-    ];
-    const claimedLegacyBlock = await call("daylily.update_profile_content", {
-      content: JSON.stringify({ blocks: claimedBlocks }),
-      expectedUpdatedAt:
-        legacyEdit.result?.structuredContent?.profile?.updatedAt,
-    });
-    expect(claimedLegacyBlock.error).toBeUndefined();
-    const reorderedLegacyBlock = await call("daylily.update_profile_content", {
-      content: JSON.stringify({
-        blocks: [...claimedBlocks.slice(1), claimedBlocks[0]],
-      }),
-      expectedUpdatedAt:
-        claimedLegacyBlock.result?.structuredContent?.profile?.updatedAt,
-    });
-    expect(reorderedLegacyBlock.error).toBeUndefined();
-    const reorderedBlocks = JSON.parse(
-      required(
-        reorderedLegacyBlock.result?.structuredContent?.profile?.content,
-      ),
-    ) as { blocks: Array<{ id: string }> };
-    expect(reorderedBlocks.blocks.map((block) => block.id)).toEqual([
-      legacyHeadingId,
-      newStoryId,
-      claimedLegacyId,
-    ]);
-
-    const largeParagraphId = crypto.randomUUID();
-    const smallParagraphId = crypto.randomUUID();
-    const largeContent = JSON.stringify({
-      blocks: [
-        {
-          id: largeParagraphId,
-          type: "paragraph",
-          data: { text: "x".repeat(39_000) },
-        },
-        {
-          id: smallParagraphId,
-          type: "paragraph",
-          data: { text: "Short" },
-        },
-      ],
-    });
-    const largeProfile = await db.userProfile.update({
-      where: { userId: owner!.id },
-      data: { content: largeContent },
-      select: { updatedAt: true },
-    });
-    const overLimitAppend = await call("daylily.append_profile_paragraph", {
-      paragraph: "y".repeat(2_000),
-      expectedUpdatedAt: largeProfile.updatedAt.toISOString(),
-    });
-    expect(overLimitAppend.error).toBeTruthy();
-    const overLimitEdit = await call("daylily.edit_profile_paragraph", {
-      blockId: smallParagraphId,
-      text: "y".repeat(2_000),
-      expectedUpdatedAt: largeProfile.updatedAt.toISOString(),
-    });
-    expect(overLimitEdit.error).toBeTruthy();
-    const unchangedLargeProfile = await db.userProfile.findUniqueOrThrow({
-      where: { userId: owner!.id },
-      select: { content: true },
-    });
-    expect(unchangedLargeProfile.content).toBe(largeContent);
+      ).content,
+    ).toBe(originalContent);
 
     const foreignListing = await db.listing.findFirst({
       where: {
@@ -875,13 +602,34 @@ describe.skipIf(!enabled)("remote member MCP with real local SQLite", () => {
       code: -32602,
       message: expect.stringContaining("listingId"),
     });
-    const oversizedUpload = await call("daylily.prepare_image_upload", {
-      type: "listing",
-      referenceId: listingId,
-      contentType: "image/png",
-      size: APP_CONFIG.UPLOAD.MAX_FILE_SIZE + 1,
+    for (const name of [
+      "daylily.upload_image",
+      "daylily.prepare_image_upload",
+      "daylily.attach_uploaded_image",
+    ]) {
+      expect((await call(name, {})).error?.code).toBe(-32602);
+    }
+    const listingPhotoEditor = await call("daylily.open_dashboard", {
+      destination: "manage_listing_images",
+      id: listingId,
     });
-    expect(oversizedUpload.error?.code).toBe(-32602);
+    expect(listingPhotoEditor.result?.structuredContent?.url).toBe(
+      `https://daylilycatalog.com/dashboard/listings?editing=${listingId}#listing-images`,
+    );
+    const profilePhotoEditor = await call("daylily.open_dashboard", {
+      destination: "manage_profile_images",
+    });
+    expect(profilePhotoEditor.result?.structuredContent?.url).toBe(
+      "https://daylilycatalog.com/dashboard/profile#profile-images",
+    );
+    expect(
+      (
+        await call("daylily.open_dashboard", {
+          destination: "manage_listing_images",
+          id: foreignListing!.id,
+        })
+      ).error,
+    ).toBeTruthy();
     expect(
       (await db.listing.findUnique({ where: { id: foreignListing!.id } }))
         ?.title,
@@ -896,8 +644,8 @@ describe.skipIf(!enabled)("remote member MCP with real local SQLite", () => {
     });
     await expect(
       dashboardCaller.dashboardDb.userProfile.updateContent({
-        content: JSON.stringify({ blocks: legacyBlocks }),
-        expectedUpdatedAt: updatedAt,
+        content: originalContent ?? null,
+        expectedUpdatedAt: required(profileBeforeEdit?.updatedAt.toISOString()),
       }),
     ).rejects.toMatchObject({ code: "CONFLICT" });
     const refreshedListings =

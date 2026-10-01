@@ -1,24 +1,14 @@
 import { z } from "zod";
-import { TRPCError } from "@trpc/server";
 import { createCaller } from "@/server/api/root";
 import type { McpContext } from "@/server/mcp/read-only-mcp-types";
 import { APP_CONFIG } from "@/config/constants";
-import { decodeImageDataUrl } from "@/server/api/routers/dashboard-db/image";
-import { uploadLegacyImageBuffer } from "@/server/services/legacy-image-storage";
-import { uploadR2ImageBuffer } from "@/server/services/image-asset-storage";
-import { reportError } from "@/lib/error-utils";
 import { profileFormSchema } from "@/types/schemas/profile";
 import type { TRPCInternalContext } from "@/server/api/trpc";
-import { MAX_MEMBER_PROFILE_CONTENT_CHARS } from "@/server/security/member-profile-content";
 
 const id = z.string().trim().min(1).max(128);
-const storageKey = z.string().trim().min(1).max(512);
-const maxImageDataUrlLength =
-  Math.ceil((APP_CONFIG.UPLOAD.MAX_FILE_SIZE * 4) / 3) + 100;
 const title = z.string().trim().min(1).max(200);
 const text = z.string().trim().max(10_000).nullable().optional();
 const imageType = z.enum(["listing", "profile"]);
-const contentType = z.enum(["image/jpeg", "image/png", "image/webp"]);
 
 const createListing = z
   .object({
@@ -77,7 +67,7 @@ const cultivarLink = z
   .strict();
 const syncCultivarName = z.strictObject({ listingId: id });
 const updateProfile = profileFormSchema
-  .omit({ slug: true })
+  .omit({ slug: true, logoUrl: true })
   .partial()
   .extend({ expectedUpdatedAt: z.iso.datetime().nullable() })
   .strict()
@@ -87,51 +77,6 @@ const updateProfile = profileFormSchema
       message: "Provide at least one profile field to update.",
     },
   );
-const appendParagraph = z
-  .object({
-    paragraph: z.string().trim().min(1).max(4000),
-    expectedUpdatedAt: z.iso.datetime(),
-  })
-  .strict();
-const editParagraph = z
-  .object({
-    blockId: id,
-    text: z.string().trim().min(1).max(4000),
-    expectedUpdatedAt: z.iso.datetime(),
-  })
-  .strict();
-const updateProfileContent = z.strictObject({
-  content: z.string().min(1).max(MAX_MEMBER_PROFILE_CONTENT_CHARS),
-  expectedUpdatedAt: z.iso.datetime(),
-});
-const prepareImage = z
-  .object({
-    type: imageType,
-    referenceId: id,
-    contentType,
-    size: z.number().int().positive().max(APP_CONFIG.UPLOAD.MAX_FILE_SIZE),
-    imageDataUrl: z.string().max(maxImageDataUrlLength).optional(),
-  })
-  .strict();
-const uploadImage = z
-  .object({
-    type: imageType,
-    referenceId: id,
-    contentType,
-    imageDataUrl: z.string().max(maxImageDataUrlLength),
-    requestId: z.uuid(),
-  })
-  .strict();
-const attachImage = z
-  .object({
-    type: imageType,
-    referenceId: id,
-    url: z.url(),
-    key: storageKey,
-    imageId: id,
-    r2OriginalKey: storageKey.optional(),
-  })
-  .strict();
 const reorderImages = z
   .object({
     type: imageType,
@@ -152,12 +97,6 @@ export const memberWriteInputSchemas: Record<string, z.ZodType> = {
   "daylily.link_listing_to_cultivar": cultivarLink,
   "daylily.sync_listing_cultivar_name": syncCultivarName,
   "daylily.update_profile": updateProfile,
-  "daylily.append_profile_paragraph": appendParagraph,
-  "daylily.edit_profile_paragraph": editParagraph,
-  "daylily.update_profile_content": updateProfileContent,
-  "daylily.prepare_image_upload": prepareImage,
-  "daylily.upload_image": uploadImage,
-  "daylily.attach_uploaded_image": attachImage,
   "daylily.reorder_images": reorderImages,
 };
 
@@ -275,114 +214,6 @@ export async function callMemberWriteTool(
         profile,
         dashboardUrl: new URL("/dashboard/profile", context.baseUrl).toString(),
       };
-    }
-    case "daylily.append_profile_paragraph": {
-      const data = appendParagraph.parse(input);
-      const profile =
-        await caller.dashboardDb.userProfile.appendParagraph(data);
-      return {
-        profile,
-        dashboardUrl: new URL("/dashboard/profile", context.baseUrl).toString(),
-      };
-    }
-    case "daylily.edit_profile_paragraph": {
-      const data = editParagraph.parse(input);
-      const profile =
-        await caller.dashboardDb.userProfile.updateParagraph(data);
-      return {
-        profile,
-        dashboardUrl: new URL("/dashboard/profile", context.baseUrl).toString(),
-      };
-    }
-    case "daylily.update_profile_content": {
-      const data = updateProfileContent.parse(input);
-      const profile =
-        await caller.dashboardDb.userProfile.updateContentPreservingBlocks(
-          data,
-        );
-      return {
-        profile,
-        dashboardUrl: new URL("/dashboard/profile", context.baseUrl).toString(),
-      };
-    }
-    case "daylily.prepare_image_upload": {
-      const data = prepareImage.parse(input);
-      return { upload: await caller.dashboardDb.image.getPresignedUrl(data) };
-    }
-    case "daylily.upload_image": {
-      const data = uploadImage.parse(input);
-      const imageBytes = decodeImageDataUrl(
-        data.imageDataUrl,
-        data.contentType,
-      );
-      try {
-        const { default: sharp } = await import("sharp");
-        const metadata = await sharp(imageBytes, {
-          failOn: "error",
-        }).metadata();
-        if (metadata.format !== data.contentType.split("/")[1]) {
-          throw new Error("Image type does not match the file.");
-        }
-      } catch {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Image data does not match its content type.",
-        });
-      }
-      const upload = await caller.dashboardDb.image.getPresignedUrl({
-        ...data,
-        size: imageBytes.byteLength,
-      });
-      if ("moderationRequired" in upload) {
-        throw new Error("Image moderation could not be completed.");
-      }
-      if (upload.shadowModerationRequested) {
-        try {
-          await caller.dashboardDb.image.moderateImage({
-            type: data.type,
-            referenceId: data.referenceId,
-            contentType: data.contentType,
-            size: imageBytes.byteLength,
-            imageDataUrl: data.imageDataUrl,
-          });
-        } catch (error) {
-          reportError({
-            error: error instanceof Error ? error : new Error(String(error)),
-            level: "warning",
-            context: {
-              source: "mcp-upload-image",
-              step: "shadow-moderation",
-              imageType: data.type,
-              referenceId: data.referenceId,
-            },
-          });
-        }
-      }
-      await uploadLegacyImageBuffer({
-        body: imageBytes,
-        contentType: data.contentType,
-        key: upload.key,
-      });
-      if (upload.r2) {
-        await uploadR2ImageBuffer({
-          body: imageBytes,
-          contentType: data.contentType,
-          key: upload.r2.key,
-        });
-      }
-      const image = await caller.dashboardDb.image.create({
-        type: data.type,
-        referenceId: data.referenceId,
-        url: upload.url,
-        key: upload.key,
-        imageId: upload.imageId,
-        ...(upload.r2 ? { r2OriginalKey: upload.r2.key } : {}),
-      });
-      return { image };
-    }
-    case "daylily.attach_uploaded_image": {
-      const data = attachImage.parse(input);
-      return { image: await caller.dashboardDb.image.create(data) };
     }
     case "daylily.reorder_images": {
       const data = reorderImages.parse(input);
