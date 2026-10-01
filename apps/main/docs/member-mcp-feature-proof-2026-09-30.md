@@ -108,12 +108,23 @@ extraction or browser protection bypass was used.
 - The recorder passed all tool and handoff coverage assertions. It checked
   the stored photo bytes, three real variants and displayed image order.
 - All ten MP4 files loaded in the local Chromium gallery without media errors.
+- All ten attached GitHub video players loaded without media errors too.
 - New tracked tests cover numeric crop inputs and viewport changes in a real
   browser, plus successful member API storage and variants with SQLite.
 
-These local checks precede the latest main-branch integration. See the PR for
-the exact final commit and its CI results. An earlier green CI run does not
-establish that a later commit passes.
+After current main was integrated, 51 affected tests passed. Two first-run
+checks failed on a sandbox listener restriction and a cold startup timeout;
+both passed on the focused retry. Seven browser checks passed across two
+runs. They cover native create/edit/reload, invalid input, list management,
+listing media, profile URL validation, numeric photo crops and listing deletion
+review/cancel. The combined revision passed typecheck and source lint with
+zero errors. The newer form layout is retained. MCP version checks and fresh
+approval reads use the extracted form controller and editor wrapper.
+
+See the PR for the exact final commit and its CI results. An earlier green
+CI run does not establish that a later commit passes. The videos were recorded
+before this main-branch integration; they show the same MCP capabilities with
+the earlier dashboard presentation.
 
 ## Proof limits
 

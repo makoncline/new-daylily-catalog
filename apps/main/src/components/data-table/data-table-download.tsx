@@ -158,14 +158,9 @@ export function DataTableDownload<TData>({
   return (
     <div className="flex">
       <div className="flex-1" />
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={downloadAsCsv}
-        className="h-8 px-2 lg:px-3"
-      >
+      <Button variant="outline" size="sm" onClick={downloadAsCsv}>
         Download CSV
-        <Download className="ml-2 size-4" />
+        <Download aria-hidden="true" data-icon="inline-end" />
       </Button>
     </div>
   );

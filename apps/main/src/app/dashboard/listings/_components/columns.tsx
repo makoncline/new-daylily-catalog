@@ -7,89 +7,32 @@ import {
 } from "@/components/data-table";
 import { LISTING_TABLE_COLUMN_NAMES } from "@/config/constants";
 import { formatPrice, formatAhsListingSummary } from "@/lib/utils";
-import { type Row, type ColumnDef, type FilterFn } from "@tanstack/react-table";
+import { type Row, type ColumnDef } from "@tanstack/react-table";
 import { TruncatedListBadge } from "@/components/data-table/truncated-list-badge";
 import { Image as ImageIcon } from "lucide-react";
-import { type RouterOutputs } from "@/trpc/react";
 import { Badge } from "@/components/ui/badge";
 import { TableImagePreview } from "@/components/data-table/table-image-preview";
-import React from "react";
 import { fuzzyFilter } from "@/lib/table-utils";
+import { getCultivarListingColumns } from "./listing-cultivar-columns";
 import {
-  matchesExactValue,
-  matchesFormFacetValue,
-  matchesNumericRange,
-  matchesTextContains,
-} from "@/components/public-catalog-search/public-catalog-search-filter-utils";
-import type { ImageCollectionItem } from "@/app/dashboard/_lib/dashboard-db/images-collection";
+  type ListingData,
+  textContainsFilter,
+  numericRangeFilter,
+  priceToggleFilter,
+  hasPhotoFilter,
+  booleanToggleFilter,
+} from "./listing-table-model";
 
-interface ListingListRef {
-  id: string;
-  title: string;
-}
+export type { ListingData } from "./listing-table-model";
 
-type ListingBase = RouterOutputs["dashboardDb"]["listing"]["list"][number];
-type CultivarReference =
-  RouterOutputs["dashboardDb"]["cultivarReference"]["listForUserListings"][number];
-type CultivarReferenceAhsListing = CultivarReference["ahsListing"];
-type CultivarReferenceImage = CultivarReference["cultivarReferenceImage"];
-
-export type ListingData = ListingBase & {
-  images: ImageCollectionItem[];
-  lists: ListingListRef[];
-  ahsListing: CultivarReferenceAhsListing | null;
-  cultivarReferenceImage: CultivarReferenceImage | null;
-  cultivarReferenceNormalizedName: string | null;
-};
 type ListingRow = Row<ListingData>;
 
-const textContainsFilter: FilterFn<ListingData> = (row, id, value) =>
-  matchesTextContains(row.getValue(id), value);
-
-const exactMatchFilter: FilterFn<ListingData> = (row, id, value) =>
-  matchesExactValue(row.getValue(id), value);
-
-const formFacetFilter: FilterFn<ListingData> = (row, id, value) =>
-  matchesFormFacetValue(row.getValue(id), value);
-
-const numericRangeFilter: FilterFn<ListingData> = (row, id, value) =>
-  matchesNumericRange(row.getValue(id), value);
-
-const isEnabledFilter = (value: unknown) =>
-  value === true || value === "true" || value === "1";
-
-const priceToggleFilter: FilterFn<ListingData> = (row, id, value) => {
-  if (!isEnabledFilter(value)) return true;
-
-  const price = row.getValue(id);
-  return typeof price === "number" && price > 0;
-};
-
-const hasPhotoFilter: FilterFn<ListingData> = (row, _, value) => {
-  if (!isEnabledFilter(value)) return true;
-
-  return (
-    row.original.images.length > 0 ||
-    Boolean(row.original.cultivarReferenceImage)
-  );
-};
-
-const booleanToggleFilter: FilterFn<ListingData> = (row, id, value) => {
-  if (!isEnabledFilter(value)) return true;
-
-  return Boolean(row.getValue(id));
-};
-
-/**
- * Helper function to safely get string values from a row
- * Returns null if the value is not a string
- */
 const getStringValue = (row: ListingRow, key: string): string | null => {
   const value = row.getValue(key);
   return typeof value === "string" ? value : null;
 };
 
-export function getBaseListingColumns(): ColumnDef<ListingData>[] {
+function getBaseListingColumns(): ColumnDef<ListingData>[] {
   return [
     {
       id: "title",
@@ -235,7 +178,7 @@ export function getBaseListingColumns(): ColumnDef<ListingData>[] {
               <TruncatedListBadge
                 key={list.id}
                 name={list.title}
-                className="shrink-0 text-xs font-normal"
+                className="shrink-0"
               />
             ))}
           </div>
@@ -248,7 +191,6 @@ export function getBaseListingColumns(): ColumnDef<ListingData>[] {
       enableSorting: true,
       enableHiding: true,
     },
-    // status column. with status in a badge
     {
       id: "status",
       accessorKey: "status",
@@ -264,15 +206,12 @@ export function getBaseListingColumns(): ColumnDef<ListingData>[] {
       ),
       cell: ({ row }) =>
         row.original.status ? (
-          <Badge variant="secondary" className="text-xs font-normal">
-            {row.original.status}
-          </Badge>
+          <Badge variant="secondary">{row.original.status}</Badge>
         ) : null,
       enableSorting: true,
       enableHiding: true,
     },
 
-    // AHS Listing columns
     {
       id: "summary",
       meta: {
@@ -294,281 +233,8 @@ export function getBaseListingColumns(): ColumnDef<ListingData>[] {
       enableSorting: true,
       enableHiding: true,
     },
-    {
-      id: "hybridizer",
-      accessorKey: "ahsListing.hybridizer",
-      meta: {
-        title: LISTING_TABLE_COLUMN_NAMES.hybridizer,
-      },
-      accessorFn: (row) => row.ahsListing?.hybridizer ?? null,
-      header: ({ column }) => (
-        <DataTableColumnHeader
-          column={column}
-          title={LISTING_TABLE_COLUMN_NAMES.hybridizer}
-        />
-      ),
-      cell: ({ row }) => {
-        const value = row.original.ahsListing?.hybridizer;
-        return <TooltipCell content={value ?? null} />;
-      },
-      filterFn: textContainsFilter,
-      enableSorting: true,
-      enableHiding: true,
-    },
-    {
-      id: "year",
-      accessorKey: "ahsListing.year",
-      meta: {
-        title: LISTING_TABLE_COLUMN_NAMES.year,
-      },
-      accessorFn: (row) => row.ahsListing?.year ?? null,
-      header: ({ column }) => (
-        <DataTableColumnHeader
-          column={column}
-          title={LISTING_TABLE_COLUMN_NAMES.year}
-        />
-      ),
-      cell: ({ row }) => {
-        const value = row.original.ahsListing?.year;
-        return <TooltipCell content={value ?? null} />;
-      },
-      filterFn: numericRangeFilter,
-      enableSorting: true,
-      enableHiding: true,
-    },
-    {
-      id: "scapeHeight",
-      accessorKey: "ahsListing.scapeHeight",
-      meta: {
-        title: LISTING_TABLE_COLUMN_NAMES.scapeHeight,
-      },
-      accessorFn: (row) => row.ahsListing?.scapeHeight ?? null,
-      header: ({ column }) => (
-        <DataTableColumnHeader
-          column={column}
-          title={LISTING_TABLE_COLUMN_NAMES.scapeHeight}
-        />
-      ),
-      cell: ({ row }) => {
-        const value = row.original.ahsListing?.scapeHeight;
-        return <TooltipCell content={value ?? null} />;
-      },
-      filterFn: numericRangeFilter,
-      enableSorting: true,
-      enableHiding: true,
-    },
-    {
-      id: "bloomSize",
-      accessorKey: "ahsListing.bloomSize",
-      meta: {
-        title: LISTING_TABLE_COLUMN_NAMES.bloomSize,
-      },
-      accessorFn: (row) => row.ahsListing?.bloomSize ?? null,
-      header: ({ column }) => (
-        <DataTableColumnHeader
-          column={column}
-          title={LISTING_TABLE_COLUMN_NAMES.bloomSize}
-        />
-      ),
-      cell: ({ row }) => {
-        const value = row.original.ahsListing?.bloomSize;
-        return <TooltipCell content={value ?? null} />;
-      },
-      filterFn: numericRangeFilter,
-      enableSorting: true,
-      enableHiding: true,
-    },
-    {
-      id: "bloomSeason",
-      accessorKey: "ahsListing.bloomSeason",
-      meta: {
-        title: LISTING_TABLE_COLUMN_NAMES.bloomSeason,
-      },
-      accessorFn: (row) => row.ahsListing?.bloomSeason ?? null,
-      header: ({ column }) => (
-        <DataTableColumnHeader
-          column={column}
-          title={LISTING_TABLE_COLUMN_NAMES.bloomSeason}
-        />
-      ),
-      cell: ({ row }) => {
-        const value = row.original.ahsListing?.bloomSeason;
-        return <TooltipCell content={value ?? null} />;
-      },
-      filterFn: exactMatchFilter,
-      enableSorting: true,
-      enableHiding: true,
-    },
-    {
-      id: "ploidy",
-      accessorKey: "ahsListing.ploidy",
-      meta: {
-        title: LISTING_TABLE_COLUMN_NAMES.ploidy,
-      },
-      accessorFn: (row) => row.ahsListing?.ploidy ?? null,
-      header: ({ column }) => (
-        <DataTableColumnHeader
-          column={column}
-          title={LISTING_TABLE_COLUMN_NAMES.ploidy}
-        />
-      ),
-      cell: ({ row }) => {
-        const value = row.original.ahsListing?.ploidy;
-        return <TooltipCell content={value ?? null} />;
-      },
-      filterFn: exactMatchFilter,
-      enableSorting: true,
-      enableHiding: true,
-    },
-    {
-      id: "foliageType",
-      accessorKey: "ahsListing.foliageType",
-      meta: {
-        title: LISTING_TABLE_COLUMN_NAMES.foliageType,
-      },
-      accessorFn: (row) => row.ahsListing?.foliageType ?? null,
-      header: ({ column }) => (
-        <DataTableColumnHeader
-          column={column}
-          title={LISTING_TABLE_COLUMN_NAMES.foliageType}
-        />
-      ),
-      cell: ({ row }) => {
-        const value = row.original.ahsListing?.foliageType;
-        return <TooltipCell content={value ?? null} />;
-      },
-      filterFn: exactMatchFilter,
-      enableSorting: true,
-      enableHiding: true,
-    },
-    {
-      id: "bloomHabit",
-      accessorKey: "ahsListing.bloomHabit",
-      meta: {
-        title: LISTING_TABLE_COLUMN_NAMES.bloomHabit,
-      },
-      accessorFn: (row) => row.ahsListing?.bloomHabit ?? null,
-      header: ({ column }) => (
-        <DataTableColumnHeader
-          column={column}
-          title={LISTING_TABLE_COLUMN_NAMES.bloomHabit}
-        />
-      ),
-      cell: ({ row }) => {
-        const value = row.original.ahsListing?.bloomHabit;
-        return <TooltipCell content={value ?? null} />;
-      },
-      filterFn: exactMatchFilter,
-      enableSorting: true,
-      enableHiding: true,
-    },
-    {
-      id: "color",
-      accessorKey: "ahsListing.color",
-      meta: {
-        title: LISTING_TABLE_COLUMN_NAMES.color,
-      },
-      accessorFn: (row) => row.ahsListing?.color ?? null,
-      header: ({ column }) => (
-        <DataTableColumnHeader
-          column={column}
-          title={LISTING_TABLE_COLUMN_NAMES.color}
-        />
-      ),
-      cell: ({ row }) => {
-        const value = row.original.ahsListing?.color;
-        return <TooltipCell content={value ?? null} lines={3} />;
-      },
-      filterFn: textContainsFilter,
-      enableSorting: true,
-      enableHiding: true,
-    },
-    {
-      id: "form",
-      accessorKey: "ahsListing.form",
-      meta: {
-        title: LISTING_TABLE_COLUMN_NAMES.form,
-      },
-      accessorFn: (row) => row.ahsListing?.form ?? null,
-      header: ({ column }) => (
-        <DataTableColumnHeader
-          column={column}
-          title={LISTING_TABLE_COLUMN_NAMES.form}
-        />
-      ),
-      cell: ({ row }) => {
-        const value = row.original.ahsListing?.form;
-        return <TooltipCell content={value ?? null} />;
-      },
-      filterFn: formFacetFilter,
-      enableSorting: true,
-      enableHiding: true,
-    },
-    {
-      id: "fragrance",
-      accessorKey: "ahsListing.fragrance",
-      meta: {
-        title: LISTING_TABLE_COLUMN_NAMES.fragrance,
-      },
-      accessorFn: (row) => row.ahsListing?.fragrance ?? null,
-      header: ({ column }) => (
-        <DataTableColumnHeader
-          column={column}
-          title={LISTING_TABLE_COLUMN_NAMES.fragrance}
-        />
-      ),
-      cell: ({ row }) => {
-        const value = row.original.ahsListing?.fragrance;
-        return <TooltipCell content={value ?? null} />;
-      },
-      filterFn: exactMatchFilter,
-      enableSorting: true,
-      enableHiding: true,
-    },
-    {
-      id: "budcount",
-      accessorKey: "ahsListing.budcount",
-      meta: {
-        title: LISTING_TABLE_COLUMN_NAMES.budcount,
-      },
-      accessorFn: (row) => row.ahsListing?.budcount ?? null,
-      header: ({ column }) => (
-        <DataTableColumnHeader
-          column={column}
-          title={LISTING_TABLE_COLUMN_NAMES.budcount}
-        />
-      ),
-      cell: ({ row }) => {
-        const value = row.original.ahsListing?.budcount;
-        return <TooltipCell content={value ?? null} />;
-      },
-      filterFn: numericRangeFilter,
-      enableSorting: true,
-      enableHiding: true,
-    },
-    {
-      id: "branches",
-      accessorKey: "ahsListing.branches",
-      meta: {
-        title: LISTING_TABLE_COLUMN_NAMES.branches,
-      },
-      accessorFn: (row) => row.ahsListing?.branches ?? null,
-      header: ({ column }) => (
-        <DataTableColumnHeader
-          column={column}
-          title={LISTING_TABLE_COLUMN_NAMES.branches}
-        />
-      ),
-      cell: ({ row }) => {
-        const value = row.original.ahsListing?.branches;
-        return <TooltipCell content={value ?? null} />;
-      },
-      filterFn: numericRangeFilter,
-      enableSorting: true,
-      enableHiding: true,
-    },
+    ...getCultivarListingColumns(),
 
-    // Metadata columns
     {
       id: "createdAt",
       accessorKey: "createdAt",

@@ -96,3 +96,20 @@ test("seller cannot persist a listing without a name", async ({
   await dashboardListings.isReady();
   await expect(dashboardListings.listingRow(existingTitle)).toBeVisible();
 });
+
+test("listing deletion handoff requires approval and cancel keeps the listing", async ({
+  page,
+  dashboardListings,
+}) => {
+  await page.goto(
+    "/dashboard/listings?editing=integration-existing-listing&intent=delete",
+  );
+  const review = page.getByRole("alertdialog", { name: "Delete Listing" });
+  await expect(review).toBeVisible({ timeout: 15_000 });
+  await expect(review).toContainText("Delete Existing Bloom?");
+  await review.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(review).toBeHidden();
+  await page.goto("/dashboard/listings?query=Existing%20Bloom");
+  await dashboardListings.isReady();
+  await expect(dashboardListings.listingRow("Existing Bloom")).toBeVisible();
+});

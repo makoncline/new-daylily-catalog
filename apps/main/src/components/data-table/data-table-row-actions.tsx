@@ -7,6 +7,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuGroup,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -34,11 +35,7 @@ function getAbsoluteListingUrl(path: string) {
 
 export function DataTableRowActions<
   TData extends { id: string; slug?: string | null; userId?: string },
->({
-  row,
-  onEdit,
-  publicUserSlug,
-}: DataTableRowActionsProps<TData>) {
+>({ row, onEdit, publicUserSlug }: DataTableRowActionsProps<TData>) {
   const [open, setOpen] = useState(false);
   const {
     isDialogOpen: showDeleteDialog,
@@ -60,7 +57,9 @@ export function DataTableRowActions<
   }`;
 
   async function copyListingLink() {
-    await navigator.clipboard.writeText(getAbsoluteListingUrl(publicListingPath));
+    await navigator.clipboard.writeText(
+      getAbsoluteListingUrl(publicListingPath),
+    );
     capturePosthogEvent("listing_link_copied", {
       sellerId: row.original.userId,
       listingId: row.original.id,
@@ -77,44 +76,48 @@ export function DataTableRowActions<
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
-            className="data-[state=open]:bg-muted flex size-full p-0"
+            size="icon"
             data-testid="listing-row-actions-trigger"
           >
-            <DotsHorizontalIcon className="size-4" />
+            <DotsHorizontalIcon aria-hidden="true" />
             <span className="sr-only">Open menu</span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-[160px]">
-          <DropdownMenuItem
-            onClick={() => {
-              setOpen(false);
-              onEdit(row.original.id);
-            }}
-            data-testid="listing-row-action-edit"
-          >
-            <Pencil className="mr-2 size-4" />
-            Edit
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => {
-              void copyListingLink();
-            }}
-          >
-            <Copy className="mr-2 size-4" />
-            Copy link
-          </DropdownMenuItem>
+        <DropdownMenuContent align="end" className="w-40">
+          <DropdownMenuGroup>
+            <DropdownMenuItem
+              onClick={() => {
+                setOpen(false);
+                onEdit(row.original.id);
+              }}
+              data-testid="listing-row-action-edit"
+            >
+              <Pencil aria-hidden="true" />
+              Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => {
+                void copyListingLink();
+              }}
+            >
+              <Copy aria-hidden="true" />
+              Copy link
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
           <DropdownMenuSeparator />
-          <DropdownMenuItem
-            className="text-destructive"
-            onClick={() => {
-              setOpen(false);
-              openDeleteDialog();
-            }}
-            data-testid="listing-row-action-delete"
-          >
-            <Trash2 className="mr-2 size-4" />
-            Delete
-          </DropdownMenuItem>
+          <DropdownMenuGroup>
+            <DropdownMenuItem
+              className="text-destructive"
+              onClick={() => {
+                setOpen(false);
+                openDeleteDialog();
+              }}
+              data-testid="listing-row-action-delete"
+            >
+              <Trash2 aria-hidden="true" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
 

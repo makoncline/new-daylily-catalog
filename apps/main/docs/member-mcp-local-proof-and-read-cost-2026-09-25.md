@@ -15,7 +15,11 @@ and profile image reorder readback. No token or authorization code is saved.
 
 The current four-file focused run passed 38 tests, including the opt-in SQLite
 write proof and member API image storage proof. Typecheck and source lint passed.
-These results precede the latest main-branch integration; final revision checks
+After current main was integrated, 51 affected tests and seven browser checks
+passed. Typecheck and source lint passed on the combined revision. The browser
+approval check shows the exact saved listing title and proves that Cancel
+keeps the listing. The newer form layout remains in use. The videos precede
+this integration and show its earlier dashboard presentation. Final CI results
 are recorded on the PR. Local SQLite does not measure billed Turso reads.
 
 ## Scope update (2026-09-29)

@@ -61,6 +61,7 @@ const reservedProfileSlugs = new Set([
   "start-onboarding",
   "subscribe",
   "support",
+  "temp-list",
   "terms",
   "users",
 ]);

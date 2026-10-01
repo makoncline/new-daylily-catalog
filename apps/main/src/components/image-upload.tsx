@@ -9,6 +9,7 @@ import { APP_CONFIG } from "@/config/constants";
 import { Progress } from "@/components/ui/progress";
 import { P } from "@/components/typography";
 import { capturePosthogEvent } from "@/lib/analytics/posthog";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 export interface ImageUploadProps {
@@ -88,13 +89,14 @@ export function ImageUpload({
   });
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       {!previewUrl && (
         <div
           {...getRootProps()}
-          className={`cursor-pointer rounded-lg border-2 border-dashed p-8 text-center ${
-            isDragActive ? "border-primary" : "border-muted"
-          }`}
+          className={cn(
+            "cursor-pointer rounded-lg border border-dashed p-8 text-center",
+            isDragActive ? "border-primary" : "border-muted",
+          )}
         >
           <input
             {...getInputProps()}
@@ -110,7 +112,7 @@ export function ImageUpload({
       )}
 
       {previewUrl && (
-        <div className="relative space-y-4">
+        <div className="relative flex flex-col gap-4">
           <ImageCropper
             src={previewUrl}
             onCropComplete={async (result) => {

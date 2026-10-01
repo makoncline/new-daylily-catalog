@@ -20,6 +20,7 @@ type CultivarReference =
   RouterOutputs["dashboardDb"]["cultivarReference"]["listForUserListings"][number];
 
 export interface DashboardListingReadModel {
+  isReady: boolean;
   images: ImageCollectionItem[];
   lists: List[];
   listingRows: ListingData[];
@@ -181,6 +182,7 @@ export function useDashboardListingReadModel(): DashboardListingReadModel {
   ]);
 
   return {
+    isReady: listingsQuery.isReady,
     images,
     lists,
     listingRows,
