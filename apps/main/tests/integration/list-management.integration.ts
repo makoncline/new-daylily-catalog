@@ -108,13 +108,20 @@ for (const [device, viewport] of [
       .click();
     await expect(page).toHaveURL(`/dashboard/lists/${editingId}`);
     await expect(toast("Error saving changes")).toBeVisible();
-    await manageList.fillTitle(editedTitle);
+    const navigatedTitle = `${editedTitle} saved on navigation`;
+    await manageList.fillTitle(navigatedTitle);
     await manageList.fillDescription("Saved on navigation");
     await page
       .getByRole("link", { name: "Back to lists", exact: true })
       .click();
     await expect(page).toHaveURL("/dashboard/lists");
     await page.goto(manageHref!);
+    await expect(manageList.titleInput).toHaveValue(navigatedTitle);
+    await expect(manageList.descriptionInput).toHaveValue(
+      "Saved on navigation",
+    );
+    await page.reload();
+    await expect(manageList.titleInput).toHaveValue(navigatedTitle);
     await expect(manageList.descriptionInput).toHaveValue(
       "Saved on navigation",
     );

@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+} from "react";
+import { EditorHistoryContext } from "./editor-history-context";
 
 const LEAVE_MESSAGE =
   "You have unsaved changes. Leave this page and discard them?";
@@ -10,10 +17,16 @@ export function useUnsavedChangesGuard(
   enabled = true,
 ) {
   const hasPendingChangesRef = useRef(hasPendingChanges);
+  const editorHistory = useContext(EditorHistoryContext);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     hasPendingChangesRef.current = hasPendingChanges;
   }, [hasPendingChanges]);
+  useLayoutEffect(
+    () =>
+      editorHistory?.register(() => enabled && hasPendingChangesRef.current()),
+    [editorHistory, enabled],
+  );
 
   const confirmDiscard = useCallback(() => {
     return (
@@ -77,27 +90,11 @@ export function useUnsavedChangesGuard(
       }
     };
 
-    // Navigate runs before popstate and before the router removes this editor.
-    // TypeScript 5.9 does not declare Window.navigation yet.
-    const navigation = (window as Window & { navigation?: EventTarget })
-      .navigation;
-    const onNavigate = (event: Event) => {
-      if (
-        (event as Event & { navigationType: string }).navigationType !==
-          "traverse" ||
-        !event.cancelable
-      )
-        return;
-      if (!confirmDiscard()) event.preventDefault();
-    };
-    navigation?.addEventListener("navigate", onNavigate);
-
     window.addEventListener("beforeunload", onBeforeUnload);
     document.addEventListener("click", onClick, true);
 
     return () => {
       window.removeEventListener("beforeunload", onBeforeUnload);
-      navigation?.removeEventListener("navigate", onNavigate);
       document.removeEventListener("click", onClick, true);
     };
   }, [confirmDiscard, enabled]);

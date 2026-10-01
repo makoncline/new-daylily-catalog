@@ -25,7 +25,7 @@ for (const [device, viewport] of [
         timeout: confirm ? 30_000 : 1_500,
         waitUntil: "commit",
       }).catch((error: unknown) => {
-        // A canceled traversal does not commit a navigation.
+        // A canceled traversal returns to its source before the route settles.
         if (confirm || !(error instanceof errors.TimeoutError)) throw error;
       });
       await dialog;
@@ -87,9 +87,22 @@ for (const [device, viewport] of [
             { exact: true },
           ),
         ).toBeVisible();
-        await traverse("goBack", false);
-        await expect(page).toHaveURL(editorUrl);
-        await expect(title).toHaveValue("Unsaved history draft");
+        const source = await page.evaluate(() => ({
+          entry: history.state.__daylilyDashboardEntry,
+          length: history.length,
+        }));
+        for (let attempt = 0; attempt < 3; attempt++) {
+          await traverse("goBack", false);
+          await expect(page).toHaveURL(editorUrl);
+          await expect(title).toHaveValue("Unsaved history draft");
+          await expect(title).toBeFocused();
+          expect(
+            await page.evaluate(() => ({
+              entry: history.state.__daylilyDashboardEntry,
+              length: history.length,
+            })),
+          ).toEqual(source);
+        }
         await traverse("goBack", true);
         await expect(page).toHaveURL(`/dashboard/${family}`);
         await expect(surface).toBeHidden();
