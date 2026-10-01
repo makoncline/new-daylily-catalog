@@ -1,5 +1,11 @@
 import * as React from "react";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ContentManagerFormItem,
@@ -80,7 +86,7 @@ vi.mock("usehooks-ts", () => ({
 describe("ContentManagerFormItem", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mutateAsyncMock.mockResolvedValue(undefined);
+    mutateAsyncMock.mockResolvedValue({ updatedAt: new Date(1) });
   });
 
   it("calls onMutationSuccess after a successful save", async () => {
@@ -89,13 +95,16 @@ describe("ContentManagerFormItem", () => {
 
     render(
       <ContentManagerFormItem
-        initialProfile={{ content: null } as never}
+        initialProfile={{ content: null, updatedAt: new Date(0) } as never}
         formRef={formRef}
         onMutationSuccess={onMutationSuccess}
       />,
     );
 
     fireEvent.click(screen.getByTestId("editor-change"));
+    await waitFor(() =>
+      expect(formRef.current?.hasPendingChanges()).toBe(true),
+    );
 
     await act(async () => {
       const didSave = await formRef.current?.saveChanges("manual");
