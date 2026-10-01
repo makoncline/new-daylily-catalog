@@ -53,3 +53,5 @@ check current code before applying them.
 - [2026-10-01] WebMCP registration: The current WebMCP specification uses document.modelContext and asynchronous registerTool calls. Abort the registration signal to remove page tools. For component tools, use the shared registration helper. Keep tool registration stable during crop changes and check cleanup without resetting the dashboard tool set.
 
 - [2026-10-01] Removal review lifetime: The selected-items action bar unmounts when selection or filtering leaves no visible selected rows. Keep automatic review consumption in the list-table parent, keyed by the list and removal intent. Check Cancel followed by deselection, filtering, reselection, and an explicit Remove action.
+
+- [2026-10-01] Integration list isolation: The full-app integration runner shares one disposable database across test files. Earlier create/edit tests add a listing to Integration Favorites. For a test that needs an exact membership count, create its own list through the UI. Do not rely on the shared fixture staying empty.

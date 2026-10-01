@@ -70,9 +70,20 @@ test("seller creates and manages a list through the app", async ({ page }) => {
 test("cancelled removal review stays closed after selection and filter changes", async ({
   page,
 }) => {
-  const listId = "integration-favorites-list";
   const titles = ["Existing Bloom", "Integration Media Listing"];
+  const lists = new DashboardLists(page);
   const manageList = new ManageListPage(page);
+  await lists.goto();
+  await lists.isReady();
+  await lists.createListButton.click();
+  const createSurface = lists.createSurface();
+  await createSurface.getByLabel("Title").fill("Integration Removal Review");
+  await createSurface
+    .getByRole("button", { name: "Create List", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/dashboard\/lists\?editing=[^&]+$/);
+  const listId = new URL(page.url()).searchParams.get("editing");
+  if (!listId) throw new Error("Expected the created review list ID.");
   await manageList.goto(listId);
   await expect(manageList.addListingsTrigger).toBeVisible();
   for (const title of titles) {
