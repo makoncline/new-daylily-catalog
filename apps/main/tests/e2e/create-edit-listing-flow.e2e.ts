@@ -370,7 +370,11 @@ test.describe("create/edit listing flow @local", () => {
     ).toHaveCount(0);
     await expect(page.locator(".animate-pulse:visible")).toHaveCount(0);
     await expectUrlParam("editing", null);
-    await expect(page.getByTestId("listings-dashboard")).toBeFocused();
+    await expect(
+      page.locator('[tabindex="-1"]').filter({
+        has: page.getByTestId("listings-dashboard"),
+      }),
+    ).toBeFocused();
     releaseDeleteRequest();
     await expectToast("Listing deleted successfully");
 

@@ -3,6 +3,7 @@ import "@/styles/globals.css";
 import { GeistSans } from "geist/font/sans";
 import { type Metadata } from "next";
 import { Toaster } from "@/components/ui/sonner";
+import { DashboardWorkspaceBoundary } from "@/components/dashboard-workspace-boundary";
 import { UnsupportedSafariNotice } from "@/components/unsupported-safari-notice";
 
 export const metadata: Metadata = {
@@ -17,7 +18,7 @@ export default function RootLayout({
     <html lang="en" className={`${GeistSans.variable}`}>
       <body className="flex min-h-svh flex-col">
         <UnsupportedSafariNotice />
-        {children}
+        <DashboardWorkspaceBoundary>{children}</DashboardWorkspaceBoundary>
         <Toaster />
       </body>
     </html>

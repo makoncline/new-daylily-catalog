@@ -219,7 +219,7 @@ export class ManageListPage {
   async confirmRemoveSelected() {
     const removeButton = this.page
       .getByRole("alertdialog")
-      .getByRole("button", { name: "Remove" })
+      .getByRole("button", { name: "Remove", exact: true })
       .first();
     await this.clickWithScroll(removeButton);
   }

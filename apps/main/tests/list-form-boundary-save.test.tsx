@@ -222,9 +222,9 @@ describe("ListForm boundary save semantics", () => {
       expect(loadMissingListMock).toHaveBeenCalledOnce();
     });
     expect(loadMissingListMock).toHaveBeenCalledWith("missing-list");
-    expect(await screen.findByRole("status")).toHaveTextContent(
-      "This list is unavailable",
-    );
+    expect(
+      await screen.findByRole("heading", { name: "List not found" }),
+    ).toBeVisible();
     expect(deleteListMock).not.toHaveBeenCalled();
   });
 
@@ -232,9 +232,9 @@ describe("ListForm boundary save semantics", () => {
     loadMissingListMock.mockRejectedValueOnce(new Error("Primary unavailable"));
     render(<ListForm listId="list-1" openDeleteOnMount />);
 
-    expect(await screen.findByRole("status")).toHaveTextContent(
-      "This list is unavailable",
-    );
+    expect(
+      await screen.findByRole("heading", { name: "List not found" }),
+    ).toBeVisible();
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     expect(deleteListMock).not.toHaveBeenCalled();
   });

@@ -475,7 +475,10 @@ export function resetDashboardRefreshLock() {
   dashboardDbRefreshQueue = Promise.resolve();
 }
 
-export function runWithDashboardRefreshLock<T>(work: () => Promise<T>) {
+export function runWithDashboardRefreshLock<T>(
+  work: () => Promise<T>,
+  canRun?: () => boolean,
+) {
   const generation = dashboardDbRefreshGeneration;
   const previous = dashboardDbRefreshQueue.catch(() => undefined);
 
@@ -486,7 +489,11 @@ export function runWithDashboardRefreshLock<T>(work: () => Promise<T>) {
 
   return previous
     .then(async () => {
-      if (generation !== dashboardDbRefreshGeneration) {
+      // Canceled queue entries must not advance the write revision.
+      if (
+        generation !== dashboardDbRefreshGeneration ||
+        (canRun && !canRun())
+      ) {
         throw new DashboardRefreshLockCancelledError();
       }
 
@@ -596,25 +603,23 @@ export async function refreshDashboardDbFromServer(
   const lockedWorkRevision = dashboardDbLockedWorkRevision;
   const snapshot = await fetchDashboardDbSnapshotFromServer();
 
+  // A replaced provider must not queue stale work or advance the write revision.
+  if (guard?.isActive && !guard.isActive()) return false;
+  if (getCurrentUserId() !== userId) return false;
+
   try {
-    return await runWithDashboardRefreshLock(async () => {
-      if (lockedWorkRevision !== dashboardDbLockedWorkRevision) {
-        return false;
-      }
-
-      if (guard?.isActive && !guard.isActive()) {
-        return false;
-      }
-
-      if (getCurrentUserId() !== userId) {
-        return false;
-      }
-
-      await applyDashboardDbSnapshot(userId, snapshot, {
-        label: "primary.refresh.apply",
-      });
-      return true;
-    });
+    return await runWithDashboardRefreshLock(
+      async () => {
+        await applyDashboardDbSnapshot(userId, snapshot, {
+          label: "primary.refresh.apply",
+        });
+        return true;
+      },
+      () =>
+        lockedWorkRevision === dashboardDbLockedWorkRevision &&
+        (!guard?.isActive || guard.isActive()) &&
+        getCurrentUserId() === userId,
+    );
   } catch (error) {
     if (isDashboardRefreshLockCancelledError(error)) {
       return false;

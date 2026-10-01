@@ -29,6 +29,13 @@ vi.mock("@/app/dashboard/_lib/dashboard-db/lists-collection", () => ({
   addListingToList: addListingToListMock,
 }));
 
+vi.mock("@/app/dashboard/_lib/dashboard-db/use-list-resource", () => ({
+  useListResource: () => ({
+    isReady: true,
+    list: { listings: [{ id: "listing-1" }] },
+  }),
+}));
+
 vi.mock("sonner", () => ({
   toast: {
     success: toastSuccessMock,

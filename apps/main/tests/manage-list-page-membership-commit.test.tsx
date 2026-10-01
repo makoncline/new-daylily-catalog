@@ -113,7 +113,7 @@ describe("Manage list membership mutations", () => {
   it("loads a remote-created list that is missing from the local cache", async () => {
     listState.rows = [];
     const view = render(<ManageListPageLive listId="new-list" />);
-    expect(screen.getByText("Loading list...")).toBeVisible();
+    expect(screen.getByRole("status")).toBeVisible();
     await waitFor(() =>
       expect(loadMissingList).toHaveBeenCalledWith("new-list"),
     );

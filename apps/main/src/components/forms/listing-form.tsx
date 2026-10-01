@@ -96,7 +96,9 @@ function ListingEditor({ resource, ...props }: ListingEditorProps) {
             linkedAhs={linkedAhs}
             linkedCultivarHref={linkedCultivarHref}
             linkedCultivarReferenceImage={linkedCultivarReferenceImage}
-            onNameChange={(name) => form.setValue("title", name)}
+            onNameChange={(name) =>
+              form.setValue("title", name, { shouldDirty: true })
+            }
             onMutationSuccess={handleCultivarMutation}
           />
           <div className="flex flex-wrap justify-end gap-2">

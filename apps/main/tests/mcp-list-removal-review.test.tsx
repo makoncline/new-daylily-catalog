@@ -50,6 +50,7 @@ vi.mock(
     useDashboardListingReadModel: () => ({
       listingRows: reviewData.listingRows,
       lists: reviewData.lists,
+      isReady: true,
     }),
   }),
 );
@@ -106,7 +107,6 @@ vi.mock("@/components/data-table/data-table-layout", () => ({
     <div>
       <button onClick={table.selectAll}>Select all listings</button>
       <button onClick={table.selectFirst}>Select first listing only</button>
-      <button onClick={table.resetRowSelection}>Clear selection</button>
       {toolbar}
     </div>
   ),

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { useManagedFormSave } from "@/hooks/use-managed-form-save";
 import { useParentCommitFlag } from "@/hooks/use-parent-commit-flag";
@@ -13,15 +13,23 @@ import {
   updateList,
   type ListCollectionItem,
 } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
+import { Controller, useWatch } from "react-hook-form";
 import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
@@ -29,6 +37,7 @@ import { Button } from "@/components/ui/button";
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
 import { ListFormSkeleton } from "@/components/forms/list-form-skeleton";
 import { useListResource } from "@/app/dashboard/_lib/dashboard-db/use-list-resource";
+import { ListMissingState } from "@/components/list-missing-state";
 import { useConfirmableAsyncAction } from "@/hooks/use-confirmable-async-action";
 import { getErrorMessage } from "@/lib/error-utils";
 
@@ -79,6 +88,7 @@ function ListFormInner({
   onPendingChangesChange?: (hasPendingChanges: boolean) => void;
   formRef?: React.RefObject<ListFormHandle | null>;
 }) {
+  const fieldId = useId();
   const [isSaving, setIsSaving] = useState(false);
   const [hasRemoteChange, setHasRemoteChange] = useState(false);
   const committedValuesRef = useRef<ListFormData>(toFormValues(list));
@@ -94,6 +104,13 @@ function ListFormInner({
     schema: listFormSchema,
     defaultValues: toFormValues(list),
   });
+  const [title, description] = useWatch({
+    control: form.control,
+    name: ["title", "description"],
+  });
+  const hasDraftChanges =
+    !areListValuesEqual({ title, description }, committedValuesRef.current) ||
+    needsParentCommit;
   const {
     isDialogOpen: isDeleteDialogOpen,
     isPending: isDeletePending,
@@ -110,9 +127,9 @@ function ListFormInner({
         description: "Your list has been deleted successfully",
       });
     },
-    onError: () => {
+    onError: (error) => {
       toast.error("Failed to delete list", {
-        description: "An error occurred while deleting your list",
+        description: getErrorMessage(error),
       });
     },
   });
@@ -238,6 +255,9 @@ function ListFormInner({
   }, [form, hasPendingChanges, needsParentCommit, onPendingChangesChange]);
 
   useEffect(() => {
+    // Keep the saved baseline while the collection holds an optimistic write.
+    if (isSaving) return;
+
     if (
       new Date(list.updatedAt).getTime() <=
       new Date(committedUpdatedAtRef.current).getTime()
@@ -270,7 +290,7 @@ function ListFormInner({
     if (!areListValuesEqual(currentValues, nextCommittedValues)) {
       form.reset(nextCommittedValues, { keepIsValid: true });
     }
-  }, [form, list, needsParentCommitRef]);
+  }, [form, isSaving, list, needsParentCommitRef]);
 
   async function discardDraftAndLoadLatest() {
     setIsSaving(true);
@@ -297,82 +317,121 @@ function ListFormInner({
   }
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        {hasRemoteChange && (
-          <div role="status" className="rounded-md border p-3 text-sm">
-            <p>
-              The list changed elsewhere. Your unsaved fields are still here.
-            </p>
-            <button
-              type="button"
-              className="mt-2 underline"
-              disabled={isBusy}
-              onClick={() => void discardDraftAndLoadLatest()}
-            >
-              Discard this draft and load the latest list
-            </button>
-          </div>
-        )}
-        <FormField
-          control={form.control}
-          name="title"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Title</FormLabel>
-              <FormControl>
-                <Input {...field} value={field.value ?? ""} disabled={isBusy} />
-              </FormControl>
-              <FormDescription>
-                Required: Add a name for your list.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Description</FormLabel>
-              <FormControl>
-                <Textarea
-                  {...field}
-                  value={field.value ?? ""}
-                  placeholder="Add a description for your list..."
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle role="heading" aria-level={2}>
+            List details
+          </CardTitle>
+          <CardDescription>
+            Name your list and add an optional description.
+          </CardDescription>
+        </CardHeader>
+        <form
+          className="flex flex-col gap-6"
+          onSubmit={form.handleSubmit(onSubmit)}
+        >
+          <CardContent>
+            {hasRemoteChange && (
+              <div role="status" className="mb-4 rounded-md border p-3 text-sm">
+                <p>
+                  The list changed elsewhere. Your unsaved fields are still
+                  here.
+                </p>
+                <button
+                  type="button"
+                  className="mt-2 underline"
                   disabled={isBusy}
-                />
-              </FormControl>
-              <FormDescription>
-                Optional: Add a description for your list.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="flex justify-end gap-4">
-          <Button
-            type="button"
-            onClick={() => void onSubmit()}
-            disabled={isBusy || !hasPendingChanges()}
-          >
-            Save Changes
-          </Button>
-          {onDelete && (
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={openDeleteDialog}
-              disabled={isBusy}
-            >
-              Delete List
-            </Button>
-          )}
-        </div>
-      </form>
+                  onClick={() => void discardDraftAndLoadLatest()}
+                >
+                  Discard this draft and load the latest list
+                </button>
+              </div>
+            )}
+            <FieldGroup>
+              <Controller
+                control={form.control}
+                name="title"
+                render={({ field, fieldState }) => (
+                  <Field
+                    data-invalid={fieldState.invalid}
+                    data-disabled={isBusy}
+                  >
+                    <FieldLabel htmlFor={`${fieldId}-title`}>Title</FieldLabel>
+                    <Input
+                      {...field}
+                      id={`${fieldId}-title`}
+                      value={field.value ?? ""}
+                      aria-invalid={fieldState.invalid}
+                      aria-describedby={`${fieldId}-title-help${fieldState.invalid ? ` ${fieldId}-title-error` : ""}`}
+                      disabled={isBusy}
+                    />
+                    <FieldDescription id={`${fieldId}-title-help`}>
+                      Required: Add a name for your list.
+                    </FieldDescription>
+                    {fieldState.invalid && (
+                      <FieldError
+                        id={`${fieldId}-title-error`}
+                        errors={[fieldState.error]}
+                      />
+                    )}
+                  </Field>
+                )}
+              />
+              <Controller
+                control={form.control}
+                name="description"
+                render={({ field, fieldState }) => (
+                  <Field
+                    data-invalid={fieldState.invalid}
+                    data-disabled={isBusy}
+                  >
+                    <FieldLabel htmlFor={`${fieldId}-description`}>
+                      Description
+                    </FieldLabel>
+                    <Textarea
+                      {...field}
+                      id={`${fieldId}-description`}
+                      value={field.value ?? ""}
+                      placeholder="Add a description for your list..."
+                      aria-invalid={fieldState.invalid}
+                      aria-describedby={`${fieldId}-description-help${fieldState.invalid ? ` ${fieldId}-description-error` : ""}`}
+                      disabled={isBusy}
+                    />
+                    <FieldDescription id={`${fieldId}-description-help`}>
+                      Optional: Add a description for your list.
+                    </FieldDescription>
+                    {fieldState.invalid && (
+                      <FieldError
+                        id={`${fieldId}-description-error`}
+                        errors={[fieldState.error]}
+                      />
+                    )}
+                  </Field>
+                )}
+              />
+            </FieldGroup>
+          </CardContent>
+          <CardFooter className="justify-end">
+            <div className="flex flex-wrap gap-3">
+              <Button type="submit" disabled={isBusy || !hasDraftChanges}>
+                {isSaving && <Spinner data-icon="inline-start" />}
+                Save Changes
+              </Button>
+              {onDelete && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={openDeleteDialog}
+                  disabled={isBusy}
+                >
+                  Delete List
+                </Button>
+              )}
+            </div>
+          </CardFooter>
+        </form>
+      </Card>
 
       <DeleteConfirmDialog
         open={isDeleteDialogOpen}
@@ -381,7 +440,7 @@ function ListFormInner({
         title="Delete List"
         description={`Delete ${list.title}? This action cannot be undone.`}
       />
-    </Form>
+    </>
   );
 }
 
@@ -424,11 +483,7 @@ function ListFormLive({
     return <ListFormSkeleton />;
   }
   if (!list || unavailableId === listId) {
-    return (
-      <p role="status">
-        This list is unavailable. Return to Lists and try again.
-      </p>
-    );
+    return <ListMissingState />;
   }
 
   return (

@@ -7,7 +7,11 @@ import { api } from "@/trpc/react";
 export function DashboardBreadcrumbs() {
   const pathname = usePathname();
   const listId = pathname.split("/").pop();
-  const { data: list } = api.dashboardDb.list.get.useQuery(
+  const {
+    data: list,
+    error,
+    isPending,
+  } = api.dashboardDb.list.get.useQuery(
     { id: listId! },
     { enabled: pathname.startsWith("/dashboard/lists/") && !!listId },
   );
@@ -28,7 +32,15 @@ export function DashboardBreadcrumbs() {
                 : pathname.startsWith("/dashboard/lists/")
                   ? [
                       { title: "Lists", href: "/dashboard/lists" },
-                      { title: list?.title ?? "Loading..." },
+                      {
+                        title:
+                          list?.title ??
+                          (isPending
+                            ? "Loading..."
+                            : error?.data?.code === "NOT_FOUND"
+                              ? "List not found"
+                              : "List unavailable"),
+                      },
                     ]
                   : []),
       ]}

@@ -3,62 +3,28 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { PageHeader } from "@/components/page-header";
 import { normalizeError, reportError } from "@/lib/error-utils";
-import {
-  insertList,
-  listsCollection,
-  type ListCollectionItem,
-} from "@/app/dashboard/_lib/dashboard-db/lists-collection";
-import { DASHBOARD_DB_QUERY_KEYS } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-keys";
-import { useSeededDashboardDbQuery } from "@/app/dashboard/_lib/dashboard-db/use-seeded-dashboard-db-query";
-import { useQueryParamDialogState } from "@/hooks/use-dialog-search-param";
+import { insertList } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
 import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
 import { ListingSurfaceSaveBar } from "../../listings/_components/listing-surface-save-bar";
-import { APP_CONFIG } from "@/config/constants";
-import { usePro } from "@/hooks/use-pro";
-
-export function useCreateList() {
-  const { setValue, value } = useQueryParamDialogState({
-    history: "push",
-    paramName: "creating",
-    scroll: false,
-  });
-  const pathname = usePathname();
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const { isPro, isLoading: isSubscriptionLoading } = usePro();
-  const listsQuery = useSeededDashboardDbQuery<ListCollectionItem>({
-    query: (q) => q.from({ list: listsCollection }),
-    queryKey: DASHBOARD_DB_QUERY_KEYS.lists,
-  });
-  const listCount = listsQuery.data.length;
-  const isEligibilityLoading = isSubscriptionLoading || !listsQuery.isReady;
-  const canCreateList =
-    !isEligibilityLoading &&
-    (isPro || listCount < APP_CONFIG.LIST.FREE_TIER_MAX_LISTS);
-
-  return {
-    canCreateList,
-    closeCreateList: () => setValue(null, "replace"),
-    finishCreateList: (listId: string) => {
-      const params = new URLSearchParams(searchParams.toString());
-      params.delete("creating");
-      params.set("editing", listId);
-      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-    },
-    isCreateRequested: value === "true",
-    isEligibilityLoading,
-    isPro,
-    listCount,
-    openCreateList: () => setValue("true"),
-  };
-}
 
 export function CreateListSurface({
   onClose,
@@ -138,43 +104,60 @@ export function CreateListSurface({
           onClick={handleBack}
           disabled={isSaving}
         >
-          <ArrowLeft aria-hidden="true" />
+          <ArrowLeft data-icon="inline-start" aria-hidden="true" />
           Back to lists
         </Button>
       </PageHeader>
 
-      <div className="space-y-6 pb-16">
-        <div className="space-y-2">
-          <Label htmlFor="title">
-            List Title <span className="text-destructive">*</span>
-          </Label>
-          <Input
-            id="title"
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            placeholder="Enter a title"
-            disabled={isSaving}
-            required
-          />
-        </div>
-
-        <div className="flex justify-end">
-          <Button
-            type="button"
-            onClick={() => void handleCreate()}
-            disabled={isSaving || !title.trim()}
-          >
-            {isSaving ? (
-              <>
-                <Spinner aria-hidden="true" />
-                Creating…
-              </>
-            ) : (
-              "Create List"
-            )}
-          </Button>
-        </div>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle role="heading" aria-level={2}>
+            List details
+          </CardTitle>
+          <CardDescription>
+            Start with a title. You can add a description and listings next.
+          </CardDescription>
+        </CardHeader>
+        <form
+          className="flex flex-col gap-6"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void handleCreate();
+          }}
+        >
+          <CardContent>
+            <FieldGroup>
+              <Field data-disabled={isSaving}>
+                <FieldLabel htmlFor="title">List Title (required)</FieldLabel>
+                <Input
+                  id="title"
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                  placeholder="Enter a title"
+                  disabled={isSaving}
+                  required
+                  aria-describedby="list-title-help"
+                />
+                <FieldDescription id="list-title-help">
+                  Use a name that helps you find this collection.
+                </FieldDescription>
+              </Field>
+            </FieldGroup>
+          </CardContent>
+          <CardFooter className="justify-end">
+            <Button type="submit" disabled={isSaving || !title.trim()}>
+              {isSaving ? (
+                <>
+                  <Spinner data-icon="inline-start" aria-hidden="true" />
+                  Creating…
+                </>
+              ) : (
+                "Create List"
+              )}
+            </Button>
+          </CardFooter>
+        </form>
+      </Card>
     </section>
   );
 }

@@ -2,7 +2,14 @@
 
 import { afterEach, describe, expect, it } from "vitest";
 import { clearTestTrpcClient, setTestTrpcClient } from "@/trpc/client";
-import { fetchDashboardDbSnapshotFromServer } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence";
+import {
+  fetchDashboardDbSnapshotFromServer,
+  refreshDashboardDbFromServer,
+  resetDashboardRefreshLock,
+  runWithDashboardRefreshLock,
+} from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence";
+import { setCurrentUserId } from "@/lib/utils/cursor";
+import { getQueryClient, resetQueryClient } from "@/trpc/query-client";
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -127,4 +134,116 @@ describe("dashboard DB persistence bootstrap fetch", () => {
     ]);
     expect(maxActiveHeavyChunks).toBe(2);
   });
+
+  it.each(["fetching", "queued"] as const)(
+    "applies the replacement snapshot when the old refresh is canceled while %s",
+    async (phase) => {
+      type Snapshot = Awaited<
+        ReturnType<typeof fetchDashboardDbSnapshotFromServer>
+      >;
+      type Roots = Pick<Snapshot, "listings" | "lists"> & {
+        profileImages: Snapshot["images"];
+      };
+      const oldRoots = deferred<Roots>();
+      const newRoots = deferred<Roots>();
+      const oldSnapshot: Roots = { listings: [], lists: [], profileImages: [] };
+      const newSnapshot: Roots = {
+        ...oldSnapshot,
+        profileImages: [
+          {
+            id: "saved-image",
+            url: "https://example.com/saved.jpg",
+            order: 0,
+            listingId: null,
+            userProfileId: "profile-1",
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            status: null,
+          },
+        ],
+      };
+      let fetchCount = 0;
+      let oldActive = true;
+      setTestTrpcClient({
+        dashboardDb: {
+          bootstrap: {
+            roots: {
+              query: () =>
+                ++fetchCount === 1 ? oldRoots.promise : newRoots.promise,
+            },
+          },
+        },
+      } as never);
+      resetDashboardRefreshLock();
+      setCurrentUserId("user-1");
+
+      try {
+        const releaseLock = deferred<void>();
+        const startReplacement = deferred<void>();
+        const oldSnapshotReady = deferred<void>();
+        let oldGuardCalls = 0;
+        let newRefresh: Promise<boolean>;
+        const lock =
+          phase === "queued"
+            ? runWithDashboardRefreshLock(async () => {
+                await releaseLock.promise;
+                // Start after this work commits, before the canceled queue entry runs.
+                queueMicrotask(() =>
+                  queueMicrotask(() => {
+                    newRefresh = refreshDashboardDbFromServer("user-1", {
+                      isActive: () => true,
+                    });
+                    startReplacement.resolve();
+                  }),
+                );
+              })
+            : Promise.resolve();
+        const oldRefresh = refreshDashboardDbFromServer("user-1", {
+          isActive: () => {
+            // The second check follows the fetch, just before queueing.
+            if (++oldGuardCalls === 2) oldSnapshotReady.resolve();
+            return oldActive;
+          },
+        });
+        if (phase === "queued") {
+          oldRoots.resolve(oldSnapshot);
+          await oldSnapshotReady.promise;
+          oldActive = false;
+          releaseLock.resolve();
+          await startReplacement.promise;
+          await lock;
+        } else {
+          oldActive = false;
+          newRefresh = refreshDashboardDbFromServer("user-1", {
+            isActive: () => true,
+          });
+          oldRoots.resolve(oldSnapshot);
+        }
+        expect(await oldRefresh).toBe(false);
+        newRoots.resolve(newSnapshot);
+        expect(await newRefresh!).toBe(true);
+        expect(
+          getQueryClient().getQueryData(["dashboard-db", "images"]),
+        ).toEqual(newSnapshot.profileImages);
+      } finally {
+        setCurrentUserId(null);
+        resetDashboardRefreshLock();
+        const collections = await Promise.all([
+          import("@/app/dashboard/_lib/dashboard-db/listings-collection"),
+          import("@/app/dashboard/_lib/dashboard-db/lists-collection"),
+          import("@/app/dashboard/_lib/dashboard-db/images-collection"),
+          import(
+            "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection"
+          ),
+        ]);
+        await Promise.all([
+          collections[0].cleanupListingsCollection(),
+          collections[1].cleanupListsCollection(),
+          collections[2].cleanupImagesCollection(),
+          collections[3].cleanupCultivarReferencesCollection(),
+          resetQueryClient(),
+        ]);
+      }
+    },
+  );
 });

@@ -111,6 +111,7 @@ export function useListingFormController({
     schema: listingFormSchema,
     defaultValues: toFormValues(listing),
   });
+  const { dirtyFields } = form.formState;
   const {
     isDialogOpen: isDeleteDialogOpen,
     isPending: isDeletePending,
@@ -272,27 +273,32 @@ export function useListingFormController({
     notifyPendingChanges();
     const subscription = form.watch(notifyPendingChanges);
     return () => subscription.unsubscribe();
-  }, [form, hasPendingChanges, needsParentCommit, onPendingChangesChange]);
+  }, [
+    dirtyFields,
+    form,
+    hasPendingChanges,
+    needsParentCommit,
+    onPendingChangesChange,
+  ]);
 
   useEffect(() => {
+    if (isSaving) return;
     const currentVersion = new Date(committedListingRef.current.updatedAt);
     const incomingVersion = new Date(listing.updatedAt);
     if (incomingVersion <= currentVersion) return;
-    const values = form.getValues();
-    if (
-      !areListingValuesEqual(
-        values,
-        toFormValues(committedListingRef.current),
-      ) ||
-      needsParentCommitRef.current
-    ) {
+    const rebased = rebaseFormValues(
+      form.getValues(),
+      toFormValues(committedListingRef.current),
+      toFormValues(listing),
+    );
+    if (!rebased) {
       setHasRemoteChange(true);
       return;
     }
     committedListingRef.current = listing;
     setHasRemoteChange(false);
-    form.reset(toFormValues(listing), { keepIsValid: true });
-  }, [form, listing, needsParentCommitRef]);
+    form.reset(rebased, { keepIsValid: true });
+  }, [form, isSaving, listing]);
 
   const discardDraftAndLoadLatest = useCallback(async () => {
     setIsSaving(true);

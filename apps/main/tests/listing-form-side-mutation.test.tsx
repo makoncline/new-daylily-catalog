@@ -91,7 +91,7 @@ describe("listing form after a cultivar mutation", () => {
   it("uses the new version and keeps an unrelated local draft", async () => {
     state.syncName = true;
     updateListing.mockResolvedValue(state.updated);
-    render(
+    const view = render(
       <ListingForm listingId="listing-1" onDelete={vi.fn()} onSave={vi.fn()} />,
     );
 
@@ -101,6 +101,15 @@ describe("listing form after a cultivar mutation", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "Apply cultivar change" }),
     );
+    const previous = state.listing;
+    state.listing = state.updated;
+    view.rerender(
+      <ListingForm listingId="listing-1" onDelete={vi.fn()} onSave={vi.fn()} />,
+    );
+    expect(screen.getByRole("textbox", { name: "Description" })).toHaveValue(
+      "Local description",
+    );
+    state.listing = previous;
     fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
 
     await waitFor(() => expect(updateListing).toHaveBeenCalledTimes(1));
