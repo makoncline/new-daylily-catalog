@@ -47,12 +47,12 @@ function SelectedItemsActions({
   table,
   listId,
   onMutationSuccess,
-  openReviewOnMount = false,
+  consumeAutomaticReview,
 }: {
   table: Table<ListingData>;
   listId: string;
   onMutationSuccess?: () => void;
-  openReviewOnMount?: boolean;
+  consumeAutomaticReview?: () => boolean;
 }) {
   const selectedRows = table.getFilteredSelectedRowModel().rows;
   const selectedListingIds = selectedRows.map((row) => row.original.id);
@@ -90,8 +90,10 @@ function SelectedItemsActions({
   });
 
   React.useEffect(() => {
-    if (openReviewOnMount && selectedListingIds.length > 0) openDeleteDialog();
-  }, [openReviewOnMount, openDeleteDialog, selectedListingIds.length]);
+    if (selectedListingIds.length > 0 && consumeAutomaticReview?.()) {
+      openDeleteDialog();
+    }
+  }, [consumeAutomaticReview, openDeleteDialog, selectedListingIds.length]);
 
   return (
     <>
@@ -127,14 +129,14 @@ interface ListingsTableToolbarProps {
   table: Table<ListingData>;
   listId: string;
   onMutationSuccess?: () => void;
-  openReviewOnMount?: boolean;
+  consumeAutomaticReview?: () => boolean;
 }
 
 function ListingsTableToolbar({
   table,
   listId,
   onMutationSuccess,
-  openReviewOnMount,
+  consumeAutomaticReview,
 }: ListingsTableToolbarProps) {
   const hasSelectedRows = table.getFilteredSelectedRowModel().rows.length > 0;
 
@@ -153,7 +155,7 @@ function ListingsTableToolbar({
               table={table}
               listId={listId}
               onMutationSuccess={onMutationSuccess}
-              openReviewOnMount={openReviewOnMount}
+              consumeAutomaticReview={consumeAutomaticReview}
             />
           )}
           <div className="flex-1" />
@@ -220,9 +222,17 @@ export function ListListingsTable({
         listingsInList.some((listing) => listing.id === id),
     );
   const appliedRemovalRef = React.useRef("");
+  const reviewedRemovalRef = React.useRef("");
+  const consumeAutomaticReview = React.useCallback(() => {
+    const reviewKey = `${listId}:${requestedRemoval}`;
+    if (!validRemoval || reviewedRemovalRef.current === reviewKey) return false;
+    reviewedRemovalRef.current = reviewKey;
+    return true;
+  }, [listId, requestedRemoval, validRemoval]);
   React.useEffect(() => {
     if (!requestedRemoval) {
       appliedRemovalRef.current = "";
+      reviewedRemovalRef.current = "";
       return;
     }
     if (!validRemoval || appliedRemovalRef.current === requestedRemoval) return;
@@ -267,7 +277,7 @@ export function ListListingsTable({
             table={table}
             listId={listId}
             onMutationSuccess={onMutationSuccess}
-            openReviewOnMount={validRemoval}
+            consumeAutomaticReview={consumeAutomaticReview}
           />
         }
         pagination={

@@ -21,16 +21,23 @@ const loadMissingList = vi.hoisted(() =>
   vi.fn(async () => {
     const current = reviewData.lists[0]!;
     reviewData.lists = [
-      { ...current, listings: [...current.listings, { id: "listing-b" }] },
+      {
+        ...current,
+        listings: current.listings.some(({ id }) => id === "listing-b")
+          ? current.listings
+          : [...current.listings, { id: "listing-b" }],
+      },
     ];
   }),
 );
 const loadListingsByIds = vi.hoisted(() =>
   vi.fn(async () => {
-    reviewData.listingRows = [
-      ...reviewData.listingRows,
-      { id: "listing-b", title: "Blue Daylily" },
-    ];
+    if (!reviewData.listingRows.some(({ id }) => id === "listing-b")) {
+      reviewData.listingRows = [
+        ...reviewData.listingRows,
+        { id: "listing-b", title: "Blue Daylily" },
+      ];
+    }
   }),
 );
 
@@ -70,6 +77,7 @@ vi.mock("@/hooks/use-data-table", async () => {
       return {
         selectAll: () =>
           setSelected(Object.fromEntries(data.map((row) => [row.id, true]))),
+        selectFirst: () => setSelected({ [data[0]!.id]: true }),
         setGlobalFilter: vi.fn(),
         setColumnFilters: vi.fn(),
         setRowSelection: setSelected,
@@ -88,11 +96,17 @@ vi.mock("@/components/data-table/data-table-layout", () => ({
     table,
     toolbar,
   }: {
-    table: { selectAll: () => void };
+    table: {
+      selectAll: () => void;
+      selectFirst: () => void;
+      resetRowSelection: () => void;
+    };
     toolbar: React.ReactNode;
   }) => (
     <div>
       <button onClick={table.selectAll}>Select all listings</button>
+      <button onClick={table.selectFirst}>Select first listing only</button>
+      <button onClick={table.resetRowSelection}>Clear selection</button>
       {toolbar}
     </div>
   ),
@@ -131,7 +145,7 @@ describe("MCP list removal review link", () => {
     ];
   });
 
-  it("names the selected listings and waits for the member to confirm", async () => {
+  it("keeps a cancelled review closed after selection changes and remounts", async () => {
     render(<ListListingsTable listId="list-1" />);
 
     const dialog = await screen.findByRole("alertdialog");
@@ -140,6 +154,36 @@ describe("MCP list removal review link", () => {
     expect(loadListingsByIds).toHaveBeenCalledWith(["listing-a", "listing-b"]);
     expect(removeListingsFromList).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(removeListingsFromList).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    fireEvent.click(
+      screen.getByRole("button", { name: "Select first listing only" }),
+    );
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    fireEvent.click(screen.getByRole("button", { name: "Clear selection" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Select all listings" }),
+    );
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    fireEvent.click(screen.getByRole("button", { name: "Remove 2 selected" }));
+    expect(await screen.findByRole("alertdialog")).toHaveTextContent(
+      "Amber Daylily; Blue Daylily",
+    );
+    expect(removeListingsFromList).not.toHaveBeenCalled();
+  });
+
+  it("opens a new removal review after the previous intent is cleared", async () => {
+    const { rerender } = render(<ListListingsTable listId="list-1" />);
+    await screen.findByRole("alertdialog");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    params.value = "";
+    rerender(<ListListingsTable listId="list-1" />);
+    params.value = "remove=listing-a%2Clisting-b";
+    rerender(<ListListingsTable listId="list-1" />);
+    expect(await screen.findByRole("alertdialog")).toHaveTextContent(
+      "Amber Daylily; Blue Daylily",
+    );
     expect(removeListingsFromList).not.toHaveBeenCalled();
   });
 
