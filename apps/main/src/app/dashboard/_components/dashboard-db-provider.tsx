@@ -241,7 +241,6 @@ function useDashboardDbProviderState() {
     }
 
     const bootstrapUserId = userId;
-    let finished = false;
     initializedUserIdRef.current = bootstrapUserId;
     let cancelled = false;
     let phase = "sqlite-persistence";
@@ -334,7 +333,6 @@ function useDashboardDbProviderState() {
             }
 
             if (!cancelled) {
-              finished = true;
               updateDashboardDbState({
                 status: "ready",
                 userId,
@@ -381,7 +379,6 @@ function useDashboardDbProviderState() {
         }
 
         if (!cancelled) {
-          finished = true;
           updateDashboardDbState({
             status: "ready",
             userId,
@@ -443,7 +440,7 @@ function useDashboardDbProviderState() {
 
     return () => {
       cancelled = true;
-      if (!finished && initializedUserIdRef.current === bootstrapUserId) {
+      if (initializedUserIdRef.current === bootstrapUserId) {
         initializedUserIdRef.current = null;
       }
     };

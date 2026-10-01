@@ -95,8 +95,10 @@ export function useListingFormController({
 
   const form = useZodForm({
     schema: listingFormSchema,
-    defaultValues: toFormValues(listing),
+    values: toFormValues(listing),
+    resetOptions: { keepDirtyValues: true },
   });
+  const { dirtyFields } = form.formState;
   const {
     isDialogOpen: isDeleteDialogOpen,
     isPending: isDeletePending,
@@ -211,7 +213,13 @@ export function useListingFormController({
     notifyPendingChanges();
     const subscription = form.watch(notifyPendingChanges);
     return () => subscription.unsubscribe();
-  }, [form, hasPendingChanges, needsParentCommit, onPendingChangesChange]);
+  }, [
+    dirtyFields,
+    form,
+    hasPendingChanges,
+    needsParentCommit,
+    onPendingChangesChange,
+  ]);
 
   async function onSubmit() {
     await saveChanges("manual");

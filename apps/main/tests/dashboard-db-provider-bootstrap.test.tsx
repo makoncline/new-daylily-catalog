@@ -1,4 +1,4 @@
-import React, { StrictMode } from "react";
+import React, { Activity, StrictMode } from "react";
 import { useLiveQuery } from "@tanstack/react-db";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createTRPCProxyClient, type TRPCLink } from "@trpc/client";
@@ -472,7 +472,7 @@ describe("dashboardDb provider bootstrap", () => {
     });
   });
 
-  it("renders warm SQLite data before background refresh finishes", async () => {
+  it("resumes warm SQLite refresh after its Activity effects restart", async () => {
     vi.resetModules();
     useAuthMock.mockReturnValue({ isLoaded: true, userId: null });
 
@@ -484,7 +484,8 @@ describe("dashboardDb provider bootstrap", () => {
       () => warmHydrate.promise,
     );
     const revalidateDashboardDbInBackground = vi.fn(
-      () => backgroundRefresh.promise,
+      (_userId: string, _guard?: { isActive?: () => boolean }) =>
+        backgroundRefresh.promise,
     );
 
     vi.doMock(
@@ -553,13 +554,15 @@ describe("dashboardDb provider bootstrap", () => {
       );
     }
 
-    const renderDashboard = () => (
+    const renderDashboard = (mode: "visible" | "hidden" = "visible") => (
       <QueryClientProvider client={queryClient}>
         <freshApi.Provider client={trpcClient} queryClient={queryClient}>
-          <DashboardDbProvider>
-            <DashboardReadyMarker />
-            <DashboardRefreshingMarker />
-          </DashboardDbProvider>
+          <Activity mode={mode}>
+            <DashboardDbProvider>
+              <DashboardReadyMarker />
+              <DashboardRefreshingMarker />
+            </DashboardDbProvider>
+          </Activity>
         </freshApi.Provider>
       </QueryClientProvider>
     );
@@ -584,6 +587,19 @@ describe("dashboardDb provider bootstrap", () => {
     expect(bootstrapDashboardDbFromReplica).not.toHaveBeenCalled();
     expect(bootstrapDashboardDbFromServer).not.toHaveBeenCalled();
     expect(revalidateDashboardDbInBackground).toHaveBeenCalledTimes(1);
+
+    const oldRefreshGuard =
+      revalidateDashboardDbInBackground.mock.calls[0]?.[1];
+    expect(oldRefreshGuard?.isActive?.()).toBe(true);
+    rerender(renderDashboard("hidden"));
+    expect(oldRefreshGuard?.isActive?.()).toBe(false);
+    rerender(renderDashboard());
+    await waitFor(() =>
+      expect(revalidateDashboardDbInBackground).toHaveBeenCalledTimes(2),
+    );
+    expect(
+      revalidateDashboardDbInBackground.mock.calls[1]?.[1]?.isActive?.(),
+    ).toBe(true);
 
     useAuthMock.mockReturnValue({ isLoaded: true, userId: "clerk-user-1" });
     rerender(renderDashboard());
@@ -616,9 +632,9 @@ describe("dashboardDb provider bootstrap", () => {
       () => replicaBootstrap.promise,
     );
     const bootstrapDashboardDbFromServer = vi.fn(async () => undefined);
-    const hydrateDashboardDbFromSqlitePersistence = vi.fn(
-      async () => ({ listingCount: 0 }),
-    );
+    const hydrateDashboardDbFromSqlitePersistence = vi.fn(async () => ({
+      listingCount: 0,
+    }));
     const revalidateDashboardDbInBackground = vi.fn(
       () => backgroundRefresh.promise,
     );
