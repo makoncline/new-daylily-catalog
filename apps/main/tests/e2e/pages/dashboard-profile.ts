@@ -13,7 +13,7 @@ export class DashboardProfile {
 
   constructor(page: Page) {
     this.page = page;
-    this.heading = page.getByRole("heading", { name: "Profile" });
+    this.heading = page.getByRole("heading", { name: "Profile", exact: true });
     this.gardenNameInput = page.getByLabel("Garden Name");
     this.slugInput = page.locator('input[name="slug"]').first();
     this.descriptionInput = page.getByLabel("Description");
@@ -94,9 +94,9 @@ export class DashboardProfile {
   async fillContent(text: string) {
     const selectAll = process.platform === "darwin" ? "Meta+A" : "Control+A";
     await this.contentEditor.waitFor({ state: "visible" });
-    const editableElement = this.contentEditor.locator(
-      '.ce-block .ce-paragraph[contenteditable="true"]',
-    ).first();
+    const editableElement = this.contentEditor
+      .locator('.ce-block .ce-paragraph[contenteditable="true"]')
+      .first();
     await editableElement.waitFor({ state: "visible" });
 
     await editableElement.click();

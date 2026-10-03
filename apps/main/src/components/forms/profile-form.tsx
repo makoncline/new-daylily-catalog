@@ -8,14 +8,7 @@ import {
 import { ProfileTextFields } from "./profile-text-fields";
 import { ContentManagerFormItem } from "./content-form";
 import { ProfileImageManager } from "@/app/dashboard/profile/_components/profile-image-manager";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { FieldGroup } from "@/components/ui/field";
+import { FieldDescription, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -52,36 +45,27 @@ export function ProfileForm({
         noValidate
       >
         <FieldGroup>
-          <Card>
-            <CardHeader>
-              <CardTitle>Garden Details</CardTitle>
-              <CardDescription>
-                Manage the information on your public profile.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ProfileTextFields
-                form={state.form}
-                profile={state.profile}
-                disabled={state.isSaving}
-              />
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>Profile Images</CardTitle>
-              <CardDescription>
-                Upload images to showcase your garden. You can reorder them by
-                dragging.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ProfileImageManager
-                profileId={state.profile.id}
-                onMutationSuccess={state.markNeedsParentCommit}
-              />
-            </CardContent>
-          </Card>
+          <ProfileTextFields
+            form={state.form}
+            profile={state.profile}
+            disabled={state.isSaving}
+          />
+          <section
+            aria-labelledby="profile-images-heading"
+            className="flex flex-col gap-3"
+          >
+            <h2 id="profile-images-heading" className="text-sm font-medium">
+              Profile Images
+            </h2>
+            <FieldDescription>
+              Upload images to showcase your garden. You can reorder them by
+              dragging.
+            </FieldDescription>
+            <ProfileImageManager
+              profileId={state.profile.id}
+              onMutationSuccess={state.markNeedsParentCommit}
+            />
+          </section>
           <ContentManagerFormItem
             initialProfile={state.profile}
             formRef={state.contentFormRef}

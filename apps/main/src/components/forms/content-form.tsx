@@ -8,13 +8,7 @@ import { toast } from "sonner";
 import { Editor } from "@/components/editor";
 import { parseEditorContent } from "@/lib/editor-utils";
 import { Spinner } from "../ui/spinner";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "../ui/card";
+import { FieldDescription } from "../ui/field";
 import { useOnClickOutside } from "usehooks-ts";
 import { type OutputData } from "@editorjs/editorjs";
 import {
@@ -202,17 +196,20 @@ export function ContentManagerFormItem({
   const editorResetKey = editorContent ?? "empty-content";
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between gap-2">
-          <CardTitle>Content</CardTitle>
-          {isPendingIndicatorVisible && <Spinner aria-label="Saving content" />}
-        </div>
-        <CardDescription>
-          Tell visitors about yourself and your garden.
-        </CardDescription>
-      </CardHeader>
-      <CardContent ref={contentRef} onInputCapture={markDirty}>
+    <section
+      aria-labelledby="profile-content-heading"
+      className="flex flex-col gap-3"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <h2 id="profile-content-heading" className="text-sm font-medium">
+          Content
+        </h2>
+        {isPendingIndicatorVisible && <Spinner aria-label="Saving content" />}
+      </div>
+      <FieldDescription>
+        Tell visitors about yourself and your garden.
+      </FieldDescription>
+      <div ref={contentRef} onInputCapture={markDirty}>
         <div className="bg-background min-h-96 rounded-md border">
           <Editor
             key={editorResetKey}
@@ -222,7 +219,7 @@ export function ContentManagerFormItem({
             onChange={() => void handleEditorChange()}
           />
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }
