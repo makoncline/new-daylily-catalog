@@ -135,7 +135,8 @@ describe("server db clients", () => {
   });
 
   it("serves the seeded Vercel preview without reporting a local MCP source", async () => {
-    mocks.env.DATABASE_URL = "libsql://seeded-daylily-catalog-test.turso.io";
+    mocks.env.DATABASE_URL =
+      "libsql://seeded-daylily-catalog-makoncline.aws-us-east-1.turso.io";
     mocks.env.TURSO_EMBEDDED_REPLICA_URL = undefined;
     vi.stubEnv("VERCEL", "1");
 
@@ -158,14 +159,26 @@ describe("server db clients", () => {
   it("rejects remote public reads in production and other preview databases", async () => {
     mocks.env.TURSO_EMBEDDED_REPLICA_URL = undefined;
     for (const [vercel, environment, databaseUrl] of [
-      ["1", "production", "libsql://seeded-daylily-catalog-test.turso.io"],
-      ["1", "preview", "libsql://daylily-catalog-test.turso.io"],
+      [
+        "1",
+        "production",
+        "libsql://seeded-daylily-catalog-makoncline.aws-us-east-1.turso.io",
+      ],
       [
         "1",
         "preview",
-        "libsql://seeded-daylily-catalog-test.turso.io.evil.test",
+        "libsql://daylily-catalog-makoncline.aws-us-east-1.turso.io",
       ],
-      ["", "preview", "libsql://seeded-daylily-catalog-test.turso.io"],
+      [
+        "1",
+        "preview",
+        "libsql://seeded-daylily-catalog-makoncline.aws-us-east-1.turso.io.evil.test",
+      ],
+      [
+        "",
+        "preview",
+        "libsql://seeded-daylily-catalog-makoncline.aws-us-east-1.turso.io",
+      ],
     ]) {
       mocks.env.DATABASE_URL = databaseUrl!;
       vi.stubEnv("VERCEL", vercel);

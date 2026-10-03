@@ -158,7 +158,7 @@ export const hasLocalPublicReadDb =
 const hasSeededVercelReadDb =
   process.env.VERCEL === "1" &&
   ["preview", "development"].includes(process.env.VERCEL_ENV ?? "") &&
-  /^libsql:\/\/seeded-daylily-catalog-[a-z0-9-]+\.turso\.io\/?$/i.test(
+  /^libsql:\/\/seeded-daylily-catalog-[a-z0-9-]+(?:\.aws-[a-z0-9-]+)?\.turso\.io\/?$/i.test(
     databaseUrl,
   );
 export const hasPublicReadDb = hasLocalPublicReadDb || hasSeededVercelReadDb;

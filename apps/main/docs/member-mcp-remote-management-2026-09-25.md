@@ -420,6 +420,12 @@ This requires `VERCEL=1`, `VERCEL_ENV=preview` or `development`, and a
 and production deployments still require local SQLite or an embedded
 replica for public data.
 
+The seeded URL includes Turso's AWS region segment. The source check accepts
+that format. On 2026-10-03, the two existing PR owner/ID index migrations were
+applied to the seeded database. Directory and seller reads then passed. Both
+member paging query plans use a covering owner/ID index. No production database
+was changed.
+
 This exception uses the existing seeded database. It adds no search index,
 database, credentials, or deployment settings. Public MCP database tools
 still require a local source in every environment. The local-source flag
