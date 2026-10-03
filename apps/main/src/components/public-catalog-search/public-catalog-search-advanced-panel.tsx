@@ -108,6 +108,8 @@ function AdvancedSectionsAccordion<TData>({
 
 export function PublicCatalogSearchAdvancedPanel<TData>({
   advancedSectionsColumns = 1,
+  sectionDefinitions: customSectionDefinitions,
+  framed = true,
   table,
   listOptions,
   facetOptions,
@@ -121,9 +123,11 @@ export function PublicCatalogSearchAdvancedPanel<TData>({
 }: PublicCatalogSearchAdvancedPanelProps<TData>) {
   const isAdvanced = mode === "advanced";
   const panelContext = { table, listOptions, facetOptions };
-  const sectionDefinitions = showCultivarFacets
-    ? PUBLIC_CATALOG_SEARCH_CULTIVAR_SECTION_DEFINITIONS
-    : PUBLIC_CATALOG_SEARCH_SECTION_DEFINITIONS;
+  const sectionDefinitions =
+    customSectionDefinitions ??
+    (showCultivarFacets
+      ? PUBLIC_CATALOG_SEARCH_CULTIVAR_SECTION_DEFINITIONS
+      : PUBLIC_CATALOG_SEARCH_SECTION_DEFINITIONS);
   const toolbarFilters = PUBLIC_CATALOG_SEARCH_TOOLBAR_FILTERS.filter(
     (definition) =>
       (listOptions.length > 0 || definition.id !== "lists") &&
@@ -141,7 +145,10 @@ export function PublicCatalogSearchAdvancedPanel<TData>({
     return (
       <div
         data-testid="advanced-search-panel"
-        className="bg-muted/10 flex items-center justify-center rounded-lg border p-2"
+        className={cn(
+          "flex items-center justify-center",
+          framed && "bg-muted/10 rounded-lg border p-2",
+        )}
       >
         <Button
           type="button"
@@ -160,7 +167,7 @@ export function PublicCatalogSearchAdvancedPanel<TData>({
   return (
     <div
       id="lists"
-      className="bg-muted/10 rounded-lg border p-3 md:p-4"
+      className={cn(framed && "bg-muted/10 rounded-lg border p-3 md:p-4")}
       data-testid="advanced-search-panel"
     >
       <div className="flex items-center justify-between">
