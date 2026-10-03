@@ -1,8 +1,10 @@
-import { replicaDb } from "@/server/db";
+import { publicDb } from "@/server/db";
 import { getProUserIdSet } from "@/server/db/getProUserIdSet";
 
-export async function getProUserIds(): Promise<string[]> {
-  const users = await replicaDb.user.findMany({
+export async function getProUserIds(
+  database: typeof publicDb = publicDb,
+): Promise<string[]> {
+  const users = await database.user.findMany({
     where: {
       stripeCustomerId: {
         not: null,
@@ -14,14 +16,14 @@ export async function getProUserIds(): Promise<string[]> {
     },
   });
 
-  const proUserIds = await getProUserIdSet(users);
+  const proUserIds = await getProUserIdSet(users, database);
 
   return Array.from(proUserIds).sort();
 }
 
 export async function getActiveProUserIdsForUserIds(
   userIds: readonly string[],
-  database: typeof replicaDb = replicaDb,
+  database: typeof publicDb = publicDb,
 ): Promise<string[]> {
   const uniqueUserIds = Array.from(new Set(userIds));
   if (uniqueUserIds.length === 0) {

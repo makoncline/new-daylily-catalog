@@ -28,6 +28,13 @@ const SAFE_IMAGE_SIZE = Buffer.from(
 const s3Mocks = vi.hoisted(() => ({
   getSignedUrl: vi.fn(),
   putObjectCommand: vi.fn((input: unknown) => ({ input })),
+  headObjectCommand: vi.fn((input: unknown) => ({ input })),
+  send: vi.fn(async (command: { input: { Key: string } }) => ({
+    ContentLength: 1234,
+    ContentType: command.input.Key.endsWith(".png")
+      ? "image/png"
+      : "image/jpeg",
+  })),
 }));
 const afterMock = vi.hoisted(() => vi.fn());
 const variantProcessorMock = vi.hoisted(() => vi.fn());
@@ -42,8 +49,9 @@ const consoleInfoMock = vi
 vi.stubGlobal("fetch", fetchMock);
 
 vi.mock("@aws-sdk/client-s3", () => ({
-  S3Client: vi.fn(),
+  S3Client: vi.fn(() => ({ send: s3Mocks.send })),
   PutObjectCommand: s3Mocks.putObjectCommand,
+  HeadObjectCommand: s3Mocks.headObjectCommand,
 }));
 
 vi.mock("@aws-sdk/s3-request-presigner", () => ({
@@ -90,8 +98,12 @@ beforeAll(async () => {
 });
 
 function createCaller(db: unknown) {
+  const database = db as { image?: Record<string, unknown> };
+  // These storage tests use a target with an open image slot.
+  database.image ??= {};
+  database.image.findMany ??= vi.fn().mockResolvedValue([]);
   return dashboardDbImageRouter.createCaller({
-    db: db as TRPCInternalContext["db"],
+    db: database as unknown as TRPCInternalContext["db"],
     _authUser: { id: "user-1" } as TRPCInternalContext["_authUser"],
     headers: new Headers(),
   });
@@ -415,8 +427,11 @@ describe("dashboard image asset mutations", () => {
   it("creates the legacy Image and matching ImageAsset for R2 uploads", async () => {
     const createdImage = createImageRow();
     const tx = {
+      $executeRaw: vi.fn().mockResolvedValue(1),
       image: {
         create: vi.fn().mockResolvedValue(createdImage),
+        findFirst: vi.fn().mockResolvedValue(null),
+        findMany: vi.fn().mockResolvedValue([]),
       },
       imageAsset: {
         create: vi.fn().mockResolvedValue(undefined),
@@ -427,7 +442,8 @@ describe("dashboard image asset mutations", () => {
         callback(tx),
       ),
       image: {
-        count: vi.fn().mockResolvedValue(0),
+        findFirst: vi.fn().mockResolvedValue(null),
+        findUnique: vi.fn().mockResolvedValue(null),
       },
       imageAsset: {
         findMany: vi.fn().mockResolvedValue([]),
@@ -450,6 +466,16 @@ describe("dashboard image asset mutations", () => {
         "users/user-1/listing-images/listing-1/image-1/original.jpg",
     });
 
+    expect(s3Mocks.headObjectCommand).toHaveBeenCalledTimes(2);
+    expect(s3Mocks.headObjectCommand).toHaveBeenCalledWith({
+      Bucket: process.env.AWS_BUCKET_NAME,
+      Key: key,
+    });
+    expect(s3Mocks.headObjectCommand).toHaveBeenCalledWith({
+      Bucket: "daylily-media",
+      Key: "users/user-1/listing-images/listing-1/image-1/original.jpg",
+    });
+
     expect(tx.image.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -459,6 +485,9 @@ describe("dashboard image asset mutations", () => {
         }),
       }),
     );
+    expect(tx.$executeRaw).toHaveBeenCalledOnce();
+    expect(tx.image.findFirst).toHaveBeenCalledOnce();
+    expect(db.image.findFirst).not.toHaveBeenCalled();
     expect(tx.imageAsset.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         id: "image-1",

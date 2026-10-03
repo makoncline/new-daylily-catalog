@@ -15,6 +15,7 @@ async function lintText(source: string, filePath: string) {
   return result;
 }
 
+// The first lint call loads the project's TypeScript and Tailwind config.
 it("reports all six design rules as nonblocking warnings in UI callers", async () => {
   const result = await lintText(
     `import { Button } from "@/components/ui/button";
@@ -42,7 +43,7 @@ export function Example({ color }: { color: string }) {
   );
   expect(findings.every((message) => message.severity === 1)).toBe(true);
   expect(result.errorCount).toBe(0);
-});
+}, 60_000);
 
 it("accepts a component variant and layout classes", async () => {
   const result = await lintText(

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   DndContext,
   closestCenter,
@@ -34,6 +35,7 @@ import {
 } from "@/lib/error-utils";
 import {
   deleteImage,
+  loadImageFromPrimary,
   type ImageCollectionItem,
   reorderImages,
 } from "@/app/dashboard/_lib/dashboard-db/images-collection";
@@ -96,6 +98,16 @@ export function ImageManager({
   referenceId,
   type,
 }: ImageManagerProps) {
+  const searchParams = useSearchParams();
+  const reviewImageId =
+    searchParams?.get("intent") === "remove_image"
+      ? searchParams?.get("imageId")
+      : null;
+  const reviewKey = reviewImageId
+    ? `${type}:${referenceId}:${reviewImageId}`
+    : null;
+  const [loadedReviewKey, setLoadedReviewKey] = useState<string | null>(null);
+  const openedImageRef = useRef<string | null>(null);
   const [imageToDelete, setImageToDelete] =
     useState<ImageCollectionItem | null>(null);
   const {
@@ -136,6 +148,43 @@ export function ImageManager({
       });
     },
   });
+
+  useEffect(() => {
+    if (!reviewImageId || !reviewKey) return;
+    let cancelled = false;
+    void loadImageFromPrimary({ type, referenceId, imageId: reviewImageId })
+      .then(() => {
+        if (!cancelled) setLoadedReviewKey(reviewKey);
+      })
+      .catch(() => {
+        if (!cancelled)
+          toast.error("This image removal link is no longer current.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [type, referenceId, reviewImageId, reviewKey]);
+
+  useEffect(() => {
+    if (
+      !reviewImageId ||
+      loadedReviewKey !== reviewKey ||
+      openedImageRef.current === reviewKey
+    )
+      return;
+    const image = images.find((item) => item.id === reviewImageId);
+    if (!image) return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled || openedImageRef.current === reviewKey) return;
+      openedImageRef.current = reviewKey;
+      setImageToDelete(image);
+      openDeleteDialog();
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [images, loadedReviewKey, reviewImageId, reviewKey, openDeleteDialog]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -265,7 +314,7 @@ export function ImageManager({
           void confirmDelete();
         }}
         title="Delete Image"
-        description="Are you sure you want to delete this image? This action cannot be undone."
+        description={`Delete image ${imageToDelete?.id ?? ""}? This action cannot be undone.`}
       />
     </div>
   );

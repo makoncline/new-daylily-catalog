@@ -38,16 +38,14 @@ async function createAuthedCaller(userId: string) {
 async function seedFreeTierLimit(
   db: TRPCInternalContext["db"],
   userId: string,
+  count: number = APP_CONFIG.LISTING.FREE_TIER_MAX_LISTINGS,
 ) {
   await db.listing.createMany({
-    data: Array.from(
-      { length: APP_CONFIG.LISTING.FREE_TIER_MAX_LISTINGS },
-      (_, index) => ({
-        userId,
-        title: `Listing ${index + 1}`,
-        slug: `listing-${index + 1}`,
-      }),
-    ),
+    data: Array.from({ length: count }, (_, index) => ({
+      userId,
+      title: `Listing ${index + 1}`,
+      slug: `listing-${index + 1}`,
+    })),
   });
 }
 
@@ -155,6 +153,40 @@ describe("dashboard listing creation entitlements", () => {
         price: 12,
         privateNote: "Front bed",
       });
+    });
+  });
+
+  it("rejects a free-tier import batch that crosses the listing limit", async () => {
+    getStripeSubscriptionResult.mockResolvedValue({
+      subscription: { status: "none" },
+      confirmed: true,
+    });
+
+    await withTempAppDb(async ({ user }) => {
+      const { caller, db } = await createAuthedCaller(user.id);
+      await seedFreeTierLimit(
+        db,
+        user.id,
+        APP_CONFIG.LISTING.FREE_TIER_MAX_LISTINGS - 1,
+      );
+      const rows = ["First", "Second"].map((title, index) => ({
+        cultivarReferenceId: null,
+        description: null,
+        importKey: `free-tier-batch:${index}`,
+        price: null,
+        privateNote: null,
+        title,
+      }));
+
+      await expect(
+        caller.dashboardDb.listing.importRows({ rows }),
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+      await expect(
+        caller.dashboardDb.listing.importRows({ rows: [rows[0]!] }),
+      ).resolves.toMatchObject({ createdCount: 1 });
+      await expect(
+        db.listing.count({ where: { userId: user.id } }),
+      ).resolves.toBe(APP_CONFIG.LISTING.FREE_TIER_MAX_LISTINGS);
     });
   });
 

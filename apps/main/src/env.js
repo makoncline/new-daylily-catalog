@@ -28,6 +28,7 @@ export const env = createEnv({
     CLERK_SECRET_KEY: z.string().optional(),
     CLERK_WEBHOOK_SECRET: z.string().optional(),
     DAYLILY_MCP_OAUTH_CLIENT_ID: z.string().optional(),
+    DAYLILY_MEMBER_API_OAUTH_CLIENT_IDS: z.string().optional(),
     STRIPE_SECRET_KEY: z.string().optional(),
     STRIPE_WEBHOOK_SECRET: z.string().optional(),
     AWS_ACCESS_KEY_ID: z.string().optional(),
@@ -60,6 +61,8 @@ export const env = createEnv({
     CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY,
     CLERK_WEBHOOK_SECRET: process.env.CLERK_WEBHOOK_SECRET,
     DAYLILY_MCP_OAUTH_CLIENT_ID: process.env.DAYLILY_MCP_OAUTH_CLIENT_ID,
+    DAYLILY_MEMBER_API_OAUTH_CLIENT_IDS:
+      process.env.DAYLILY_MEMBER_API_OAUTH_CLIENT_IDS,
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:
       process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
     NEXT_PUBLIC_CLOUDFLARE_URL: process.env.NEXT_PUBLIC_CLOUDFLARE_URL,

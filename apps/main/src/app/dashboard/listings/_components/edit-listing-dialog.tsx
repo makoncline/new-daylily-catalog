@@ -18,8 +18,12 @@ import { Button } from "@/components/ui/button";
 import { ErrorFallback } from "@/components/error-fallback";
 import { PageHeader } from "@/components/page-header";
 import { ListingSurfaceSaveBar } from "./listing-surface-save-bar";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 export const useEditListing = () => {
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { setValue, value } = useQueryParamDialogState({
     history: "push",
     paramName: "editing",
@@ -27,7 +31,14 @@ export const useEditListing = () => {
   });
   return {
     editListing: (id: string) => setValue(id),
-    closeEditListing: () => setValue(null, "replace"),
+    closeEditListing: () => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("editing");
+      params.delete("intent");
+      router.replace(params.size ? `${pathname}?${params}` : pathname, {
+        scroll: false,
+      });
+    },
     editingId: value,
   };
 };
@@ -40,6 +51,7 @@ export function EditListingSurface({
   onClose: () => void;
 }) {
   const formRef = useRef<ListingFormHandle | null>(null);
+  const openDeleteOnMount = useSearchParams()?.get("intent") === "delete";
   const backButtonRef = useRef<HTMLButtonElement | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -101,6 +113,7 @@ export function EditListingSurface({
         <Suspense fallback={<ListingFormSkeleton />}>
           <ListingForm
             listingId={listingId}
+            openDeleteOnMount={openDeleteOnMount}
             onDelete={onClose}
             onSave={onClose}
             formRef={formRef}

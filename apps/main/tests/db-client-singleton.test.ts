@@ -26,6 +26,7 @@ const mocks = vi.hoisted(() => ({
   prismaClientCount: 0,
   prismaClientOptions: [] as unknown[],
   syncResult: { frameNo: "12", framesSynced: 3 },
+  users: vi.fn(async () => [{ id: "seed-member" }]),
 }));
 
 function clearGlobalPrismaClients() {
@@ -56,6 +57,7 @@ vi.mock("@/env", () => ({
 vi.mock("@prisma/client", () => ({
   PrismaClient: class MockPrismaClient {
     readonly id: number;
+    readonly user = { findMany: mocks.users };
     private connected = false;
     private readonly options: {
       adapter?: { connect: () => Promise<unknown> };
@@ -112,6 +114,7 @@ vi.mock("@/server/db/local-query-profiler", () => ({
 describe("server db clients", () => {
   beforeEach(() => {
     clearGlobalPrismaClients();
+    mocks.env.DATABASE_URL = "libsql://primary-db";
     mocks.env.NODE_ENV = "production";
     mocks.env.TURSO_EMBEDDED_REPLICA_URL = "file:/tmp/daylily-replica.db";
     mocks.betterSqliteConfigs.length = 0;
@@ -121,12 +124,78 @@ describe("server db clients", () => {
     mocks.libSqlConfigs.length = 0;
     mocks.prismaClientCount = 0;
     mocks.prismaClientOptions.length = 0;
+    mocks.users.mockClear();
     vi.resetModules();
   });
 
   afterEach(() => {
     clearGlobalPrismaClients();
+    vi.unstubAllEnvs();
     vi.resetModules();
+  });
+
+  it("serves the seeded Vercel preview without reporting a local MCP source", async () => {
+    mocks.env.DATABASE_URL =
+      "libsql://seeded-daylily-catalog-makoncline.aws-us-east-1.turso.io";
+    mocks.env.TURSO_EMBEDDED_REPLICA_URL = undefined;
+    vi.stubEnv("VERCEL", "1");
+
+    for (const environment of ["preview", "development"]) {
+      vi.stubEnv("VERCEL_ENV", environment);
+      vi.resetModules();
+      const { hasLocalPublicReadDb, publicDb } = await import("@/server/db");
+      const { publicReadResponse } = await import("@/server/api/public-http");
+      const response = await publicReadResponse("seeded-preview-test", () =>
+        publicDb.user.findMany({ select: { id: true } }),
+      );
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual([{ id: "seed-member" }]);
+      expect(hasLocalPublicReadDb).toBe(false);
+    }
+    expect(mocks.users).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects remote public reads in production and other preview databases", async () => {
+    mocks.env.TURSO_EMBEDDED_REPLICA_URL = undefined;
+    for (const [vercel, environment, databaseUrl] of [
+      [
+        "1",
+        "production",
+        "libsql://seeded-daylily-catalog-makoncline.aws-us-east-1.turso.io",
+      ],
+      [
+        "1",
+        "preview",
+        "libsql://daylily-catalog-makoncline.aws-us-east-1.turso.io",
+      ],
+      [
+        "1",
+        "preview",
+        "libsql://seeded-daylily-catalog-makoncline.aws-us-east-1.turso.io.evil.test",
+      ],
+      [
+        "",
+        "preview",
+        "libsql://seeded-daylily-catalog-makoncline.aws-us-east-1.turso.io",
+      ],
+    ]) {
+      mocks.env.DATABASE_URL = databaseUrl!;
+      vi.stubEnv("VERCEL", vercel);
+      vi.stubEnv("VERCEL_ENV", environment);
+      vi.resetModules();
+      const { publicDb } = await import("@/server/db");
+      const { publicReadResponse } = await import("@/server/api/public-http");
+      const response = await publicReadResponse("remote-boundary-test", () =>
+        publicDb.user.findMany({ select: { id: true } }),
+      );
+
+      expect(response.status).toBe(503);
+      expect(() => publicDb.user).toThrow(
+        "Public database reads require local SQLite or an embedded replica.",
+      );
+    }
+    expect(mocks.users).not.toHaveBeenCalled();
   });
 
   it("reuses production clients across module reloads to avoid duplicate replica sync loops", async () => {

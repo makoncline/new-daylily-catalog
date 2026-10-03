@@ -124,6 +124,16 @@ describe("useEditListing URL sync", () => {
     expect(navigationState.push).not.toHaveBeenCalled();
   });
 
+  it("clears deletion intent when closing an edit", () => {
+    navigationState.setSearch("editing=listing-1&intent=delete");
+    render(<EditListingHookHarness />);
+    fireEvent.click(screen.getByRole("button"));
+    expect(navigationState.replace).toHaveBeenCalledWith(
+      "/dashboard/listings",
+      { scroll: false },
+    );
+  });
+
   it("uses the creating query as the source of truth", () => {
     navigationState.setSearch("");
     const { result, rerender } = renderHook(useCreateListing);

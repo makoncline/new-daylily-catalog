@@ -1,5 +1,6 @@
 export const DEFAULT_LIMIT = 25;
-export const MAX_LIMIT = 500;
+export const MAX_LIMIT = 100;
+export const MEMBER_MAX_LIMIT = 100;
 
 export const cultivarOutputSchema = {
   type: "object",
@@ -61,20 +62,91 @@ export const listingOutputSchema = {
   required: ["listing"],
 };
 
-export function paginatedInputSchema() {
+export const imageOutputSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    image: { type: "object", additionalProperties: true },
+  },
+  required: ["image"],
+};
+
+export const memberProfileOutputSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: { profile: memberOperationJsonSchema("profile.get") },
+  required: ["profile"],
+};
+
+export const memberListPageOutputSchema =
+  memberOperationJsonSchema("list.page");
+export const memberListingPageOutputSchema =
+  memberOperationJsonSchema("listing.page");
+export const memberImagePageOutputSchema = memberOperationJsonSchema(
+  "image.listForTarget",
+);
+
+export const memberListOutputSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: { list: memberOperationJsonSchema("list.get") },
+  required: ["list"],
+};
+
+export const memberListingOutputSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: { listing: memberOperationJsonSchema("listing.get") },
+  required: ["listing"],
+};
+
+export const memberImageOutputSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: { image: memberOperationJsonSchema("image.get") },
+  required: ["image"],
+};
+
+export const dashboardLinkOutputSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["url", "destination", "title", "canComplete", "nextStep"],
+  properties: {
+    url: { type: "string", format: "uri" },
+    destination: { type: "string" },
+    title: { type: ["string", "null"] },
+    canComplete: { type: "boolean" },
+    nextStep: { type: "string" },
+  },
+};
+
+export const helpOutputSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["results"],
+  properties: {
+    results: {
+      type: "array",
+      items: { type: "object", additionalProperties: true },
+    },
+  },
+};
+
+export function paginatedInputSchema(maxLimit = MAX_LIMIT) {
   return {
     type: "object",
     additionalProperties: false,
     properties: {
       cursor: {
         type: "string",
+        maxLength: 128,
         description:
           "Last seen row id from nextCursor. Keep the same filters and pass this cursor to continue paging.",
       },
       limit: {
         type: "integer",
         minimum: 1,
-        maximum: MAX_LIMIT,
+        maximum: maxLimit,
         default: DEFAULT_LIMIT,
       },
     },
@@ -86,39 +158,24 @@ export function listingSearchInputSchema() {
     type: "object",
     additionalProperties: false,
     properties: {
-      ...paginatedInputSchema().properties,
-      bloomHabit: {
+      ...paginatedInputSchema(MEMBER_MAX_LIMIT).properties,
+      cursor: {
         type: "string",
-        description: "Bloom habit facet value, such as Diurnal or Extended.",
-      },
-      bloomSeason: {
-        type: "string",
-        description: "Bloom season facet value, such as Early, Midseason, or Late.",
-      },
-      color: {
-        type: "string",
+        minLength: 1,
+        maxLength: 130,
         description:
-          "Search linked cultivar color notes. This is better than q for requests like blue, purple eye, or green throat.",
+          "Opaque nextCursor from the previous listing page. Keep the same filters.",
       },
-      cultivarName: {
+      cultivarReferenceId: {
         type: "string",
-        description: "Linked cultivar name text, not listing title text.",
+        maxLength: 128,
+        description:
+          "Exact linked cultivar reference id. Use daylily.search_cultivars to find the id on the local public index, then filter owned listings.",
       },
       description: {
         type: "string",
+        maxLength: 200,
         description: "Listing description text.",
-      },
-      foliageType: {
-        type: "string",
-        description: "Foliage type facet value.",
-      },
-      form: {
-        type: "string",
-        description: "Flower form facet value.",
-      },
-      fragrance: {
-        type: "string",
-        description: "Fragrance facet value.",
       },
       hasPhoto: {
         type: "boolean",
@@ -130,10 +187,6 @@ export function listingSearchInputSchema() {
         description:
           "When true, only listings with a positive price; when false, only listings without a positive price.",
       },
-      hybridizer: {
-        type: "string",
-        description: "Hybridizer text from the linked cultivar record.",
-      },
       linkedToCultivar: {
         type: "boolean",
         description:
@@ -141,16 +194,9 @@ export function listingSearchInputSchema() {
       },
       listId: {
         type: "string",
+        maxLength: 128,
         description:
           "Only listings that belong to this list id. If you only know the list name, call daylily.list_lists first.",
-      },
-      parentage: {
-        type: "string",
-        description: "Parentage text from the linked cultivar record.",
-      },
-      ploidy: {
-        type: "string",
-        description: "Ploidy facet value.",
       },
       priceMax: {
         type: "number",
@@ -162,21 +208,19 @@ export function listingSearchInputSchema() {
       },
       q: {
         type: "string",
+        maxLength: 200,
         description:
-          "Broad text search across listing title, description, private note, cultivar name, hybridizer, color, and parentage. Prefer field-specific filters when the user asks for a specific facet.",
+          "Search owned listing title, description, and private note. Search cultivar details with daylily.search_cultivars, then filter here by cultivarReferenceId.",
       },
       status: {
         type: "string",
+        maxLength: 200,
         description: "Listing status value.",
       },
       title: {
         type: "string",
+        maxLength: 200,
         description: "Listing title text.",
-      },
-      year: {
-        type: "string",
-        description:
-          "Cultivar registration or introduction year text from the linked cultivar record, such as 2010.",
       },
     },
   };
@@ -193,14 +237,17 @@ export function publicListingSearchInputSchema(options?: {
       ...paginatedInputSchema().properties,
       color: {
         type: "string",
+        maxLength: 200,
         description: "Search linked cultivar color notes.",
       },
       cultivarName: {
         type: "string",
+        maxLength: 200,
         description: "Linked cultivar name text.",
       },
       description: {
         type: "string",
+        maxLength: 200,
         description: "Public listing description text.",
       },
       hasPhoto: {
@@ -213,18 +260,22 @@ export function publicListingSearchInputSchema(options?: {
       },
       hybridizer: {
         type: "string",
+        maxLength: 200,
         description: "Hybridizer text from the linked cultivar record.",
       },
       listId: {
         type: "string",
+        maxLength: 128,
         description: "Only listings that belong to this public list id.",
       },
       listTitle: {
         type: "string",
+        maxLength: 200,
         description: "Only listings in a public list with this title text.",
       },
       parentage: {
         type: "string",
+        maxLength: 200,
         description: "Parentage text from the linked cultivar record.",
       },
       priceMax: {
@@ -237,19 +288,23 @@ export function publicListingSearchInputSchema(options?: {
       },
       q: {
         type: "string",
+        maxLength: 200,
         description:
           "Broad public listing search across listing title, description, cultivar name, hybridizer, color, and parentage.",
       },
       sellerSlug: {
         type: "string",
+        maxLength: 128,
         description: "Public seller slug or user id.",
       },
       title: {
         type: "string",
+        maxLength: 200,
         description: "Public listing title text.",
       },
       year: {
         type: "string",
+        maxLength: 200,
         description: "Cultivar registration or introduction year text.",
       },
     },
@@ -264,6 +319,7 @@ export function publicProfileInputSchema() {
     properties: {
       sellerSlug: {
         type: "string",
+        maxLength: 128,
         description: "Public seller profile slug or user id.",
       },
     },
@@ -276,7 +332,7 @@ export function idInputSchema() {
     additionalProperties: false,
     required: ["id"],
     properties: {
-      id: { type: "string" },
+      id: { type: "string", maxLength: 128 },
     },
   };
 }
@@ -287,3 +343,4 @@ export function toolMeta(invoking: string, invoked: string) {
     "openai/toolInvocation/invoked": invoked,
   };
 }
+import { memberOperationJsonSchema } from "@/lib/member-result-contract";

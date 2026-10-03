@@ -7,9 +7,6 @@ const mocks = vi.hoisted(() => ({
       ahs: {
         search: { query: vi.fn() },
       },
-      image: {
-        getPresignedUrl: { mutate: vi.fn() },
-      },
       list: {
         list: { query: vi.fn() },
         get: { query: vi.fn() },
@@ -29,7 +26,7 @@ const mocks = vi.hoisted(() => ({
     setQueryData: vi.fn(),
   },
   addListingToList: vi.fn(),
-  createImage: vi.fn(),
+  push: vi.fn(),
   insertList: vi.fn(),
   insertListing: vi.fn(),
   linkAhs: vi.fn(),
@@ -43,7 +40,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("next/navigation", () => ({
   usePathname: () => mocks.pathname,
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: mocks.push }),
 }));
 
 vi.mock("@clerk/nextjs", () => ({
@@ -69,14 +66,10 @@ vi.mock("@/app/dashboard/_lib/dashboard-db/lists-collection", () => ({
   insertList: mocks.insertList,
 }));
 
-vi.mock("@/app/dashboard/_lib/dashboard-db/images-collection", () => ({
-  createImage: mocks.createImage,
-}));
-
 import { WebMcpProvider } from "@/components/webmcp-provider";
 
 function setModelContext(value: unknown) {
-  Object.defineProperty(navigator, "modelContext", {
+  Object.defineProperty(document, "modelContext", {
     configurable: true,
     value,
   });
@@ -106,12 +99,11 @@ describe("WebMcpProvider", () => {
       "daylily.dashboard-state",
       "daylily.search-cultivars",
       "daylily.update-profile",
-      "daylily.update-profile-content",
       "daylily.create-listing",
       "daylily.update-listing",
+      "daylily.link-cultivar",
       "daylily.create-list",
-      "daylily.prepare-image-upload",
-      "daylily.attach-uploaded-image",
+      "daylily.open-image-editor",
       "daylily.add-listing-to-list",
     ]);
     registerTool.mock.calls.forEach(([tool]) => {
@@ -148,111 +140,60 @@ describe("WebMcpProvider", () => {
     expect(registerTool).not.toHaveBeenCalled();
   });
 
-  test("uses provideContext when registerTool is unavailable", async () => {
-    const provideContext = vi.fn();
-    setModelContext({ provideContext });
-
-    render(<WebMcpProvider />);
-
-    await waitFor(() => {
-      expect(provideContext).toHaveBeenCalled();
-    });
-
-    const provideContextInput = provideContext.mock.calls[0]?.[0];
-    expect(provideContextInput?.tools).toHaveLength(11);
-    expect(provideContextInput?.tools[0]?.name).toBe("daylily.navigate");
-  });
-
-  test("ignores duplicate tool registration errors on dashboard rerenders", async () => {
+  test("unregisters tools before dashboard navigation registration", async () => {
     const registeredToolNames = new Set<string>();
-    const registerTool = vi.fn((tool: { name: string }) => {
-      if (registeredToolNames.has(tool.name)) {
-        throw new DOMException(
-          "Failed to execute 'registerTool' on 'ModelContext': Duplicate tool name",
-          "InvalidStateError",
+    const registerTool = vi.fn(
+      (tool: { name: string }, options: { signal: AbortSignal }) => {
+        if (registeredToolNames.has(tool.name)) {
+          throw new DOMException(
+            "Failed to execute 'registerTool' on 'ModelContext': Duplicate tool name",
+            "InvalidStateError",
+          );
+        }
+        registeredToolNames.add(tool.name);
+        options.signal.addEventListener(
+          "abort",
+          () => registeredToolNames.delete(tool.name),
+          { once: true },
         );
-      }
-      registeredToolNames.add(tool.name);
-    });
+      },
+    );
     setModelContext({ registerTool });
 
     const { rerender } = render(<WebMcpProvider />);
     await waitFor(() => {
-      expect(registerTool).toHaveBeenCalledTimes(11);
+      expect(registerTool).toHaveBeenCalledTimes(10);
     });
 
     mocks.pathname = "/dashboard/listings";
     rerender(<WebMcpProvider />);
 
     await waitFor(() => {
-      expect(registerTool).toHaveBeenCalledTimes(22);
+      expect(registerTool).toHaveBeenCalledTimes(20);
     });
-    expect(registeredToolNames.size).toBe(11);
+    expect(registeredToolNames.size).toBe(10);
   });
 
-  test("does not crash the dashboard when registerTool throws", async () => {
-    const registerTool = vi.fn(() => {
-      throw new Error("host WebMCP registration failed");
-    });
-    setModelContext({ registerTool });
-
-    render(<WebMcpProvider />);
-
-    await waitFor(() => {
-      expect(registerTool).toHaveBeenCalledTimes(11);
-    });
-  });
-
-  test("does not crash the dashboard when provideContext throws", async () => {
-    const provideContext = vi.fn(() => {
-      throw new Error("host WebMCP context failed");
-    });
-    setModelContext({ provideContext });
-
-    render(<WebMcpProvider />);
-
-    await waitFor(() => {
-      expect(provideContext).toHaveBeenCalled();
-    });
-  });
-
-  test("converts plain profile content into EditorJS paragraphs", async () => {
-    const registerTool = vi.fn();
-    setModelContext({ registerTool });
-    mocks.trpcClient.dashboardDb.userProfile.updateContent.mutate.mockResolvedValue(
-      {
-        id: "profile-1",
-      },
+  test("does not crash the dashboard when registerTool rejects", async () => {
+    const registerTool = vi.fn(() =>
+      Promise.reject(new Error("host WebMCP registration failed")),
     );
+    setModelContext({ registerTool });
 
     render(<WebMcpProvider />);
+
     await waitFor(() => {
-      expect(registerTool).toHaveBeenCalled();
+      expect(registerTool).toHaveBeenCalledTimes(10);
     });
-
-    const contentTool = registerTool.mock.calls
-      .map(([tool]) => tool)
-      .find((tool) => tool.name === "daylily.update-profile-content");
-
-    await contentTool.execute({
-      content: "First paragraph.\n\nSecond paragraph.",
-    });
-
-    const mutationInput =
-      mocks.trpcClient.dashboardDb.userProfile.updateContent.mutate.mock
-        .calls[0]?.[0];
-    const parsed = JSON.parse(mutationInput.content);
-
-    expect(parsed.blocks).toMatchObject([
-      { type: "paragraph", data: { text: "First paragraph." } },
-      { type: "paragraph", data: { text: "Second paragraph." } },
-    ]);
   });
 
   test("create-listing returns post-mutation listing state", async () => {
     const registerTool = vi.fn();
     setModelContext({ registerTool });
-    mocks.insertListing.mockResolvedValue({ id: "listing-1" });
+    mocks.insertListing.mockResolvedValue({
+      id: "listing-1",
+      updatedAt: new Date("2026-09-25T12:00:00.000Z"),
+    });
     mocks.trpcClient.dashboardDb.listing.get.query.mockResolvedValue({
       id: "listing-1",
       title: "Updated listing",
@@ -333,7 +274,6 @@ describe("WebMcpProvider", () => {
     expect(updateProfileTool.inputSchema.properties).toMatchObject({
       description: { type: ["string", "null"] },
       location: { type: ["string", "null"] },
-      logoUrl: { type: ["string", "null"] },
     });
     expect(updateListingTool.inputSchema.properties).toMatchObject({
       description: { type: ["string", "null"] },
@@ -342,64 +282,86 @@ describe("WebMcpProvider", () => {
     });
   });
 
-  test("passes ImageAsset metadata when attaching an uploaded image", async () => {
+  test("keeps listing field edits and cultivar links as separate writes", async () => {
     const registerTool = vi.fn();
     setModelContext({ registerTool });
-    mocks.createImage.mockResolvedValue({ id: "image-1" });
+    mocks.linkAhs.mockResolvedValue({
+      id: "listing-1",
+      cultivarReferenceId: "cultivar-1",
+    });
 
     render(<WebMcpProvider />);
-    await waitFor(() => {
-      expect(registerTool).toHaveBeenCalled();
-    });
+    await waitFor(() => expect(registerTool).toHaveBeenCalled());
 
-    const attachImageTool = registerTool.mock.calls
-      .map(([tool]) => tool)
-      .find((tool) => tool.name === "daylily.attach-uploaded-image");
-
-    await attachImageTool.execute({
-      type: "listing",
-      referenceId: "listing-1",
-      url: "https://example.com/uploaded.jpg",
-      key: "user-1/listing-1/uploaded.jpg",
-      imageId: "image-1",
-      r2OriginalKey:
-        "users/user-1/listing-images/listing-1/image-1/original.jpg",
-    });
-
-    expect(mocks.createImage).toHaveBeenCalledWith({
-      type: "listing",
-      referenceId: "listing-1",
-      url: "https://example.com/uploaded.jpg",
-      key: "user-1/listing-1/uploaded.jpg",
-      imageId: "image-1",
-      r2OriginalKey:
-        "users/user-1/listing-images/listing-1/image-1/original.jpg",
-    });
-  });
-
-  test("rejects R2 metadata without an ImageAsset id when attaching an uploaded image", async () => {
-    const registerTool = vi.fn();
-    setModelContext({ registerTool });
-
-    render(<WebMcpProvider />);
-    await waitFor(() => {
-      expect(registerTool).toHaveBeenCalled();
-    });
-
-    const attachImageTool = registerTool.mock.calls
-      .map(([tool]) => tool)
-      .find((tool) => tool.name === "daylily.attach-uploaded-image");
+    const tools = registerTool.mock.calls.map(([tool]) => tool);
+    const updateListingTool = tools.find(
+      (tool) => tool.name === "daylily.update-listing",
+    );
+    const linkCultivarTool = tools.find(
+      (tool) => tool.name === "daylily.link-cultivar",
+    );
+    expect(updateListingTool.inputSchema.properties).not.toHaveProperty(
+      "cultivarReferenceId",
+    );
 
     await expect(
-      attachImageTool.execute({
-        type: "listing",
-        referenceId: "listing-1",
-        url: "https://example.com/uploaded.jpg",
-        key: "user-1/listing-1/uploaded.jpg",
-        r2OriginalKey:
-          "users/user-1/listing-images/listing-1/image-1/original.jpg",
+      updateListingTool.execute({
+        listingId: "listing-1",
+        expectedUpdatedAt: "2026-09-25T12:00:00.000Z",
+        title: "New title",
+        cultivarReferenceId: "cultivar-1",
       }),
-    ).rejects.toThrow("imageId is required with r2OriginalKey.");
-    expect(mocks.createImage).not.toHaveBeenCalled();
+    ).rejects.toThrow("Use daylily.link-cultivar");
+    expect(mocks.linkAhs).not.toHaveBeenCalled();
+    expect(mocks.updateListing).not.toHaveBeenCalled();
+
+    await linkCultivarTool.execute({
+      listingId: "listing-1",
+      cultivarReferenceId: "cultivar-1",
+      syncName: true,
+    });
+    expect(mocks.linkAhs).toHaveBeenCalledWith({
+      id: "listing-1",
+      cultivarReferenceId: "cultivar-1",
+      syncName: true,
+    });
+    expect(mocks.updateListing).not.toHaveBeenCalled();
+  });
+
+  test("opens owned image editors and rejects a foreign listing", async () => {
+    const registerTool = vi.fn();
+    setModelContext({ registerTool });
+    mocks.trpcClient.dashboardDb.listing.get.query.mockResolvedValue({
+      id: "listing-1",
+    });
+    render(<WebMcpProvider />);
+    await waitFor(() => expect(registerTool).toHaveBeenCalled());
+    const tools = registerTool.mock.calls.map(([tool]) => tool);
+    expect(
+      tools.some(
+        (tool) =>
+          tool.name === "daylily.prepare-image-upload" ||
+          tool.name === "daylily.attach-uploaded-image",
+      ),
+    ).toBe(false);
+    const imageEditor = tools.find(
+      (tool) => tool.name === "daylily.open-image-editor",
+    );
+    await imageEditor.execute({ type: "listing", listingId: "listing-1" });
+    expect(mocks.push).toHaveBeenLastCalledWith(
+      "/dashboard/listings?editing=listing-1#listing-images",
+    );
+    await imageEditor.execute({ type: "profile" });
+    expect(mocks.push).toHaveBeenLastCalledWith(
+      "/dashboard/profile#profile-images",
+    );
+    mocks.push.mockClear();
+    mocks.trpcClient.dashboardDb.listing.get.query.mockRejectedValueOnce(
+      new Error("Listing not found"),
+    );
+    await expect(
+      imageEditor.execute({ type: "listing", listingId: "foreign" }),
+    ).rejects.toThrow("Listing not found");
+    expect(mocks.push).not.toHaveBeenCalled();
   });
 });

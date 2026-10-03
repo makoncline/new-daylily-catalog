@@ -14,32 +14,7 @@ import {
   addListingToList,
   insertList,
 } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
-import { createImage } from "@/app/dashboard/_lib/dashboard-db/images-collection";
-
-type JsonSchema = Record<string, unknown>;
-
-interface WebMcpTool {
-  name: string;
-  title: string;
-  description: string;
-  inputSchema: JsonSchema;
-  execute: (input: Record<string, unknown>) => Promise<unknown>;
-  annotations?: {
-    readOnlyHint: boolean;
-    destructiveHint: boolean;
-    openWorldHint: boolean;
-    idempotentHint?: boolean;
-    untrustedContentHint?: boolean;
-  };
-}
-
-interface WebMcpModelContext {
-  registerTool?: (tool: WebMcpTool, options?: { signal?: AbortSignal }) => void;
-  provideContext?: (options: {
-    tools: WebMcpTool[];
-    signal?: AbortSignal;
-  }) => void;
-}
+import { registerWebMcpTools, toolResult, type WebMcpTool } from "@/lib/webmcp";
 
 function asString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -74,37 +49,6 @@ function asNullableNonNegativeNumber(value: unknown, fieldName = "value") {
   return parsed;
 }
 
-function toEditorJsParagraphContent(text: string) {
-  return JSON.stringify({
-    time: Date.now(),
-    blocks: text
-      .split(/\n{2,}/)
-      .map((paragraph) => paragraph.trim())
-      .filter(Boolean)
-      .map((paragraph) => ({
-        id: crypto.randomUUID(),
-        type: "paragraph",
-        data: { text: paragraph },
-      })),
-    version: "2.30.8",
-  });
-}
-
-function toolResult(payload: unknown) {
-  const text = JSON.stringify(payload, null, 2);
-  return {
-    content: [{ type: "text", text }],
-    structuredContent: payload,
-  };
-}
-
-function getModelContext(): WebMcpModelContext | null {
-  const maybeNavigator = navigator as Navigator & {
-    modelContext?: WebMcpModelContext;
-  };
-  return maybeNavigator.modelContext ?? null;
-}
-
 const emptyObjectSchema = {
   type: "object",
   additionalProperties: false,
@@ -122,9 +66,6 @@ export function WebMcpProvider() {
     try {
       if (!pathname.startsWith("/dashboard")) return;
       if (!isLoaded || !isSignedIn) return;
-
-      const modelContext = getModelContext();
-      if (!modelContext) return;
 
       const client = getTrpcClient();
       const queryClient = getQueryClient();
@@ -233,11 +174,16 @@ export function WebMcpProvider() {
           name: "daylily.update-profile",
           title: "Update Seller Profile",
           description:
-            "Create or update the signed-in seller profile fields used for the public catalog card.",
+            "Create or update the signed-in seller profile fields used for the public catalog card. Supply updatedAt from a profile read, or null if no profile exists.",
           inputSchema: {
             type: "object",
             additionalProperties: false,
+            required: ["expectedUpdatedAt"],
             properties: {
+              expectedUpdatedAt: {
+                type: ["string", "null"],
+                format: "date-time",
+              },
               title: {
                 type: "string",
                 description: "Garden or business name.",
@@ -255,10 +201,6 @@ export function WebMcpProvider() {
                 type: ["string", "null"],
                 description: "Public location label. Use null to clear.",
               },
-              logoUrl: {
-                type: ["string", "null"],
-                description: "Optional profile image URL. Use null to clear.",
-              },
             },
           },
           annotations: {
@@ -267,51 +209,26 @@ export function WebMcpProvider() {
             openWorldHint: true,
           },
           execute: async (input) => {
+            const expectedUpdatedAt =
+              input.expectedUpdatedAt === null
+                ? null
+                : asString(input.expectedUpdatedAt);
+            if (expectedUpdatedAt === "") {
+              throw new Error("expectedUpdatedAt is required.");
+            }
             const profile = await client.dashboardDb.userProfile.update.mutate({
+              expectedUpdatedAt,
               data: {
                 title: asOptionalString(input.title),
                 slug: asOptionalString(input.slug),
                 description: asOptionalNullableString(input.description),
                 location: asOptionalNullableString(input.location),
-                logoUrl: asOptionalNullableString(input.logoUrl),
               },
             });
             queryClient.setQueryData(
               [["dashboardDb", "userProfile", "get"], { type: "query" }],
               profile,
             );
-            void queryClient.invalidateQueries();
-            return toolResult({ ok: true, profile });
-          },
-        },
-        {
-          name: "daylily.update-profile-content",
-          title: "Update Seller Profile Content",
-          description:
-            "Update the signed-in seller profile's long-form public story/content from plain paragraphs.",
-          inputSchema: {
-            type: "object",
-            additionalProperties: false,
-            required: ["content"],
-            properties: {
-              content: {
-                type: "string",
-                description:
-                  "Plain-text public profile content. Blank lines become paragraph breaks.",
-              },
-            },
-          },
-          annotations: {
-            readOnlyHint: false,
-            destructiveHint: true,
-            openWorldHint: true,
-          },
-          execute: async (input) => {
-            const content = asString(input.content);
-            const profile =
-              await client.dashboardDb.userProfile.updateContent.mutate({
-                content: content ? toEditorJsParagraphContent(content) : null,
-              });
             void queryClient.invalidateQueries();
             return toolResult({ ok: true, profile });
           },
@@ -377,6 +294,7 @@ export function WebMcpProvider() {
             if (shouldUpdate) {
               await updateListing({
                 id: created.id,
+                expectedUpdatedAt: new Date(created.updatedAt).toISOString(),
                 data: {
                   description: asNullableString(input.description),
                   price,
@@ -394,14 +312,14 @@ export function WebMcpProvider() {
         {
           name: "daylily.update-listing",
           title: "Update Listing",
-          description:
-            "Update a signed-in user's listing fields and optionally link it to a cultivar reference.",
+          description: "Update a signed-in user's listing fields.",
           inputSchema: {
             type: "object",
             additionalProperties: false,
-            required: ["listingId"],
+            required: ["listingId", "expectedUpdatedAt"],
             properties: {
               listingId: { type: "string" },
+              expectedUpdatedAt: { type: "string", format: "date-time" },
               title: { type: "string" },
               description: {
                 type: ["string", "null"],
@@ -417,12 +335,6 @@ export function WebMcpProvider() {
                 description: "Private dashboard note. Use null to clear.",
               },
               hidden: { type: "boolean" },
-              cultivarReferenceId: { type: "string" },
-              syncName: {
-                type: "boolean",
-                description:
-                  "When linking a cultivar, set true to rename the listing to the cultivar name.",
-              },
             },
           },
           annotations: {
@@ -433,19 +345,23 @@ export function WebMcpProvider() {
           execute: async (input) => {
             const id = asString(input.listingId);
             if (!id) throw new Error("listingId is required.");
+            const expectedUpdatedAt = asString(input.expectedUpdatedAt);
+            if (!expectedUpdatedAt) {
+              throw new Error("expectedUpdatedAt is required.");
+            }
             const price =
               input.price === undefined
                 ? undefined
                 : asNullableNonNegativeNumber(input.price, "price");
-            if (input.cultivarReferenceId) {
-              await linkAhs({
-                id,
-                cultivarReferenceId: asString(input.cultivarReferenceId),
-                syncName: input.syncName === true,
-              });
+            if (
+              input.cultivarReferenceId !== undefined ||
+              input.syncName !== undefined
+            ) {
+              throw new Error("Use daylily.link-cultivar for cultivar links.");
             }
             await updateListing({
               id,
+              expectedUpdatedAt,
               data: {
                 title: asOptionalString(input.title),
                 description:
@@ -466,6 +382,46 @@ export function WebMcpProvider() {
               },
             });
             const listing = await client.dashboardDb.listing.get.query({ id });
+            return toolResult({ ok: true, listing });
+          },
+        },
+        {
+          name: "daylily.link-cultivar",
+          title: "Link Cultivar",
+          description:
+            "Link one signed-in user's listing to a cultivar reference. Use daylily.update-listing separately for other fields.",
+          inputSchema: {
+            type: "object",
+            additionalProperties: false,
+            required: ["listingId", "cultivarReferenceId"],
+            properties: {
+              listingId: { type: "string" },
+              cultivarReferenceId: { type: "string" },
+              syncName: {
+                type: "boolean",
+                description:
+                  "Set true to rename the listing to the cultivar name.",
+              },
+            },
+          },
+          annotations: {
+            readOnlyHint: false,
+            destructiveHint: true,
+            openWorldHint: true,
+          },
+          execute: async (input) => {
+            const id = asString(input.listingId);
+            const cultivarReferenceId = asString(input.cultivarReferenceId);
+            if (!id || !cultivarReferenceId) {
+              throw new Error(
+                "listingId and cultivarReferenceId are required.",
+              );
+            }
+            const listing = await linkAhs({
+              id,
+              cultivarReferenceId,
+              syncName: input.syncName === true,
+            });
             return toolResult({ ok: true, listing });
           },
         },
@@ -500,130 +456,49 @@ export function WebMcpProvider() {
           },
         },
         {
-          name: "daylily.prepare-image-upload",
-          title: "Prepare Image Upload",
+          name: "daylily.open-image-editor",
+          title: "Open Image Editor",
           description:
-            "Create signed upload URLs for a profile or listing image. If the result says moderationRequired, call this tool again with the same fields plus imageDataUrl. Upload the file to presignedUrl. When upload.contentMd5 is returned, include Content-MD5 with that value on every upload PUT. If upload.r2 is returned, also upload the same file to upload.r2.presignedUrl before calling daylily.attach-uploaded-image with imageId and r2OriginalKey.",
+            "Open the listing or profile image manager. Choose a file through its labelled file input. Drag the square crop, or use daylily.get-image-crop and daylily.set-image-crop while the cropper is open. Then select Upload. This uses the page's resize, moderation, and storage flow. It does not upload on navigation.",
           inputSchema: {
             type: "object",
             additionalProperties: false,
-            required: ["type", "referenceId", "contentType", "size"],
+            required: ["type"],
             properties: {
-              type: { type: "string", enum: ["profile", "listing"] },
-              referenceId: {
+              type: { type: "string", enum: ["listing", "profile"] },
+              listingId: {
                 type: "string",
                 description:
-                  "Profile id or listing id that will own the image.",
-              },
-              contentType: {
-                type: "string",
-                enum: ["image/jpeg", "image/png", "image/webp"],
-              },
-              size: {
-                type: "integer",
-                minimum: 1,
-                description: "Image file size in bytes.",
-              },
-              imageDataUrl: {
-                type: "string",
-                description:
-                  "The exact image as a base64 data URL when moderation is required.",
+                  "Owned listing ID. Required only for listing photos.",
               },
             },
           },
           annotations: {
-            readOnlyHint: false,
+            readOnlyHint: true,
             destructiveHint: false,
             openWorldHint: false,
-            idempotentHint: false,
           },
           execute: async (input) => {
             const type = asString(input.type);
-            if (type !== "profile" && type !== "listing") {
-              throw new Error("type must be profile or listing.");
-            }
-            const referenceId = asString(input.referenceId);
-            const contentType = asString(input.contentType);
-            const imageDataUrl = asString(input.imageDataUrl);
-            const size =
-              typeof input.size === "number" ? Math.trunc(input.size) : 0;
-            if (
-              !referenceId ||
-              !["image/jpeg", "image/png", "image/webp"].includes(
-                contentType,
-              ) ||
-              size < 1
-            ) {
+            const listingId = asString(input.listingId);
+            let path: string;
+            if (type === "listing" && listingId) {
+              await client.dashboardDb.listing.get.query({ id: listingId });
+              path = `/dashboard/listings?editing=${encodeURIComponent(listingId)}#listing-images`;
+            } else if (type === "profile" && !listingId) {
+              path = "/dashboard/profile#profile-images";
+            } else {
               throw new Error(
-                "referenceId, supported contentType, and positive size are required.",
+                "Provide type=listing with a listingId, or type=profile without one.",
               );
             }
-            const upload =
-              await client.dashboardDb.image.getPresignedUrl.mutate({
-                type,
-                referenceId,
-                contentType: contentType as
-                  | "image/jpeg"
-                  | "image/png"
-                  | "image/webp",
-                size,
-                ...(imageDataUrl ? { imageDataUrl } : {}),
-              });
-            return toolResult({ ok: true, upload });
-          },
-        },
-        {
-          name: "daylily.attach-uploaded-image",
-          title: "Attach Uploaded Image",
-          description:
-            "Attach an image to a profile or listing after it has been uploaded to the Daylily Catalog signed upload URL. If daylily.prepare-image-upload returned upload.r2, include imageId and r2OriginalKey only after the same file has also been uploaded to upload.r2.presignedUrl.",
-          inputSchema: {
-            type: "object",
-            additionalProperties: false,
-            required: ["type", "referenceId", "url", "key"],
-            properties: {
-              type: { type: "string", enum: ["profile", "listing"] },
-              referenceId: {
-                type: "string",
-                description: "Profile id or listing id that owns the image.",
-              },
-              url: { type: "string" },
-              key: { type: "string" },
-              imageId: { type: "string" },
-              r2OriginalKey: { type: "string" },
-            },
-          },
-          annotations: {
-            readOnlyHint: false,
-            destructiveHint: false,
-            openWorldHint: true,
-            idempotentHint: false,
-          },
-          execute: async (input) => {
-            const type = asString(input.type);
-            if (type !== "profile" && type !== "listing") {
-              throw new Error("type must be profile or listing.");
-            }
-            const referenceId = asString(input.referenceId);
-            const url = asString(input.url);
-            const key = asString(input.key);
-            const imageId = asString(input.imageId);
-            const r2OriginalKey = asString(input.r2OriginalKey);
-            if (!referenceId || !url || !key) {
-              throw new Error("referenceId, url, and key are required.");
-            }
-            if (r2OriginalKey && !imageId) {
-              throw new Error("imageId is required with r2OriginalKey.");
-            }
-            const image = await createImage({
-              type,
-              referenceId,
-              url,
-              key,
-              ...(imageId ? { imageId } : {}),
-              ...(r2OriginalKey ? { r2OriginalKey } : {}),
+            router.push(path);
+            return toolResult({
+              ok: true,
+              path,
+              nextStep:
+                "Choose an image, adjust the square crop, and select Upload.",
             });
-            return toolResult({ ok: true, image });
           },
         },
         {
@@ -660,24 +535,7 @@ export function WebMcpProvider() {
         },
       ];
 
-      if (typeof modelContext.registerTool === "function") {
-        for (const tool of tools) {
-          try {
-            modelContext.registerTool(tool, { signal: abortController.signal });
-          } catch (error) {
-            void error;
-          }
-        }
-      } else if (typeof modelContext.provideContext === "function") {
-        try {
-          modelContext.provideContext({
-            tools,
-            signal: abortController.signal,
-          });
-        } catch (error) {
-          void error;
-        }
-      }
+      void registerWebMcpTools(tools, abortController.signal);
     } catch (error) {
       void error;
     }

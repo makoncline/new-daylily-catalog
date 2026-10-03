@@ -227,6 +227,8 @@ export async function withTempAppDb<T>(
     const caller = createCaller(async () => {
       return {
         db,
+        replicaDb: db,
+        hasReplicaDb: true,
         headers: new Headers(),
         _authUser: {
           id: user.id,

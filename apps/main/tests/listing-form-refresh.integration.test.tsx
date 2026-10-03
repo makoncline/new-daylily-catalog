@@ -75,7 +75,9 @@ describe("Listing form refreshed data", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resource.listing = listing();
-    updateListing.mockResolvedValue(undefined);
+    updateListing.mockImplementation(async ({ data }) =>
+      listing({ ...data, updatedAt: new Date("2026-01-03") }),
+    );
   });
 
   it("adopts a late snapshot without creating an unsaved draft", async () => {
@@ -92,6 +94,7 @@ describe("Listing form refreshed data", () => {
     resource.listing = listing({
       title: "Saved name",
       description: "Saved description",
+      updatedAt: new Date("2026-01-02"),
     });
     view.rerender(<ListingForm {...props} />);
 
@@ -104,6 +107,18 @@ describe("Listing form refreshed data", () => {
     expect(screen.getByRole("button", { name: "Save Changes" })).toBeDisabled();
     expect(onPendingChangesChange).toHaveBeenLastCalledWith(false);
     expect(updateListing).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText("Name"), {
+      target: { value: "Edited saved name" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+    await waitFor(() => expect(props.onSave).toHaveBeenCalledOnce());
+    expect(updateListing).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        expectedUpdatedAt: "2026-01-02T00:00:00.000Z",
+        data: expect.objectContaining({ title: "Edited saved name" }),
+      }),
+    );
   });
 
   it("retains changed fields through refresh, failed Save, and rollback", async () => {
@@ -113,7 +128,10 @@ describe("Listing form refreshed data", () => {
     fireEvent.change(screen.getByLabelText("Name"), {
       target: { value: "Draft name" },
     });
-    resource.listing = listing({ description: "Fresh description" });
+    resource.listing = listing({
+      description: "Fresh description",
+      updatedAt: new Date("2026-01-02"),
+    });
     view.rerender(<ListingForm {...props} />);
     await waitFor(() =>
       expect(screen.getByLabelText("Description")).toHaveValue(
@@ -133,10 +151,14 @@ describe("Listing form refreshed data", () => {
     resource.listing = listing({
       title: "Draft name",
       description: "Fresh description",
+      updatedAt: new Date("2026-01-03"),
     });
     view.rerender(<ListingForm {...props} />);
     expect(screen.getByLabelText("Name")).toHaveValue("Draft name");
-    resource.listing = listing({ description: "Fresh description" });
+    resource.listing = listing({
+      description: "Fresh description",
+      updatedAt: new Date("2026-01-02"),
+    });
     view.rerender(<ListingForm {...props} />);
     await act(async () => rejectWrite?.(new Error("Rejected write")));
     await waitFor(() =>
@@ -150,6 +172,7 @@ describe("Listing form refreshed data", () => {
     await waitFor(() => expect(onSave).toHaveBeenCalledOnce());
     expect(updateListing).toHaveBeenLastCalledWith({
       id: "listing-1",
+      expectedUpdatedAt: "2026-01-02T00:00:00.000Z",
       data: {
         title: "Draft name",
         description: "Fresh description",
@@ -171,6 +194,7 @@ describe("Listing form refreshed data", () => {
     resource.listing = listing({
       cultivarReferenceId: "cultivar-1",
       description: "Fresh description",
+      updatedAt: new Date("2026-01-02"),
     });
     view.rerender(<ListingForm {...props} />);
     await waitFor(() =>
@@ -180,5 +204,38 @@ describe("Listing form refreshed data", () => {
     );
     expect(screen.getByLabelText("Name")).toHaveValue("Linked cultivar");
     expect(screen.getByRole("button", { name: "Save Changes" })).toBeEnabled();
+  });
+
+  it("keeps the draft and old version when a refresh changes the same field", async () => {
+    const props = {
+      listingId: "listing-1",
+      onDelete: vi.fn(),
+      onSave: vi.fn(),
+    };
+    const view = render(<ListingForm {...props} />);
+    fireEvent.change(screen.getByLabelText("Name"), {
+      target: { value: "Local name" },
+    });
+    resource.listing = listing({
+      title: "Remote name",
+      updatedAt: new Date("2026-01-02"),
+    });
+    view.rerender(<ListingForm {...props} />);
+    expect(screen.getByLabelText("Name")).toHaveValue("Local name");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Your unsaved fields are still here",
+    );
+    updateListing.mockRejectedValueOnce(
+      new Error("Listing changed. Load the latest version."),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+    await waitFor(() => expect(updateListing).toHaveBeenCalledOnce());
+    expect(updateListing).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        expectedUpdatedAt: "2026-01-01T00:00:00.000Z",
+      }),
+    );
+    expect(props.onSave).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Name")).toHaveValue("Local name");
   });
 });

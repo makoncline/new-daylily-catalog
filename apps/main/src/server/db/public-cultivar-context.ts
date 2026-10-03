@@ -8,7 +8,7 @@ import {
   fromCultivarRouteSegment,
   toCultivarRouteSegment,
 } from "@/lib/utils/cultivar-utils";
-import { replicaDb } from "@/server/db";
+import { publicDb } from "@/server/db";
 import {
   getActiveProUserIdsForUserIds,
   getProUserIds,
@@ -64,7 +64,7 @@ export interface PublicCultivarContext {
 export async function findCultivarReferenceByNormalizedName(
   normalizedName: string,
 ): Promise<PublicCultivarReferenceRecord | null> {
-  const row = await replicaDb.cultivarReference.findFirst({
+  const row = await publicDb.cultivarReference.findFirst({
     where: {
       AND: [
         getCultivarReferenceLookupWhereClause(),
@@ -103,7 +103,7 @@ const routableCultivarWhere = {
 } as const;
 
 export async function getCultivarSitemapEntryCount() {
-  return replicaDb.cultivarReference.count({
+  return publicDb.cultivarReference.count({
     where: routableCultivarWhere,
   });
 }
@@ -116,7 +116,7 @@ export async function getCultivarSitemapEntries(args: {
     segment: string;
   }>
 > {
-  const cultivarReferences = await replicaDb.cultivarReference.findMany({
+  const cultivarReferences = await publicDb.cultivarReference.findMany({
     where: routableCultivarWhere,
     select: {
       normalizedName: true,
@@ -156,7 +156,7 @@ export async function getPublicOfferCultivarSitemapEntryCount() {
     return 0;
   }
 
-  return replicaDb.cultivarReference.count({
+  return publicDb.cultivarReference.count({
     where: getPublicOfferCultivarWhere(proUserIds),
   });
 }
@@ -171,7 +171,7 @@ export async function getPublicOfferCultivarSitemapEntries(args: {
     return [];
   }
 
-  const cultivarReferences = await replicaDb.cultivarReference.findMany({
+  const cultivarReferences = await publicDb.cultivarReference.findMany({
     where: getPublicOfferCultivarWhere(proUserIds),
     select: {
       normalizedName: true,
@@ -228,7 +228,7 @@ async function getPublicCultivarReference(cultivarSegment: string): Promise<{
 }
 
 async function getPublishedCultivarListingRows(cultivarReferenceId: string) {
-  return replicaDb.listing.findMany({
+  return publicDb.listing.findMany({
     where: {
       cultivarReferenceId,
       ...isPublished(),

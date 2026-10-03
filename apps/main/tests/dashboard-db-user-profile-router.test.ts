@@ -19,14 +19,16 @@ beforeAll(async () => {
 
 interface MockDb {
   userProfile: {
-    upsert: ReturnType<typeof vi.fn>;
+    updateMany: ReturnType<typeof vi.fn>;
+    findUniqueOrThrow: ReturnType<typeof vi.fn>;
   };
 }
 
 function createMockDb(): MockDb {
   return {
     userProfile: {
-      upsert: vi.fn(),
+      updateMany: vi.fn(),
+      findUniqueOrThrow: vi.fn(),
     },
   };
 }
@@ -46,14 +48,15 @@ describe("dashboardDb.userProfile", () => {
 
   it("sanitizes EditorJS content before storing it", async () => {
     const db = createMockDb();
-    db.userProfile.upsert.mockImplementation(async (args) => ({
+    db.userProfile.updateMany.mockResolvedValue({ count: 1 });
+    db.userProfile.findUniqueOrThrow.mockImplementation(async () => ({
       id: "profile-1",
       userId: "user-1",
       title: null,
       slug: "user-1",
       logoUrl: null,
       description: null,
-      content: args.create.content,
+      content: null,
       location: null,
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: new Date("2026-01-02T00:00:00.000Z"),
@@ -74,17 +77,46 @@ describe("dashboardDb.userProfile", () => {
       version: "2.30.0",
     });
 
-    await caller.updateContent({ content: unsafeContent });
+    await caller.updateContent({
+      content: unsafeContent,
+      expectedUpdatedAt: "2026-01-02T00:00:00.000Z",
+    });
 
-    const upsertArgs = db.userProfile.upsert.mock.calls[0]?.[0] as {
-      create: { content: string | null };
-      update: { content: string | null };
+    const updateArgs = db.userProfile.updateMany.mock.calls[0]?.[0] as {
+      data: { content: string | null };
+      where: { updatedAt: Date };
     };
-    expect(upsertArgs.create.content).toBe(upsertArgs.update.content);
+    expect(updateArgs.where.updatedAt.toISOString()).toBe(
+      "2026-01-02T00:00:00.000Z",
+    );
 
-    const stored = JSON.parse(upsertArgs.create.content ?? "{}") as {
+    const stored = JSON.parse(updateArgs.data.content ?? "{}") as {
       blocks: Array<{ data: { text: string } }>;
     };
     expect(stored.blocks[0]?.data.text).toBe("Hello <b>world</b>");
+  });
+
+  it("rejects content that exceeds the limit after sanitizing", async () => {
+    const db = createMockDb();
+    const caller = createCaller(db);
+    const content = JSON.stringify({
+      time: 1,
+      blocks: [
+        {
+          id: "paragraph-1",
+          type: "paragraph",
+          data: { text: "&".repeat(8_100) },
+        },
+      ],
+      version: "2.30.8",
+    });
+
+    await expect(
+      caller.updateContent({
+        content,
+        expectedUpdatedAt: "2026-01-02T00:00:00.000Z",
+      }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(db.userProfile.updateMany).not.toHaveBeenCalled();
   });
 });

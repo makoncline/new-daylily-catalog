@@ -5,11 +5,12 @@ import { CreateListButton } from "@/app/dashboard/lists/_components/create-list-
 import { APP_CONFIG } from "@/config/constants";
 
 const mocks = vi.hoisted(() => ({
-  listCount: vi.fn(),
+  listCount: vi.fn<() => { data?: number; isLoading: boolean }>(),
   listings: vi.fn(),
   openCreateList: vi.fn(),
   openCreateListing: vi.fn(),
-  usePro: vi.fn(),
+  usePro: vi.fn<() => { isLoading: boolean; isPro: boolean }>(),
+  optimisticList: false,
 }));
 
 vi.mock("@/hooks/use-pro", () => ({
@@ -19,9 +20,29 @@ vi.mock("@/hooks/use-pro", () => ({
 vi.mock(
   "@/app/dashboard/_lib/dashboard-db/use-seeded-dashboard-db-query",
   () => ({
-    useSeededDashboardDbQuery: mocks.listings,
+    useSeededDashboardDbQuery: ({
+      queryKey,
+    }: {
+      queryKey: readonly string[];
+    }) => {
+      if (queryKey[1] === "lists") {
+        const count = mocks.listCount();
+        return {
+          data: [
+            ...Array(count.data ?? 0).fill({ userId: "user-1" }),
+            ...(mocks.optimisticList ? [{ userId: "" }] : []),
+          ],
+          isReady: !count.isLoading,
+        };
+      }
+      return mocks.listings();
+    },
   }),
 );
+
+vi.mock("@/app/dashboard/_lib/dashboard-db/lists-collection", () => ({
+  listsCollection: {},
+}));
 
 vi.mock("@/app/dashboard/_lib/dashboard-db/listings-collection", () => ({
   listingsCollection: {},
@@ -29,18 +50,6 @@ vi.mock("@/app/dashboard/_lib/dashboard-db/listings-collection", () => ({
 
 vi.mock("@/app/dashboard/_lib/dashboard-timing", () => ({
   logDashboardTiming: vi.fn(),
-}));
-
-vi.mock("@/trpc/react", () => ({
-  api: {
-    dashboardDb: {
-      list: {
-        count: {
-          useQuery: mocks.listCount,
-        },
-      },
-    },
-  },
 }));
 
 vi.mock("@/components/checkout-button", () => ({
@@ -51,6 +60,7 @@ describe("dashboard create buttons", () => {
   beforeEach(() => {
     mocks.openCreateList.mockReset();
     mocks.openCreateListing.mockReset();
+    mocks.optimisticList = false;
   });
 
   it("disables listing and list creation until account data is loaded", () => {
@@ -116,5 +126,16 @@ describe("dashboard create buttons", () => {
     fireEvent.click(screen.getByRole("button", { name: "Create List" }));
     expect(screen.getByRole("dialog")).toHaveTextContent("Upgrade to Pro");
     expect(mocks.openCreateList).not.toHaveBeenCalled();
+  });
+
+  it("keeps creation eligible while a free member's first list is pending", () => {
+    mocks.usePro.mockReturnValue({ isLoading: false, isPro: false });
+    mocks.listCount.mockReturnValue({ data: 0, isLoading: false });
+    mocks.optimisticList = true;
+    render(<CreateListButton onCreate={mocks.openCreateList} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Create List" }));
+    expect(mocks.openCreateList).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 });

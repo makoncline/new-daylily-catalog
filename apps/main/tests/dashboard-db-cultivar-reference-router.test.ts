@@ -85,6 +85,8 @@ function createRawV2CultivarReference(
 function createCaller(db: MockDb) {
   return dashboardDbCultivarReferenceRouter.createCaller({
     db: db as unknown as TRPCInternalContext["db"],
+    replicaDb: db as unknown as TRPCInternalContext["replicaDb"],
+    hasReplicaDb: true,
     _authUser: { id: "user-1" } as unknown as TRPCInternalContext["_authUser"],
     headers: new Headers(),
   });

@@ -182,7 +182,7 @@ export async function insertListing(draft: InsertDraft) {
 
 type UpdateDraft = RouterInputs["dashboardDb"]["listing"]["update"];
 export async function updateListing(draft: UpdateDraft) {
-  await runWithDashboardRefreshLock(async () => {
+  return runWithDashboardRefreshLock(async () => {
     const previous = listingsCollection.get(draft.id);
 
     listingsCollection.utils.writeUpdate({
@@ -194,6 +194,7 @@ export async function updateListing(draft: UpdateDraft) {
       const updated =
         await getTrpcClient().dashboardDb.listing.update.mutate(draft);
       listingsCollection.utils.writeUpdate(updated);
+      return updated;
     } catch (error) {
       if (previous) listingsCollection.utils.writeUpdate(previous);
       throw error;
@@ -214,6 +215,42 @@ export async function deleteListing({ id }: { id: string }) {
       DELETED_IDS.delete(id);
       throw error;
     }
+  });
+}
+
+export async function loadMissingListing(id: string) {
+  await runWithDashboardRefreshLock(async () => {
+    const listing = await getTrpcClient().dashboardDb.listing.get.query({ id });
+    if (listing.cultivarReferenceId) {
+      await ensureCultivarReferencesCached([listing.cultivarReferenceId]);
+    }
+    if (listingsCollection.get(id)) {
+      listingsCollection.utils.writeUpdate(listing);
+    } else {
+      listingsCollection.utils.writeInsert(listing);
+    }
+  });
+}
+
+export async function loadListingsByIds(ids: string[]) {
+  await runWithDashboardRefreshLock(async () => {
+    const listings = await getTrpcClient().dashboardDb.listing.getByIds.query({
+      ids,
+    });
+    await ensureCultivarReferencesCached(
+      listings.flatMap((listing) =>
+        listing.cultivarReferenceId ? [listing.cultivarReferenceId] : [],
+      ),
+    );
+    listingsCollection.utils.writeBatch(() => {
+      for (const listing of listings) {
+        if (listingsCollection.get(listing.id)) {
+          listingsCollection.utils.writeUpdate(listing);
+        } else {
+          listingsCollection.utils.writeInsert(listing);
+        }
+      }
+    });
   });
 }
 

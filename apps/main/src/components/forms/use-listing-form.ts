@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState, type RefObject } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import { flushSync } from "react-dom";
 import { toast } from "sonner";
 import {
@@ -21,15 +27,19 @@ import { STATUS } from "@/config/constants";
 import {
   type ListingCollectionItem,
   deleteListing,
+  loadMissingListing,
+  listingsCollection,
   updateListing,
 } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
 import {
   addListingToList,
   removeListingFromList,
 } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
+import { rebaseFormValues } from "@/lib/rebase-form-values";
 
 export interface ListingFormProps {
   listingId: string;
+  openDeleteOnMount?: boolean;
   onDelete: () => void;
   onSave: () => void;
   onPendingChangesChange?: (hasPendingChanges: boolean) => void;
@@ -70,6 +80,7 @@ function areListingValuesEqual(
 
 export function useListingFormController({
   listingId,
+  openDeleteOnMount,
   listing,
   selectedListIds,
   onDelete,
@@ -78,6 +89,7 @@ export function useListingFormController({
   formRef,
 }: {
   listingId: string;
+  openDeleteOnMount?: boolean;
   listing: ListingCollectionItem;
   selectedListIds: string[];
   onDelete: () => void;
@@ -86,6 +98,8 @@ export function useListingFormController({
   formRef?: RefObject<ListingFormHandle | null>;
 }) {
   const [isSaving, setIsSaving] = useState(false);
+  const [hasRemoteChange, setHasRemoteChange] = useState(false);
+  const committedListingRef = useRef(listing);
   const {
     markNeedsParentCommit,
     needsParentCommit,
@@ -95,8 +109,7 @@ export function useListingFormController({
 
   const form = useZodForm({
     schema: listingFormSchema,
-    values: toFormValues(listing),
-    resetOptions: { keepDirtyValues: true },
+    defaultValues: toFormValues(listing),
   });
   const { dirtyFields } = form.formState;
   const {
@@ -123,16 +136,39 @@ export function useListingFormController({
       });
     },
   });
+  useEffect(() => {
+    if (openDeleteOnMount) openDeleteDialog();
+  }, [openDeleteOnMount, openDeleteDialog]);
   const isBusy = isSaving || isDeletePending;
 
   const hasPendingChanges = useCallback(() => {
     const values = form.getValues();
-    const committedValues = toFormValues(listing);
+    const committedValues = toFormValues(committedListingRef.current);
     return (
       !areListingValuesEqual(values, committedValues) ||
       needsParentCommitRef.current
     );
-  }, [form, listing, needsParentCommitRef]);
+  }, [form, needsParentCommitRef]);
+
+  const handleCultivarMutation = useCallback(
+    (updated: ListingCollectionItem) => {
+      const rebased = rebaseFormValues(
+        form.getValues(),
+        toFormValues(committedListingRef.current),
+        toFormValues(updated),
+      );
+      if (!rebased) {
+        setHasRemoteChange(true);
+        markNeedsParentCommit();
+        return;
+      }
+      committedListingRef.current = updated;
+      form.reset(rebased, { keepIsValid: true });
+      setHasRemoteChange(false);
+      markNeedsParentCommit();
+    },
+    [form, markNeedsParentCommit],
+  );
 
   const { saveChanges } = useManagedFormSave<
     ListingFormSaveReason,
@@ -143,12 +179,28 @@ export function useListingFormController({
     save: useCallback(
       async (reason: ListingFormSaveReason): Promise<boolean> => {
         const values = form.getValues();
-        const committedValues = toFormValues(listing);
+        const committedValues = toFormValues(committedListingRef.current);
         const hasFieldPending = !areListingValuesEqual(values, committedValues);
         const shouldCommitParent =
           hasFieldPending || needsParentCommitRef.current;
 
         if (!shouldCommitParent) {
+          return true;
+        }
+        if (!hasFieldPending) {
+          if (
+            new Date(listing.updatedAt).getTime() >
+            new Date(committedListingRef.current.updatedAt).getTime()
+          ) {
+            committedListingRef.current = listing;
+            form.reset(toFormValues(listing), { keepIsValid: true });
+          }
+          resetNeedsParentCommit();
+          setHasRemoteChange(false);
+          if (reason === "manual") {
+            toast.success("Changes saved");
+            onSave();
+          }
           return true;
         }
 
@@ -170,11 +222,16 @@ export function useListingFormController({
         }
 
         try {
-          await updateListing({
+          const updated = await updateListing({
             id: listing.id,
+            expectedUpdatedAt: new Date(
+              committedListingRef.current.updatedAt,
+            ).toISOString(),
             data: values,
           });
 
+          committedListingRef.current = updated;
+          setHasRemoteChange(false);
           resetNeedsParentCommit();
           if (shouldUpdateUi) {
             form.reset(values, { keepIsValid: true });
@@ -185,6 +242,9 @@ export function useListingFormController({
           }
           return true;
         } catch (error) {
+          if (getErrorMessage(error).includes("changed. Load the latest")) {
+            setHasRemoteChange(true);
+          }
           if (shouldUpdateUi) {
             toast.error("Failed to save changes", {
               description: getErrorMessage(error),
@@ -220,6 +280,44 @@ export function useListingFormController({
     needsParentCommit,
     onPendingChangesChange,
   ]);
+
+  useEffect(() => {
+    if (isSaving) return;
+    const currentVersion = new Date(committedListingRef.current.updatedAt);
+    const incomingVersion = new Date(listing.updatedAt);
+    if (incomingVersion <= currentVersion) return;
+    const rebased = rebaseFormValues(
+      form.getValues(),
+      toFormValues(committedListingRef.current),
+      toFormValues(listing),
+    );
+    if (!rebased) {
+      setHasRemoteChange(true);
+      return;
+    }
+    committedListingRef.current = listing;
+    setHasRemoteChange(false);
+    form.reset(rebased, { keepIsValid: true });
+  }, [form, isSaving, listing]);
+
+  const discardDraftAndLoadLatest = useCallback(async () => {
+    setIsSaving(true);
+    try {
+      await loadMissingListing(listingId);
+      const latest = listingsCollection.get(listingId);
+      if (!latest) throw new Error("Listing not found.");
+      committedListingRef.current = latest;
+      form.reset(toFormValues(latest), { keepIsValid: true });
+      resetNeedsParentCommit();
+      setHasRemoteChange(false);
+    } catch (error) {
+      toast.error("Failed to load the latest listing", {
+        description: getErrorMessage(error),
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  }, [form, listingId, resetNeedsParentCommit]);
 
   async function onSubmit() {
     await saveChanges("manual");
@@ -264,6 +362,9 @@ export function useListingFormController({
     isSaving,
     isDeleteDialogOpen,
     markNeedsParentCommit,
+    handleCultivarMutation,
+    hasRemoteChange,
+    discardDraftAndLoadLatest,
     onSubmit,
     openDeleteDialog,
     setIsDeleteDialogOpen,

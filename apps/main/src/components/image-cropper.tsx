@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ReactCrop, {
   type PixelCrop,
   type PercentCrop,
   centerCrop,
+  convertToPixelCrop,
   makeAspectCrop,
 } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
@@ -12,7 +13,12 @@ import { Button } from "./ui/button";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
-import { getErrorMessage, normalizeError } from "@/lib/error-utils";
+import { useImageCropWebMcp } from "@/hooks/use-image-crop-webmcp";
+import {
+  getErrorMessage,
+  normalizeError,
+  reportError,
+} from "@/lib/error-utils";
 
 async function getCroppedBlob(
   image: HTMLImageElement,
@@ -27,10 +33,8 @@ async function getCroppedBlob(
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("2D context not found");
 
-  const scaleX = image.naturalWidth / image.width;
-  const scaleY = image.naturalHeight / image.height;
-  const sourceWidth = Math.floor(crop.width * scaleX);
-  const sourceHeight = Math.floor(crop.height * scaleY);
+  const sourceWidth = Math.round(crop.width);
+  const sourceHeight = Math.round(crop.height);
   const maxOutputPx = options?.maxOutputPx ?? 1600;
   const outputScale = Math.min(
     1,
@@ -41,8 +45,8 @@ async function getCroppedBlob(
 
   ctx.drawImage(
     image,
-    crop.x * scaleX,
-    crop.y * scaleY,
+    Math.round(crop.x),
+    Math.round(crop.y),
     sourceWidth,
     sourceHeight,
     0,
@@ -72,10 +76,6 @@ interface ImageCropperProps {
   confirmButtonLabel?: string;
 }
 
-// This approach:
-// 1. Uses % cropping plus built-in helpers (centerCrop, makeAspectCrop).
-// 2. Dynamically calculates minWidth/minHeight in displayed px, ensuring the final crop is never below `minPx` in the full-res image.
-// 3. Recomputes upon window resize so the min crop adapts to any layout changes.
 export function ImageCropper({
   src,
   minPx = 300,
@@ -92,52 +92,46 @@ export function ImageCropper({
   const [naturalDims, setNaturalDims] = useState({ w: 0, h: 0 });
   const [displayDims, setDisplayDims] = useState({ w: 0, h: 0 });
   const imageRef = useRef<HTMLImageElement | null>(null);
-  const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // Measure displayed image on load and create a large centered square crop in %.
-  const handleImageLoad = useCallback(
-    (e: React.SyntheticEvent<HTMLImageElement>) => {
-      const { naturalWidth, naturalHeight } = e.currentTarget;
-      setNaturalDims({ w: naturalWidth, h: naturalHeight });
-      setDisplayDims({
-        w: (e.currentTarget as HTMLImageElement).width,
-        h: (e.currentTarget as HTMLImageElement).height,
-      });
+  const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const { naturalWidth, naturalHeight } = e.currentTarget;
+    setNaturalDims({ w: naturalWidth, h: naturalHeight });
+    setDisplayDims({
+      w: (e.currentTarget as HTMLImageElement).width,
+      h: (e.currentTarget as HTMLImageElement).height,
+    });
 
-      const aspect = 1;
-      const initial = centerCrop(
-        makeAspectCrop(
-          {
-            unit: "%",
-            width: 90, // Start at 90% of whichever dimension is smaller
-          },
-          aspect,
-          naturalWidth,
-          naturalHeight,
-        ),
+    const shortestSide = Math.min(naturalWidth, naturalHeight);
+    const size = Math.max(
+      Math.min(minPx, shortestSide),
+      Math.floor(shortestSide * 0.9),
+    );
+    const initial = centerCrop(
+      makeAspectCrop(
+        {
+          unit: "%",
+          width: (size / naturalWidth) * 100,
+        },
+        1,
         naturalWidth,
         naturalHeight,
-      );
+      ),
+      naturalWidth,
+      naturalHeight,
+    );
 
-      setCrop(initial);
-      setInitialCrop(initial);
-    },
-    [],
-  );
+    setCrop(initial);
+    setInitialCrop(initial);
+  };
 
-  // Re-measure displayed width/height on window resize,
-  // so minWidth/minHeight can adapt. This uses a simple window resize approach.
   useEffect(() => {
-    function handleResize() {
-      if (imageRef.current) {
-        setDisplayDims({
-          w: imageRef.current.width,
-          h: imageRef.current.height,
-        });
-      }
-    }
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    const image = imageRef.current;
+    if (!image) return;
+    const observer = new ResizeObserver(() => {
+      setDisplayDims({ w: image.width, h: image.height });
+    });
+    observer.observe(image);
+    return () => observer.disconnect();
   }, []);
 
   // Dynamically compute the minWidth in displayed px
@@ -147,21 +141,29 @@ export function ImageCropper({
   const dynamicMin = (() => {
     if (!naturalDims.w || !displayDims.w) return 0;
     const ratio = displayDims.w / naturalDims.w; // how much the image is scaled down
-    return minPx * ratio; // min displayed px to ensure final crop is at least minPx
+    return Math.min(minPx, naturalDims.w, naturalDims.h) * ratio;
   })();
+
+  useImageCropWebMcp({
+    crop,
+    width: naturalDims.w,
+    height: naturalDims.h,
+    minPx,
+    maxOutputPx,
+    isDisabled,
+    onChange: setCrop,
+  });
 
   const handleCompleteCrop = async () => {
     const img = imageRef.current;
     if (!img || !crop) return;
 
     try {
-      const pxCrop: PixelCrop = {
-        unit: "px",
-        x: (crop.x / 100) * displayDims.w,
-        y: (crop.y / 100) * displayDims.h,
-        width: (crop.width / 100) * displayDims.w,
-        height: (crop.height / 100) * displayDims.h,
-      };
+      const pxCrop = convertToPixelCrop(
+        crop,
+        img.naturalWidth,
+        img.naturalHeight,
+      );
 
       const blob = await getCroppedBlob(img, pxCrop, mimeType, {
         maxOutputPx,
@@ -184,7 +186,7 @@ export function ImageCropper({
   };
 
   return (
-    <div ref={containerRef} className="flex flex-col gap-4">
+    <div role="group" aria-label="Image crop" className="flex flex-col gap-4">
       <div className="relative overflow-hidden rounded-lg border">
         <ReactCrop
           crop={crop}
@@ -208,9 +210,9 @@ export function ImageCropper({
             src={src}
             alt="Crop preview"
             onLoad={handleImageLoad}
-            className="block max-h-125 w-full object-contain"
-            width={1920}
-            height={1080}
+            className="block h-auto max-h-125 w-auto max-w-full"
+            width={naturalDims.w || 1920}
+            height={naturalDims.h || 1080}
             unoptimized
           />
         </ReactCrop>
@@ -235,7 +237,7 @@ export function ImageCropper({
         <Button
           type="button"
           onClick={handleCompleteCrop}
-          disabled={isDisabled ?? !crop}
+          disabled={!crop || isDisabled === true}
         >
           {confirmButtonLabel}
         </Button>

@@ -1,6 +1,8 @@
 import type { OutputData } from "@editorjs/editorjs";
+import { Prisma } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
-import { replicaDb } from "@/server/db";
+import { publicDb } from "@/server/db";
+import { STATUS } from "@/config/constants";
 import { getLatestDate } from "@/server/db/public-date-utils";
 import {
   getActiveProUserIdsForUserIds,
@@ -109,8 +111,11 @@ function buildPublicSellerProfile(args: {
   };
 }
 
-export async function getUserIdFromSlugOrId(slugOrId: string): Promise<string> {
-  const profile = await replicaDb.userProfile.findFirst({
+export async function getUserIdFromSlugOrId(
+  slugOrId: string,
+  database: typeof publicDb = publicDb,
+): Promise<string> {
+  const profile = await database.userProfile.findFirst({
     where: {
       slug: slugOrId.toLowerCase(),
     },
@@ -121,7 +126,7 @@ export async function getUserIdFromSlugOrId(slugOrId: string): Promise<string> {
     return profile.userId;
   }
 
-  const user = await replicaDb.user.findUnique({
+  const user = await database.user.findUnique({
     where: { id: slugOrId },
     select: { id: true },
   });
@@ -140,7 +145,7 @@ export async function getListingIdFromSlugOrId(
   slugOrId: string,
   userId: string,
 ): Promise<string> {
-  const listingBySlug = await replicaDb.listing.findFirst({
+  const listingBySlug = await publicDb.listing.findFirst({
     where: {
       userId,
       slug: slugOrId.toLowerCase(),
@@ -153,7 +158,7 @@ export async function getListingIdFromSlugOrId(
     return listingBySlug.id;
   }
 
-  const listingById = await replicaDb.listing.findFirst({
+  const listingById = await publicDb.listing.findFirst({
     where: {
       id: slugOrId,
       userId,
@@ -175,7 +180,7 @@ export async function getListingIdFromSlugOrId(
 export async function getPublicSellerSummariesByUserIds(
   userIds: string[],
   options?: PublicSellerSummaryOptions,
-  database: typeof replicaDb = replicaDb,
+  database: typeof publicDb = publicDb,
 ) {
   if (userIds.length === 0) {
     return new Map<string, PublicSellerSummary>();
@@ -319,37 +324,32 @@ async function getPublicSellerListSummariesByUserIds(userIds: string[]) {
     return grouped;
   }
 
-  const rows = await replicaDb.list.findMany({
-    where: {
-      ...isPublicList(),
-      userId: {
-        in: userIds,
-      },
-    },
-    select: {
-      id: true,
-      userId: true,
-      title: true,
-      description: true,
-      _count: {
-        select: {
-          listings: {
-            where: isPublished(),
-          },
-        },
-      },
-    },
-    orderBy: [
-      {
-        listings: {
-          _count: "desc",
-        },
-      },
-      {
-        title: "asc",
-      },
-    ],
-  });
+  const rows = await publicDb.$queryRaw<
+    Array<{
+      id: string;
+      userId: string;
+      title: string;
+      description: string | null;
+      listingCount: number | bigint;
+    }>
+  >(Prisma.sql`
+    SELECT l.id, l.userId, l.title, l.description,
+      (
+        SELECT COUNT(*)
+        FROM _ListToListing AS relation INDEXED BY _ListToListing_AB_unique
+        JOIN Listing AS listing ON listing.id = relation.B
+        WHERE relation.A = l.id
+          AND (listing.status IS NULL OR listing.status <> ${STATUS.HIDDEN})
+      ) AS listingCount
+    FROM List AS l INDEXED BY List_userId_id_idx
+    WHERE l.userId IN (${Prisma.join(userIds)})
+      AND (l.status IS NULL OR l.status <> ${STATUS.HIDDEN})
+    ORDER BY (
+      SELECT COUNT(*)
+      FROM _ListToListing AS relation INDEXED BY _ListToListing_AB_unique
+      WHERE relation.A = l.id
+    ) DESC, l.title ASC
+  `);
 
   rows.forEach((row) => {
     const summaries = grouped.get(row.userId) ?? [];
@@ -357,7 +357,7 @@ async function getPublicSellerListSummariesByUserIds(userIds: string[]) {
       id: row.id,
       title: row.title,
       description: row.description ?? null,
-      listingCount: row._count.listings,
+      listingCount: Number(row.listingCount),
     });
     grouped.set(row.userId, summaries);
   });
@@ -371,7 +371,7 @@ export async function getPublicSellerListSummaries(userId: string) {
 }
 
 export async function getPublicSellerContent(userId: string) {
-  const profile = await replicaDb.userProfile.findUnique({
+  const profile = await publicDb.userProfile.findUnique({
     where: {
       userId,
     },
@@ -385,8 +385,15 @@ export async function getPublicSellerContent(userId: string) {
 
 export async function getPublicProfile(userSlugOrId: string) {
   const userId = await getUserIdFromSlugOrId(userSlugOrId);
+  return getPublicProfileByUserId(userId);
+}
+
+export async function getPublicProfileByUserId(
+  userId: string,
+  options?: PublicSellerSummaryOptions,
+) {
   const [summary, content, lists] = await Promise.all([
-    getPublicSellerSummary(userId),
+    getPublicSellerSummary(userId, options),
     getPublicSellerContent(userId),
     getPublicSellerListSummaries(userId),
   ]);

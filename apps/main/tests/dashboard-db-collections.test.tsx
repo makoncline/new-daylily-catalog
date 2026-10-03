@@ -1,5 +1,5 @@
 import React from "react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { useLiveQuery } from "@tanstack/react-db";
 import { createTRPCProxyClient, type TRPCLink } from "@trpc/client";
@@ -7,6 +7,23 @@ import { observable } from "@trpc/server/observable";
 import type { AppRouter } from "@/server/api/root";
 import type { TRPCInternalContext } from "@/server/api/trpc";
 import { callerLink, withTempAppDb } from "@/lib/test-utils/app-test-db";
+
+vi.mock("@/server/services/legacy-image-storage", async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import("@/server/services/legacy-image-storage")
+    >();
+  return {
+    ...actual,
+    getLegacyS3Client: () => ({
+      send: async (command: { input: { Bucket: string; Key: string } }) => {
+        expect(command.input.Bucket).toBe("daylily-catalog-images-test");
+        expect(command.input.Key).toMatch(/\/u[12]\.jpg$/);
+        return { ContentLength: 4, ContentType: "image/jpeg" };
+      },
+    }),
+  };
+});
 
 beforeEach(() => {
   localStorage.clear();
@@ -525,8 +542,11 @@ describe("dashboardDb TanStack DB collections", () => {
       act(() => {
         updatePromise = updateListing({
           id: seeded.id,
+          expectedUpdatedAt: new Date(
+            listingsCollection.get(seeded.id)!.updatedAt,
+          ).toISOString(),
           data: { title: "Beta" },
-        });
+        }).then(() => undefined);
       });
 
       await waitFor(() => {
@@ -664,6 +684,9 @@ describe("dashboardDb TanStack DB collections", () => {
       let updateResolved = false;
       const updatePromise = updateListing({
         id: seeded.id,
+        expectedUpdatedAt: new Date(
+          listingsCollection.get(seeded.id)!.updatedAt,
+        ).toISOString(),
         data: { title: "Beta" },
       }).then(() => {
         updateResolved = true;
@@ -722,6 +745,9 @@ describe("dashboardDb TanStack DB collections", () => {
       await act(async () => {
         await updateListing({
           id: createdId,
+          expectedUpdatedAt: new Date(
+            listingsCollection.get(createdId)!.updatedAt,
+          ).toISOString(),
           data: { title: "Hello Updated" },
         });
       });
@@ -887,11 +913,14 @@ describe("dashboardDb TanStack DB collections", () => {
         await act(async () => {
           updatePromise = updateList({
             id: seeded.id,
+            expectedUpdatedAt: new Date(
+              listsCollection.get(seeded.id)!.updatedAt,
+            ).toISOString(),
             data: {
               title: undefined,
               description: "Updated description",
             },
-          });
+          }).then(() => undefined);
         });
 
         await waitFor(() => {
@@ -1132,6 +1161,86 @@ describe("dashboardDb TanStack DB collections", () => {
           "AHS-Alpha:AHS-Alpha",
         );
       });
+    });
+  }, 15_000);
+
+  it("loads cultivar references before publishing point-fetched listings", async () => {
+    await withTempAppDb(async ({ user }) => {
+      const { db } = await import("@/server/db");
+      const {
+        listingsCollection,
+        initializeListingsCollection,
+        loadMissingListing,
+        loadListingsByIds,
+      } = await import("@/app/dashboard/_lib/dashboard-db/listings-collection");
+      const {
+        cultivarReferencesCollection,
+        initializeCultivarReferencesCollection,
+      } = await import(
+        "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection"
+      );
+
+      await initializeListingsCollection(user.id);
+      await initializeCultivarReferencesCollection(user.id);
+      const cultivar = await db.v2AhsCultivar.create({
+        data: {
+          id: "v2-point-load",
+          post_title: "Point Load Cultivar",
+          link_normalized_name: "point-load-cultivar",
+        },
+      });
+      const reference = await db.cultivarReference.create({
+        data: {
+          v2AhsCultivarId: cultivar.id,
+          normalizedName: "point-load-cultivar",
+        },
+      });
+      const secondCultivar = await db.v2AhsCultivar.create({
+        data: {
+          id: "v2-batch-load",
+          post_title: "Batch Load Cultivar",
+          link_normalized_name: "batch-load-cultivar",
+        },
+      });
+      const secondReference = await db.cultivarReference.create({
+        data: {
+          v2AhsCultivarId: secondCultivar.id,
+          normalizedName: "batch-load-cultivar",
+        },
+      });
+      const first = await db.listing.create({
+        data: {
+          userId: user.id,
+          title: "First remote listing",
+          slug: "first-remote-listing",
+          cultivarReferenceId: reference.id,
+        },
+      });
+      const second = await db.listing.create({
+        data: {
+          userId: user.id,
+          title: "Second remote listing",
+          slug: "second-remote-listing",
+          cultivarReferenceId: secondReference.id,
+        },
+      });
+      expect(cultivarReferencesCollection.get(reference.id)).toBeUndefined();
+
+      await act(async () => loadMissingListing(first.id));
+      expect(listingsCollection.get(first.id)?.cultivarReferenceId).toBe(
+        reference.id,
+      );
+      expect(
+        cultivarReferencesCollection.get(reference.id)?.ahsListing?.name,
+      ).toBe("Point Load Cultivar");
+
+      await act(async () => loadListingsByIds([second.id]));
+      expect(listingsCollection.get(second.id)?.cultivarReferenceId).toBe(
+        secondReference.id,
+      );
+      expect(
+        cultivarReferencesCollection.get(secondReference.id)?.ahsListing?.name,
+      ).toBe("Batch Load Cultivar");
     });
   }, 15_000);
 });

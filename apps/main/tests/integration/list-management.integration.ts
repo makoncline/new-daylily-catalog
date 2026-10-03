@@ -196,3 +196,74 @@ for (const [device, viewport] of [
     await expect(page.getByTestId("listing-table")).toContainText(listingTitle);
   });
 }
+
+test("cancelled removal review stays closed after selection and filter changes", async ({
+  page,
+}) => {
+  const titles = ["Existing Bloom", "Integration Media Listing"];
+  const lists = new DashboardLists(page);
+  const manageList = new ManageListPage(page);
+  await lists.goto();
+  await lists.isReady();
+  await lists.createListButton.click();
+  const createSurface = lists.createSurface();
+  await createSurface.getByLabel("Title").fill("Integration Removal Review");
+  await createSurface
+    .getByRole("button", { name: "Create List", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/dashboard\/lists\?editing=[^&]+$/);
+  const listId = new URL(page.url()).searchParams.get("editing");
+  if (!listId) throw new Error("Expected the created review list ID.");
+  await manageList.goto(listId);
+  await expect(manageList.addListingsTrigger).toBeVisible();
+  for (const title of titles) {
+    await manageList.openAddListingsDialog();
+    await manageList.searchAddListings(title);
+    await manageList.selectListingToAdd(title);
+    await expect(manageList.listingRow(title)).toBeVisible();
+  }
+  await manageList.saveChanges();
+  await expect(manageList.saveChangesButton).toBeDisabled();
+
+  await page.goto(
+    `/dashboard/lists/${listId}?remove=integration-existing-listing,integration-media-listing`,
+  );
+  const dialog = page.getByRole("alertdialog");
+  await expect(dialog).toContainText(titles[0]!);
+  await expect(dialog).toContainText(titles[1]!);
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(dialog).toBeHidden();
+
+  await manageList
+    .listingRow(titles[0]!)
+    .getByRole("checkbox", { name: "Select row" })
+    .click();
+  await expect(manageList.removeSelectedButton()).toHaveText(
+    "Remove 1 selected",
+  );
+  await expect(dialog).toBeHidden();
+  await manageList.setGlobalSearch(titles[0]!);
+  await expect(manageList.removeSelectedButton()).toHaveCount(0);
+  await manageList.setGlobalSearch("");
+  await expect(manageList.removeSelectedButton()).toHaveText(
+    "Remove 1 selected",
+  );
+  await expect(dialog).toBeHidden();
+  await manageList.listingsTable
+    .getByRole("checkbox", { name: "Select all", exact: true })
+    .click();
+  await expect(manageList.removeSelectedButton()).toHaveText(
+    "Remove 2 selected",
+  );
+  await expect(dialog).toBeHidden();
+
+  await manageList.clickRemoveSelected();
+  await expect(dialog).toContainText(titles[0]!);
+  await expect(dialog).toContainText(titles[1]!);
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await manageList.goto(listId);
+  await manageList.isReady();
+  for (const title of titles) {
+    await expect(manageList.listingRow(title)).toBeVisible();
+  }
+});

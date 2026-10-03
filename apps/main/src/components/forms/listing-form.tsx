@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FieldDescription, FieldGroup } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
@@ -19,6 +20,7 @@ import {
   type ListingFormProps,
 } from "@/components/forms/use-listing-form";
 import { useListingEditorResource } from "@/hooks/use-listing-editor-resource";
+import { loadMissingListing } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
 
 type ListingEditorProps = ListingFormProps & {
   resource: ReturnType<typeof useListingEditorResource> & {
@@ -45,6 +47,9 @@ function ListingEditor({ resource, ...props }: ListingEditorProps) {
     onSubmit,
     handleUpdateLists,
     markNeedsParentCommit,
+    handleCultivarMutation,
+    hasRemoteChange,
+    discardDraftAndLoadLatest,
     isDeleteDialogOpen,
     setIsDeleteDialogOpen,
     openDeleteDialog,
@@ -54,6 +59,22 @@ function ListingEditor({ resource, ...props }: ListingEditorProps) {
     <>
       <form onSubmit={form.handleSubmit(onSubmit)} className="pb-16">
         <FieldGroup>
+          {hasRemoteChange && (
+            <div role="status" className="rounded-md border p-3 text-sm">
+              <p>
+                The listing changed elsewhere. Your unsaved fields are still
+                here.
+              </p>
+              <button
+                type="button"
+                className="mt-2 underline"
+                disabled={isBusy}
+                onClick={() => void discardDraftAndLoadLatest()}
+              >
+                Discard this draft and load the latest listing
+              </button>
+            </div>
+          )}
           <FieldDescription>
             Name, description, price, status, and notes are saved when you
             select Save Changes.
@@ -78,7 +99,7 @@ function ListingEditor({ resource, ...props }: ListingEditorProps) {
             onNameChange={(name) =>
               form.setValue("title", name, { shouldDirty: true })
             }
-            onMutationSuccess={markNeedsParentCommit}
+            onMutationSuccess={handleCultivarMutation}
           />
           <div className="flex flex-wrap justify-end gap-2">
             <Button type="submit" disabled={isBusy || !hasPendingChanges()}>
@@ -107,15 +128,49 @@ function ListingEditor({ resource, ...props }: ListingEditorProps) {
         onOpenChange={setIsDeleteDialogOpen}
         onConfirm={() => void confirmDelete()}
         title="Delete Listing"
-        description="Are you sure you want to delete this listing? This action cannot be undone."
+        description={`Delete ${listing.title}? This action cannot be undone.`}
       />
     </>
   );
 }
 
 export function ListingForm(props: ListingFormProps) {
+  const [unavailableId, setUnavailableId] = useState<string | null>(null);
+  const [freshReviewId, setFreshReviewId] = useState<string | null>(null);
   const resource = useListingEditorResource(props.listingId);
-  if (!resource.isReady || !resource.listing) return <ListingFormSkeleton />;
+  const needsPrimaryFetch =
+    resource.isReady &&
+    (props.openDeleteOnMount === true || resource.listing === null);
+  useEffect(() => {
+    if (!needsPrimaryFetch) return;
+    let active = true;
+    void loadMissingListing(props.listingId)
+      .then(() => {
+        if (active) setFreshReviewId(props.listingId);
+      })
+      .catch(() => {
+        if (active) setUnavailableId(props.listingId);
+      });
+    return () => {
+      active = false;
+    };
+  }, [needsPrimaryFetch, props.listingId]);
+
+  if (
+    !resource.isReady ||
+    (props.openDeleteOnMount &&
+      freshReviewId !== props.listingId &&
+      unavailableId !== props.listingId) ||
+    (!resource.listing && unavailableId !== props.listingId)
+  )
+    return <ListingFormSkeleton />;
+  if (!resource.listing || unavailableId === props.listingId) {
+    return (
+      <p role="status">
+        This listing is unavailable. Return to Listings and try again.
+      </p>
+    );
+  }
   return (
     <ListingEditor
       {...props}

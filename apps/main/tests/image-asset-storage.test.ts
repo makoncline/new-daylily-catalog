@@ -62,6 +62,33 @@ describe("image asset storage keys", () => {
     });
   });
 
+  it("uses a content-bound original key for retryable uploads", () => {
+    const digest = "a".repeat(64);
+    const key = storage.buildOriginalImageAssetKey({
+      kind: "listing",
+      userId: "user-1",
+      listingId: "listing-1",
+      imageAssetId: "image-1",
+      contentType: "image/png",
+      contentDigest: digest,
+    });
+    expect(key).toBe(
+      `users/user-1/listing-images/listing-1/image-1/original-${digest}.png`,
+    );
+    expect(
+      storage.isExpectedOriginalImageAssetKey({
+        kind: "listing",
+        userId: "user-1",
+        listingId: "listing-1",
+        imageAssetId: "image-1",
+        key,
+      }),
+    ).toBe(true);
+    expect(storage.buildVariantImageAssetKeysFromOriginalKey(key).displayKey).toBe(
+      "users/user-1/listing-images/listing-1/image-1/display-800.webp",
+    );
+  });
+
   it("rejects non-canonical keys before publishing URLs or variants", () => {
     expect(() => storage.buildR2PublicUrl("users/user-1/../bad.jpg")).toThrow(
       "ImageAsset key must not contain empty or dot segments.",
@@ -83,5 +110,28 @@ describe("image asset storage keys", () => {
         contentType: "image/webp",
       }),
     ).toBe("users/user-1/profile-images/image-1/original.webp");
+  });
+
+  it("keeps the integration R2 endpoint on loopback", () => {
+    const previousMode = process.env.INTEGRATION_MODE;
+    const previousEndpoint = process.env.INTEGRATION_R2_ENDPOINT_URL;
+    try {
+      process.env.INTEGRATION_MODE = "1";
+      process.env.INTEGRATION_R2_ENDPOINT_URL = "https://storage.example.com";
+      expect(() => storage.getR2Client()).toThrow(
+        "Integration R2 endpoint must be loopback HTTP.",
+      );
+      process.env.INTEGRATION_MODE = "0";
+      process.env.INTEGRATION_R2_ENDPOINT_URL = "http://127.0.0.1:39999";
+      expect(() => storage.getR2Client()).toThrow(
+        "Integration R2 endpoint must be loopback HTTP.",
+      );
+    } finally {
+      if (previousMode === undefined) delete process.env.INTEGRATION_MODE;
+      else process.env.INTEGRATION_MODE = previousMode;
+      if (previousEndpoint === undefined)
+        delete process.env.INTEGRATION_R2_ENDPOINT_URL;
+      else process.env.INTEGRATION_R2_ENDPOINT_URL = previousEndpoint;
+    }
   });
 });

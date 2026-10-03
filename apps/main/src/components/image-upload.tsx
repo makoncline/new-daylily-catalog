@@ -98,7 +98,11 @@ export function ImageUpload({
             isDragActive ? "border-primary" : "border-muted",
           )}
         >
-          <input {...getInputProps()} id="image-upload-input" />
+          <input
+            {...getInputProps()}
+            id="image-upload-input"
+            aria-label={`Choose ${type} image`}
+          />
           {isDragActive ? (
             <P>Drop the image here…</P>
           ) : (

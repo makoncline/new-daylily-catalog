@@ -46,6 +46,8 @@ import { Muted } from "@/components/typography";
 import { CheckoutButton } from "@/components/checkout-button";
 import { SlugChangeConfirmDialog } from "@/components/slug-change-confirm-dialog";
 import { ProfileImageManager } from "@/app/dashboard/profile/_components/profile-image-manager";
+import { useDashboardSectionFocus } from "@/hooks/use-dashboard-section-focus";
+import { rebaseFormValues } from "@/lib/rebase-form-values";
 import {
   ContentManagerFormItem,
   type ContentManagerFormHandle,
@@ -125,6 +127,7 @@ function useProfileFormController({
   const [profileOverride, setProfileOverride] = useState<UserProfile | null>(
     null,
   );
+  const [hasRemoteChange, setHasRemoteChange] = useState(false);
   const [saveState, setSaveState] = useState({
     isContentDirty: false,
     isUpdating: false,
@@ -137,6 +140,7 @@ function useProfileFormController({
   const contentFormRef = useRef<ContentManagerFormHandle | null>(null);
   const slugInputRef = useRef<HTMLInputElement | null>(null);
   const syncedProfileTimestampRef = useRef(profileTimestamp(initialProfile));
+  const committedProfileRef = useRef(initialProfile);
   const profile = profileOverride ?? initialProfile;
   const { isPro } = usePro();
   const utils = api.useUtils();
@@ -162,14 +166,14 @@ function useProfileFormController({
 
   const hasPendingChanges = useCallback(() => {
     const values = form.getValues();
-    const committedValues = toFormValues(profile);
+    const committedValues = toFormValues(committedProfileRef.current);
 
     return (
       !areProfileValuesEqual(values, committedValues) ||
       saveState.isContentDirty ||
       needsParentCommitRef.current
     );
-  }, [form, needsParentCommitRef, profile, saveState.isContentDirty]);
+  }, [form, needsParentCommitRef, saveState.isContentDirty]);
 
   useEffect(() => {
     const initialProfileTimestamp = profileTimestamp(initialProfile);
@@ -177,11 +181,14 @@ function useProfileFormController({
       return;
     }
     if (hasPendingChanges()) {
+      setHasRemoteChange(true);
       return;
     }
 
     syncedProfileTimestampRef.current = initialProfileTimestamp;
+    committedProfileRef.current = initialProfile;
     setProfileOverride(null);
+    setHasRemoteChange(false);
     form.reset(toFormValues(initialProfile), { keepIsValid: true });
     resetNeedsParentCommit();
   }, [form, hasPendingChanges, initialProfile, resetNeedsParentCommit]);
@@ -211,12 +218,27 @@ function useProfileFormController({
         }
 
         const values = form.getValues();
-        const committedValues = toFormValues(profile);
+        const committedValues = toFormValues(committedProfileRef.current);
         const hasFieldPending = !areProfileValuesEqual(values, committedValues);
         const shouldCommitParent =
           hasFieldPending || needsParentCommitRef.current;
 
         if (!shouldCommitParent) {
+          return true;
+        }
+        if (!hasFieldPending) {
+          if (
+            profileTimestamp(initialProfile) >
+            profileTimestamp(committedProfileRef.current)
+          ) {
+            committedProfileRef.current = initialProfile;
+            syncedProfileTimestampRef.current =
+              profileTimestamp(initialProfile);
+            setProfileOverride(null);
+            form.reset(toFormValues(initialProfile), { keepIsValid: true });
+          }
+          resetNeedsParentCommit();
+          setHasRemoteChange(false);
           return true;
         }
 
@@ -235,10 +257,15 @@ function useProfileFormController({
         }
 
         const updatedProfile = await updateProfileMutation.mutateAsync({
+          expectedUpdatedAt: new Date(
+            committedProfileRef.current.updatedAt,
+          ).toISOString(),
           data: values,
         });
         syncedProfileTimestampRef.current = profileTimestamp(updatedProfile);
+        committedProfileRef.current = updatedProfile;
         setProfileOverride(updatedProfile);
+        setHasRemoteChange(false);
         form.reset(toFormValues(updatedProfile), { keepIsValid: true });
         resetNeedsParentCommit();
         utils.dashboardDb.userProfile.get.setData(undefined, updatedProfile);
@@ -247,6 +274,9 @@ function useProfileFormController({
 
         return true;
       } catch (error) {
+        if (getErrorMessage(error).includes("changed. Load the latest")) {
+          setHasRemoteChange(true);
+        }
         if (shouldUpdateUi) {
           toast.error("Failed to save changes", {
             description: getErrorMessage(error),
@@ -265,9 +295,9 @@ function useProfileFormController({
     },
     [
       form,
+      initialProfile,
       markNeedsParentCommit,
       needsParentCommitRef,
-      profile,
       resetNeedsParentCommit,
       updateProfileMutation,
       utils,
@@ -357,6 +387,48 @@ function useProfileFormController({
     setSaveState((current) => ({ ...current, isContentDirty: isDirty }));
   }
 
+  function handleContentSaved(saved: UserProfile) {
+    const draft = form.getValues();
+    const rebased = rebaseFormValues(
+      draft,
+      toFormValues(committedProfileRef.current),
+      toFormValues(saved),
+    );
+    if (rebased) {
+      committedProfileRef.current = saved;
+      if (!areProfileValuesEqual(draft, rebased)) {
+        form.reset(rebased, { keepIsValid: true });
+      }
+    }
+    syncedProfileTimestampRef.current = profileTimestamp(saved);
+    setProfileOverride(saved);
+    setHasRemoteChange(!rebased);
+    utils.dashboardDb.userProfile.get.setData(undefined, saved);
+    void utils.dashboardDb.userProfile.get.invalidate();
+    markNeedsParentCommit();
+  }
+
+  async function discardFieldsAndLoadLatest() {
+    setSaveState((current) => ({ ...current, isUpdating: true }));
+    try {
+      const latest = await utils.dashboardDb.userProfile.get.fetch(undefined, {
+        staleTime: 0,
+      });
+      committedProfileRef.current = latest;
+      syncedProfileTimestampRef.current = profileTimestamp(latest);
+      setProfileOverride(latest);
+      form.reset(toFormValues(latest), { keepIsValid: true });
+      resetNeedsParentCommit();
+      setHasRemoteChange(false);
+    } catch (error) {
+      toast.error("Failed to load the latest profile", {
+        description: getErrorMessage(error),
+      });
+    } finally {
+      setSaveState((current) => ({ ...current, isUpdating: false }));
+    }
+  }
+
   async function onSubmit() {
     await saveChanges("manual");
   }
@@ -367,6 +439,8 @@ function useProfileFormController({
     debouncedCheckSlug,
     form,
     hasPendingChanges,
+    hasRemoteChange,
+    discardFieldsAndLoadLatest,
     isPro,
     markNeedsParentCommit,
     onSubmit,
@@ -378,6 +452,7 @@ function useProfileFormController({
       handleCancelSlugEditWarning,
       handleConfirmSlugEditWarning,
       handleContentDirtyChange,
+      handleContentSaved,
       handleSlugFocus,
       handleSlugPointerDown,
       setSlugState,
@@ -400,6 +475,22 @@ function ProfileFormRoot({
             onSubmit={controller.form.handleSubmit(controller.onSubmit)}
             className="space-y-6"
           >
+            {controller.hasRemoteChange && (
+              <div role="status" className="rounded-md border p-3 text-sm">
+                <p>
+                  The profile changed elsewhere. Your unsaved fields are still
+                  here.
+                </p>
+                <button
+                  type="button"
+                  className="mt-2 underline"
+                  disabled={controller.saveState.isUpdating}
+                  onClick={() => void controller.discardFieldsAndLoadLatest()}
+                >
+                  Discard unsaved profile fields and load the latest profile
+                </button>
+              </div>
+            )}
             {children}
           </form>
         </Form>
@@ -437,6 +528,7 @@ function GardenNameField({
 }
 
 function ProfileSlugField() {
+  useDashboardSectionFocus("profile-url");
   const {
     cleanBaseUrl,
     debouncedCheckSlug,
@@ -454,7 +546,7 @@ function ProfileSlugField() {
       control={form.control}
       name="slug"
       render={({ field }) => (
-        <FormItem>
+        <FormItem id="profile-url">
           <FormLabel className="flex items-center gap-2">
             Profile URL
             {!isPro && <Sparkles className="text-muted-foreground size-4" />}
@@ -578,9 +670,10 @@ function ProfileTextFields() {
 
 function ProfileImagesSection() {
   const { markNeedsParentCommit, profile } = useProfileFormContext();
+  useDashboardSectionFocus("profile-images");
 
   return (
-    <FormItem>
+    <FormItem id="profile-images">
       <Label>Profile Images</Label>
       <p className="text-muted-foreground text-[0.8rem]">
         Upload images to showcase your garden. You can reorder them by dragging.
@@ -594,16 +687,18 @@ function ProfileImagesSection() {
 }
 
 function ProfileContentSection() {
-  const { contentFormRef, handlers, markNeedsParentCommit, profile } =
-    useProfileFormContext();
+  const { contentFormRef, handlers, profile } = useProfileFormContext();
+  useDashboardSectionFocus("profile-content");
 
   return (
-    <ContentManagerFormItem
-      initialProfile={profile}
-      formRef={contentFormRef}
-      onMutationSuccess={markNeedsParentCommit}
-      onDirtyChange={handlers.handleContentDirtyChange}
-    />
+    <div id="profile-content">
+      <ContentManagerFormItem
+        initialProfile={profile}
+        formRef={contentFormRef}
+        onMutationSuccess={handlers.handleContentSaved}
+        onDirtyChange={handlers.handleContentDirtyChange}
+      />
+    </div>
   );
 }
 

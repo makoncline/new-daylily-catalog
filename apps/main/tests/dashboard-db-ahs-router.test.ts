@@ -42,6 +42,7 @@ function createCaller(db: MockDb, replicaDb = db) {
   return dashboardDbAhsRouter.createCaller({
     db: db as unknown as TRPCInternalContext["db"],
     replicaDb: replicaDb as unknown as TRPCInternalContext["replicaDb"],
+    hasReplicaDb: true,
     _authUser: { id: "user-1" } as unknown as TRPCInternalContext["_authUser"],
     headers: new Headers(),
   });

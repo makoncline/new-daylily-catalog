@@ -13,6 +13,9 @@ interface LogUserMutationInput {
   user: AuditUser;
   rawInput: unknown;
   requestUrl?: string;
+  oauthClientId?: string;
+  oauthScope?: string;
+  mcpToolName?: string;
   headers?: Headers;
   status: "success" | "error";
   durationMs: number;
@@ -91,24 +94,36 @@ export function logUserMutation({
   user,
   rawInput,
   requestUrl,
+  oauthClientId,
+  oauthScope,
+  mcpToolName,
   headers,
   status,
   durationMs,
   errorCode,
 }: LogUserMutationInput) {
-  console.info(JSON.stringify({
-    event: "user_mutation",
-    status,
-    path,
-    appUserId: user.id ?? undefined,
-    clerkUserId: user.clerkUserId ?? undefined,
-    email: user.clerk?.email ?? undefined,
-    requestId: requestIdFromHeaders(headers),
-    requestUrl,
-    durationMs,
-    errorCode,
-    ...pickInputIdentifiers(rawInput),
-  }));
+  console.info(
+    JSON.stringify({
+      event: "user_mutation",
+      status,
+      path,
+      appUserId: user.id ?? undefined,
+      clerkUserId: user.clerkUserId ?? undefined,
+      email: user.clerk?.email ?? undefined,
+      requestId: requestIdFromHeaders(headers),
+      requestUrl,
+      oauthClientId,
+      oauthScope,
+      mcpToolName,
+      clientRequestId:
+        isRecord(rawInput) && typeof rawInput.requestId === "string"
+          ? rawInput.requestId
+          : undefined,
+      durationMs,
+      errorCode,
+      ...pickInputIdentifiers(rawInput),
+    }),
+  );
 }
 
 export function logUserAuth({
@@ -118,12 +133,14 @@ export function logUserAuth({
   email,
   source,
 }: LogUserAuthInput) {
-  console.info(JSON.stringify({
-    event: "user_auth",
-    action,
-    appUserId,
-    clerkUserId,
-    email,
-    source,
-  }));
+  console.info(
+    JSON.stringify({
+      event: "user_auth",
+      action,
+      appUserId,
+      clerkUserId,
+      email,
+      source,
+    }),
+  );
 }
