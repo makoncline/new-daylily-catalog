@@ -10,14 +10,6 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { PageHeader } from "@/components/page-header";
@@ -109,55 +101,43 @@ export function CreateListSurface({
         </Button>
       </PageHeader>
 
-      <Card>
-        <CardHeader>
-          <CardTitle role="heading" aria-level={2}>
-            List details
-          </CardTitle>
-          <CardDescription>
-            Start with a title. You can add a description and listings next.
-          </CardDescription>
-        </CardHeader>
-        <form
-          className="flex flex-col gap-6"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void handleCreate();
-          }}
-        >
-          <CardContent>
-            <FieldGroup>
-              <Field data-disabled={isSaving}>
-                <FieldLabel htmlFor="title">List Title (required)</FieldLabel>
-                <Input
-                  id="title"
-                  value={title}
-                  onChange={(event) => setTitle(event.target.value)}
-                  placeholder="Enter a title"
-                  disabled={isSaving}
-                  required
-                  aria-describedby="list-title-help"
-                />
-                <FieldDescription id="list-title-help">
-                  Use a name that helps you find this collection.
-                </FieldDescription>
-              </Field>
-            </FieldGroup>
-          </CardContent>
-          <CardFooter className="justify-end">
-            <Button type="submit" disabled={isSaving || !title.trim()}>
-              {isSaving ? (
-                <>
-                  <Spinner data-icon="inline-start" aria-hidden="true" />
-                  Creating…
-                </>
-              ) : (
-                "Create List"
-              )}
-            </Button>
-          </CardFooter>
-        </form>
-      </Card>
+      <form
+        className="space-y-6 pb-16"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void handleCreate();
+        }}
+      >
+        <FieldGroup>
+          <Field data-disabled={isSaving}>
+            <FieldLabel htmlFor="title">List Title (required)</FieldLabel>
+            <Input
+              id="title"
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder="Enter a title"
+              disabled={isSaving}
+              required
+              aria-describedby="list-title-help"
+            />
+            <FieldDescription id="list-title-help">
+              Use a name that helps you find this collection.
+            </FieldDescription>
+          </Field>
+        </FieldGroup>
+        <div className="flex justify-end">
+          <Button type="submit" disabled={isSaving || !title.trim()}>
+            {isSaving ? (
+              <>
+                <Spinner data-icon="inline-start" aria-hidden="true" />
+                Creating…
+              </>
+            ) : (
+              "Create List"
+            )}
+          </Button>
+        </div>
+      </form>
     </section>
   );
 }

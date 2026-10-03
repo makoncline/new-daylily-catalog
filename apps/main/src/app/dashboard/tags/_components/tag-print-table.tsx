@@ -10,13 +10,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
   Empty,
   EmptyDescription,
   EmptyHeader,
@@ -220,52 +213,48 @@ export function TagPrintTable() {
   return (
     <div className="flex flex-col gap-6">
       <TagDesignerPanel listings={selectedListings} />
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            <h2>Choose listings</h2>
-          </CardTitle>
-          <CardDescription>
+      <section aria-labelledby="choose-listings-title" className="space-y-4">
+        <div className="space-y-2">
+          <h2 id="choose-listings-title" className="text-base font-semibold">
+            Choose listings
+          </h2>
+          <p className="text-muted-foreground text-sm">
             Select the listings to include in your tags.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col gap-4">
-            <SelectedListingsBadges table={table} listingsById={listingsById} />
-            <DataTableLayout
+          </p>
+        </div>
+        <SelectedListingsBadges table={table} listingsById={listingsById} />
+        <DataTableLayout
+          table={table}
+          toolbar={
+            <DashboardListingFilterToolbar
               table={table}
-              toolbar={
-                <DashboardListingFilterToolbar
-                  table={table}
-                  lists={lists}
-                  listings={listings}
-                  placeholder="Filter listings to tag..."
-                />
+              lists={lists}
+              listings={listings}
+              placeholder="Filter listings to tag..."
+            />
+          }
+          pagination={
+            <DataTablePagination
+              table={table}
+              pageSizeOptions={
+                APP_CONFIG.TABLE.PAGINATION.DASHBOARD_PAGE_SIZE_OPTIONS
               }
-              pagination={
-                <DataTablePagination
-                  table={table}
-                  pageSizeOptions={
-                    APP_CONFIG.TABLE.PAGINATION.DASHBOARD_PAGE_SIZE_OPTIONS
-                  }
-                />
-              }
-              noResults={
-                <Empty>
-                  <EmptyHeader>
-                    <EmptyTitle>No listings found</EmptyTitle>
-                    <EmptyDescription>
-                      Try adjusting your search or list filters.
-                    </EmptyDescription>
-                  </EmptyHeader>
-                </Empty>
-              }
-            >
-              <DataTable table={table} />
-            </DataTableLayout>
-          </div>
-        </CardContent>
-      </Card>
+            />
+          }
+          noResults={
+            <Empty>
+              <EmptyHeader>
+                <EmptyTitle>No listings found</EmptyTitle>
+                <EmptyDescription>
+                  Try adjusting your search or list filters.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          }
+        >
+          <DataTable table={table} />
+        </DataTableLayout>
+      </section>
     </div>
   );
 }
