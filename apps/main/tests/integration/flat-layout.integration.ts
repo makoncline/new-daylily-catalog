@@ -31,7 +31,9 @@ async function capture(page: Page, name: string) {
   await expect(page.locator("[data-sonner-toast]")).toHaveCount(0);
   await page.screenshot({
     path: path.join(directory, `${name}.png`),
-    fullPage: true,
+    animations: "disabled",
+    // Dialogs use viewport overlays. Full-page captures distort that geometry.
+    fullPage: (await page.getByRole("dialog").count()) === 0,
   });
 }
 
@@ -131,6 +133,17 @@ for (const [device, viewport] of [
       "1 label selected, 1 copy of each, 1 total label.",
     );
     await expect(sheet.getByRole("article")).toContainText("Existing Bloom");
+    await expect(sheet).toHaveCSS("opacity", "1");
+    const sheetBounds = await sheet.boundingBox();
+    expect(sheetBounds).not.toBeNull();
+    expect(sheetBounds!.x).toBeGreaterThanOrEqual(0);
+    expect(sheetBounds!.x + sheetBounds!.width).toBeLessThanOrEqual(
+      viewport.width,
+    );
+    expect(sheetBounds!.y).toBeGreaterThanOrEqual(0);
+    expect(sheetBounds!.y + sheetBounds!.height).toBeLessThanOrEqual(
+      viewport.height,
+    );
     await capture(page, `${device}-sheet`);
     await sheet.getByRole("button", { name: "Download", exact: true }).click();
     const sheetDownload = page.waitForEvent("download");
