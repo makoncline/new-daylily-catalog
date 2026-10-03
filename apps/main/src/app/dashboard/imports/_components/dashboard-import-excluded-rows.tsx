@@ -2,13 +2,12 @@
 
 import { useMemo } from "react";
 import { type ColumnDef, useReactTable } from "@tanstack/react-table";
-import type { CatalogImporterWorkbenchController } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
 import { DataTable } from "@/components/data-table";
 import type { CatalogImportRow } from "@/lib/catalog-importer";
 import { defaultTableConfig } from "@/lib/table-config";
 import { cn } from "@/lib/utils";
 
-type ExcludedRowKind = "issues" | "review";
+type ExcludedRowKind = "issues" | "review" | "builder";
 
 interface SourceCell {
   column: string;
@@ -91,30 +90,33 @@ function getIssueDetails(
 
   return {
     issueColumns,
-    reason: reasons.join(" · "),
+    reason:
+      kind === "builder"
+        ? "Excluded in the import builder"
+        : reasons.join(" · "),
   };
 }
 
 export function DashboardImportExcludedRows({
-  controller,
+  getSourceCellsForRow,
   kind,
   rows,
 }: {
-  controller: CatalogImporterWorkbenchController;
+  getSourceCellsForRow: (row: CatalogImportRow) => SourceCell[];
   kind: ExcludedRowKind;
   rows: CatalogImportRow[];
 }) {
   const data = useMemo<ExcludedSourceRow[]>(
     () =>
       rows.map((row) => {
-        const sourceCells = controller.getSourceCellsForRow(row);
+        const sourceCells = getSourceCellsForRow(row);
         return {
           ...getIssueDetails(kind, row, sourceCells),
           row,
           sourceCells,
         };
       }),
-    [controller, kind, rows],
+    [getSourceCellsForRow, kind, rows],
   );
   const sourceColumns = useMemo(() => data[0]?.sourceCells ?? [], [data]);
   const nameCellIndex =
@@ -151,8 +153,7 @@ export function DashboardImportExcludedRows({
                       tableRow.original.sourceCells,
                       tableRow.original.row,
                     ) && "font-medium",
-                  highlighted &&
-                    "bg-amber-100 px-1.5 py-1 text-amber-950 dark:bg-amber-950/50 dark:text-amber-100",
+                  highlighted && "bg-accent text-accent-foreground px-1.5 py-1",
                 )}
               >
                 {String(getValue()) || (
@@ -201,21 +202,25 @@ export function DashboardImportExcludedRows({
 
   const review = kind === "review";
   const heading =
-    rows.length === 1
-      ? review
-        ? "1 listing has not been reviewed"
-        : "1 listing has an unresolved issue"
-      : review
-        ? `${rows.length.toLocaleString()} listings have not been reviewed`
-        : `${rows.length.toLocaleString()} listings have unresolved issues`;
+    kind === "builder"
+      ? `${rows.length.toLocaleString()} ${rows.length === 1 ? "listing was" : "listings were"} excluded in the builder`
+      : rows.length === 1
+        ? review
+          ? "1 listing has not been reviewed"
+          : "1 listing has an unresolved issue"
+        : review
+          ? `${rows.length.toLocaleString()} listings have not been reviewed`
+          : `${rows.length.toLocaleString()} listings have unresolved issues`;
 
   return (
     <section className="flex flex-col gap-4" aria-label={heading}>
       <div>
         <h3 className="font-medium">{heading}</h3>
         <p className="text-muted-foreground text-sm">
-          Highlighted values need attention. These listings will not be
-          imported.
+          {kind === "builder"
+            ? "These listings were excluded in the import builder."
+            : "Highlighted values need attention."}{" "}
+          These listings will not be imported.
         </p>
       </div>
       <div className="max-h-[32rem] max-w-full min-w-0 overflow-y-auto">

@@ -1,6 +1,5 @@
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import type { CatalogImporterWorkbenchController } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
 import { DashboardImportExcludedRows } from "@/app/dashboard/imports/_components/dashboard-import-excluded-rows";
 import type { CatalogImportRow } from "@/lib/catalog-importer";
 
@@ -44,14 +43,14 @@ function controller() {
         value: row.privateNote,
       },
     ],
-  } as unknown as CatalogImporterWorkbenchController;
+  };
 }
 
 describe("DashboardImportExcludedRows", () => {
   it("shows the original review row and highlights its mapped name", () => {
     render(
       <DashboardImportExcludedRows
-        controller={controller()}
+        getSourceCellsForRow={controller().getSourceCellsForRow}
         kind="review"
         rows={[baseRow]}
       />,
@@ -88,7 +87,7 @@ describe("DashboardImportExcludedRows", () => {
 
     render(
       <DashboardImportExcludedRows
-        controller={controller()}
+        getSourceCellsForRow={controller().getSourceCellsForRow}
         kind="issues"
         rows={[priceRow]}
       />,

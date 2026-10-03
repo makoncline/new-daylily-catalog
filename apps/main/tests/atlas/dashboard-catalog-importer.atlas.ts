@@ -114,7 +114,9 @@ async function expectNoPageOverflow(page: Page) {
 async function prepareListings(page: Page, csv = sampleCsv()) {
   await page.getByRole("link", { name: "Build import" }).click();
   await expect(
-    page.getByRole("heading", { name: "Build a daylily catalog import" }),
+    page.getByRole("heading", {
+      name: "Turn the catalog you already have into one buyers can browse",
+    }),
   ).toBeVisible();
   await page.locator('input[type="file"]').setInputFiles({
     name: "dashboard-import.csv",
@@ -205,9 +207,7 @@ test("Dashboard importer mobile unresolved issues", async ({ page }) => {
 test("Dashboard importer skips existing listings", async ({ page }) => {
   await openDashboardImporter(page, desktop);
   await prepareListings(page, existingListingCsv());
-  await expect(
-    page.getByText("1 listing is in your catalog"),
-  ).toBeVisible();
+  await expect(page.getByText("1 listing is in your catalog")).toBeVisible();
   await expect(page.getByRole("button", { name: "Create anyway" })).toHaveCount(
     0,
   );
@@ -217,9 +217,7 @@ test("Dashboard importer skips existing listings", async ({ page }) => {
 test("Dashboard importer mobile existing listing", async ({ page }) => {
   await openDashboardImporter(page, mobile);
   await prepareListings(page, existingListingCsv());
-  await expect(
-    page.getByText("1 listing is in your catalog"),
-  ).toBeVisible();
+  await expect(page.getByText("1 listing is in your catalog")).toBeVisible();
   await expectNoPageOverflow(page);
   await captureAtlasState(page, "dashboard-importer-mobile-existing");
 });

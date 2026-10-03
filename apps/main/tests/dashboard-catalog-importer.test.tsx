@@ -27,7 +27,7 @@ vi.mock("@/app/dashboard/_components/dashboard-db-provider", () => ({
 }));
 
 vi.mock("@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence", () => ({
-  revalidateDashboardDbInBackground: mocks.revalidate,
+  refreshDashboardDbFromServer: mocks.revalidate,
 }));
 
 vi.mock("@/trpc/react", () => ({
@@ -125,7 +125,8 @@ describe("DashboardCatalogImporter", () => {
   beforeEach(() => {
     mocks.importRows.mockReset();
     mocks.capturePosthogEvent.mockReset();
-    mocks.revalidate.mockClear();
+    mocks.revalidate.mockReset();
+    mocks.revalidate.mockResolvedValue(undefined);
     mocks.workbench = {
       liveAnnouncement: "",
       matchedRows: Array.from({ length: 201 }, (_, index) =>
