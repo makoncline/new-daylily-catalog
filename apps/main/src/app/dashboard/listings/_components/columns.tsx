@@ -345,13 +345,17 @@ const dashboardAdvancedFilterColumns: ColumnDef<ListingData>[] = [
 export const baseListingColumns: ColumnDef<ListingData>[] =
   getBaseListingColumns();
 
+export const dashboardListingColumns: ColumnDef<ListingData>[] = [
+  ...baseListingColumns,
+  ...dashboardAdvancedFilterColumns,
+];
+
 export function getColumns(
   onEdit: (id: string) => void,
   publicUserSlug = "",
 ): ColumnDef<ListingData>[] {
   return [
-    ...getBaseListingColumns(),
-    ...dashboardAdvancedFilterColumns,
+    ...dashboardListingColumns,
     {
       id: "actions",
       cell: ({ row }) => (

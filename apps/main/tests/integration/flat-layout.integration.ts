@@ -94,7 +94,7 @@ for (const [device, viewport] of [
       page.getByRole("button", { name: "Make sheet" }),
     ).toBeDisabled();
     await page
-      .getByPlaceholder("Filter listings to tag...")
+      .getByPlaceholder("Search listings...")
       .fill("Existing Bloom");
     const row = page.getByRole("row", {
       name: "Select row Existing Bloom",
@@ -204,11 +204,11 @@ for (const [device, viewport] of [
       page.getByRole("radio", { name: new RegExp(`Garden ${device}`) }),
     ).toBeChecked();
     await page
-      .getByPlaceholder("Filter listings to tag...")
+      .getByPlaceholder("Search listings...")
       .fill("Existing Bloom");
     await row.getByRole("checkbox", { name: "Select row" }).click();
     await page
-      .getByPlaceholder("Filter listings to tag...")
+      .getByPlaceholder("Search listings...")
       .fill("no-matching-listing");
     await expect(
       page.getByText("No listings found", { exact: true }),
