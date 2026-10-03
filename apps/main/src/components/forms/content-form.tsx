@@ -7,12 +7,10 @@ import { api } from "@/trpc/react";
 import { toast } from "sonner";
 import { Editor } from "@/components/editor";
 import { parseEditorContent } from "@/lib/editor-utils";
-import { Loader2 } from "lucide-react";
-import { FormItem } from "../ui/form";
-import { Label } from "../ui/label";
+import { Spinner } from "../ui/spinner";
+import { FieldDescription } from "../ui/field";
 import { useOnClickOutside } from "usehooks-ts";
 import { type OutputData } from "@editorjs/editorjs";
-import { Muted } from "@/components/typography";
 import {
   getErrorMessage,
   normalizeError,
@@ -42,10 +40,16 @@ export function ContentManagerFormItem({
 }: ContentManagerFormProps) {
   const [isSaving, setIsSaving] = React.useState(false);
   const [isDirty, setIsDirty] = React.useState(false);
+  const [editorContent, setEditorContent] = React.useState(
+    initialProfile.content,
+  );
   const editorRef = React.useRef<EditorJS | null>(null);
   const contentRef = React.useRef<HTMLDivElement | null>(null);
   const isDirtyRef = React.useRef(isDirty);
   const lastSavedRef = React.useRef(initialProfile.content);
+  const lastSavedTimestampRef = React.useRef(
+    new Date(initialProfile.updatedAt).getTime(),
+  );
   isDirtyRef.current = isDirty;
 
   const updateContentMutation =
@@ -94,10 +98,8 @@ export function ContentManagerFormItem({
               JSON.stringify(oldData.blocks)
             ) {
               isDirtyRef.current = false;
-              if (shouldUpdateUi) {
-                setIsDirty(false);
-                onDirtyChange?.(false);
-              }
+              setIsDirty(false);
+              onDirtyChange?.(false);
               return true;
             }
           } catch {
@@ -106,17 +108,26 @@ export function ContentManagerFormItem({
         }
 
         const newData = JSON.stringify(newBlocks);
-        await updateContentMutation.mutateAsync({ content: newData });
+        const savedProfile = await updateContentMutation.mutateAsync({
+          content: newData,
+        });
 
         lastSavedRef.current = newData;
-
-        isDirtyRef.current = false;
-        if (shouldUpdateUi) {
-          setIsDirty(false);
-          onDirtyChange?.(false);
-        }
+        lastSavedTimestampRef.current = new Date(
+          savedProfile.updatedAt,
+        ).getTime();
 
         onMutationSuccess?.();
+        const currentBlocks = await editor.save();
+        if (
+          JSON.stringify(currentBlocks.blocks) !==
+          JSON.stringify(newBlocks.blocks)
+        )
+          return false;
+
+        isDirtyRef.current = false;
+        setIsDirty(false);
+        onDirtyChange?.(false);
 
         return true;
       } catch (error) {
@@ -150,45 +161,65 @@ export function ContentManagerFormItem({
   });
 
   React.useEffect(() => {
-    if (isDirtyRef.current) {
+    const timestamp = new Date(initialProfile.updatedAt).getTime();
+    if (isDirtyRef.current || timestamp <= lastSavedTimestampRef.current) {
       return;
     }
 
-    lastSavedRef.current = initialProfile.content;
-  }, [initialProfile.content]);
+    lastSavedTimestampRef.current = timestamp;
+
+    if (lastSavedRef.current !== initialProfile.content) {
+      lastSavedRef.current = initialProfile.content;
+      setEditorContent(initialProfile.content);
+    }
+  }, [initialProfile.content, initialProfile.updatedAt]);
 
   useOnClickOutside(contentRef as React.RefObject<HTMLElement>, () => {
     void saveChanges("outside");
   });
 
+  const handleEditorChange = React.useCallback(async () => {
+    try {
+      const current = await editorRef.current?.save();
+      if (
+        current &&
+        JSON.stringify(current.blocks) !==
+          JSON.stringify(parseEditorContent(lastSavedRef.current)?.blocks ?? [])
+      )
+        markDirty();
+    } catch {
+      markDirty();
+    }
+  }, [markDirty]);
+
   const isPendingIndicatorVisible = isSaving || updateContentMutation.isPending;
-  const editorResetKey = initialProfile.content ?? "empty-content";
+  const editorResetKey = editorContent ?? "empty-content";
 
   return (
-    <FormItem>
-      <div className="flex w-full items-end justify-between">
-        <div>
-          <Label>Content</Label>
-          <Muted className="text-sm">
-            Tell visitors about yourself and your garden.
-          </Muted>
-        </div>
-        {isPendingIndicatorVisible && (
-          <Loader2 className="mr-2 size-4 animate-spin" />
-        )}
+    <section
+      aria-labelledby="profile-content-heading"
+      className="flex flex-col gap-3"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <h2 id="profile-content-heading" className="text-sm font-medium">
+          Content
+        </h2>
+        {isPendingIndicatorVisible && <Spinner aria-label="Saving content" />}
       </div>
-      <div ref={contentRef} className="space-y-3">
+      <FieldDescription>
+        Tell visitors about yourself and your garden.
+      </FieldDescription>
+      <div ref={contentRef} onInputCapture={markDirty}>
         <div className="bg-background min-h-96 rounded-md border">
           <Editor
             key={editorResetKey}
             editorRef={editorRef}
-            initialContent={parseEditorContent(initialProfile.content)}
+            initialContent={parseEditorContent(editorContent)}
             className="px-3 py-2 pb-8"
-            onChange={markDirty}
+            onChange={() => void handleEditorChange()}
           />
         </div>
       </div>
-      <div className="h-96" />
-    </FormItem>
+    </section>
   );
 }
