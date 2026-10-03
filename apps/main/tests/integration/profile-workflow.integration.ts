@@ -678,6 +678,17 @@ for (const [device, viewport] of [
     await expect(page.getByRole("img", { name: "Gallery image" })).toHaveCount(
       0,
     );
+    await images.imageItemById("profile-image-1").scrollIntoViewIfNeeded();
+    for (const id of ["profile-image-1", "profile-image-2"]) {
+      await expect
+        .poll(async () => {
+          const box = await images.imageItemById(id).boundingBox();
+          return Boolean(
+            box && box.y >= 0 && box.y + box.height <= viewport.height,
+          );
+        })
+        .toBe(true);
+    }
     await images.imageDragHandleById("profile-image-1").focus();
     await expect(images.imageDragHandleById("profile-image-1")).toBeFocused();
     await page.keyboard.press("Space");
@@ -685,6 +696,11 @@ for (const [device, viewport] of [
       "aria-pressed",
       "true",
     );
+    await expect(
+      page
+        .getByRole("status")
+        .filter({ hasText: "was moved over droppable area profile-image-1" }),
+    ).toBeVisible();
     await page.keyboard.press("ArrowRight");
     await expect(
       page
