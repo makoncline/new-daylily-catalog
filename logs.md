@@ -62,3 +62,5 @@ check current code before applying them.
 - [2026-10-03] Flat dashboard composition: The user prefers page content without decorative cards or nested card chrome. Lists and Tags restore plain forms and sections while retaining the newer controls and behavior. Keep outlines that identify editable inputs, template selection, tables, or physical tag dimensions. Do not wrap those controls in another decorative card.
 
 - [2026-10-03] Tags search privacy and selection: Tags uses the shared Basic/Advanced filters with an owner-only Private Notes filter. Keep all Tags search and filter state out of URLs because global search can also contain notes. Build tag exports from the full selected dataset, and report selections hidden by filters. Reload and route exit clear transient filters and selection.
+
+- [2026-10-03] Search screenshot fixtures: Shared Listings/member advanced controls omit facets and ranges with no data. Seed linked V2 cultivars with every trait before using screenshots as evidence. Assert rendered controls, options, result counts, and selection; a private-note-only flow can pass with an empty Bloom Traits column.

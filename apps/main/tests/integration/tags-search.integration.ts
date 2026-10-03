@@ -1,10 +1,16 @@
 import fs from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import path from "node:path";
 import { PrismaLibSql } from "@prisma/adapter-libsql";
 import { PrismaClient } from "@prisma/client";
 import type { Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
 
+const compareCultivars = process.env.TAGS_COMPARE_CULTIVAR_SEARCH === "1";
+const candidatePath = path.resolve(
+  ".tmp/search/public-search-candidate.sqlite",
+);
 const purchaseNote = "2026 fall synthetic purchase";
 const db = new PrismaClient({
   adapter: new PrismaLibSql(
@@ -17,10 +23,64 @@ test.beforeAll(async () => {
   await db.user.create({
     data: { id: "tags-other-owner", clerkUserId: "tags-other-clerk" },
   });
+  // Exercise the actual V2 cultivar read model, not rows with empty traits.
+  for (const [season, traits] of [
+    [
+      "fall",
+      {
+        bloom_season_names: "Midseason",
+        bloom_habit_names: "Diurnal",
+        foliage_names: "Dormant",
+        ploidy_names: "Tetraploid",
+        fragrance_names: "Fragrant",
+        flower_form_names: "Single",
+        scape_height_in: 36,
+        bloom_size_in: 6,
+        bud_count: 24,
+        branches: 4,
+      },
+    ],
+    [
+      "spring",
+      {
+        bloom_season_names: "Early",
+        bloom_habit_names: "Nocturnal",
+        foliage_names: "Evergreen",
+        ploidy_names: "Diploid",
+        fragrance_names: "Very Fragrant",
+        flower_form_names: "Double",
+        scape_height_in: 24,
+        bloom_size_in: 4,
+        bud_count: 16,
+        branches: 2,
+      },
+    ],
+  ] as const) {
+    await db.v2AhsCultivar.create({
+      data: {
+        id: `tags-cultivar-${season}`,
+        post_title: `Synthetic ${season} cultivar`,
+        link_normalized_name: `synthetic ${season} cultivar`,
+        introduction_date: "2026",
+        primary_hybridizer_name: "Synthetic Garden",
+        color: "Rose and gold",
+        parentage: "Synthetic A x Synthetic B",
+        ...traits,
+      },
+    });
+    await db.cultivarReference.create({
+      data: {
+        id: `tags-reference-${season}`,
+        v2AhsCultivarId: `tags-cultivar-${season}`,
+        normalizedName: `synthetic ${season} cultivar`,
+      },
+    });
+  }
   await db.listing.createMany({
     data: [
       {
         id: "tags-fall",
+        cultivarReferenceId: "tags-reference-fall",
         userId: "integration-user",
         title: "Synthetic Fall Bloom",
         slug: "synthetic-fall-bloom",
@@ -30,6 +90,7 @@ test.beforeAll(async () => {
       },
       {
         id: "tags-spring",
+        cultivarReferenceId: "tags-reference-spring",
         userId: "integration-user",
         title: "Synthetic Spring Bloom",
         slug: "synthetic-spring-bloom",
@@ -54,6 +115,17 @@ test.beforeAll(async () => {
       },
     ],
   });
+  if (compareCultivars) {
+    // The optional four-page evidence run enables the existing runtime flag.
+    // Build only from this disposable synthetic database in our own checkout.
+    await promisify(execFile)(process.execPath, [
+      "scripts/build-public-search-index.mjs",
+      "--source",
+      process.env.DATABASE_URL!,
+      "--target",
+      candidatePath,
+    ]);
+  }
   await db.list.create({
     data: {
       id: "tags-list",
@@ -66,20 +138,72 @@ test.beforeAll(async () => {
 test.afterAll(async () => {
   await db.list.deleteMany({ where: { id: "tags-list" } });
   await db.listing.deleteMany({ where: { id: { startsWith: "tags-" } } });
+  await db.cultivarReference.deleteMany({
+    where: { id: { startsWith: "tags-reference-" } },
+  });
+  await db.v2AhsCultivar.deleteMany({
+    where: { id: { startsWith: "tags-cultivar-" } },
+  });
   await db.user.delete({ where: { id: "tags-other-owner" } });
   await db.$disconnect();
+  if (compareCultivars) {
+    for (const suffix of ["", ".next", ".previous"])
+      await fs.rm(candidatePath + suffix, { force: true });
+  }
 });
 
 async function capture(page: Page, name: string) {
   const directory = process.env.TAGS_EVIDENCE_DIR;
   if (!directory) return;
   await fs.mkdir(directory, { recursive: true });
+  await page.evaluate(() => window.scrollTo(0, 0));
   await page.mouse.move(0, 0);
   await page.screenshot({
     path: path.join(directory, `${name}.png`),
     fullPage: true,
     animations: "disabled",
   });
+  if (name.endsWith("-private-note")) {
+    await page
+      .getByRole("region", { name: "Choose listings", exact: true })
+      .screenshot({
+        path: path.join(directory, `${name}-filters.png`),
+        animations: "disabled",
+      });
+  }
+}
+
+const traitControlIds = [
+  "bloom-habit",
+  "bloom-season",
+  "scape-height",
+  "bloom-size",
+  "budcount",
+  "branches",
+  "form",
+  "ploidy",
+  "foliage-type",
+  "fragrance",
+] as const;
+
+async function expectTraitControls(page: Page, accordion: boolean) {
+  // Phone/iPad use the same responsive section accordions as Listings.
+  if (accordion) {
+    for (const name of ["Bloom Traits", "Classification & Details"]) {
+      const section = page.getByRole("button", { name, exact: true });
+      if (
+        (await section.isVisible()) &&
+        (await section.getAttribute("aria-expanded")) === "false"
+      )
+        await section.click();
+    }
+  }
+  for (const id of traitControlIds) {
+    await expect(
+      page.locator(`[data-testid="advanced-filter-${id}"]:visible`),
+      id,
+    ).toBeVisible();
+  }
 }
 
 for (const [device, viewport, touch] of [
@@ -121,6 +245,42 @@ for (const [device, viewport, touch] of [
         '[data-testid="advanced-filter-private-note"]:visible',
       );
       await expect(note).toBeVisible();
+      await expectTraitControls(page, touch);
+      // Facet availability, result counts, and selection must agree.
+      const habit = page.locator(
+        '[data-testid="advanced-filter-bloom-habit"]:visible',
+      );
+      await habit.getByRole("button").click();
+      const diurnal = page.getByRole("option", {
+        name: "Diurnal",
+        exact: true,
+      });
+      await expect(diurnal).toBeVisible();
+      await expect(page.getByRole("option")).toHaveCount(2);
+      await expect(
+        page.getByRole("option", { name: "Nocturnal", exact: true }),
+      ).toBeVisible();
+      await diurnal.click();
+      await page.keyboard.press("Escape");
+      await expect(page.getByTestId("search-results-count")).toContainText(
+        "1 /",
+      );
+      await expect(page.getByText("1 selected listing.")).toBeVisible();
+      await habit.getByRole("button").click();
+      await page.getByRole("option", { name: "Diurnal", exact: true }).click();
+      await page.keyboard.press("Escape");
+      const heightMin = page.locator(
+        '[data-testid="advanced-filter-scape-height-input-min"]:visible',
+      );
+      await heightMin.fill("30");
+      await heightMin.press("Enter");
+      await expect(page.getByTestId("search-results-count")).toContainText(
+        "1 /",
+      );
+      await expect(spring).toBeHidden();
+      await expect(page.getByText("1 selected listing.")).toBeVisible();
+      await heightMin.fill("24");
+      await heightMin.press("Enter");
       await note.fill("2026 FALL");
       await expect(page.getByTestId("search-results-count")).toContainText(
         "1 /",
@@ -138,6 +298,7 @@ for (const [device, viewport, touch] of [
         .getByRole("checkbox", { name: "Select all", exact: true })
         .click();
       await expect(page.getByText("2 selected listings.")).toBeVisible();
+      await expectTraitControls(page, touch);
       await capture(page, `${device}-private-note`);
       await expect(
         page.getByRole("main").locator('[data-slot="card"]'),
@@ -298,4 +459,65 @@ test("Tags shows dashboard loading and a recoverable load error", async ({
   await page.unroute("**/api/trpc/**");
   await page.reload();
   await expect(page.getByTestId("search-all-fields-input")).toBeVisible();
+});
+
+test("Tags renders the same populated cultivar controls as reference search pages", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  for (const [name, route] of [
+    ["tags", "/dashboard/tags"],
+    ["listings", "/dashboard/listings"],
+    ["member", "/integration-seller/search?mode=advanced"],
+    ...(compareCultivars
+      ? [["cultivars", "/cultivars?advanced=true"] as const]
+      : []),
+  ] as const) {
+    await page.goto(route);
+    if (name === "tags" || name === "listings") {
+      const mode = page.getByTestId("search-mode-switch");
+      await expect(mode).toBeVisible();
+      if ((await mode.getAttribute("data-state")) !== "checked")
+        await mode.click();
+    }
+    if (name === "member") {
+      for (const label of ["Bloom Traits", "Classification & Details"])
+        await page.getByRole("button", { name: label, exact: true }).click();
+    }
+    await expectTraitControls(page, false);
+    // Each reference uses the same range/facet primitives. Tags adds only the
+    // owner's Private Notes text field to the Listings filter definitions.
+    await expect(
+      page.locator(
+        '[data-testid="advanced-filter-scape-height-input-min"]:visible',
+      ),
+    ).toBeVisible();
+    await expect(
+      page
+        .locator('[data-testid="advanced-filter-ploidy"]:visible')
+        .getByRole("button"),
+    ).toBeVisible();
+    if (name === "tags" || name === "listings") {
+      await expect(
+        page.locator(
+          '[data-testid="advanced-filter-scape-height-input-min"]:visible',
+        ),
+      ).toHaveValue("24");
+      await expect(
+        page.locator(
+          '[data-testid="advanced-filter-scape-height-input-max"]:visible',
+        ),
+      ).toHaveValue("36");
+    }
+    if (name === "member" || name === "cultivars") {
+      await expect(
+        page.getByTestId("advanced-filter-private-note"),
+      ).toHaveCount(0);
+      await expect(page.getByText(purchaseNote, { exact: true })).toHaveCount(
+        0,
+      );
+    }
+    await capture(page, `reference-${name}-desktop`);
+  }
 });
