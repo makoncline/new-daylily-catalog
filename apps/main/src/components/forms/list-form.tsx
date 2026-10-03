@@ -19,14 +19,6 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -245,104 +237,81 @@ function ListFormInner({
 
   return (
     <>
-      <Card>
-        <CardHeader>
-          <CardTitle role="heading" aria-level={2}>
-            List details
-          </CardTitle>
-          <CardDescription>
-            Name your list and add an optional description.
-          </CardDescription>
-        </CardHeader>
-        <form
-          className="flex flex-col gap-6"
-          onSubmit={form.handleSubmit(onSubmit)}
-        >
-          <CardContent>
-            <FieldGroup>
-              <Controller
-                control={form.control}
-                name="title"
-                render={({ field, fieldState }) => (
-                  <Field
-                    data-invalid={fieldState.invalid}
-                    data-disabled={isBusy}
-                  >
-                    <FieldLabel htmlFor={`${fieldId}-title`}>Title</FieldLabel>
-                    <Input
-                      {...field}
-                      id={`${fieldId}-title`}
-                      value={field.value ?? ""}
-                      aria-invalid={fieldState.invalid}
-                      aria-describedby={`${fieldId}-title-help${fieldState.invalid ? ` ${fieldId}-title-error` : ""}`}
-                      disabled={isBusy}
-                    />
-                    <FieldDescription id={`${fieldId}-title-help`}>
-                      Required: Add a name for your list.
-                    </FieldDescription>
-                    {fieldState.invalid && (
-                      <FieldError
-                        id={`${fieldId}-title-error`}
-                        errors={[fieldState.error]}
-                      />
-                    )}
-                  </Field>
-                )}
-              />
-              <Controller
-                control={form.control}
-                name="description"
-                render={({ field, fieldState }) => (
-                  <Field
-                    data-invalid={fieldState.invalid}
-                    data-disabled={isBusy}
-                  >
-                    <FieldLabel htmlFor={`${fieldId}-description`}>
-                      Description
-                    </FieldLabel>
-                    <Textarea
-                      {...field}
-                      id={`${fieldId}-description`}
-                      value={field.value ?? ""}
-                      placeholder="Add a description for your list..."
-                      aria-invalid={fieldState.invalid}
-                      aria-describedby={`${fieldId}-description-help${fieldState.invalid ? ` ${fieldId}-description-error` : ""}`}
-                      disabled={isBusy}
-                    />
-                    <FieldDescription id={`${fieldId}-description-help`}>
-                      Optional: Add a description for your list.
-                    </FieldDescription>
-                    {fieldState.invalid && (
-                      <FieldError
-                        id={`${fieldId}-description-error`}
-                        errors={[fieldState.error]}
-                      />
-                    )}
-                  </Field>
-                )}
-              />
-            </FieldGroup>
-          </CardContent>
-          <CardFooter className="justify-end">
-            <div className="flex flex-wrap gap-3">
-              <Button type="submit" disabled={isBusy || !hasDraftChanges}>
-                {isSaving && <Spinner data-icon="inline-start" />}
-                Save Changes
-              </Button>
-              {onDelete && (
-                <Button
-                  type="button"
-                  variant="destructive"
-                  onClick={openDeleteDialog}
+      <form className="space-y-6" onSubmit={form.handleSubmit(onSubmit)}>
+        <FieldGroup>
+          <Controller
+            control={form.control}
+            name="title"
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid} data-disabled={isBusy}>
+                <FieldLabel htmlFor={`${fieldId}-title`}>Title</FieldLabel>
+                <Input
+                  {...field}
+                  id={`${fieldId}-title`}
+                  value={field.value ?? ""}
+                  aria-invalid={fieldState.invalid}
+                  aria-describedby={`${fieldId}-title-help${fieldState.invalid ? ` ${fieldId}-title-error` : ""}`}
                   disabled={isBusy}
-                >
-                  Delete List
-                </Button>
-              )}
-            </div>
-          </CardFooter>
-        </form>
-      </Card>
+                />
+                <FieldDescription id={`${fieldId}-title-help`}>
+                  Required: Add a name for your list.
+                </FieldDescription>
+                {fieldState.invalid && (
+                  <FieldError
+                    id={`${fieldId}-title-error`}
+                    errors={[fieldState.error]}
+                  />
+                )}
+              </Field>
+            )}
+          />
+          <Controller
+            control={form.control}
+            name="description"
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid} data-disabled={isBusy}>
+                <FieldLabel htmlFor={`${fieldId}-description`}>
+                  Description
+                </FieldLabel>
+                <Textarea
+                  {...field}
+                  id={`${fieldId}-description`}
+                  value={field.value ?? ""}
+                  placeholder="Add a description for your list..."
+                  aria-invalid={fieldState.invalid}
+                  aria-describedby={`${fieldId}-description-help${fieldState.invalid ? ` ${fieldId}-description-error` : ""}`}
+                  disabled={isBusy}
+                />
+                <FieldDescription id={`${fieldId}-description-help`}>
+                  Optional: Add a description for your list.
+                </FieldDescription>
+                {fieldState.invalid && (
+                  <FieldError
+                    id={`${fieldId}-description-error`}
+                    errors={[fieldState.error]}
+                  />
+                )}
+              </Field>
+            )}
+          />
+        </FieldGroup>
+        <div className="flex flex-wrap justify-end gap-3">
+          <Button type="submit" disabled={isBusy || !hasDraftChanges}>
+            {isSaving && <Spinner data-icon="inline-start" />}
+            Save Changes
+          </Button>
+          {onDelete && (
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={openDeleteDialog}
+              disabled={isBusy}
+            >
+              Delete List
+            </Button>
+          )}
+        </div>
+      </form>
 
       <DeleteConfirmDialog
         open={isDeleteDialogOpen}
