@@ -1,7 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
-import { hasLocalPublicReadDb, publicDb } from "@/server/db";
+import { hasPublicReadDb, publicDb } from "@/server/db";
 import {
   getCultivarReference,
   searchCultivarReferences,
@@ -53,7 +53,7 @@ const memberListingRouter = createTRPCRouter({
       const listing = await getOwnedMemberListingDetail({
         id: input.id,
         memberDb: ctx.db,
-        publicDb: hasLocalPublicReadDb ? publicDb : null,
+        publicDb: hasPublicReadDb ? publicDb : null,
         userId: ctx.user.id,
       });
       if (!listing) {

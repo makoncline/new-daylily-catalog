@@ -410,3 +410,18 @@ The browser WebMCP `daylily.update-listing` tool now edits fields only. The sepa
 The dashboard's `loadMissingListing` and `loadListingsByIds` helpers now load any linked cultivar reference before they publish a newly fetched listing into the local collection. A full-app collection integration test creates linked listings after cache initialization and confirms both point-load paths hydrate their references. The targeted WebMCP and collection tests pass, as do typecheck and focused source lint.
 
 The ordinary Vitest suite then passed 810 tests with seven opt-in skips across 205 test files. A fresh independent read-only review of the updated uncommitted worktree found no further actionable defects (`CLEAN`). It did not repeat browser, live OAuth, or production checks.
+
+## Seeded Vercel preview source (2026-10-03)
+
+Public pages and the public/member API can read the existing
+`seeded-daylily-catalog` Turso fixture in Vercel Preview and Development.
+This requires `VERCEL=1`, `VERCEL_ENV=preview` or `development`, and a
+`libsql://seeded-daylily-catalog-*.turso.io` database URL. Other remote URLs
+and production deployments still require local SQLite or an embedded
+replica for public data.
+
+This exception uses the existing seeded database. It adds no search index,
+database, credentials, or deployment settings. Public MCP database tools
+still require a local source in every environment. The local-source flag
+stays false for the remote seeded fixture. Member reads and writes retain
+their existing authentication, ownership checks, and query limits.

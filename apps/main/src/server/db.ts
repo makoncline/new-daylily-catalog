@@ -153,7 +153,17 @@ export const hasEmbeddedReplica = Boolean(embeddedReplicaUrl);
 export const hasLocalPublicReadDb =
   isFileDatabaseUrl(databaseUrl) || hasEmbeddedReplica;
 
-export const publicDb: typeof db = hasLocalPublicReadDb
+// Vercel's existing seeded fixture has no persistent replica. Never permit this
+// exception for a production deployment or a production database URL.
+const hasSeededVercelReadDb =
+  process.env.VERCEL === "1" &&
+  ["preview", "development"].includes(process.env.VERCEL_ENV ?? "") &&
+  /^libsql:\/\/seeded-daylily-catalog-[a-z0-9-]+\.turso\.io\/?$/i.test(
+    databaseUrl,
+  );
+export const hasPublicReadDb = hasLocalPublicReadDb || hasSeededVercelReadDb;
+
+export const publicDb: typeof db = hasPublicReadDb
   ? replicaDb
   : new Proxy({} as typeof db, {
       get() {

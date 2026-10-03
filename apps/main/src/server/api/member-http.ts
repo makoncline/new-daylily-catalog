@@ -11,7 +11,7 @@ import {
 } from "@/server/api/trpc";
 import { getStripeSubscriptionResult } from "@/server/stripe/sync-subscription";
 import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
-import { db, hasLocalPublicReadDb } from "@/server/db";
+import { db, hasPublicReadDb } from "@/server/db";
 import {
   MEMBER_CREATE_ID_FIELDS,
   MEMBER_MANAGE_OPERATIONS,
@@ -216,7 +216,7 @@ export async function handleMemberHttpRequest(request: Request, path: string) {
 
   if (
     (path === "cultivar.search" || path === "cultivar.get") &&
-    !hasLocalPublicReadDb
+    !hasPublicReadDb
   ) {
     return denied(503, "Local public catalog data is unavailable.");
   }

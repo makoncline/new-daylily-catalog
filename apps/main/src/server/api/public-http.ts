@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { reportError } from "@/lib/error-utils";
-import { hasLocalPublicReadDb } from "@/server/db";
+import { hasPublicReadDb } from "@/server/db";
 
 const responseHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,7 +15,7 @@ export async function publicReadResponse(
   source: string,
   read: () => Promise<unknown>,
 ) {
-  if (!hasLocalPublicReadDb) {
+  if (!hasPublicReadDb) {
     return publicJson({ error: "public_database_unavailable" }, 503);
   }
 

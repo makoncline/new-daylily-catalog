@@ -80,3 +80,5 @@ check current code before applying them.
 
 - [2026-10-01] Versioned form refresh: Reactive form values can reset fields before a separate version check reads the saved baseline. Use one versioned rebase path for listing snapshots. Keep unrelated drafts, retain the old version on a field conflict, and skip optimistic writes while a save is pending. Check a late clean snapshot, a cultivar result, and a failed-save rollback.
 - [2026-10-01] Local list eligibility: Optimistic list inserts have an empty userId until the server confirms the row. Exclude these rows from the cached eligibility count. Otherwise a free member's last permitted create can close the editor before the request finishes and lose the retry draft.
+
+- [2026-10-03] Seeded Vercel public reads: The Vercel preview uses the existing seeded Turso database without a persistent replica. Permit that source only for Vercel Preview/Development and the seeded database URL. Keep production public reads and public MCP database tools behind the local-source guard. Verify the immutable preview guest tour; skipped duplicate runs do not establish a pass.
