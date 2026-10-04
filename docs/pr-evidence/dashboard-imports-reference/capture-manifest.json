@@ -1,7 +1,7 @@
 {
   "browser": "Chromium 140.0.7339.16",
   "baselineSource": "e31a2cc34c3b1a75bc945acbfa19c75bfa8981aa",
-  "afterSource": "Product source in this PR",
+  "afterSource": "487d502b40447ca828c45460b15dc972954cd733 (earlier source; see validation.md for the correction)",
   "contactSheetDimensions": [
     2960,
     16548
