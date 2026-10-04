@@ -311,7 +311,7 @@ test("Profile URL checks ignore late results and preserve eligibility", async ({
   const profile = new DashboardProfile(page);
   await page.goto("/dashboard/profile");
   await profile.isReady();
-  await profile.slugInput.focus();
+  await profile.slugInput.click();
   const warning = page.getByRole("alertdialog", {
     name: "Before You Edit Your URL",
   });
