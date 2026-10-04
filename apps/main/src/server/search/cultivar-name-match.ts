@@ -19,6 +19,38 @@ import {
 export const MAX_CULTIVAR_MATCH_NAMES = 250;
 export const MAX_CULTIVAR_MATCH_NAME_LENGTH = 160;
 
+const CULTIVAR_MATCH_PROJECTION = `
+  i.cultivarReferenceId,
+  i.normalizedName,
+  i.displayName,
+  i.hybridizer,
+  i.awardNames,
+  i.yearInt,
+  i.scapeHeightIn,
+  i.bloomSizeIn,
+  i.budCount,
+  i.branches,
+  i.bloomSeason,
+  i.bloomHabit,
+  i.form,
+  i.flowerShow,
+  i.sculptedTypes,
+  i.ploidy,
+  i.foliageType,
+  i.fragrance,
+  i.color,
+  i.parentage,
+  i.rebloom,
+  i.imageUrl,
+  i.generatedImageAssetId,
+  i.generatedImageUrl,
+  i.generatedOriginalUrl,
+  i.generatedThumbUrl,
+  i.generatedBlurUrl,
+  i.fallbackImageUrl,
+  i.listingCount
+`;
+
 interface CultivarMatchRow {
   awardNames: string | null;
   bloomHabit: string | null;
@@ -195,36 +227,7 @@ async function getPotentialMatches(
     const ftsResult = await client.execute({
       args: [ftsQuery],
       sql: `
-        SELECT
-          i.cultivarReferenceId,
-          i.normalizedName,
-          i.displayName,
-          i.hybridizer,
-          i.awardNames,
-          i.yearInt,
-          i.scapeHeightIn,
-          i.bloomSizeIn,
-          i.budCount,
-          i.branches,
-          i.bloomSeason,
-          i.bloomHabit,
-          i.form,
-          i.flowerShow,
-          i.sculptedTypes,
-          i.ploidy,
-          i.foliageType,
-          i.fragrance,
-          i.color,
-          i.parentage,
-          i.rebloom,
-          i.imageUrl,
-          i.generatedImageAssetId,
-          i.generatedImageUrl,
-          i.generatedOriginalUrl,
-          i.generatedThumbUrl,
-          i.generatedBlurUrl,
-          i.fallbackImageUrl,
-          i.listingCount
+        SELECT ${CULTIVAR_MATCH_PROJECTION}
         FROM CultivarSearchFts f
         JOIN CultivarSearchIndex i ON i.id = f.rowid
         WHERE CultivarSearchFts MATCH ?
@@ -244,37 +247,8 @@ async function getPotentialMatches(
     const fallbackResult = await client.execute({
       args: [looseInput.length, looseInput.charAt(0)],
       sql: `
-        SELECT
-          cultivarReferenceId,
-          normalizedName,
-          displayName,
-          hybridizer,
-          awardNames,
-          yearInt,
-          scapeHeightIn,
-          bloomSizeIn,
-          budCount,
-          branches,
-          bloomSeason,
-          bloomHabit,
-          form,
-          flowerShow,
-          sculptedTypes,
-          ploidy,
-          foliageType,
-          fragrance,
-          color,
-          parentage,
-          rebloom,
-          imageUrl,
-          generatedImageAssetId,
-          generatedImageUrl,
-          generatedOriginalUrl,
-          generatedThumbUrl,
-          generatedBlurUrl,
-          fallbackImageUrl,
-          listingCount
-        FROM CultivarSearchIndex
+        SELECT ${CULTIVAR_MATCH_PROJECTION}
+        FROM CultivarSearchIndex i
         WHERE ABS(length(displayNameSearch) - ?) <= 4
           AND substr(displayNameSearch, 1, 1) = ?
         ORDER BY displayName COLLATE NOCASE ASC
@@ -324,37 +298,8 @@ export async function matchCultivarNames({
       const exactResult = await client.execute({
         args: normalizedNames,
         sql: `
-          SELECT
-            cultivarReferenceId,
-            normalizedName,
-            displayName,
-            hybridizer,
-            awardNames,
-            yearInt,
-            scapeHeightIn,
-            bloomSizeIn,
-            budCount,
-            branches,
-            bloomSeason,
-            bloomHabit,
-            form,
-            flowerShow,
-            sculptedTypes,
-            ploidy,
-            foliageType,
-            fragrance,
-            color,
-            parentage,
-            rebloom,
-            imageUrl,
-            generatedImageAssetId,
-            generatedImageUrl,
-            generatedOriginalUrl,
-            generatedThumbUrl,
-            generatedBlurUrl,
-            fallbackImageUrl,
-            listingCount
-          FROM CultivarSearchIndex
+          SELECT ${CULTIVAR_MATCH_PROJECTION}
+          FROM CultivarSearchIndex i
           WHERE normalizedName IN (${normalizedNames.map(() => "?").join(", ")})
         `,
       });
@@ -376,37 +321,8 @@ export async function matchCultivarNames({
       const referenceResult = await client.execute({
         args: uniqueReferenceIds,
         sql: `
-          SELECT
-            cultivarReferenceId,
-            normalizedName,
-            displayName,
-            hybridizer,
-            awardNames,
-            yearInt,
-            scapeHeightIn,
-            bloomSizeIn,
-            budCount,
-            branches,
-            bloomSeason,
-            bloomHabit,
-            form,
-            flowerShow,
-            sculptedTypes,
-            ploidy,
-            foliageType,
-            fragrance,
-            color,
-            parentage,
-            rebloom,
-            imageUrl,
-            generatedImageAssetId,
-            generatedImageUrl,
-            generatedOriginalUrl,
-            generatedThumbUrl,
-            generatedBlurUrl,
-            fallbackImageUrl,
-            listingCount
-          FROM CultivarSearchIndex
+          SELECT ${CULTIVAR_MATCH_PROJECTION}
+          FROM CultivarSearchIndex i
           WHERE cultivarReferenceId IN (${uniqueReferenceIds.map(() => "?").join(", ")})
         `,
       });
