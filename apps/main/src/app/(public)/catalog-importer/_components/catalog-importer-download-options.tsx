@@ -22,21 +22,25 @@ import {
   ItemTitle,
 } from "@/components/ui/item";
 import { Spinner } from "@/components/ui/spinner";
-import type { CatalogImporterWorkbenchController } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
 import { cn } from "@/lib/utils";
 
 export function CatalogImporterDownloadOptions({
   controller,
   stacked = false,
 }: {
-  controller: CatalogImporterWorkbenchController;
+  controller: {
+    downloadResults: (kind: "clean" | "enriched") => Promise<void>;
+    downloadingResults: "clean" | "enriched" | null;
+    remainingIssueCount: number;
+    reviewCount: number;
+  };
   stacked?: boolean;
 }) {
   const [pendingDownload, setPendingDownload] = useState<
     "clean" | "enriched" | null
   >(null);
   const reviewIncomplete =
-    controller.reviewRows.length > 0 || controller.remainingIssueCount > 0;
+    controller.reviewCount > 0 || controller.remainingIssueCount > 0;
 
   const requestDownload = (kind: "clean" | "enriched") => {
     if (reviewIncomplete) {
@@ -130,8 +134,8 @@ export function CatalogImporterDownloadOptions({
             </AlertDialogTitle>
             <AlertDialogDescription>
               {[
-                controller.reviewRows.length > 0
-                  ? `${controller.reviewRows.length.toLocaleString()} potential ${controller.reviewRows.length === 1 ? "match" : "matches"}`
+                controller.reviewCount > 0
+                  ? `${controller.reviewCount.toLocaleString()} potential ${controller.reviewCount === 1 ? "match" : "matches"}`
                   : null,
                 controller.remainingIssueCount > 0
                   ? `${controller.remainingIssueCount.toLocaleString()} spreadsheet ${controller.remainingIssueCount === 1 ? "item" : "items"}`

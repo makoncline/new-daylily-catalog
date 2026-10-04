@@ -18,6 +18,21 @@ when a script needs development env values. Keep credentials in ignored env
 files. Do not reuse another checkout's server, database, or port. The PR CI
 aggregate status is `Verify PR`.
 
+Use the [Atlas flow registry](apps/main/scripts/atlas-flows.mjs) to find
+completed dashboard examples, implementation entry points, behavior rules,
+and test runners. Update the flow entry when its source or tests change.
+Keep this registry as the only flow map.
+
+- `pnpm verify` runs lint, typecheck, and all Vitest tests.
+- `pnpm verify --tests tests/<file>` runs lint, typecheck, and selected Vitest files. Paths are relative to `apps/main`.
+- `pnpm verify --flow <Atlas ID>` runs only the mapped tests. Run lint and typecheck separately.
+- `pnpm verify --full` adds all full-app Playwright integration tests to the default checks. The runner uses a disposable local database and loopback service providers.
+
+Flow commands can include connected Playwright E2E tests. These need development
+service configuration, including Clerk test credentials; they are separate from
+the full-app integration runner. Install Playwright Chromium for browser tests.
+Use free `INTEGRATION_PORT` and `E2E_PORT` values for local runs.
+
 Use [database migration steps](apps/main/docs/db-migration.md) for schema and
 data changes, [V2 AHS refresh](.codex/skills/v2-ahs-refresh/SKILL.md) for
 cultivar updates, and [image catch-up](apps/main/docs/generated-cultivar-image-catchup.md)

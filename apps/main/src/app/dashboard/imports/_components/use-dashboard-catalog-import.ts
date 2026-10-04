@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
-import { useCatalogImporterWorkbench } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
+import { useCatalogImporterSession } from "@/hooks/use-catalog-importer-session";
 import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
 import { refreshDashboardDbFromServer } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence";
 import {
@@ -31,7 +31,9 @@ function getImportErrorMessage(error: unknown) {
 export function useDashboardCatalogImport(
   initialDraft: CatalogImporterDraft | null,
 ) {
-  const controller = useCatalogImporterWorkbench(initialDraft);
+  const { session, resetSession, getSourceCellsForRow } =
+    useCatalogImporterSession(initialDraft);
+  const [liveAnnouncement, setLiveAnnouncement] = useState("");
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string> | null>(
     null,
   );
@@ -63,8 +65,8 @@ export function useDashboardCatalogImport(
 
   const listingRows = useMemo(
     () =>
-      (controller.matchedRows ?? []).filter((row) => row.rowKind === "listing"),
-    [controller.matchedRows],
+      (session.matchedRows ?? []).filter((row) => row.rowKind === "listing"),
+    [session.matchedRows],
   );
   const reviewRows = useMemo(
     () =>
@@ -176,7 +178,8 @@ export function useDashboardCatalogImport(
 
   const startOver = () => {
     if (busy.current) return;
-    controller.resetImporter();
+    resetSession();
+    setLiveAnnouncement("Local progress cleared.");
     setRefreshWarning(false);
     setSelectedRowIds(null);
     setImportedRowIds(new Set());
@@ -215,7 +218,7 @@ export function useDashboardCatalogImport(
     const rows = selectedReadyRows.map((row) => ({
       ...prepareCatalogImportListing(row),
       allowExistingDuplicate: false,
-      importKey: `${controller.projectId}:${row.id}`,
+      importKey: `${session.projectId}:${row.id}`,
     }));
 
     if (rows.length === 0) {
@@ -255,7 +258,7 @@ export function useDashboardCatalogImport(
         capturePosthogEvent("catalog_import_completed", {
           created_count: nextTotals.createdCount,
           existing_count: existingMatchRows.length + nextTotals.existingCount,
-          import_id: controller.projectId,
+          import_id: session.projectId,
           imported_count: nextTotals.importedCount,
           skipped_count:
             reviewRows.length + issueRows.length + builderExcludedCount,
@@ -266,7 +269,7 @@ export function useDashboardCatalogImport(
       setImportError(getImportErrorMessage(error));
       capturePosthogEvent("catalog_import_failed", {
         error_code: "catalog_write_failed",
-        import_id: controller.projectId,
+        import_id: session.projectId,
         stage: "dashboard-import",
       });
     } finally {
@@ -280,17 +283,17 @@ export function useDashboardCatalogImport(
     builderExcludedRows,
     existingListings,
     existingMatchRows,
-    getSourceCellsForRow: controller.getSourceCellsForRow,
-    hasPreparedRows: controller.matchedRows !== null,
-    hasSpreadsheet: controller.parsedSpreadsheet !== null,
+    getSourceCellsForRow,
+    hasPreparedRows: session.matchedRows !== null,
+    hasSpreadsheet: session.parsedSpreadsheet !== null,
     importedRows,
     importedRowCount: importedRowIds.size,
     importError,
     isImporting,
     isRefreshing,
     issueRows,
-    liveAnnouncement: controller.liveAnnouncement,
-    projectId: controller.projectId,
+    liveAnnouncement,
+    projectId: session.projectId,
     readyRows,
     refreshWarning,
     retryRefresh,

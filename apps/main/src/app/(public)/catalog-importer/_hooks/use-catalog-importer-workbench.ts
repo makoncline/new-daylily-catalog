@@ -11,17 +11,12 @@ import {
   appendCatalogImportOriginalPriceNote,
   assignCatalogImportDuplicateGroups,
   cellToText,
-  columnIndexToLabel,
-  createCatalogCleanSpreadsheet,
-  createCatalogEnrichedSpreadsheet,
   createCatalogImportRows,
   createCatalogImportSampleSpreadsheet,
   createCatalogImportTemplateCsv,
   detectHeaderRow,
   getAutomaticCultivarMatch,
   getCatalogImportDownloadSummary,
-  getCatalogImportMappedColumnLabel,
-  getCatalogImportOrderedColumnIndexes,
   getCatalogImportRowDisposition,
   getCatalogImportState,
   getSourceColumns,
@@ -33,40 +28,25 @@ import type {
   CultivarMatchCandidate,
   ParsedSpreadsheet,
 } from "@/lib/catalog-importer";
-import {
-  clearCatalogImporterDraft,
-  createCatalogImporterProjectId,
-  serializeCatalogImporterSession,
-  writeCatalogImporterDraft,
-} from "@/lib/catalog-importer-draft";
 import type {
   CatalogImporterDraft,
   CatalogImporterSession,
 } from "@/lib/catalog-importer-draft";
+import { parseCatalogImportFile } from "@/lib/catalog-importer-file";
 import {
-  downloadCatalogImportFile,
-  parseCatalogImportFile,
-} from "@/lib/catalog-importer-file";
+  EMPTY_CATALOG_IMPORT_MAPPING,
+  useCatalogImporterSession,
+} from "@/hooks/use-catalog-importer-session";
+import { useCatalogImporterDownloads } from "@/hooks/use-catalog-importer-downloads";
 import { requestCultivarMatches } from "@/lib/catalog-importer-match-client";
 import { logCatalogImporterSubmissionSample } from "@/lib/catalog-importer-submission-sample";
 import { getCultivarMatchConfidence } from "@/lib/cultivar-match-score";
 import { normalizeCultivarName } from "@/lib/utils/cultivar-utils";
-import {
-  getCatalogImporterDownloadFileName,
-  getErrorMessage,
-} from "@/app/(public)/catalog-importer/_lib/catalog-importer-presentation";
+import { getErrorMessage } from "@/app/(public)/catalog-importer/_lib/catalog-importer-presentation";
 import type {
   CatalogImporterCandidateResult,
   CatalogImporterMappingField,
 } from "@/app/(public)/catalog-importer/_lib/catalog-importer-presentation";
-
-const EMPTY_MAPPING: CatalogColumnMapping = {
-  cultivarReferenceId: null,
-  description: null,
-  price: null,
-  privateNote: null,
-  title: null,
-};
 
 const MANUAL_CATALOG_HEADERS = [
   "Name",
@@ -215,9 +195,16 @@ function getNextReviewedIssueActions({
 export function useCatalogImporterWorkbench(
   initialDraft: CatalogImporterDraft | null = null,
 ) {
-  const restoredImportState = getCatalogImportState(
-    initialDraft?.matchedRows ?? [],
-  );
+  const {
+    session,
+    sessionRef,
+    commitSession,
+    resetSession,
+    flushDraft,
+    storageWarning,
+    selectedSheet,
+    getSourceCellsForRow,
+  } = useCatalogImporterSession(initialDraft);
   const initialReviewRow =
     initialDraft?.matchedRows?.find(
       (row) =>
@@ -238,25 +225,6 @@ export function useCatalogImporterWorkbench(
     ) ??
     null;
   const initialReviewedIssueActions = initialDraft?.reviewedIssueActions ?? [];
-  const [session, setSession] = useState<CatalogImporterSession>(() => ({
-    activeReviewRowId: initialDraft?.activeReviewRowId ?? null,
-    headerRowIndex: initialDraft?.headerRowIndex ?? null,
-    initialIssueCount:
-      initialDraft?.initialIssueCount ??
-      restoredImportState.counts.issueCount +
-        restoredImportState.counts.warningCount,
-    initialReviewCount:
-      initialDraft?.initialReviewCount ??
-      restoredImportState.counts.reviewQueueCount,
-    mapping: initialDraft?.mapping ?? EMPTY_MAPPING,
-    matchedRows: initialDraft?.matchedRows ?? null,
-    matchedRowsKey: initialDraft?.matchedRowsKey ?? null,
-    parsedSpreadsheet: initialDraft?.parsedSpreadsheet ?? null,
-    projectId: initialDraft?.projectId ?? createCatalogImporterProjectId(),
-    reviewedIssueActions: initialReviewedIssueActions,
-    selectedSheetIndex: initialDraft?.selectedSheetIndex ?? 0,
-  }));
-  const sessionRef = useRef(session);
   const {
     activeReviewRowId,
     headerRowIndex,
@@ -272,10 +240,6 @@ export function useCatalogImporterWorkbench(
   } = session;
   const [fileError, setFileError] = useState<string | null>(null);
   const [readingFile, setReadingFile] = useState(false);
-  const [downloadingResults, setDownloadingResults] = useState<
-    "clean" | "enriched" | null
-  >(null);
-  const [downloadError, setDownloadError] = useState<string | null>(null);
   const [matchingProgress, setMatchingProgress] = useState<{
     processed: number;
     total: number;
@@ -301,8 +265,13 @@ export function useCatalogImporterWorkbench(
     );
   const [searchCandidateResult, setSearchCandidateResult] =
     useState<CatalogImporterCandidateResult | null>(null);
-  const [storageWarning, setStorageWarning] = useState<string | null>(null);
   const [liveAnnouncement, setLiveAnnouncement] = useState("");
+  const {
+    downloadResults,
+    downloadingResults,
+    downloadError,
+    setDownloadError,
+  } = useCatalogImporterDownloads(session, setLiveAnnouncement);
   const [lastLinkAction, setLastLinkAction] = useState<{
     displayName: string;
     kind: "added" | "changed" | "excluded" | "left-unmatched";
@@ -334,7 +303,7 @@ export function useCatalogImporterWorkbench(
       }
       return nextActions;
     },
-    [],
+    [sessionRef],
   );
   const exactMatchRequestId = useRef(0);
   const exactMatchAbortController = useRef<AbortController | null>(null);
@@ -342,10 +311,8 @@ export function useCatalogImporterWorkbench(
   const searchCandidateRequestId = useRef(0);
   const savedIdRematchRequestId = useRef(0);
   const savedIdRematchAbortController = useRef<AbortController | null>(null);
-  const draftWriteChain = useRef(Promise.resolve());
   const previewTracked = useRef(initialDraft?.matchedRows != null);
 
-  const selectedSheet = parsedSpreadsheet?.sheets[selectedSheetIndex] ?? null;
   const sourceColumns = useMemo(
     () =>
       selectedSheet ? getSourceColumns(selectedSheet.rows, headerRowIndex) : [],
@@ -355,57 +322,6 @@ export function useCatalogImporterWorkbench(
     selectedSheet?.rows.slice(0, CATALOG_IMPORT_PREVIEW_ROW_COUNT) ?? [];
   const sourcePreviewColumnIndexes =
     getPopulatedColumnIndexes(sourcePreviewRows);
-  const populatedSourceColumnIndexes = useMemo(() => {
-    const indexes = new Set<number>();
-
-    for (const row of selectedSheet?.rows ?? []) {
-      for (let columnIndex = 0; columnIndex < row.length; columnIndex += 1) {
-        if (cellToText(row[columnIndex])) {
-          indexes.add(columnIndex);
-        }
-      }
-    }
-
-    return [...indexes].sort((left, right) => left - right);
-  }, [selectedSheet]);
-  const orderedSourceColumnIndexes = useMemo(
-    () =>
-      getCatalogImportOrderedColumnIndexes(
-        mapping,
-        populatedSourceColumnIndexes,
-      ),
-    [mapping, populatedSourceColumnIndexes],
-  );
-  const getSourceCellsForRow = useCallback(
-    (row: CatalogImportRow) => {
-      if (!selectedSheet) {
-        return [];
-      }
-
-      const sourceRow = selectedSheet.rows[row.sourceRow - 1] ?? [];
-      const headerRow =
-        headerRowIndex === null ? null : selectedSheet.rows[headerRowIndex];
-
-      return orderedSourceColumnIndexes.map((columnIndex) => {
-        const column = columnIndexToLabel(columnIndex);
-        const mappedLabel = getCatalogImportMappedColumnLabel(
-          mapping,
-          columnIndex,
-        );
-
-        return {
-          column,
-          mapped: mappedLabel !== null,
-          label:
-            mappedLabel ??
-            ((headerRow ? cellToText(headerRow[columnIndex]) : "") ||
-              `Column ${column}`),
-          value: cellToText(sourceRow[columnIndex]),
-        };
-      });
-    },
-    [headerRowIndex, mapping, orderedSourceColumnIndexes, selectedSheet],
-  );
   const importState = useMemo(
     () =>
       getCatalogImportState(matchedRows ?? [], selectedSheet?.rows.length ?? 0),
@@ -493,33 +409,6 @@ export function useCatalogImporterWorkbench(
       });
     }
   }, []);
-
-  const commitSession = useCallback(
-    (updates: Partial<CatalogImporterSession> = {}) => {
-      const nextSession = { ...sessionRef.current, ...updates };
-      sessionRef.current = nextSession;
-      setSession(nextSession);
-      const draft = serializeCatalogImporterSession(nextSession);
-
-      draftWriteChain.current = draftWriteChain.current.then(async () => {
-        if (!draft.parsedSpreadsheet) {
-          await clearCatalogImporterDraft();
-          setStorageWarning(null);
-          return;
-        }
-
-        const result = await writeCatalogImporterDraft(draft);
-        setStorageWarning(
-          result === "unavailable"
-            ? "Browser progress could not be saved on this device."
-            : null,
-        );
-      });
-
-      return draftWriteChain.current;
-    },
-    [],
-  );
 
   const saveMatchedRows = useCallback(
     (
@@ -832,7 +721,7 @@ export function useCatalogImporterWorkbench(
         return false;
       }
     },
-    [loadCandidates, commitSession],
+    [loadCandidates, commitSession, sessionRef],
   );
 
   const buildCatalogPreview = useCallback(async () => {
@@ -873,28 +762,14 @@ export function useCatalogImporterWorkbench(
   }, []);
 
   const resetImporter = useCallback(() => {
-    const nextProjectId = createCatalogImporterProjectId();
-    void commitSession({
-      activeReviewRowId: null,
-      headerRowIndex: null,
-      initialIssueCount: 0,
-      initialReviewCount: 0,
-      mapping: EMPTY_MAPPING,
-      matchedRows: null,
-      matchedRowsKey: null,
-      parsedSpreadsheet: null,
-      projectId: nextProjectId,
-      reviewedIssueActions: [],
-      selectedSheetIndex: 0,
-    });
+    resetSession();
     setFileError(null);
     setReadingFile(false);
     setDownloadError(null);
     resetMatches();
-    setStorageWarning(null);
     setLiveAnnouncement("Local progress cleared.");
     previewTracked.current = false;
-  }, [commitSession, resetMatches]);
+  }, [resetSession, resetMatches, setDownloadError]);
 
   const setImportRowsIncluded = useCallback(
     (rowIds: string[], included: boolean) => {
@@ -1041,7 +916,7 @@ export function useCatalogImporterWorkbench(
             headerRowIndex: null,
             initialIssueCount: 0,
             initialReviewCount: 0,
-            mapping: EMPTY_MAPPING,
+            mapping: EMPTY_CATALOG_IMPORT_MAPPING,
             matchedRows: null,
             matchedRowsKey: null,
             parsedSpreadsheet: spreadsheet,
@@ -1066,7 +941,7 @@ export function useCatalogImporterWorkbench(
         setReadingFile(false);
       }
     },
-    [configureSheet, commitSession, resetMatches],
+    [configureSheet, commitSession, resetMatches, sessionRef],
   );
 
   const loadManualCatalog = useCallback(() => {
@@ -1923,7 +1798,7 @@ export function useCatalogImporterWorkbench(
       });
       setLiveAnnouncement(actionSummary);
     },
-    [createReviewedIssueActions, loadCandidates, saveMatchedRows],
+    [createReviewedIssueActions, loadCandidates, saveMatchedRows, sessionRef],
   );
 
   const undoReviewedIssueAction = useCallback(
@@ -1970,48 +1845,7 @@ export function useCatalogImporterWorkbench(
       });
       setLiveAnnouncement("Spreadsheet issue change undone.");
     },
-    [matchedRows, reviewedIssueActions, saveMatchedRows],
-  );
-
-  const downloadResults = useCallback(
-    async (kind: "clean" | "enriched" = "enriched") => {
-      if (!parsedSpreadsheet || !matchedRows) {
-        return;
-      }
-
-      setDownloadingResults(kind);
-      setDownloadError(null);
-      try {
-        const fileName = getCatalogImporterDownloadFileName(
-          parsedSpreadsheet.fileName,
-          kind,
-        );
-        const spreadsheet =
-          kind === "clean"
-            ? createCatalogCleanSpreadsheet({ matchedRows, parsedSpreadsheet })
-            : createCatalogEnrichedSpreadsheet({
-                headerRowIndex,
-                mapping,
-                matchedRows,
-                parsedSpreadsheet,
-                retainExcludedRows: true,
-                selectedSheetIndex,
-              });
-        await downloadCatalogImportFile({ fileName, spreadsheet });
-        setLiveAnnouncement(`${fileName} downloaded.`);
-      } catch (error) {
-        setDownloadError(getErrorMessage(error));
-      } finally {
-        setDownloadingResults(null);
-      }
-    },
-    [
-      headerRowIndex,
-      mapping,
-      matchedRows,
-      parsedSpreadsheet,
-      selectedSheetIndex,
-    ],
+    [matchedRows, reviewedIssueActions, saveMatchedRows, sessionRef],
   );
 
   const downloadTemplate = useCallback(() => {
@@ -2020,8 +1854,6 @@ export function useCatalogImporterWorkbench(
       fileName: "daylily-clean-list-template.csv",
     });
   }, []);
-
-  const flushDraft = useCallback(() => draftWriteChain.current, []);
 
   return {
     activeReviewRow,

@@ -438,7 +438,14 @@ export function CatalogImporterResults({
                 Nothing is published.
               </p>
             </div>
-            <CatalogImporterDownloadOptions controller={controller} />
+            <CatalogImporterDownloadOptions
+              controller={{
+                downloadResults: controller.downloadResults,
+                downloadingResults: controller.downloadingResults,
+                remainingIssueCount: controller.remainingIssueCount,
+                reviewCount: controller.reviewRows.length,
+              }}
+            />
           </section>
         </section>
       ) : null}
