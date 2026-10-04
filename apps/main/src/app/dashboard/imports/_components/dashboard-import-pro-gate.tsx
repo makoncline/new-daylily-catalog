@@ -5,23 +5,10 @@ import { Check } from "lucide-react";
 import { CatalogImporterDownloadOptions } from "@/app/(public)/catalog-importer/_components/catalog-importer-download-options";
 import { useCatalogImporterWorkbench } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
 import { ProMembershipAction } from "@/components/pro-membership-action";
-import {
-  ProUpgrade,
-  ProUpgradeActions,
-  ProUpgradeContent,
-  ProUpgradeDescription,
-  ProUpgradeDetails,
-  ProUpgradeFeature,
-  ProUpgradeFeatures,
-  ProUpgradeHeader,
-  ProUpgradeSubtitle,
-  ProUpgradeTitle,
-} from "@/components/pro-upgrade";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import type { CatalogImporterDraft } from "@/lib/catalog-importer-draft";
-
-const IMPORT_BUILDER_HREF = "/catalog-importer?returnTo=%2Fdashboard%2Fimports";
+import { IMPORT_BUILDER_HREF } from "./dashboard-import-config";
 
 export function DashboardImportProGate({
   initialDraft,
@@ -41,48 +28,52 @@ export function DashboardImportProGate({
       data-ph-capture-attribute-import_id={initialDraft?.projectId}
       data-ph-capture-attribute-step="dashboard-pro-gate"
     >
-      <ProUpgrade aria-labelledby="dashboard-import-pro-heading">
-        <ProUpgradeHeader>
-          <p className="text-xs font-semibold tracking-wide text-[#b7791f] uppercase">
-            Pro required
-          </p>
-          <ProUpgradeTitle id="dashboard-import-pro-heading">
+      <section
+        className="flex flex-col gap-6"
+        aria-labelledby="dashboard-import-pro-heading"
+      >
+        <div className="flex flex-col gap-2">
+          <p className="text-muted-foreground text-sm">Pro required</p>
+          <h2
+            className="text-xl font-semibold tracking-tight"
+            id="dashboard-import-pro-heading"
+          >
             {preparedListingCount > 0
               ? `Create ${preparedListingCount.toLocaleString()} prepared ${
                   preparedListingCount === 1 ? "listing" : "listings"
                 }`
               : "Create listings from your import"}
-          </ProUpgradeTitle>
-          <ProUpgradeDescription>
+          </h2>
+          <p className="text-muted-foreground max-w-2xl text-sm leading-6">
             Your prepared import stays in this browser. Upgrade to Pro to add
             the listings to your catalog.
-          </ProUpgradeDescription>
-        </ProUpgradeHeader>
-        <ProUpgradeContent>
-          <ProUpgradeDetails>
-            <ProUpgradeSubtitle>What Pro adds</ProUpgradeSubtitle>
-            <ProUpgradeFeatures>
+          </p>
+        </div>
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex flex-col gap-3">
+            <h3 className="font-medium">What Pro adds</h3>
+            <ul className="flex flex-col gap-2 text-sm">
               {[
                 "One public catalog link",
                 "Listings with photos, prices, and availability",
                 "Direct buyer inquiries",
                 "Daylily Catalog discovery eligibility",
               ].map((feature) => (
-                <ProUpgradeFeature key={feature}>
+                <li key={feature} className="flex items-start gap-2">
                   <Check className="text-muted-foreground size-4 shrink-0" />
                   {feature}
-                </ProUpgradeFeature>
+                </li>
               ))}
-            </ProUpgradeFeatures>
-          </ProUpgradeDetails>
-          <ProUpgradeActions
-            className="gap-2"
+            </ul>
+          </div>
+          <div
+            className="self-start"
             data-ph-capture-attribute-action="start-pro-checkout"
           >
-            <ProMembershipAction className="w-full" />
-          </ProUpgradeActions>
-        </ProUpgradeContent>
-      </ProUpgrade>
+            <ProMembershipAction />
+          </div>
+        </div>
+      </section>
 
       {controller.matchedRows ? (
         <section
@@ -92,7 +83,7 @@ export function DashboardImportProGate({
           <div className="flex flex-col gap-2">
             <h2
               id="dashboard-import-download-heading"
-              className="text-2xl font-semibold tracking-tight"
+              className="text-xl font-semibold tracking-tight"
             >
               Or download your files
             </h2>
@@ -112,7 +103,7 @@ export function DashboardImportProGate({
             </Alert>
           ) : null}
 
-          <CatalogImporterDownloadOptions controller={controller} />
+          <CatalogImporterDownloadOptions controller={controller} stacked />
         </section>
       ) : (
         <div className="pt-2">
