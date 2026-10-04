@@ -10,6 +10,7 @@ import { useTableUrlSync, useUrlInitialTableState } from "./use-table-url-sync";
 export function useInitialPersistedTableState(args: {
   filterableColumnIds?: string[];
   storageKey: string;
+  syncUrl?: boolean;
 }) {
   const urlState = useUrlInitialTableState({
     filterableColumnIds: args.filterableColumnIds,
@@ -19,12 +20,15 @@ export function useInitialPersistedTableState(args: {
   });
 
   return {
-    ...urlState,
+    ...(args.syncUrl === false ? {} : urlState),
     ...localStorageState,
   };
 }
 
-export function useSyncPersistedTableState<TData>(table: Table<TData>) {
-  useTableUrlSync(table);
+export function useSyncPersistedTableState<TData>(
+  table: Table<TData>,
+  syncUrl = true,
+) {
+  useTableUrlSync(table, syncUrl);
   useTableLocalStorageSync(table.getState());
 }
