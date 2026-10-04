@@ -778,15 +778,13 @@ test("public preparation restores an interrupted match and clear rejects its lat
       path.join(candidateDirectory, "public-search-candidate.sqlite"),
     ]);
     await page.goto("/catalog-importer");
-    await page
-      .locator('input[type="file"]')
-      .setInputFiles({
-        name: "interrupted.csv",
-        mimeType: "text/csv",
-        buffer: Buffer.from(
-          "name,price,description,private note\nIntegration Bloom,15,Rose flower,West bed",
-        ),
-      });
+    await page.locator('input[type="file"]').setInputFiles({
+      name: "interrupted.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from(
+        "name,price,description,private note\nIntegration Bloom,15,Rose flower,West bed",
+      ),
+    });
     await capture(page, "public-mapping");
     let requestIndex = 0;
     await page.route("**/api/v1/cultivars/match", async (route) => {
