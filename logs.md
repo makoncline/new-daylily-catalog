@@ -69,3 +69,5 @@ check current code before applying them.
 - [2026-10-03] Search screenshot fixtures: Shared Listings/member advanced controls omit facets and ranges with no data. Seed linked V2 cultivars with every trait before using screenshots as evidence. Assert rendered controls, options, result counts, and selection; a private-note-only flow can pass with an empty Bloom Traits column.
 
 - [2026-10-04] Import pin checks and sidebar motion: Playwright screenshot capture with animations disabled finishes the sidebar transition. CI skips optional evidence capture. Wait for sidebar transitions to finish before testing horizontal scroll, then measure pinned-column positions in one browser call. The middle table can have no overflow until the sidebar reaches its final width. Run the integration flows without IMPORTS_EVIDENCE_DIR to verify CI behavior.
+
+- [2026-10-04] Focused Atlas verification: `pnpm verify --flow` runs only registry tests and can include connected E2E. It does not run static checks. When changing a mapped dashboard flow, run lint and typecheck separately and keep `tests/integration/*.integration.ts` on `run-integration-local.mjs`, not Vitest.
