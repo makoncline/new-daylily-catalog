@@ -157,11 +157,13 @@ describe("Atlas flow contract", () => {
     );
   });
 
-  it("makes every copied reproduction command self-contained", () => {
-    for (const stateItem of statesForFlow(ATLAS_FLOWS[0]!)) {
-      expect(stateItem.reproductionCommand).toContain(
-        "ATLAS_CAPTURE_DIR=local/atlas/reproduce/screenshots",
-      );
+  it("routes every copied reproduction command through its managed flow", () => {
+    for (const flow of ATLAS_FLOWS) {
+      for (const stateItem of statesForFlow(flow)) {
+        expect(stateItem.reproductionCommand).toBe(
+          `node apps/main/scripts/run-atlas-flow.mjs ${flow.id} --output=local/atlas/reproduce`,
+        );
+      }
     }
   });
 
