@@ -19,7 +19,7 @@ async function openTagsWithMixedListings(
     page.getByRole("group", { name: "Choose a template" }),
   ).toBeVisible({ timeout: 30_000 });
 
-  const filter = page.getByPlaceholder("Filter listings to tag...");
+  const filter = page.getByPlaceholder("Search listings...");
   await captureAtlasState(page, "tag-printing-unselected");
   await filter.fill("atlas-no-matching-listing");
   await expect(page.getByText("No listings found")).toBeVisible();

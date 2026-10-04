@@ -71,7 +71,7 @@ export function useUrlInitialTableState({
   };
 }
 
-export function useTableUrlSync<TData>(table: Table<TData>) {
+export function useTableUrlSync<TData>(table: Table<TData>, enabled = true) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -81,7 +81,7 @@ export function useTableUrlSync<TData>(table: Table<TData>) {
   const filterableColumns = table.options.meta?.filterableColumns;
 
   React.useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (!enabled || typeof window === "undefined") return;
 
     const url = new URL(window.location.href);
     const oldParams = new URLSearchParams(window.location.search);
@@ -144,6 +144,7 @@ export function useTableUrlSync<TData>(table: Table<TData>) {
       router.push(url.href, { scroll: false });
     }
   }, [
+    enabled,
     pathname,
     router,
     searchParams,

@@ -1,6 +1,12 @@
 import * as React from "react";
 import { TRPCClientError } from "@trpc/client";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppRouter } from "@/server/api/root";
 import {
@@ -12,6 +18,7 @@ const mutateAsyncMock = vi.hoisted(() => vi.fn());
 const editorMountMock = vi.hoisted(() => vi.fn());
 const getProfileMock = vi.hoisted(() => vi.fn());
 const setProfileDataMock = vi.hoisted(() => vi.fn());
+const editorState = vi.hoisted(() => ({ text: "Updated content" }));
 
 vi.mock("@/trpc/client", () => ({
   getTrpcClient: () => ({
@@ -65,7 +72,7 @@ vi.mock("@/components/editor", () => ({
             {
               id: "block-1",
               type: "paragraph",
-              data: { text: "Updated content" },
+              data: { text: editorState.text },
             },
           ],
         }),
@@ -95,6 +102,7 @@ vi.mock("usehooks-ts", () => ({
 describe("ContentManagerFormItem", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    editorState.text = "Updated content";
     mutateAsyncMock.mockResolvedValue({
       updatedAt: new Date("2026-09-25T13:00:00.000Z"),
     });
@@ -124,6 +132,9 @@ describe("ContentManagerFormItem", () => {
     );
 
     fireEvent.click(screen.getByTestId("editor-change"));
+    await waitFor(() =>
+      expect(formRef.current?.hasPendingChanges()).toBe(true),
+    );
 
     await act(async () => {
       const didSave = await formRef.current?.saveChanges("manual");
@@ -152,6 +163,10 @@ describe("ContentManagerFormItem", () => {
       />,
     );
     fireEvent.click(screen.getByTestId("editor-change"));
+
+    await waitFor(() =>
+      expect(formRef.current?.hasPendingChanges()).toBe(true),
+    );
 
     rerender(
       <ContentManagerFormItem
@@ -208,6 +223,9 @@ describe("ContentManagerFormItem", () => {
       />,
     );
     fireEvent.click(screen.getByTestId("editor-change"));
+    await waitFor(() =>
+      expect(formRef.current?.hasPendingChanges()).toBe(true),
+    );
     mutateAsyncMock.mockRejectedValueOnce(
       TRPCClientError.from<AppRouter>({
         error: {
@@ -229,5 +247,49 @@ describe("ContentManagerFormItem", () => {
     expect(screen.getByRole("status")).toHaveTextContent(
       "Your unsaved story is still here",
     );
+  });
+
+  it("keeps new text typed while a story save is pending", async () => {
+    let finishSave!: (profile: { updatedAt: Date }) => void;
+    mutateAsyncMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishSave = resolve;
+      }),
+    );
+    const formRef = React.createRef<ContentManagerFormHandle>();
+    render(
+      <ContentManagerFormItem
+        initialProfile={
+          {
+            content: null,
+            updatedAt: new Date("2026-09-25T12:00:00.000Z"),
+          } as never
+        }
+        formRef={formRef}
+      />,
+    );
+    const editor = screen.getByTestId("editor-change");
+    fireEvent.input(editor);
+    expect(formRef.current?.hasPendingChanges()).toBe(true);
+    let result!: Promise<boolean>;
+    act(() => {
+      result = formRef.current!.saveChanges("manual");
+    });
+    await waitFor(() => expect(mutateAsyncMock).toHaveBeenCalledOnce());
+    editorState.text = "New text during save";
+    fireEvent.input(editor);
+    await act(async () => {
+      finishSave({ updatedAt: new Date("2026-09-25T13:00:00.000Z") });
+      expect(await result).toBe(false);
+    });
+    expect(formRef.current?.hasPendingChanges()).toBe(true);
+    await act(async () => {
+      expect(await formRef.current?.saveChanges("manual")).toBe(true);
+    });
+    expect(mutateAsyncMock.mock.lastCall?.[0]).toMatchObject({
+      expectedUpdatedAt: "2026-09-25T13:00:00.000Z",
+      content: expect.stringContaining("New text during save"),
+    });
+    expect(formRef.current?.hasPendingChanges()).toBe(false);
   });
 });

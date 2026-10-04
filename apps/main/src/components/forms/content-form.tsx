@@ -10,18 +10,17 @@ import { getTrpcClient } from "@/trpc/client";
 import { toast } from "sonner";
 import { Editor } from "@/components/editor";
 import { parseEditorContent } from "@/lib/editor-utils";
-import { Loader2 } from "lucide-react";
-import { FormItem } from "../ui/form";
-import { Label } from "../ui/label";
+import { Spinner } from "../ui/spinner";
+import { FieldDescription } from "../ui/field";
 import { useOnClickOutside } from "usehooks-ts";
 import { type OutputData } from "@editorjs/editorjs";
-import { Muted } from "@/components/typography";
 import {
   getErrorMessage,
   normalizeError,
   reportError,
 } from "@/lib/error-utils";
 import { useManagedFormSave } from "@/hooks/use-managed-form-save";
+import { useDashboardSectionFocus } from "@/hooks/use-dashboard-section-focus";
 
 export type ContentManagerSaveReason = "outside" | "manual" | "navigate";
 
@@ -45,6 +44,7 @@ export function ContentManagerFormItem({
   onMutationSuccess,
   onDirtyChange,
 }: ContentManagerFormProps) {
+  useDashboardSectionFocus("profile-content");
   const [isSaving, setIsSaving] = React.useState(false);
   const [isDirty, setIsDirty] = React.useState(false);
   const editorRef = React.useRef<EditorJS | null>(null);
@@ -106,10 +106,8 @@ export function ContentManagerFormItem({
               JSON.stringify(oldData.blocks)
             ) {
               isDirtyRef.current = false;
-              if (shouldUpdateUi) {
-                setIsDirty(false);
-                onDirtyChange?.(false);
-              }
+              setIsDirty(false);
+              onDirtyChange?.(false);
               return true;
             }
           } catch {
@@ -130,13 +128,17 @@ export function ContentManagerFormItem({
         setEditorSnapshot((current) => ({ ...current, content: newData }));
         setHasRemoteChange(false);
 
-        isDirtyRef.current = false;
-        if (shouldUpdateUi) {
-          setIsDirty(false);
-          onDirtyChange?.(false);
-        }
-
         onMutationSuccess?.(saved);
+        const currentBlocks = await editor.save();
+        if (
+          JSON.stringify(currentBlocks.blocks) !==
+          JSON.stringify(newBlocks.blocks)
+        )
+          return false;
+
+        isDirtyRef.current = false;
+        setIsDirty(false);
+        onDirtyChange?.(false);
 
         return true;
       } catch (error) {
@@ -198,6 +200,11 @@ export function ContentManagerFormItem({
       return;
     }
     if (isDirtyRef.current) {
+      if (initialProfile.content === lastSavedRef.current) {
+        lastSavedUpdatedAtRef.current = initialProfile.updatedAt;
+        setHasRemoteChange(false);
+        return;
+      }
       setHasRemoteChange(true);
       return;
     }
@@ -242,6 +249,20 @@ export function ContentManagerFormItem({
     void saveChanges("outside");
   });
 
+  const handleEditorChange = React.useCallback(async () => {
+    try {
+      const current = await editorRef.current?.save();
+      if (
+        current &&
+        JSON.stringify(current.blocks) !==
+          JSON.stringify(parseEditorContent(lastSavedRef.current)?.blocks ?? [])
+      )
+        markDirty();
+    } catch {
+      markDirty();
+    }
+  }, [markDirty]);
+
   const isPendingIndicatorVisible = isSaving || updateContentMutation.isPending;
   const editorResetKey = editorSnapshot.revision;
   const focusReviewBlock = React.useCallback((editor: EditorJS) => {
@@ -268,21 +289,23 @@ export function ContentManagerFormItem({
   }, []);
 
   return (
-    <FormItem>
-      <div className="flex w-full items-end justify-between">
-        <div>
-          <Label>Content</Label>
-          <Muted className="text-sm">
-            Tell visitors about yourself and your garden.
-          </Muted>
-        </div>
-        {isPendingIndicatorVisible && (
-          <Loader2 className="mr-2 size-4 animate-spin" />
-        )}
+    <section
+      id="profile-content"
+      aria-labelledby="profile-content-heading"
+      className="flex flex-col gap-3"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <h2 id="profile-content-heading" className="text-sm font-medium">
+          Content
+        </h2>
+        {isPendingIndicatorVisible && <Spinner aria-label="Saving content" />}
       </div>
-      <div ref={contentRef} className="space-y-3">
+      <FieldDescription>
+        Tell visitors about yourself and your garden.
+      </FieldDescription>
+      <div ref={contentRef} className="space-y-3" onInputCapture={markDirty}>
         {hasRemoteChange && (
-          <div role="status" className="rounded-md border p-3 text-sm">
+          <div role="status" className="text-sm">
             <p>
               Your profile changed elsewhere. Your unsaved story is still here.
               Saving it will report a conflict.
@@ -303,12 +326,11 @@ export function ContentManagerFormItem({
             editorRef={editorRef}
             initialContent={parseEditorContent(editorSnapshot.content)}
             className="px-3 py-2 pb-8"
-            onChange={markDirty}
+            onChange={() => void handleEditorChange()}
             onReady={focusReviewBlock}
           />
         </div>
       </div>
-      <div className="h-96" />
-    </FormItem>
+    </section>
   );
 }

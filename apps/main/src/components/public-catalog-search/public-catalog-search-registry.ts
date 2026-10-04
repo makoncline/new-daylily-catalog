@@ -370,7 +370,29 @@ export const PUBLIC_CATALOG_SEARCH_CULTIVAR_SECTION_DEFINITIONS: SectionDef[] =
     return section;
   });
 
+const privateNoteFilter: FilterDef = {
+  id: "privateNote",
+  label: "Private Notes",
+  sectionId: "listing",
+  kind: "text",
+  placeholder: "Search your private notes",
+  testId: "advanced-filter-private-note",
+};
+
+// Only owner-scoped dashboard tables opt into this section set.
+export const DASHBOARD_CATALOG_SEARCH_SECTION_DEFINITIONS: SectionDef[] =
+  PUBLIC_CATALOG_SEARCH_SECTION_DEFINITIONS.map((section) =>
+    section.id === "listing"
+      ? {
+          ...section,
+          filters: [...section.filters, privateNoteFilter],
+          groups: [...section.groups, { filterIds: ["privateNote"] }],
+        }
+      : section,
+  );
+
 const PUBLIC_CATALOG_SEARCH_FILTERS = [
+  privateNoteFilter,
   ...PUBLIC_CATALOG_SEARCH_TOOLBAR_FILTERS,
   ...PUBLIC_CATALOG_SEARCH_SECTION_DEFINITIONS.flatMap(
     (section) => section.filters,

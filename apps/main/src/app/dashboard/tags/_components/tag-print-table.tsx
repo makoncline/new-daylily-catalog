@@ -10,13 +10,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
   Empty,
   EmptyDescription,
   EmptyHeader,
@@ -24,17 +17,31 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { DataTable } from "@/components/data-table/data-table";
-import { DataTableLayout } from "@/components/data-table/data-table-layout";
+import {
+  DataTableLayout,
+  DataTableLayoutSkeleton,
+} from "@/components/data-table/data-table-layout";
+import { DataTableViewOptions } from "@/components/data-table";
 import { DataTablePagination } from "@/components/data-table/data-table-pagination";
 import { useDataTable } from "@/hooks/use-data-table";
 import { APP_CONFIG } from "@/config/constants";
 import {
-  baseListingColumns,
+  dashboardListingColumns,
   type ListingData,
 } from "@/app/dashboard/listings/_components/columns";
 import { useDashboardListingReadModel } from "@/app/dashboard/_lib/dashboard-db/use-dashboard-listing-read-model";
 import { TagDesignerPanel, type TagListingData } from "./tag-designer-panel";
-import { DashboardListingFilterToolbar } from "@/app/dashboard/_components/dashboard-listing-filter-toolbar";
+import { PublicCatalogSearchAdvancedPanel } from "@/components/public-catalog-search/public-catalog-search-advanced-panel";
+import { PublicCatalogSearchResultCount } from "@/components/public-catalog-search/public-catalog-search-composable";
+import {
+  buildPublicCatalogSearchColumnNames,
+  buildPublicCatalogSearchFacetOptions,
+  buildPublicCatalogSearchListOptions,
+  DASHBOARD_CATALOG_SEARCH_SECTION_DEFINITIONS,
+} from "@/components/public-catalog-search/public-catalog-search-registry";
+import type { PublicCatalogSearchMode } from "@/components/public-catalog-search/public-catalog-search-types";
+import { useLocalStorage } from "@/hooks/use-local-storage";
+import { LISTING_TABLE_COLUMN_NAMES } from "@/config/constants";
 
 const tagPrintColumns: ColumnDef<ListingData>[] = [
   {
@@ -59,7 +66,7 @@ const tagPrintColumns: ColumnDef<ListingData>[] = [
     enableSorting: false,
     enableHiding: false,
   },
-  ...baseListingColumns,
+  ...dashboardListingColumns,
 ];
 
 function getSelectedIdsFromRowSelection(rowSelection: RowSelectionState) {
@@ -174,12 +181,42 @@ export function TagPrintTable() {
     listingRows: listings,
     lists,
     listingsById,
+    isReady,
   } = useDashboardListingReadModel();
+  const [searchMode, setSearchMode] = useLocalStorage<PublicCatalogSearchMode>(
+    "dashboard-tags-search-mode",
+    "basic",
+  );
+  const [searchCollapsed, setSearchCollapsed] = useLocalStorage(
+    "dashboard-tags-search-collapsed",
+    false,
+  );
+  const columnNames = React.useMemo(
+    () => ({
+      ...LISTING_TABLE_COLUMN_NAMES,
+      ...buildPublicCatalogSearchColumnNames(),
+      hasPhoto: "Has Photo",
+      linkedToCultivar: "Linked to Cultivar",
+      priceValue: "Price Range",
+    }),
+    [],
+  );
+  const listOptions = React.useMemo(
+    () => buildPublicCatalogSearchListOptions(lists, listings),
+    [lists, listings],
+  );
+  const facetOptions = React.useMemo(
+    () => buildPublicCatalogSearchFacetOptions(listings),
+    [listings],
+  );
 
   const table = useDataTable({
     data: listings,
     columns: tagPrintColumns,
     storageKey: "tag-print-table",
+    // Global search can also contain private-note text. Keep all filters off URLs.
+    syncUrl: false,
+    columnNames,
     pinnedColumns: {
       left: ["select", "title"],
       right: [],
@@ -192,6 +229,13 @@ export function TagPrintTable() {
       pagination: {
         pageSize: APP_CONFIG.TABLE.PAGINATION.DASHBOARD_PAGE_SIZE_DEFAULT,
       },
+      columnVisibility: {
+        cultivarName: false,
+        hasPhoto: false,
+        linkedToCultivar: false,
+        parentage: false,
+        priceValue: false,
+      },
     },
   });
 
@@ -200,6 +244,37 @@ export function TagPrintTable() {
     listings,
     rowSelection,
   });
+  const filteredIds = new Set(
+    table.getFilteredRowModel().rows.map((row) => row.id),
+  );
+  const hiddenSelectedCount = selectedListings.filter(
+    (listing) => !filteredIds.has(listing.id),
+  ).length;
+
+  React.useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.altKey &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.shiftKey &&
+        event.key === "/"
+      ) {
+        event.preventDefault();
+        setSearchCollapsed((collapsed) => !collapsed);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [setSearchCollapsed]);
+
+  if (!isReady && !listings.length) {
+    return (
+      <div role="status" aria-label="Loading listings">
+        <DataTableLayoutSkeleton />
+      </div>
+    );
+  }
 
   if (!listings.length) {
     return (
@@ -218,54 +293,76 @@ export function TagPrintTable() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    // eslint-disable-next-line shadcn/no-unknown-classes -- PostHog privacy marker; no CSS is needed.
+    <div className="ph-no-capture flex flex-col gap-6" data-sentry-mask>
       <TagDesignerPanel listings={selectedListings} />
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            <h2>Choose listings</h2>
-          </CardTitle>
-          <CardDescription>
-            Select the listings to include in your tags.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col gap-4">
-            <SelectedListingsBadges table={table} listingsById={listingsById} />
-            <DataTableLayout
-              table={table}
-              toolbar={
-                <DashboardListingFilterToolbar
-                  table={table}
-                  lists={lists}
-                  listings={listings}
-                  placeholder="Filter listings to tag..."
-                />
-              }
-              pagination={
-                <DataTablePagination
-                  table={table}
-                  pageSizeOptions={
-                    APP_CONFIG.TABLE.PAGINATION.DASHBOARD_PAGE_SIZE_OPTIONS
-                  }
-                />
-              }
-              noResults={
-                <Empty>
-                  <EmptyHeader>
-                    <EmptyTitle>No listings found</EmptyTitle>
-                    <EmptyDescription>
-                      Try adjusting your search or list filters.
-                    </EmptyDescription>
-                  </EmptyHeader>
-                </Empty>
-              }
-            >
-              <DataTable table={table} />
-            </DataTableLayout>
-          </div>
-        </CardContent>
-      </Card>
+      <section aria-labelledby="choose-listings-title" className="space-y-4">
+        <div className="space-y-2">
+          <h2 id="choose-listings-title" className="text-base font-semibold">
+            Choose listings
+          </h2>
+          <p className="text-muted-foreground text-sm">
+            Select the listings to include in your tags. Selected listings stay
+            included when you change filters.
+          </p>
+        </div>
+        <PublicCatalogSearchAdvancedPanel
+          advancedSectionsColumns={3}
+          sectionDefinitions={DASHBOARD_CATALOG_SEARCH_SECTION_DEFINITIONS}
+          framed={false}
+          table={table}
+          listOptions={listOptions}
+          facetOptions={facetOptions}
+          mode={searchMode}
+          onModeChange={setSearchMode}
+          collapsed={searchCollapsed}
+          onCollapsedChange={setSearchCollapsed}
+          onSearchSubmit={() =>
+            document
+              .getElementById("tag-listings-results")
+              ?.scrollIntoView({ behavior: "smooth", block: "start" })
+          }
+        />
+        <SelectedListingsBadges table={table} listingsById={listingsById} />
+        {hiddenSelectedCount > 0 ? (
+          <p className="text-muted-foreground text-sm" role="status">
+            {hiddenSelectedCount} selected{" "}
+            {hiddenSelectedCount === 1 ? "listing is" : "listings are"} hidden
+            by filters and will be included in your tags.
+          </p>
+        ) : null}
+        <div id="tag-listings-results" className="min-w-0">
+          <DataTableLayout
+            table={table}
+            toolbar={
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <PublicCatalogSearchResultCount table={table} />
+                <DataTableViewOptions table={table} />
+              </div>
+            }
+            pagination={
+              <DataTablePagination
+                table={table}
+                pageSizeOptions={
+                  APP_CONFIG.TABLE.PAGINATION.DASHBOARD_PAGE_SIZE_OPTIONS
+                }
+              />
+            }
+            noResults={
+              <Empty>
+                <EmptyHeader>
+                  <EmptyTitle>No listings found</EmptyTitle>
+                  <EmptyDescription>
+                    Try adjusting your search or filters.
+                  </EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            }
+          >
+            <DataTable table={table} />
+          </DataTableLayout>
+        </div>
+      </section>
     </div>
   );
 }

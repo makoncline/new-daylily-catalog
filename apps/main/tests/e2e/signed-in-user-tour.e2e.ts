@@ -1,8 +1,6 @@
 import { test, expect } from "../../e2e/test-setup";
 import { withTempE2EDb } from "../../src/lib/test-utils/e2e-db";
-import {
-  createAuthedUser,
-} from "../../src/lib/test-utils/e2e-users";
+import { createAuthedUser } from "../../src/lib/test-utils/e2e-users";
 import { signInTestUser } from "./utils/auth";
 
 test.describe("signed-in user tour @local", () => {
@@ -89,6 +87,8 @@ test.describe("signed-in user tour @local", () => {
     // Profile page
     await page.getByTestId("dashboard-nav-profile").click();
     await expect(page).toHaveURL("/dashboard/profile");
-    await expect(page.getByRole("heading", { name: "Profile" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Profile", exact: true }),
+    ).toBeVisible();
   });
 });

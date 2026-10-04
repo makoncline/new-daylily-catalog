@@ -8,7 +8,7 @@ test("seller prepares a grower-details tag sheet", async ({ page }) => {
     page.getByRole("group", { name: "Choose a template" }),
   ).toBeVisible();
 
-  await page.getByPlaceholder("Filter listings to tag...").fill(listingTitle);
+  await page.getByPlaceholder("Search listings...").fill(listingTitle);
   const listingRow = page.getByRole("row", {
     name: `Select row ${listingTitle}`,
     exact: true,

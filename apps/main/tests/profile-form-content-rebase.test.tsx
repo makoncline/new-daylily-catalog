@@ -1,9 +1,19 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { createRef } from "react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { createTRPCQueryUtils } from "@trpc/react-query";
 import { createTRPCClient, TRPCClientError } from "@trpc/client";
 import { observable } from "@trpc/server/observable";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ProfileForm } from "@/components/forms/profile-form";
+import {
+  ProfileForm,
+  type ProfileFormHandle,
+} from "@/components/forms/profile-form";
 import { getQueryClient, resetQueryClient } from "@/trpc/query-client";
 import type { AppRouter } from "@/server/api/root";
 import type { RouterOutputs } from "@/trpc/react";
@@ -217,5 +227,82 @@ describe("profile fields after a story save", () => {
       expectedUpdatedAt: state.saved.updatedAt.toISOString(),
       data: { title: "New local garden" },
     });
+  });
+
+  it("keeps text typed while a navigation save is pending", async () => {
+    let finishSave!: (profile: typeof state.initial) => void;
+    updateProfile.mockReturnValue(
+      new Promise((resolve) => {
+        finishSave = resolve;
+      }),
+    );
+    const formRef = createRef<ProfileFormHandle>();
+    render(<ProfileForm initialProfile={state.initial} formRef={formRef} />);
+    const name = screen.getByRole("textbox", { name: "Garden Name" });
+    fireEvent.change(name, { target: { value: "Submitted garden" } });
+    let result!: Promise<boolean>;
+    act(() => {
+      result = formRef.current!.saveChanges("navigate");
+    });
+    await waitFor(() => expect(updateProfile).toHaveBeenCalledOnce());
+    fireEvent.change(name, { target: { value: "New draft" } });
+    await act(async () => {
+      finishSave({
+        ...state.initial,
+        title: "Submitted garden",
+        updatedAt: state.saved.updatedAt,
+      });
+      expect(await result).toBe(false);
+    });
+    expect(name).toHaveValue("New draft");
+    expect(formRef.current?.hasPendingChanges()).toBe(true);
+    updateProfile.mockResolvedValue({ ...state.saved, title: "New draft" });
+    fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+    await waitFor(() => expect(updateProfile).toHaveBeenCalledTimes(2));
+    expect(updateProfile.mock.calls[1]?.[0]).toMatchObject({
+      expectedUpdatedAt: state.saved.updatedAt.toISOString(),
+      data: { title: "New draft" },
+    });
+  });
+
+  it("keeps the newer story version when an older field response arrives", async () => {
+    let finishSave!: (profile: typeof state.initial) => void;
+    updateProfile.mockReturnValue(
+      new Promise((resolve) => {
+        finishSave = resolve;
+      }),
+    );
+    render(<ProfileForm initialProfile={state.initial} />);
+    fireEvent.change(screen.getByRole("textbox", { name: "Garden Name" }), {
+      target: { value: "Submitted garden" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+    await waitFor(() => expect(updateProfile).toHaveBeenCalledOnce());
+    state.saved = { ...state.saved, title: "Submitted garden" };
+    fireEvent.click(
+      screen.getByRole("button", { name: "Save story elsewhere" }),
+    );
+    await act(async () => {
+      finishSave({
+        ...state.initial,
+        title: "Submitted garden",
+        updatedAt: new Date("2026-09-25T12:30:00.000Z"),
+      });
+    });
+    expect(
+      profileUtils.dashboardDb.userProfile.get.setData.mock.lastCall?.[1],
+    ).toEqual(state.saved);
+    fireEvent.change(screen.getByRole("textbox", { name: "Location" }), {
+      target: { value: "New location" },
+    });
+    updateProfile.mockResolvedValue({
+      ...state.saved,
+      location: "New location",
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+    await waitFor(() => expect(updateProfile).toHaveBeenCalledTimes(2));
+    expect(updateProfile.mock.calls[1]?.[0].expectedUpdatedAt).toBe(
+      state.saved.updatedAt.toISOString(),
+    );
   });
 });
