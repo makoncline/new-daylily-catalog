@@ -186,12 +186,34 @@ async function pinned(
 ) {
   const middle = region.locator('[data-slot="data-table-scrollable"] > div');
   const left = region.locator('[data-slot="data-table-pinned-left"]');
-  const before = await left.boundingBox();
-  await middle.evaluate((element) => {
-    element.scrollLeft = element.scrollWidth;
+  await page
+    .locator("[data-collapsible][data-side]")
+    .evaluateAll(async (sidebars) => {
+      await document.fonts.ready;
+      for (const sidebar of sidebars) {
+        sidebar.getBoundingClientRect();
+        await Promise.all(
+          sidebar
+            .getAnimations({ subtree: true })
+            .map((animation) => animation.finished),
+        );
+      }
+    });
+  // Measure one scroll after the sidebar has reached its final width.
+  const position = await region.evaluate((element) => {
+    const pinned = element.querySelector<HTMLElement>(
+      '[data-slot="data-table-pinned-left"]',
+    );
+    const scrollable = element.querySelector<HTMLElement>(
+      '[data-slot="data-table-scrollable"] > div',
+    );
+    if (!pinned || !scrollable) throw new Error("Pinned table was not found");
+
+    const before = pinned.getBoundingClientRect().x;
+    scrollable.scrollLeft = scrollable.scrollWidth;
+    return { before, after: pinned.getBoundingClientRect().x };
   });
-  const after = await left.boundingBox();
-  expect(after?.x).toBe(before?.x);
+  expect(position.after).toBe(position.before);
   await expect(left.locator("th").filter({ hasText: /^Name$/ })).toBeVisible();
   expect(
     await middle.evaluate((element) => element.scrollLeft),
