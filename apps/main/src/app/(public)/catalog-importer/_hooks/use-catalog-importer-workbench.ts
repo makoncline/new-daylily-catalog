@@ -303,7 +303,7 @@ export function useCatalogImporterWorkbench(
       }
       return nextActions;
     },
-    [],
+    [sessionRef],
   );
   const exactMatchRequestId = useRef(0);
   const exactMatchAbortController = useRef<AbortController | null>(null);
@@ -721,7 +721,7 @@ export function useCatalogImporterWorkbench(
         return false;
       }
     },
-    [loadCandidates, commitSession],
+    [loadCandidates, commitSession, sessionRef],
   );
 
   const buildCatalogPreview = useCallback(async () => {
@@ -941,7 +941,7 @@ export function useCatalogImporterWorkbench(
         setReadingFile(false);
       }
     },
-    [configureSheet, commitSession, resetMatches],
+    [configureSheet, commitSession, resetMatches, sessionRef],
   );
 
   const loadManualCatalog = useCallback(() => {
@@ -1798,7 +1798,7 @@ export function useCatalogImporterWorkbench(
       });
       setLiveAnnouncement(actionSummary);
     },
-    [createReviewedIssueActions, loadCandidates, saveMatchedRows],
+    [createReviewedIssueActions, loadCandidates, saveMatchedRows, sessionRef],
   );
 
   const undoReviewedIssueAction = useCallback(
@@ -1845,7 +1845,7 @@ export function useCatalogImporterWorkbench(
       });
       setLiveAnnouncement("Spreadsheet issue change undone.");
     },
-    [matchedRows, reviewedIssueActions, saveMatchedRows],
+    [matchedRows, reviewedIssueActions, saveMatchedRows, sessionRef],
   );
 
   const downloadTemplate = useCallback(() => {
