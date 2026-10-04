@@ -463,6 +463,27 @@ export const ATLAS_FLOWS = [
     title: "Create listings from a prepared catalog",
     description:
       "Build one browser-local import, select its eligible listings, and create new catalog listings.",
+    implementation: {
+      entryPoints: [
+        {
+          label: "Prepared import view",
+          path: "src/app/dashboard/imports/_components/dashboard-catalog-importer.tsx",
+        },
+        {
+          label: "Import writes and refresh",
+          path: "src/app/dashboard/imports/_components/use-dashboard-catalog-import.ts",
+        },
+        {
+          label: "Import server validation",
+          path: "src/server/api/routers/dashboard-db/listing.ts",
+        },
+      ],
+      invariants: [
+        "Keep the prepared draft and source rows across reloads and rejected writes.",
+        "Create eligible, selected rows in batches of at most 100 and prevent duplicate writes.",
+        "After a saved write, retry a failed dashboard refresh without writing the rows again.",
+      ],
+    },
     tests: {
       unit: [],
       integration: [
@@ -472,6 +493,9 @@ export const ATLAS_FLOWS = [
           "tests/dashboard-import-existing-listings.test.tsx",
         ),
         testRef("integration", "tests/dashboard-import-start-over.test.tsx"),
+        fullAppIntegrationRef(
+          "tests/integration/dashboard-imports.integration.ts",
+        ),
       ],
       e2e: [testRef("e2e", "tests/e2e/catalog-importer.e2e.ts")],
     },
@@ -749,6 +773,27 @@ export const ATLAS_FLOWS = [
     title: "Manage a grower profile",
     description:
       "Review realistic grower details, prepare profile edits, and inspect profile media at mobile and iPad sizes without saving changes.",
+    implementation: {
+      entryPoints: [
+        {
+          label: "Profile sections",
+          path: "src/components/forms/profile-form.tsx",
+        },
+        {
+          label: "Profile save and draft state",
+          path: "src/hooks/use-profile-form.ts",
+        },
+        {
+          label: "Profile image actions",
+          path: "src/app/dashboard/profile/_components/profile-image-manager.tsx",
+        },
+      ],
+      invariants: [
+        "Keep field and content drafts during refresh and failed navigation saves.",
+        "Include child content and media changes in the parent commit.",
+        "Ignore late URL validation results and keep drafts after rejected writes.",
+      ],
+    },
     tests: {
       unit: [testRef("unit", "tests/profile-slug-rules.test.ts")],
       integration: [
@@ -764,6 +809,9 @@ export const ATLAS_FLOWS = [
         testRef("integration", "tests/image-preview-dialog.test.tsx"),
         fullAppIntegrationRef(
           "tests/integration/profile-slug-validation.integration.ts",
+        ),
+        fullAppIntegrationRef(
+          "tests/integration/profile-workflow.integration.ts",
         ),
       ],
       e2e: [testRef("e2e", "tests/e2e/new-user-journey.e2e.ts")],
@@ -870,10 +918,20 @@ export const ATLAS_FLOWS = [
           label: "Listing edit form",
           path: "src/components/forms/listing-form.tsx",
         },
+        {
+          label: "Listing save and draft state",
+          path: "src/components/forms/use-listing-form.ts",
+        },
+        {
+          label: "Listing editor history",
+          path: "src/app/dashboard/listings/_components/edit-listing-dialog.tsx",
+        },
       ],
       invariants: [
         "Scope listing writes to the authenticated user on the server.",
         "Validate before save and keep the form open when save fails.",
+        "Save listing fields through the editor; write media and membership changes at once and mark the parent for commit.",
+        "Keep drafts after rejected saves and canceled browser history changes.",
         "Confirm saved values after a new page load.",
       ],
     },
@@ -894,6 +952,10 @@ export const ATLAS_FLOWS = [
         testRef("integration", "tests/edit-listing-dialog-url-sync.test.tsx"),
         fullAppIntegrationRef(
           "tests/integration/create-edit-listing.integration.ts",
+        ),
+        fullAppIntegrationRef("tests/integration/editor-save.integration.ts"),
+        fullAppIntegrationRef(
+          "tests/integration/surface-history.integration.ts",
         ),
       ],
       e2e: [
@@ -1032,12 +1094,34 @@ export const ATLAS_FLOWS = [
     title: "Create and print plant tags",
     description:
       "Choose a useful tag preset or create a custom template from real listing fields.",
+    implementation: {
+      entryPoints: [
+        {
+          label: "Tag search and selection",
+          path: "src/app/dashboard/tags/_components/tag-print-table.tsx",
+        },
+        {
+          label: "Tag design and output actions",
+          path: "src/app/dashboard/tags/_components/use-tag-designer-controller.ts",
+        },
+        {
+          label: "Print document geometry",
+          path: "src/app/dashboard/tags/_components/tag-designer-html.ts",
+        },
+      ],
+      invariants: [
+        "Keep selected listings for output when search filters change.",
+        "Keep private search text in the browser and out of shared URLs.",
+        "Preserve physical tag and sheet dimensions in preview, print, and downloads.",
+      ],
+    },
     tests: {
       unit: [testRef("unit", "tests/tag-designer-model.test.ts")],
       integration: [
         testRef("integration", "tests/tag-designer-panel.test.tsx"),
         testRef("integration", "tests/tag-print-table.test.ts"),
         fullAppIntegrationRef("tests/integration/tag-printing.integration.ts"),
+        fullAppIntegrationRef("tests/integration/tags-search.integration.ts"),
       ],
       e2e: [],
     },
@@ -1333,6 +1417,31 @@ export const ATLAS_FLOWS = [
     title: "Organize catalog listings into a list",
     description:
       "Review real catalog lists, start a collection, and manage listing membership at mobile and desktop sizes.",
+    implementation: {
+      entryPoints: [
+        {
+          label: "Lists overview",
+          path: "src/app/dashboard/lists/_components/lists-table.tsx",
+        },
+        {
+          label: "List editor save and draft state",
+          path: "src/components/forms/list-form.tsx",
+        },
+        {
+          label: "List membership and navigation",
+          path: "src/app/dashboard/lists/[listId]/page.tsx",
+        },
+        {
+          label: "List editor history",
+          path: "src/app/dashboard/lists/_hooks/use-list-surface-state.ts",
+        },
+      ],
+      invariants: [
+        "Save list fields through the editor; write membership changes at once and mark the parent for commit.",
+        "Keep drafts after rejected saves and canceled browser history changes.",
+        "Keep title and actions pinned in the overview; keep selection and title pinned in Manage List.",
+      ],
+    },
     tests: {
       unit: [testRef("unit", "tests/manage-list-columns.test.ts")],
       integration: [
@@ -1349,6 +1458,10 @@ export const ATLAS_FLOWS = [
         testRef("integration", "tests/use-list-resource.test.tsx"),
         fullAppIntegrationRef(
           "tests/integration/list-management.integration.ts",
+        ),
+        fullAppIntegrationRef("tests/integration/editor-save.integration.ts"),
+        fullAppIntegrationRef(
+          "tests/integration/surface-history.integration.ts",
         ),
       ],
       e2e: [

@@ -65,6 +65,29 @@ describe("Atlas flow contract", () => {
   });
 
   it.each([
+    ["dashboard-catalog-importer", ["dashboard-imports"]],
+    ["profile-management", ["profile-workflow"]],
+    ["listing-management", ["editor-save", "surface-history"]],
+    ["list-management", ["editor-save", "surface-history"]],
+    ["tag-printing", ["tags-search"]],
+  ])("keeps %s reference checks reachable", (flowId, testNames) => {
+    const flow = getAtlasFlow(flowId);
+    expect(flow.implementation?.entryPoints.length).toBeGreaterThan(0);
+    expect(flow.implementation?.invariants.length).toBeGreaterThan(0);
+    const commands = confidenceCommandsForFlow(flow);
+    const fullAppCommand = commands.find((command) =>
+      command?.startsWith("node apps/main/scripts/run-integration-local.mjs "),
+    );
+    for (const testName of testNames) {
+      const testPath = `tests/integration/${testName}.integration.ts`;
+      expect(fullAppCommand?.split(" ")).toContain(testPath);
+      expect(
+        commands.filter((command) => command !== fullAppCommand).join(" "),
+      ).not.toContain(testPath);
+    }
+  });
+
+  it.each([
     ["state id", "id", "Duplicate Atlas state id"],
     ["capture", "capture", "Duplicate Atlas capture"],
   ])("rejects a duplicate %s", (_label, property, message) => {
