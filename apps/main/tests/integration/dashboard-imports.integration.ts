@@ -1,5 +1,8 @@
 import path from "node:path";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
+import { promisify } from "node:util";
+import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { PrismaLibSql } from "@prisma/adapter-libsql";
 import { PrismaClient } from "@prisma/client";
 import type { Page } from "@playwright/test";
@@ -576,6 +579,26 @@ test("excluded source context, builder return and non-Pro downloads", async ({
   await capture(page, "mobile-non-pro");
   await page.setViewportSize({ width: 1024, height: 1000 });
   await capture(page, "desktop-non-pro");
+  await page.evaluate(() => {
+    const createObjectURL = URL.createObjectURL;
+    URL.createObjectURL = () => {
+      URL.createObjectURL = createObjectURL;
+      throw new Error("Injected download failure");
+    };
+  });
+  await page
+    .getByRole("button", { name: "Download prepared import file", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Download anyway", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", {
+      name: "Spreadsheet download did not finish",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(page.getByText(/Injected download failure/)).toBeVisible();
   for (const name of [
     "Download prepared import file",
     "Download enhanced original",
@@ -606,6 +629,12 @@ test("excluded source context, builder return and non-Pro downloads", async ({
       expect(content.toString()).toContain("Reference description 1");
     }
   }
+  await expect(
+    page.getByRole("heading", {
+      name: "Spreadsheet download did not finish",
+      exact: true,
+    }),
+  ).toHaveCount(0);
   expect(await db.listing.count({ where: { importKey: { not: null } } })).toBe(
     0,
   );
@@ -715,4 +744,118 @@ test("existing catalog retry and builder exclusions keep the source rows", async
   expect(await db.listing.count({ where: { importKey: { not: null } } })).toBe(
     0,
   );
+});
+
+function deferred() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((complete) => {
+    resolve = complete;
+  });
+  return { promise, resolve };
+}
+
+test("public preparation restores an interrupted match and clear rejects its late result", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  const candidateDirectory = path.resolve(".tmp/search");
+  const preservedDirectory = path.resolve(
+    `tests/.tmp/imports-search-${process.pid}`,
+  );
+  const hadCandidate = existsSync(candidateDirectory);
+  if (hadCandidate) await rename(candidateDirectory, preservedDirectory);
+  const attempts = [0, 1].map(() => ({
+    started: deferred(),
+    held: deferred(),
+    finished: deferred(),
+  }));
+  try {
+    await promisify(execFile)(process.execPath, [
+      "scripts/build-public-search-index.mjs",
+      "--source",
+      process.env.DATABASE_URL!,
+      "--target",
+      path.join(candidateDirectory, "public-search-candidate.sqlite"),
+    ]);
+    await page.goto("/catalog-importer");
+    await page.locator('input[type="file"]').setInputFiles({
+      name: "interrupted.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from(
+        "name,price,description,private note\nIntegration Bloom,15,Rose flower,West bed",
+      ),
+    });
+    await capture(page, "public-mapping");
+    let requestIndex = 0;
+    await page.route("**/api/v1/cultivars/match", async (route) => {
+      const attempt = attempts[requestIndex++]!;
+      try {
+        const response = await route.fetch();
+        expect(response.ok()).toBe(true);
+        const payload = (await response.json()) as {
+          results: Array<{
+            exactMatch: { cultivarReferenceId: string } | null;
+          }>;
+        };
+        expect(payload.results[0]?.exactMatch?.cultivarReferenceId).toBe(
+          "integration-cultivar-reference",
+        );
+        attempt.started.resolve();
+        await attempt.held.promise;
+        await route.fulfill({ response });
+      } finally {
+        attempt.finished.resolve();
+      }
+    });
+    await page
+      .getByRole("button", { name: "Build catalog preview", exact: true })
+      .click();
+    await attempts[0]!.started.promise;
+    await page.reload();
+    attempts[0]!.held.resolve();
+    await attempts[0]!.finished.promise;
+    await expect(
+      page.getByRole("heading", { name: "Map your columns", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("interrupted.csv", { exact: true }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Build catalog preview", exact: true })
+      .click();
+    await attempts[1]!.started.promise;
+    await page.getByRole("button", { name: "Start", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Clear local progress", exact: true })
+      .click();
+    await page
+      .getByRole("alertdialog")
+      .getByRole("button", { name: "Clear local progress", exact: true })
+      .click();
+    attempts[1]!.held.resolve();
+    await attempts[1]!.finished.promise;
+    await expect(
+      page.getByText("Drop a spreadsheet here, or choose a file", {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await page.reload();
+    await expect(
+      page.getByText("Drop a spreadsheet here, or choose a file", {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await page.goto("/dashboard/imports");
+    await expect(
+      page.getByRole("link", { name: "Build import", exact: true }),
+    ).toBeVisible();
+    expect(
+      await db.listing.count({ where: { importKey: { not: null } } }),
+    ).toBe(0);
+  } finally {
+    for (const attempt of attempts) attempt.held.resolve();
+    await page.unrouteAll({ behavior: "wait" });
+    await rm(candidateDirectory, { recursive: true, force: true });
+    if (hadCandidate) await rename(preservedDirectory, candidateDirectory);
+  }
 });

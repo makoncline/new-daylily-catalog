@@ -194,19 +194,3 @@ export function getDownloadFileName(fileName: string) {
 
   return `${safeName}-daylily-catalog-prepared.${extension}`;
 }
-
-export function getCatalogImporterDownloadFileName(
-  fileName: string,
-  kind: "clean" | "enriched",
-) {
-  const extension = fileName.toLowerCase().endsWith(".csv") ? "csv" : "xlsx";
-  const baseName = fileName.replace(/\.[^.]+$/, "");
-  const safeName =
-    baseName
-      .trim()
-      .replace(/[^a-zA-Z0-9_-]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .toLowerCase() || "daylily-catalog";
-
-  return `${safeName}-${kind === "clean" ? "prepared-import" : "enhanced-original"}.${extension}`;
-}

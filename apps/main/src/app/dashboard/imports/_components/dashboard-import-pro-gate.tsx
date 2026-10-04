@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { Check } from "lucide-react";
 import { CatalogImporterDownloadOptions } from "@/app/(public)/catalog-importer/_components/catalog-importer-download-options";
-import { useCatalogImporterWorkbench } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
+import { useCatalogImporterSession } from "@/hooks/use-catalog-importer-session";
+import { useCatalogImporterDownloads } from "@/hooks/use-catalog-importer-downloads";
+import { getCatalogImportState } from "@/lib/catalog-importer";
 import { ProMembershipAction } from "@/components/pro-membership-action";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -15,9 +17,13 @@ export function DashboardImportProGate({
 }: {
   initialDraft: CatalogImporterDraft | null;
 }) {
-  const controller = useCatalogImporterWorkbench(initialDraft);
+  const { session } = useCatalogImporterSession(initialDraft);
+  const downloads = useCatalogImporterDownloads(session);
+  const importState = getCatalogImportState(session.matchedRows ?? []);
+  const remainingIssueCount =
+    importState.counts.issueCount + importState.counts.warningCount;
   const preparedListingCount =
-    controller.matchedRows?.filter(
+    session.matchedRows?.filter(
       (row) => row.rowKind === "listing" && row.outputState === "included",
     ).length ?? 0;
 
@@ -75,7 +81,7 @@ export function DashboardImportProGate({
         </div>
       </section>
 
-      {controller.matchedRows ? (
+      {session.matchedRows ? (
         <section
           aria-labelledby="dashboard-import-download-heading"
           className="flex flex-col gap-6"
@@ -94,16 +100,24 @@ export function DashboardImportProGate({
             </p>
           </div>
 
-          {controller.downloadError ? (
+          {downloads.downloadError ? (
             <Alert variant="destructive">
               <AlertTitle>Spreadsheet download did not finish</AlertTitle>
               <AlertDescription>
-                {controller.downloadError} Your prepared import is still here.
+                {downloads.downloadError} Your prepared import is still here.
               </AlertDescription>
             </Alert>
           ) : null}
 
-          <CatalogImporterDownloadOptions controller={controller} stacked />
+          <CatalogImporterDownloadOptions
+            controller={{
+              downloadResults: downloads.downloadResults,
+              downloadingResults: downloads.downloadingResults,
+              remainingIssueCount,
+              reviewCount: importState.reviewRows.length,
+            }}
+            stacked
+          />
         </section>
       ) : (
         <div className="pt-2">
