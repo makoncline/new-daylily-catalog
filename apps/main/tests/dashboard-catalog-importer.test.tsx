@@ -7,7 +7,7 @@ import type { CatalogImportRow } from "@/lib/catalog-importer";
 const mocks = vi.hoisted(() => ({
   capturePosthogEvent: vi.fn(),
   importRows: vi.fn(),
-  revalidate: vi.fn(async () => undefined),
+  revalidate: vi.fn(async () => true),
   workbench: null as unknown as CatalogImporterWorkbenchController,
 }));
 
@@ -126,7 +126,7 @@ describe("DashboardCatalogImporter", () => {
     mocks.importRows.mockReset();
     mocks.capturePosthogEvent.mockReset();
     mocks.revalidate.mockReset();
-    mocks.revalidate.mockResolvedValue(undefined);
+    mocks.revalidate.mockResolvedValue(true);
     mocks.workbench = {
       liveAnnouncement: "",
       matchedRows: Array.from({ length: 201 }, (_, index) =>
@@ -218,5 +218,53 @@ describe("DashboardCatalogImporter", () => {
         },
       );
     });
+  });
+
+  it("keeps saved import progress when refresh is canceled and retries only refresh", async () => {
+    mocks.importRows.mockResolvedValue({
+      createdCount: 100,
+      existingCount: 0,
+      skippedExactCount: 0,
+    });
+    mocks.revalidate.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+
+    render(<DashboardCatalogImporter initialDraft={null} />);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Import 100 listings" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Import listings" }));
+
+    await screen.findByText(
+      "Listings were saved. Dashboard refresh did not finish.",
+    );
+    expect(
+      screen.getByRole("heading", { name: "101 listings remain" }),
+    ).toBeVisible();
+    expect(screen.getByText("100 listings imported")).toBeVisible();
+    expect(screen.queryByText("Import did not finish")).not.toBeInTheDocument();
+    expect(mocks.importRows).toHaveBeenCalledOnce();
+    expect(mocks.importRows.mock.calls[0]?.[0].rows[0].importKey).toBe(
+      "project-1:source-row-1",
+    );
+    expect(mocks.capturePosthogEvent).not.toHaveBeenCalledWith(
+      "catalog_import_failed",
+      expect.anything(),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Retry refresh" }));
+    await waitFor(() => expect(mocks.revalidate).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(
+        screen.queryByText(
+          "Listings were saved. Dashboard refresh did not finish.",
+        ),
+      ).not.toBeInTheDocument(),
+    );
+    expect(mocks.revalidate).toHaveBeenNthCalledWith(1, "user-1");
+    expect(mocks.revalidate).toHaveBeenNthCalledWith(2, "user-1");
+    expect(mocks.importRows).toHaveBeenCalledOnce();
+    expect(
+      screen.getByRole("heading", { name: "101 listings remain" }),
+    ).toBeVisible();
   });
 });

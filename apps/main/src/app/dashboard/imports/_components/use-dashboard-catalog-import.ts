@@ -196,7 +196,10 @@ export function useDashboardCatalogImport(
     setIsRefreshing(true);
     setRefreshWarning(false);
     try {
-      if (dashboardUserId) await refreshDashboardDbFromServer(dashboardUserId);
+      if (dashboardUserId) {
+        const applied = await refreshDashboardDbFromServer(dashboardUserId);
+        setRefreshWarning(!applied);
+      }
     } catch {
       setRefreshWarning(true);
     } finally {
