@@ -297,6 +297,7 @@ export const ATLAS_FLOWS = [
         testRef("integration", "tests/catalog-importer.test.ts"),
         testRef("integration", "tests/catalog-importer-draft.test.ts"),
         testRef("integration", "tests/catalog-importer-workbench.test.tsx"),
+        testRef("integration", "tests/catalog-importer-session.test.tsx"),
       ],
       e2e: [testRef("e2e", "tests/e2e/catalog-importer.e2e.ts")],
     },
