@@ -9,6 +9,7 @@ import {
 } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppRouter } from "@/server/api/root";
+import { sanitizeEditorJsContentForStorage } from "@/server/security/editor-js-content";
 import {
   ContentManagerFormItem,
   type ContentManagerFormHandle,
@@ -291,5 +292,58 @@ describe("ContentManagerFormItem", () => {
       content: expect.stringContaining("New text during save"),
     });
     expect(formRef.current?.hasPendingChanges()).toBe(false);
+  });
+
+  it("keeps a newer draft when the server normalizes the saved story", async () => {
+    let finishSave!: (profile: {
+      content: string | null;
+      updatedAt: Date;
+    }) => void;
+    mutateAsyncMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishSave = resolve;
+      }),
+    );
+    const formRef = React.createRef<ContentManagerFormHandle>();
+    const view = render(
+      <ContentManagerFormItem
+        initialProfile={
+          {
+            content: null,
+            updatedAt: new Date("2026-09-25T12:00:00.000Z"),
+          } as never
+        }
+        formRef={formRef}
+      />,
+    );
+    editorState.text = '<a href="https://example.com/garden">Our garden</a>';
+    fireEvent.input(screen.getByTestId("editor-change"));
+    let result!: Promise<boolean>;
+    act(() => {
+      result = formRef.current!.saveChanges("manual");
+    });
+    await waitFor(() => expect(mutateAsyncMock).toHaveBeenCalledOnce());
+    const saved = {
+      content: sanitizeEditorJsContentForStorage(
+        mutateAsyncMock.mock.calls[0]![0].content,
+      ),
+      updatedAt: new Date("2026-09-25T13:00:00.000Z"),
+    };
+    expect(saved.content).not.toBe(mutateAsyncMock.mock.calls[0]![0].content);
+    editorState.text += " New text during save";
+    fireEvent.input(screen.getByTestId("editor-change"));
+    await act(async () => {
+      finishSave(saved);
+      expect(await result).toBe(false);
+    });
+    view.rerender(
+      <ContentManagerFormItem
+        initialProfile={saved as never}
+        formRef={formRef}
+      />,
+    );
+    expect(formRef.current?.hasPendingChanges()).toBe(true);
+    expect(editorMountMock).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 });

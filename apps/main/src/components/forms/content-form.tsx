@@ -51,6 +51,7 @@ export function ContentManagerFormItem({
   const contentRef = React.useRef<HTMLDivElement | null>(null);
   const isDirtyRef = React.useRef(isDirty);
   const lastSavedRef = React.useRef(initialProfile.content);
+  const lastAcceptedContentRef = React.useRef(initialProfile.content);
   const lastSavedUpdatedAtRef = React.useRef(initialProfile.updatedAt);
   const [editorSnapshot, setEditorSnapshot] = React.useState({
     content: initialProfile.content,
@@ -124,6 +125,7 @@ export function ContentManagerFormItem({
         });
 
         lastSavedRef.current = newData;
+        lastAcceptedContentRef.current = saved.content;
         lastSavedUpdatedAtRef.current = saved.updatedAt;
         setEditorSnapshot((current) => ({ ...current, content: newData }));
         setHasRemoteChange(false);
@@ -195,12 +197,12 @@ export function ContentManagerFormItem({
     }
     if (
       incomingTime === savedTime &&
-      initialProfile.content === lastSavedRef.current
+      initialProfile.content === lastAcceptedContentRef.current
     ) {
       return;
     }
     if (isDirtyRef.current) {
-      if (initialProfile.content === lastSavedRef.current) {
+      if (initialProfile.content === lastAcceptedContentRef.current) {
         lastSavedUpdatedAtRef.current = initialProfile.updatedAt;
         setHasRemoteChange(false);
         return;
@@ -210,6 +212,7 @@ export function ContentManagerFormItem({
     }
 
     lastSavedRef.current = initialProfile.content;
+    lastAcceptedContentRef.current = initialProfile.content;
     lastSavedUpdatedAtRef.current = initialProfile.updatedAt;
     setEditorSnapshot((current) => ({
       content: initialProfile.content,
@@ -227,6 +230,7 @@ export function ContentManagerFormItem({
       const latest = await getTrpcClient().dashboardDb.userProfile.get.query();
       utils.dashboardDb.userProfile.get.setData(undefined, latest);
       lastSavedRef.current = latest.content;
+      lastAcceptedContentRef.current = latest.content;
       lastSavedUpdatedAtRef.current = latest.updatedAt;
       isDirtyRef.current = false;
       setIsDirty(false);
