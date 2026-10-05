@@ -764,7 +764,7 @@ test("public preparation restores an interrupted match and clear rejects its lat
   );
   const hadCandidate = existsSync(candidateDirectory);
   if (hadCandidate) await rename(candidateDirectory, preservedDirectory);
-  const attempts = [0, 1].map(() => ({
+  const attempts = [0, 1, 2].map(() => ({
     started: deferred(),
     held: deferred(),
     finished: deferred(),
@@ -824,6 +824,36 @@ test("public preparation restores an interrupted match and clear rejects its lat
       .getByRole("button", { name: "Build catalog preview", exact: true })
       .click();
     await attempts[1]!.started.promise;
+    const oldDocument = await page.locator("html").elementHandle();
+    const oldMapping = await page
+      .getByRole("heading", { name: "Map your columns", exact: true })
+      .elementHandle();
+    await page
+      .getByRole("contentinfo")
+      .getByRole("link", { name: "Privacy", exact: true })
+      .click();
+    await expect(page).toHaveURL("/privacy");
+    expect(await oldMapping!.evaluate((element) => element.isConnected)).toBe(
+      false,
+    );
+    await page.goBack();
+    await expect(
+      page.getByRole("heading", { name: "Map your columns", exact: true }),
+    ).toBeVisible();
+    expect(
+      await oldDocument!.evaluate(
+        (element) => element === document.documentElement,
+      ),
+    ).toBe(true);
+    const returnedMapping = await page
+      .getByRole("heading", { name: "Map your columns", exact: true })
+      .elementHandle();
+    expect(
+      await oldMapping!.evaluate(
+        (element, returned) => element === returned,
+        returnedMapping,
+      ),
+    ).toBe(false);
     await page.getByRole("button", { name: "Start", exact: true }).click();
     await page
       .getByRole("button", { name: "Clear local progress", exact: true })
@@ -832,8 +862,35 @@ test("public preparation restores an interrupted match and clear rejects its lat
       .getByRole("alertdialog")
       .getByRole("button", { name: "Clear local progress", exact: true })
       .click();
+    await page.locator('input[type="file"]').setInputFiles({
+      name: "replacement.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from("name,price\nIntegration Bloom,27"),
+    });
+    await expect(
+      page.getByText("replacement.csv", { exact: true }),
+    ).toBeVisible();
     attempts[1]!.held.resolve();
     await attempts[1]!.finished.promise;
+    await page.reload();
+    await expect(
+      page.getByText("replacement.csv", { exact: true }),
+    ).toBeVisible();
+    await capture(page, "public-remount-replacement");
+    await page
+      .getByRole("button", { name: "Build catalog preview", exact: true })
+      .click();
+    await attempts[2]!.started.promise;
+    await page.getByRole("button", { name: "Start", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Clear local progress", exact: true })
+      .click();
+    await page
+      .getByRole("alertdialog")
+      .getByRole("button", { name: "Clear local progress", exact: true })
+      .click();
+    attempts[2]!.held.resolve();
+    await attempts[2]!.finished.promise;
     await expect(
       page.getByText("Drop a spreadsheet here, or choose a file", {
         exact: true,
