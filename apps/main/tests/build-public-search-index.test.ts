@@ -24,9 +24,6 @@ const candidate = vi.hoisted(() => ({
       "candidate-test-token-at-least-32-characters" as string | undefined,
   },
   sync: vi.fn(),
-  ensureServing: vi.fn(() => {
-    throw new Error("Candidate touched serving lifecycle");
-  }),
 }));
 vi.mock("server-only", () => ({}));
 vi.mock("@/env", () => ({ env: candidate.env }));
@@ -37,13 +34,14 @@ vi.mock("@/lib/error-utils", () => ({
 vi.mock("@/lib/utils/getBaseUrl", () => ({
   getCanonicalBaseUrl: () => "https://example.test",
 }));
-vi.mock("@/server/search/public-search-index", () => ({
-  ensurePublicSearchIndex: candidate.ensureServing,
-  isPublicSearchIndexUsable: () => true,
-  PublicSearchIndexUnavailableError: class extends Error {},
-}));
 
 import { GET, POST } from "@/app/api/internal/search-candidate/route";
+import { matchCultivarNames } from "@/server/search/cultivar-name-match";
+import {
+  searchCultivars,
+  searchCultivarFacetValues,
+} from "@/server/search/cultivar-search";
+import * as publicSearchIndex from "@/server/search/public-search-index";
 
 const execFileAsync = promisify(execFile);
 const buildScriptPath = path.join(
@@ -57,7 +55,6 @@ afterEach(() => {
   vi.unstubAllEnvs();
   candidate.sync.mockReset();
   candidate.errors.length = 0;
-  candidate.ensureServing.mockClear();
   candidate.env.SEARCH_INDEX_CANDIDATE_TOKEN =
     "candidate-test-token-at-least-32-characters";
 });
@@ -196,6 +193,10 @@ function createAuthoritativeFlowerShowSource(sourcePath: string) {
 
 describe("candidate search index", () => {
   it("requires its own token and disables the build endpoint on Vercel", async () => {
+    const ensureServing = vi.spyOn(
+      publicSearchIndex,
+      "ensurePublicSearchIndex",
+    );
     for (const handler of [GET, POST]) {
       expect(
         (
@@ -212,10 +213,14 @@ describe("candidate search index", () => {
     vi.stubEnv("VERCEL", "1");
     expect((await POST(candidateRequest("POST"))).status).toBe(404);
     expect(candidate.sync).not.toHaveBeenCalled();
-    expect(candidate.ensureServing).not.toHaveBeenCalled();
+    expect(ensureServing).not.toHaveBeenCalled();
   });
 
   it("builds bounded replica pages, queries the candidate, and preserves both files on failure", async () => {
+    const ensureServing = vi.spyOn(
+      publicSearchIndex,
+      "ensurePublicSearchIndex",
+    );
     const directory = mkdtempSync(path.join(tmpdir(), "search-candidate-"));
     const sourcePath = path.join(directory, "source.sqlite");
     const servingPath = path.join(directory, "serving.sqlite");
@@ -296,7 +301,46 @@ describe("candidate search index", () => {
           .status,
       ).toBe(400);
       expect(candidate.sync).toHaveBeenCalledOnce();
-      expect(candidate.ensureServing).not.toHaveBeenCalled();
+      expect(ensureServing).not.toHaveBeenCalled();
+
+      expect(await publicSearchIndex.ensurePublicSearchIndex()).toMatchObject({
+        path: targetPath,
+        status: "fresh",
+        counts: { cultivars: 1003, linkedListings: 1 },
+      });
+      expect(
+        await searchCultivars({
+          baseUrl: "https://example.test",
+          q: "aerial",
+          includeParentageTrees: false,
+        }),
+      ).toMatchObject([
+        {
+          name: "Aerial Art",
+          traits: {
+            flowerShow: "Unusual Form",
+            sculptedTypes: "Cristate|Pleated",
+          },
+          listingSummary: { catalogsWithListings: 1, forSaleListings: 1 },
+          catalogListings: [
+            { listingTitle: "Public Aerial Art", price: 25, forSale: true },
+          ],
+        },
+      ]);
+      expect(
+        await searchCultivarFacetValues({ facet: "sculptedType" }),
+      ).toEqual([
+        { value: "Cristate", label: "Cristate", count: 1 },
+        { value: "Pleated", label: "Pleated", count: 1 },
+      ]);
+      expect(
+        await matchCultivarNames({
+          names: ["Aerial Art"],
+          includeCandidates: false,
+        }),
+      ).toMatchObject([{ exactMatch: { cultivarReferenceId: "aerial-art" } }]);
+      expect(ensureServing).toHaveBeenCalledTimes(4);
+      expect(candidate.sync).toHaveBeenCalledOnce();
 
       const originalCandidate = readFileSync(targetPath);
       candidate.sync.mockRejectedValueOnce(new Error("sync failed"));

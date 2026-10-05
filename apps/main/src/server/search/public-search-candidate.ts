@@ -4,10 +4,8 @@ import { stat } from "node:fs/promises";
 import path from "node:path";
 import { createClient } from "@libsql/client";
 import { syncEmbeddedReplica } from "@/server/db";
-import {
-  buildPublicSearchIndex,
-  SEARCH_INDEX_SCHEMA_VERSION,
-} from "@/server/search/build-public-search-index.js";
+import { buildPublicSearchIndex } from "@/server/search/build-public-search-index.js";
+import { SEARCH_INDEX_SCHEMA_VERSION } from "../../../scripts/public-search-index-sql.mjs";
 
 const state = globalThis as typeof globalThis & {
   publicSearchCandidateBuild?: Promise<
