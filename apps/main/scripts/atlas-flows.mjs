@@ -9,29 +9,55 @@ const stateFor =
     description,
     capture: `${id}.png`,
     captureSpec,
-    reproductionCommand: atlasFlowId
-      ? `node apps/main/scripts/run-atlas-flow.mjs ${atlasFlowId} --output=local/atlas/reproduce`
-      : `ATLAS_OUTPUT_DIR=local/atlas/reproduce ATLAS_CAPTURE_DIR=local/atlas/reproduce/screenshots pnpm main exec playwright test -c playwright.atlas.config.ts ${captureSpec} --grep "${title}"`,
+    reproductionCommand: `node apps/main/scripts/run-atlas-flow.mjs ${atlasFlowId} --output=local/atlas/reproduce`,
     url,
     urlReproducible,
   });
-const publicState = stateFor("tests/atlas/public-catalog.atlas.ts");
-const cultivarState = stateFor("tests/atlas/cultivar-search.atlas.ts");
-const importerState = stateFor("tests/atlas/catalog-importer.atlas.ts");
+const publicState = stateFor(
+  "tests/atlas/public-catalog.atlas.ts",
+  "public-catalog",
+);
+const cultivarState = stateFor(
+  "tests/atlas/cultivar-search.atlas.ts",
+  "cultivar-search",
+);
+const importerState = stateFor(
+  "tests/atlas/catalog-importer.atlas.ts",
+  "catalog-importer",
+);
 const dashboardImporterState = stateFor(
   "tests/atlas/dashboard-catalog-importer.atlas.ts",
+  "dashboard-catalog-importer",
 );
-const onboardingState = stateFor("tests/atlas/onboarding-membership.atlas.ts");
+const onboardingState = stateFor(
+  "tests/atlas/onboarding-membership.atlas.ts",
+  "onboarding-membership",
+);
 const dashboardHomeState = stateFor(
   "tests/atlas/dashboard-home.atlas.ts",
   "dashboard-home",
 );
-const listingState = stateFor("tests/atlas/listing-management.atlas.ts");
-const listingMediaState = stateFor("tests/atlas/listing-media.atlas.ts");
-const listState = stateFor("tests/atlas/list-management.atlas.ts");
-const tagState = stateFor("tests/atlas/tag-printing.atlas.ts");
-const buyerState = stateFor("tests/atlas/buyer-inquiry.atlas.ts");
-const profileState = stateFor("tests/atlas/profile-management.atlas.ts");
+const listingState = stateFor(
+  "tests/atlas/listing-management.atlas.ts",
+  "listing-management",
+);
+const listingMediaState = stateFor(
+  "tests/atlas/listing-media.atlas.ts",
+  "listing-media",
+);
+const listState = stateFor(
+  "tests/atlas/list-management.atlas.ts",
+  "list-management",
+);
+const tagState = stateFor("tests/atlas/tag-printing.atlas.ts", "tag-printing");
+const buyerState = stateFor(
+  "tests/atlas/buyer-inquiry.atlas.ts",
+  "buyer-inquiry",
+);
+const profileState = stateFor(
+  "tests/atlas/profile-management.atlas.ts",
+  "profile-management",
+);
 const testRef = (layer, file) => ({
   path: file,
   runner: layer === "e2e" ? "e2e" : "vitest",
@@ -294,6 +320,8 @@ export const ATLAS_FLOWS = [
     tests: {
       unit: [],
       integration: [
+        testRef("integration", "tests/cultivar-name-match.integration.test.ts"),
+        testRef("integration", "tests/cultivar-match-route.test.ts"),
         testRef("integration", "tests/catalog-importer.test.ts"),
         testRef("integration", "tests/catalog-importer-draft.test.ts"),
         testRef("integration", "tests/catalog-importer-workbench.test.tsx"),

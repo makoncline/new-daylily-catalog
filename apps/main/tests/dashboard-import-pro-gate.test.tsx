@@ -79,7 +79,9 @@ describe("DashboardImportProGate", () => {
       ["Download prepared import file", "garden-prepared-import.csv"],
       ["Download enhanced original", "garden-enhanced-original.csv"],
     ]) {
-      fireEvent.click(screen.getByRole("button", { name }));
+      const button = screen.getByRole("button", { name });
+      await waitFor(() => expect(button).toBeEnabled());
+      fireEvent.click(button);
       await waitFor(() =>
         expect(downloadFile).toHaveBeenLastCalledWith(
           expect.objectContaining({ fileName }),
