@@ -971,10 +971,6 @@ export const ATLAS_FLOWS = [
           "integration",
           "tests/dashboard-db-listing-entitlements.integration.test.ts",
         ),
-        testRef(
-          "integration",
-          "tests/dashboard-listing-filter-toolbar.test.ts",
-        ),
         testRef("integration", "tests/listings-table-filter-columns.test.tsx"),
         testRef("integration", "tests/create-listing-dialog.test.tsx"),
         testRef("integration", "tests/listing-dialog-query-state.test.tsx"),
