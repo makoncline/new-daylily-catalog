@@ -189,6 +189,10 @@ export class DashboardListings {
     await this.page
       .getByRole("heading", { name: "Listings", exact: true, level: 1 })
       .hover();
+    await expect(
+      this.page.locator('[data-sonner-toast][data-expanded="true"]'),
+    ).toHaveCount(0);
+    await expect(this.page.locator("[data-sonner-toast]")).toHaveCount(0);
 
     const trigger = this.firstVisibleRowActionButton();
     await trigger.waitFor({ state: "visible", timeout: 5000 });
