@@ -91,6 +91,14 @@ describe("public inquiry cart validation", () => {
       },
       select: { id: true, title: true, price: true },
     });
+    expect(mocks.findUser).toHaveBeenCalledWith({
+      where: { id: "seller-1" },
+      select: {
+        id: true,
+        clerkUserId: true,
+        profile: { select: { slug: true, title: true } },
+      },
+    });
     expect(emailBody(0)).toContain("Database title – Qty: 2 ($25.00 each)");
     expect(emailBody(0)).toContain("Subtotal: $50.00");
     expect(emailBody(0)).not.toContain("Client title");

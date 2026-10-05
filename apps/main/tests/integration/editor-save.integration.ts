@@ -63,6 +63,8 @@ for (const [device, viewport] of [
         .click();
       await expect(field).toHaveValue(createdTitle);
       const editorUrl = page.url();
+      await edit.getByRole("heading").first().hover();
+      await expect(page.locator("[data-sonner-toast]")).toHaveCount(0);
       await field.fill("");
       await edit
         .getByRole("button", { name: "Save Changes", exact: true })

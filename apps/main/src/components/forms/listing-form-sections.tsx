@@ -12,6 +12,7 @@ import { ImageUpload } from "@/components/image-upload";
 import { MultiListSelect } from "@/components/multi-list-select";
 import { AhsListingLink } from "@/components/ahs-listing-link";
 import { LISTING_CONFIG } from "@/config/constants";
+import { useDashboardSectionFocus } from "@/hooks/use-dashboard-section-focus";
 
 export function ListingMediaSection({
   images,
@@ -22,8 +23,9 @@ export function ListingMediaSection({
   listingId: string;
   onMutationSuccess: () => void;
 }) {
+  useDashboardSectionFocus("listing-images");
   return (
-    <Field>
+    <Field id="listing-images">
       <FieldLabel htmlFor="image-upload-input">Images</FieldLabel>
       <FieldDescription>
         Upload images of your listing. Drag an image to change its order. Image
@@ -86,11 +88,14 @@ export function ListingCultivarLinkSection({
     typeof AhsListingLink
   >["cultivarReferenceImage"];
   listing: ComponentProps<typeof AhsListingLink>["listing"];
-  onMutationSuccess: () => void;
+  onMutationSuccess: NonNullable<
+    ComponentProps<typeof AhsListingLink>["onMutationSuccess"]
+  >;
   onNameChange: (name: string) => void;
 }) {
+  useDashboardSectionFocus("listing-cultivar");
   return (
-    <Field>
+    <Field id="listing-cultivar">
       <FieldTitle>Link to Daylily Database Listing</FieldTitle>
       <AhsListingLink
         listing={listing}

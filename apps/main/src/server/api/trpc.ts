@@ -48,9 +48,14 @@ export interface TRPCContext {
   hasReplicaDb?: boolean;
   replicaDb?: typeof db;
   requestUrl?: string;
+  oauthClientId?: string;
+  oauthScope?: string;
+  mcpToolName?: string;
 }
 
 export interface TRPCInternalContext extends TRPCContext {
+  /** Set only after the bearer or MCP entrypoint confirms an active membership. */
+  _confirmedActiveMembership?: boolean;
   /**
    * Auth sentinel:
    * - `undefined`: not resolved yet for this request
@@ -77,6 +82,9 @@ export const createTRPCContext = async (opts: {
   headers: Headers;
   requestUrl?: string;
   clerkUserId?: string | null;
+  oauthClientId?: string;
+  oauthScope?: string;
+  mcpToolName?: string;
 }): Promise<TRPCContext> => {
   return {
     ...opts,
@@ -247,6 +255,9 @@ const isAuthenticated = t.middleware(async (opts) => {
       user,
       rawInput,
       requestUrl: opts.ctx.requestUrl,
+      oauthClientId: opts.ctx.oauthClientId,
+      oauthScope: opts.ctx.oauthScope,
+      mcpToolName: opts.ctx.mcpToolName,
       headers: opts.ctx.headers,
       status: result.ok ? "success" : "error",
       durationMs: Date.now() - startedAt,

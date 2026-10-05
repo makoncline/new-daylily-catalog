@@ -89,4 +89,13 @@ describe("useEditList URL sync", () => {
     rerender(<EditListHookHarness />);
     expect(screen.getByRole("button")).toHaveTextContent("list-1");
   });
+
+  it("clears deletion intent when closing an edit", () => {
+    navigationState.setSearch("editing=list-1&intent=delete");
+    render(<EditListHookHarness />);
+    fireEvent.click(screen.getByRole("button"));
+    expect(navigationState.replace).toHaveBeenCalledWith("/dashboard/lists", {
+      scroll: false,
+    });
+  });
 });

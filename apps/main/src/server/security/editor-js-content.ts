@@ -76,7 +76,7 @@ function normalizeSafeHref(href: string) {
 
 function serializeSanitizedNode(node: Node): string {
   if (node.nodeType === NodeType.TEXT_NODE) {
-    return escapeHtml(node.rawText);
+    return escapeHtml(node.text);
   }
 
   if (!(node instanceof HTMLElement)) {

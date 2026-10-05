@@ -1,0 +1,203 @@
+import type { McpTool } from "@/server/mcp/read-only-mcp-types";
+import { APP_CONFIG } from "@/config/constants";
+import { memberOperationJsonSchema } from "@/lib/member-result-contract";
+
+const securitySchemes = [
+  { type: "oauth2", scopes: ["catalog:write"] },
+] satisfies McpTool["securitySchemes"];
+const listingOutputSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    listing: memberOperationJsonSchema("listing.create"),
+    dashboardUrl: { type: "string", format: "uri" },
+  },
+  required: ["listing", "dashboardUrl"],
+};
+const listOutputSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    list: memberOperationJsonSchema("list.create"),
+    dashboardUrl: { type: "string", format: "uri" },
+  },
+  required: ["list", "dashboardUrl"],
+};
+const profileOutputSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    profile: memberOperationJsonSchema("profile.update"),
+    dashboardUrl: { type: "string", format: "uri" },
+  },
+  required: ["profile", "dashboardUrl"],
+};
+const outputSchemas = {
+  create_listing: listingOutputSchema,
+  update_listing: listingOutputSchema,
+  create_list: listOutputSchema,
+  update_list: listOutputSchema,
+  add_listing_to_list: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      listId: { type: "string" },
+      listingId: { type: "string" },
+      dashboardUrl: { type: "string", format: "uri" },
+    },
+    required: ["listId", "listingId", "dashboardUrl"],
+  },
+  link_listing_to_cultivar: listingOutputSchema,
+  sync_listing_cultivar_name: listingOutputSchema,
+  update_profile: profileOutputSchema,
+  reorder_images: {
+    type: "object",
+    additionalProperties: false,
+    properties: { imageIds: { type: "array", items: { type: "string" } } },
+    required: ["imageIds"],
+  },
+} as const;
+
+function tool(
+  name: keyof typeof outputSchemas,
+  title: string,
+  description: string,
+  properties: Record<string, unknown>,
+  required: string[],
+  idempotent = true,
+): McpTool {
+  return {
+    name: `daylily.${name}`,
+    title,
+    description: `${description} Requires an active membership and the catalog:write OAuth scope.`,
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      properties,
+      required,
+    },
+    outputSchema: outputSchemas[name],
+    securitySchemes: [...securitySchemes],
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      openWorldHint: false,
+      idempotentHint: idempotent,
+    },
+    _meta: { securitySchemes: [...securitySchemes] },
+  };
+}
+
+const id = { type: "string", minLength: 1, maxLength: 128 };
+const expectedUpdatedAt = { type: "string", format: "date-time" };
+const title = { type: "string", minLength: 1, maxLength: 200 };
+const optionalText = { type: ["string", "null"], maxLength: 10000 };
+
+export const memberWriteMcpTools: McpTool[] = [
+  tool(
+    "create_listing",
+    "Create Listing",
+    "Create one listing. Set hidden=true to keep it private or hidden=false to publish it. Supply a unique requestId and reuse it when retrying the same creation.",
+    {
+      requestId: { type: "string", format: "uuid" },
+      title,
+      cultivarReferenceId: id,
+      description: optionalText,
+      price: { type: ["number", "null"], minimum: 0 },
+      privateNote: optionalText,
+      hidden: { type: "boolean" },
+    },
+    ["requestId", "title", "hidden"],
+  ),
+  tool(
+    "update_listing",
+    "Update Listing",
+    "Edit one owned listing. Supply the updatedAt value from the listing read. Omitted fields remain unchanged; null clears an optional field.",
+    {
+      listingId: id,
+      expectedUpdatedAt,
+      title,
+      description: optionalText,
+      price: { type: ["number", "null"], minimum: 0 },
+      privateNote: optionalText,
+      hidden: { type: "boolean" },
+    },
+    ["listingId", "expectedUpdatedAt"],
+  ),
+  tool(
+    "create_list",
+    "Create List",
+    "Create one list. Supply a unique requestId and reuse it when retrying the same creation.",
+    {
+      requestId: { type: "string", format: "uuid" },
+      title,
+      description: optionalText,
+    },
+    ["requestId", "title"],
+  ),
+  tool(
+    "update_list",
+    "Update List",
+    "Edit the title or description of one owned list. Supply the updatedAt value from the list read.",
+    { listId: id, expectedUpdatedAt, title, description: optionalText },
+    ["listId", "expectedUpdatedAt"],
+  ),
+  tool(
+    "add_listing_to_list",
+    "Add Listing to List",
+    "Add one owned listing to one owned list. Repeating this call leaves the membership in place.",
+    { listingId: id, listId: id },
+    ["listingId", "listId"],
+  ),
+  tool(
+    "link_listing_to_cultivar",
+    "Link Listing to Cultivar",
+    "Link one listing to a cultivar reference. An existing different link must be reviewed in the dashboard before replacement.",
+    {
+      listingId: id,
+      cultivarReferenceId: id,
+      syncName: { type: "boolean" },
+    },
+    ["listingId", "cultivarReferenceId"],
+  ),
+  tool(
+    "sync_listing_cultivar_name",
+    "Sync Listing Cultivar Name",
+    "Set one owned listing's title and URL slug to the name of its linked cultivar reference. Read the listing again if the link changes.",
+    { listingId: id },
+    ["listingId"],
+  ),
+  tool(
+    "update_profile",
+    "Update Profile",
+    "Edit the title, description, or location of the member's public profile. Supply updatedAt from the profile read, or null if no profile exists. Open manage_profile_images to add profile photos. Use reorder_images to change their order. Open the dashboard for profile URL or story changes.",
+    {
+      expectedUpdatedAt: { type: ["string", "null"], format: "date-time" },
+      title: { type: ["string", "null"], maxLength: 200 },
+      description: optionalText,
+      location: { type: ["string", "null"], maxLength: 200 },
+    },
+    ["expectedUpdatedAt"],
+  ),
+  tool(
+    "reorder_images",
+    "Reorder Images",
+    "Place selected images first in the given order on one owned listing or profile. Other images keep their relative order.",
+    {
+      type: { type: "string", enum: ["listing", "profile"] },
+      referenceId: id,
+      imageIds: {
+        type: "array",
+        minItems: 1,
+        maxItems: APP_CONFIG.UPLOAD.MAX_REORDER_IMAGES,
+        uniqueItems: true,
+        items: id,
+      },
+    },
+    ["type", "referenceId", "imageIds"],
+  ),
+];
+
+export const memberWriteMcpToolNames = new Set(
+  memberWriteMcpTools.map((item) => item.name),
+);

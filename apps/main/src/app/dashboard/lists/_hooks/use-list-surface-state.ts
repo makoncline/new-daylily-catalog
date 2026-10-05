@@ -30,6 +30,9 @@ export function useCreateList() {
 }
 
 export const useEditList = () => {
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { setValue, value } = useQueryParamDialogState({
     history: "push",
     paramName: "editing",
@@ -37,7 +40,14 @@ export const useEditList = () => {
   });
   return {
     editList: (id: string) => setValue(id),
-    closeEditList: () => setValue(null, "replace"),
+    closeEditList: () => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("editing");
+      params.delete("intent");
+      router.replace(params.size ? `${pathname}?${params}` : pathname, {
+        scroll: false,
+      });
+    },
     editingId: value,
   };
 };

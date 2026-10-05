@@ -5,6 +5,7 @@ import { compareItems, rankings, rankItem } from "@tanstack/match-sorter-utils";
 import { normalizeCultivarName } from "@/lib/utils/cultivar-utils";
 import { reportError } from "@/lib/error-utils";
 import type { PrismaClient } from "@prisma/client";
+import { publicDb } from "@/server/db";
 import {
   getDisplayAhsListing,
   v2AhsCultivarDisplaySelect,
@@ -14,7 +15,7 @@ import {
   resolveCultivarReferenceImage,
 } from "@/server/services/cultivar-reference-image-read-model";
 
-async function runCultivarReferenceSearchQuery(
+export async function searchCultivarReferences(
   db: PrismaClient,
   query: string,
 ) {
@@ -94,45 +95,54 @@ async function runCultivarReferenceSearchQuery(
   });
 }
 
+export async function getCultivarReference(db: PrismaClient, id: string) {
+  const cultivarReference = await db.cultivarReference.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      v2AhsCultivar: {
+        select: v2AhsCultivarDisplaySelect,
+      },
+      imageAssets: generatedCultivarImageAssetInclude,
+    },
+  });
+
+  const ahsListing = cultivarReference
+    ? getDisplayAhsListing(cultivarReference)
+    : null;
+  if (!cultivarReference || !ahsListing) {
+    throw new TRPCError({
+      code: "NOT_FOUND",
+      message: "AHS listing not found",
+    });
+  }
+
+  return {
+    ...ahsListing,
+    cultivarReferenceImage: resolveCultivarReferenceImage({
+      id: `ahs-${cultivarReference.id}`,
+      fallbackImageUrl: ahsListing.ahsImageUrl,
+      imageAssets: cultivarReference.imageAssets,
+    }),
+  };
+}
+
 export const dashboardDbAhsRouter = createTRPCRouter({
   search: protectedProcedure
     .input(z.object({ query: z.string().min(1) }))
     .query(async ({ ctx, input }) =>
-      runCultivarReferenceSearchQuery(ctx.replicaDb ?? ctx.db, input.query),
+      searchCultivarReferences(
+        ctx.hasReplicaDb && ctx.replicaDb ? ctx.replicaDb : publicDb,
+        input.query,
+      ),
     ),
 
   get: protectedProcedure
     .input(z.object({ id: z.string().min(1) }))
     .query(async ({ ctx, input }) => {
-      const readDb = ctx.replicaDb ?? ctx.db;
-      const cultivarReference = await readDb.cultivarReference.findUnique({
-        where: { id: input.id },
-        select: {
-          id: true,
-          v2AhsCultivar: {
-            select: v2AhsCultivarDisplaySelect,
-          },
-          imageAssets: generatedCultivarImageAssetInclude,
-        },
-      });
-
-      const ahsListing = cultivarReference
-        ? getDisplayAhsListing(cultivarReference)
-        : null;
-      if (!cultivarReference || !ahsListing) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "AHS listing not found",
-        });
-      }
-
-      return {
-        ...ahsListing,
-        cultivarReferenceImage: resolveCultivarReferenceImage({
-          id: `ahs-${cultivarReference.id}`,
-          fallbackImageUrl: ahsListing.ahsImageUrl,
-          imageAssets: cultivarReference.imageAssets,
-        }),
-      };
+      return getCultivarReference(
+        ctx.hasReplicaDb && ctx.replicaDb ? ctx.replicaDb : publicDb,
+        input.id,
+      );
     }),
 });

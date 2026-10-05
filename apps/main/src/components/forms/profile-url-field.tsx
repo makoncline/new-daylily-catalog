@@ -23,6 +23,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { CheckoutButton } from "@/components/checkout-button";
 import { SlugChangeConfirmDialog } from "@/components/slug-change-confirm-dialog";
+import { useDashboardSectionFocus } from "@/hooks/use-dashboard-section-focus";
 
 export function ProfileUrlField({
   form,
@@ -33,6 +34,7 @@ export function ProfileUrlField({
   profile: UserProfile;
   disabled: boolean;
 }) {
+  useDashboardSectionFocus("profile-url");
   const { isPro } = usePro();
   const utils = api.useUtils();
   const value = useWatch({ control: form.control, name: "slug" });
@@ -105,6 +107,7 @@ export function ProfileUrlField({
         name="slug"
         render={({ field, fieldState }) => (
           <Field
+            id="profile-url"
             data-invalid={fieldState.invalid}
             data-disabled={disabled || !isPro}
           >

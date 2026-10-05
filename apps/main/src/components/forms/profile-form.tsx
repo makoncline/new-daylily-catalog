@@ -14,6 +14,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { PageHeader } from "@/components/page-header";
 import Link from "next/link";
+import { useDashboardSectionFocus } from "@/hooks/use-dashboard-section-focus";
 
 export type { ProfileFormHandle } from "@/hooks/use-profile-form";
 
@@ -24,6 +25,7 @@ export function ProfileForm({
   initialProfile: UserProfile;
   formRef?: React.RefObject<ProfileFormHandle | null>;
 }) {
+  useDashboardSectionFocus("profile-images");
   const state = useProfileForm(initialProfile, formRef);
   const draftSlug = state.form.getValues("slug");
   const publicSlug =
@@ -45,12 +47,29 @@ export function ProfileForm({
         noValidate
       >
         <FieldGroup>
+          {state.hasRemoteChange && (
+            <div role="status" className="text-sm">
+              <p>
+                The profile changed elsewhere. Your unsaved fields are still
+                here.
+              </p>
+              <button
+                type="button"
+                className="mt-2 underline"
+                disabled={state.isSaving}
+                onClick={() => void state.discardFieldsAndLoadLatest()}
+              >
+                Discard unsaved profile fields and load the latest profile
+              </button>
+            </div>
+          )}
           <ProfileTextFields
             form={state.form}
             profile={state.profile}
             disabled={state.isSaving}
           />
           <section
+            id="profile-images"
             aria-labelledby="profile-images-heading"
             className="flex flex-col gap-3"
           >
@@ -69,7 +88,7 @@ export function ProfileForm({
           <ContentManagerFormItem
             initialProfile={state.profile}
             formRef={state.contentFormRef}
-            onMutationSuccess={state.markNeedsParentCommit}
+            onMutationSuccess={state.onContentSaved}
             onDirtyChange={state.onContentDirtyChange}
           />
           {state.saveError && (

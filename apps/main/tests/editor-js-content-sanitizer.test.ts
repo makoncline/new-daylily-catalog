@@ -77,4 +77,24 @@ describe("EditorJS content sanitizer", () => {
     expect(parsed?.blocks).toHaveLength(1);
     expect(parsed?.blocks[0]?.data.text).toBe("Legacy  text");
   });
+
+  it("keeps sanitized entities stable across profile edits", () => {
+    const content = JSON.stringify({
+      time: 1,
+      version: "2.30.0",
+      blocks: [
+        {
+          id: "paragraph-1",
+          type: "paragraph",
+          data: {
+            text: 'A &amp; B &amp;nbsp; <a href="https://example.com/?a=1&amp;b=2">Link</a>',
+          },
+        },
+      ],
+    });
+
+    const sanitized = sanitizeEditorJsContentForStorage(content);
+    expect(sanitized).not.toBeNull();
+    expect(sanitizeEditorJsContentForStorage(sanitized)).toBe(sanitized);
+  });
 });

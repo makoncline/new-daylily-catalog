@@ -150,6 +150,28 @@ export const db = globalForPrisma.prisma ?? createPrismaClient();
 export const replicaDb =
   globalForPrisma.replicaPrisma ?? createReplicaPrismaClient();
 export const hasEmbeddedReplica = Boolean(embeddedReplicaUrl);
+export const hasLocalPublicReadDb =
+  isFileDatabaseUrl(databaseUrl) || hasEmbeddedReplica;
+
+// Vercel's existing seeded fixture has no persistent replica. Never permit this
+// exception for a production deployment or a production database URL.
+const hasSeededVercelReadDb =
+  process.env.VERCEL === "1" &&
+  ["preview", "development"].includes(process.env.VERCEL_ENV ?? "") &&
+  /^libsql:\/\/seeded-daylily-catalog-[a-z0-9-]+(?:\.aws-[a-z0-9-]+)?\.turso\.io\/?$/i.test(
+    databaseUrl,
+  );
+export const hasPublicReadDb = hasLocalPublicReadDb || hasSeededVercelReadDb;
+
+export const publicDb: typeof db = hasPublicReadDb
+  ? replicaDb
+  : new Proxy({} as typeof db, {
+      get() {
+        throw new Error(
+          "Public database reads require local SQLite or an embedded replica.",
+        );
+      },
+    });
 
 /**
  * Sync the normal embedded replica and return the exact Prisma singleton that

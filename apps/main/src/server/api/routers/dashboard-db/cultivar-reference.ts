@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+import { publicDb } from "@/server/db";
 import type { PrismaClient } from "@prisma/client";
 import {
   mapV2AhsCultivarToDisplayAhsListing,
@@ -361,13 +362,14 @@ export const dashboardDbCultivarReferenceRouter = createTRPCRouter({
     .input(z.object({ ids: z.array(z.string().trim().min(1)).min(1).max(200) }))
     .query(async ({ ctx, input }) => {
       const unique = Array.from(new Set(input.ids));
-      const rows = await ctx.db.cultivarReference.findMany({
+      const readDb = ctx.hasReplicaDb && ctx.replicaDb ? ctx.replicaDb : publicDb;
+      const rows = await readDb.cultivarReference.findMany({
         where: { id: { in: unique } },
         select: v2CultivarReferenceSelect,
       });
 
       return addCultivarReferenceImages(
-        ctx.db,
+        readDb,
         rows.map(mapV2CultivarReferenceRow),
       );
     }),
@@ -376,7 +378,8 @@ export const dashboardDbCultivarReferenceRouter = createTRPCRouter({
     .input(z.object({ ids: z.array(z.string().trim().min(1)).min(1).max(500) }))
     .mutation(async ({ ctx, input }) => {
       const unique = Array.from(new Set(input.ids));
-      const rows = await getCultivarReferencesByIdsRaw(ctx.db, unique);
+      const readDb = ctx.hasReplicaDb && ctx.replicaDb ? ctx.replicaDb : publicDb;
+      const rows = await getCultivarReferencesByIdsRaw(readDb, unique);
 
       return rows;
     }),
@@ -386,7 +389,7 @@ export const dashboardDbCultivarReferenceRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const unique = Array.from(new Set(input.ids));
       const rows = await getCultivarReferencesByIdsRaw(
-        ctx.replicaDb ?? ctx.db,
+        ctx.hasReplicaDb && ctx.replicaDb ? ctx.replicaDb : publicDb,
         unique,
       );
 

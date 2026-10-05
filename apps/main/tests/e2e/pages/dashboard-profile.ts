@@ -48,7 +48,9 @@ export class DashboardProfile {
 
     try {
       await warningDialog.waitFor({ state: "visible", timeout: 1500 });
-      await warningDialog.getByRole("button", { name: "Continue" }).click();
+      await warningDialog
+        .getByRole("button", { name: "Unlock URL editing" })
+        .click();
       await warningDialog.waitFor({ state: "hidden", timeout: 5000 });
     } catch {}
 

@@ -15,7 +15,8 @@ describe("user action audit logging", () => {
     const { createCaller } = await import("@/server/api/root");
     const db = {
       userProfile: {
-        upsert: vi.fn(async () => ({
+        updateMany: vi.fn(async () => ({ count: 1 })),
+        findUniqueOrThrow: vi.fn(async () => ({
           id: "profile-1",
           userId: "user-1",
           title: null,
@@ -36,6 +37,9 @@ describe("user action audit logging", () => {
         db: db as unknown as TRPCInternalContext["db"],
         headers: new Headers([["x-request-id", "request-1"]]),
         requestUrl: "https://daylilycatalog.com/api/trpc",
+        oauthClientId: "client-1",
+        oauthScope: "catalog:write",
+        mcpToolName: "daylily.update_profile_content",
         _authUser: {
           id: "user-1",
           clerkUserId: "clerk-1",
@@ -46,6 +50,7 @@ describe("user action audit logging", () => {
 
     await caller.dashboardDb.userProfile.updateContent({
       content: "private profile draft",
+      expectedUpdatedAt: "2026-01-02T00:00:00.000Z",
     });
 
     const payload = JSON.parse(String(infoSpy.mock.calls.at(-1)?.[0])) as {
@@ -57,6 +62,9 @@ describe("user action audit logging", () => {
       email: string;
       requestId: string;
       requestUrl: string;
+      oauthClientId: string;
+      oauthScope: string;
+      mcpToolName: string;
       content?: string;
     };
 
@@ -69,6 +77,9 @@ describe("user action audit logging", () => {
       email: "seller@example.com",
       requestId: "request-1",
       requestUrl: "https://daylilycatalog.com/api/trpc",
+      oauthClientId: "client-1",
+      oauthScope: "catalog:write",
+      mcpToolName: "daylily.update_profile_content",
     });
     expect(payload.content).toBeUndefined();
   });

@@ -1,10 +1,19 @@
 import type { McpTool } from "@/server/mcp/read-only-mcp-types";
 import {
   cultivarOutputSchema,
+  dashboardLinkOutputSchema,
+  helpOutputSchema,
+  memberImageOutputSchema,
+  memberImagePageOutputSchema,
+  memberListingOutputSchema,
+  memberListingPageOutputSchema,
+  memberListOutputSchema,
+  memberListPageOutputSchema,
+  memberProfileOutputSchema,
   idInputSchema,
   listingOutputSchema,
   listingSearchInputSchema,
-  listOutputSchema,
+  MEMBER_MAX_LIMIT,
   paginatedInputSchema,
   paginatedOutputSchema,
   profileOutputSchema,
@@ -43,23 +52,28 @@ export function buildReadOnlyMcpTools(privateScopes: string[]): McpTool[] {
         properties: {
           q: {
             type: "string",
+            maxLength: 200,
             description:
               "Broad public cultivar search text. Prefer field-specific filters when the user asks for a specific facet.",
           },
           cultivarName: {
             type: "string",
+            maxLength: 200,
             description: "Public cultivar name filter.",
           },
           hybridizer: {
             type: "string",
+            maxLength: 200,
             description: "Public cultivar hybridizer name filter.",
           },
           color: {
             type: "string",
+            maxLength: 200,
             description: "Public cultivar color-notes text filter.",
           },
           parentage: {
             type: "string",
+            maxLength: 200,
             description: "Public cultivar parentage text filter.",
           },
           limit: {
@@ -83,9 +97,13 @@ export function buildReadOnlyMcpTools(privateScopes: string[]): McpTool[] {
       inputSchema: {
         type: "object",
         additionalProperties: false,
+        oneOf: [
+          { required: ["cultivarReferenceId"] },
+          { required: ["normalizedName"] },
+        ],
         properties: {
-          cultivarReferenceId: { type: "string" },
-          normalizedName: { type: "string" },
+          cultivarReferenceId: { type: "string", maxLength: 128 },
+          normalizedName: { type: "string", maxLength: 200 },
         },
       },
       outputSchema: cultivarOutputSchema,
@@ -116,13 +134,19 @@ export function buildReadOnlyMcpTools(privateScopes: string[]): McpTool[] {
         type: "object",
         additionalProperties: false,
         properties: {
-          id: { type: "string", description: "Public listing id." },
+          id: {
+            type: "string",
+            maxLength: 128,
+            description: "Public listing id.",
+          },
           sellerSlug: {
             type: "string",
+            maxLength: 128,
             description: "Seller profile slug when using listingSlug.",
           },
           listingSlug: {
             type: "string",
+            maxLength: 128,
             description: "Listing slug for the seller's public catalog.",
           },
         },
@@ -131,6 +155,17 @@ export function buildReadOnlyMcpTools(privateScopes: string[]): McpTool[] {
       securitySchemes: [...PUBLIC_SECURITY_SCHEMES],
       annotations: READ_ONLY_TOOL_ANNOTATIONS,
       _meta: toolMeta("Loading public listing", "Public listing loaded"),
+    },
+    {
+      name: "daylily.list_public_profiles",
+      title: "List Public Profiles",
+      description:
+        "Browse active public grower catalogs with listings. Returns a bounded page of seller summaries ordered by seller id; follow nextCursor for more. Use get_public_profile for one grower's full profile.",
+      inputSchema: paginatedInputSchema(),
+      outputSchema: paginatedOutputSchema,
+      securitySchemes: [...PUBLIC_SECURITY_SCHEMES],
+      annotations: READ_ONLY_TOOL_ANNOTATIONS,
+      _meta: toolMeta("Loading public profiles", "Public profiles loaded"),
     },
     {
       name: "daylily.get_public_profile",
@@ -166,16 +201,34 @@ export function buildReadOnlyMcpTools(privateScopes: string[]): McpTool[] {
       _meta: toolMeta("Loading public listings", "Public listings loaded"),
     },
     {
+      name: "daylily.search_help",
+      title: "Search Daylily Help",
+      description:
+        "Use this for short, sourced help with public cultivar search or member dashboard workflows, such as listing status, lists, photos, profile content, import, and billing. It does not read member records.",
+      inputSchema: {
+        type: "object",
+        additionalProperties: false,
+        required: ["query"],
+        properties: {
+          query: { type: "string", minLength: 2, maxLength: 200 },
+        },
+      },
+      outputSchema: helpOutputSchema,
+      securitySchemes: [...PUBLIC_SECURITY_SCHEMES],
+      annotations: READ_ONLY_TOOL_ANNOTATIONS,
+      _meta: toolMeta("Searching help", "Help search complete"),
+    },
+    {
       name: "daylily.get_profile",
       title: "Get Profile",
       description:
-        "Use this when the signed-in user asks about their own Daylily Catalog profile, storefront copy, slug, logo, location, or public profile content. Requires OAuth.",
+        "Use this when the signed-in user asks about their own Daylily Catalog profile, storefront copy, slug, location, images, or public profile content. Story content is read-only through remote MCP; use open_dashboard with edit_profile_content to edit it. The image IDs support reorder and dashboard removal review. If imagesHasMore is true, call daylily.list_images to discover the full image set. Requires OAuth.",
       inputSchema: {
         type: "object",
         additionalProperties: false,
         properties: {},
       },
-      outputSchema: profileOutputSchema,
+      outputSchema: memberProfileOutputSchema,
       securitySchemes: [...privateSecuritySchemes],
       annotations: READ_ONLY_TOOL_ANNOTATIONS,
       _meta: toolMeta("Loading profile", "Profile loaded"),
@@ -184,9 +237,15 @@ export function buildReadOnlyMcpTools(privateScopes: string[]): McpTool[] {
       name: "daylily.list_lists",
       title: "List Lists",
       description:
-        "Use this when the signed-in user asks to browse their catalog list records or when you need to resolve a human list name to an id before calling daylily.list_listings with listId. Returns list metadata and listing ids. Requires OAuth.",
-      inputSchema: paginatedInputSchema(),
-      outputSchema: paginatedOutputSchema,
+        "Use this when the signed-in user asks to browse their catalog lists or resolve a list name to an id. Set listingId to page the lists containing one owned listing. Returns each list's title, description, status, and id. Use daylily.list_listings with listId to page a list's members. Requires OAuth.",
+      inputSchema: {
+        ...paginatedInputSchema(MEMBER_MAX_LIMIT),
+        properties: {
+          ...paginatedInputSchema(MEMBER_MAX_LIMIT).properties,
+          listingId: { type: "string", maxLength: 128 },
+        },
+      },
+      outputSchema: memberListPageOutputSchema,
       securitySchemes: [...privateSecuritySchemes],
       annotations: READ_ONLY_TOOL_ANNOTATIONS,
       _meta: toolMeta("Loading lists", "Lists loaded"),
@@ -195,9 +254,9 @@ export function buildReadOnlyMcpTools(privateScopes: string[]): McpTool[] {
       name: "daylily.get_list",
       title: "Get List",
       description:
-        "Use this when the signed-in user asks to inspect one of their catalog lists by id, including its description, status, and listing ids. For full listing records in a list, call daylily.list_listings with listId instead of expanding ids one by one. Requires OAuth.",
+        "Use this when the signed-in user asks to inspect one list by id, including its description, status, and dashboard link. Call daylily.list_listings with listId for paged members. Requires OAuth.",
       inputSchema: idInputSchema(),
-      outputSchema: listOutputSchema,
+      outputSchema: memberListOutputSchema,
       securitySchemes: [...privateSecuritySchemes],
       annotations: READ_ONLY_TOOL_ANNOTATIONS,
       _meta: toolMeta("Loading list", "List loaded"),
@@ -206,9 +265,9 @@ export function buildReadOnlyMcpTools(privateScopes: string[]): McpTool[] {
       name: "daylily.list_listings",
       title: "List Listings",
       description:
-        "Use this when the signed-in user asks to search, filter, or page through their own listing records, including private notes. Supports the dashboard's key advanced filters such as title, description, listId, status, price/photo availability, cultivar name, hybridizer, year, color, parentage, and bloom traits. Use the most selective filter arguments directly instead of scanning the full catalog. If the user names a list but you do not know its id, call daylily.list_lists first, then pass listId here. For complete catalog-wide summaries or facet-style searches, use limit 500 and repeat with the same filters plus nextCursor until nextCursor is null. Requires OAuth.",
+        "Use this when the signed-in user asks to search, filter, or page through their own listings. Returns compact rows. Follow nextCursor until null; a filtered page can be empty and still have a nextCursor. For cultivar details, first call daylily.search_cultivars on the public index, then filter owned listings by cultivarReferenceId. Search unlinked or legacy listing titles with q or title. Use daylily.get_listing for private notes, images, and full detail. Requires OAuth.",
       inputSchema: listingSearchInputSchema(),
-      outputSchema: paginatedOutputSchema,
+      outputSchema: memberListingPageOutputSchema,
       securitySchemes: [...privateSecuritySchemes],
       annotations: READ_ONLY_TOOL_ANNOTATIONS,
       _meta: toolMeta("Loading listings", "Listings loaded"),
@@ -217,12 +276,118 @@ export function buildReadOnlyMcpTools(privateScopes: string[]): McpTool[] {
       name: "daylily.get_listing",
       title: "Get Listing",
       description:
-        "Use this when the signed-in user asks to inspect one exact listing by id, including private notes, images, linked cultivar data, and list membership. Do not use this for search or list expansion when daylily.list_listings can return the needed records in one paginated call. Requires OAuth.",
+        "Use this when the signed-in user asks to inspect one exact listing by id, including private notes, images, linked cultivar data, and up to 100 list memberships. If listsNextCursor is present, call daylily.list_lists with listingId and that cursor for the remaining memberships. If imagesHasMore is true, call daylily.list_images for the full image set. Do not use this for search or list expansion when daylily.list_listings can return the needed records in one paginated call. Requires OAuth.",
       inputSchema: idInputSchema(),
-      outputSchema: listingOutputSchema,
+      outputSchema: memberListingOutputSchema,
       securitySchemes: [...privateSecuritySchemes],
       annotations: READ_ONLY_TOOL_ANNOTATIONS,
       _meta: toolMeta("Loading listing", "Listing loaded"),
+    },
+    {
+      name: "daylily.list_images",
+      title: "List Images",
+      description:
+        "Page every image ID for one owned listing or profile. Pages are ordered by image ID; use each image's order field for display order. Follow nextCursor until null before reordering or preparing removal review for a large legacy image set. Requires OAuth.",
+      inputSchema: {
+        type: "object",
+        additionalProperties: false,
+        required: ["type", "referenceId"],
+        properties: {
+          type: { type: "string", enum: ["listing", "profile"] },
+          referenceId: { type: "string", minLength: 1, maxLength: 128 },
+          cursor: { type: "string", minLength: 1, maxLength: 128 },
+          limit: { type: "integer", minimum: 1, maximum: 100, default: 20 },
+        },
+      },
+      outputSchema: memberImagePageOutputSchema,
+      securitySchemes: [...privateSecuritySchemes],
+      annotations: READ_ONLY_TOOL_ANNOTATIONS,
+      _meta: toolMeta("Loading images", "Images loaded"),
+    },
+    {
+      name: "daylily.get_image",
+      title: "Get Image",
+      description:
+        "Get one owned listing or profile image by ID, including its resolved dashboard image URL. Use get_listing, get_profile, or list_images to find image IDs first. Requires OAuth.",
+      inputSchema: {
+        type: "object",
+        additionalProperties: false,
+        required: ["type", "referenceId", "imageId"],
+        properties: {
+          type: { type: "string", enum: ["listing", "profile"] },
+          referenceId: { type: "string", minLength: 1, maxLength: 128 },
+          imageId: { type: "string", minLength: 1, maxLength: 128 },
+        },
+      },
+      outputSchema: memberImageOutputSchema,
+      securitySchemes: [...privateSecuritySchemes],
+      annotations: READ_ONLY_TOOL_ANNOTATIONS,
+      _meta: toolMeta("Loading image", "Image loaded"),
+    },
+    {
+      name: "daylily.open_dashboard",
+      title: "Open Dashboard Task",
+      description:
+        "Use this when the signed-in member needs a precise dashboard screen to add listing or profile photos, edit a profile story or URL, or review deletion, image removal, story block removal, cultivar unlinking, or list member removal. Use manage_listing_images with the owned listing id or manage_profile_images to add photos through the browser cropper. For story block removal, pass its current blockId from get_profile. A link never performs the change on navigation. Requires OAuth.",
+      inputSchema: {
+        type: "object",
+        additionalProperties: false,
+        required: ["destination"],
+        properties: {
+          destination: {
+            type: "string",
+            enum: [
+              "profile",
+              "edit_profile_url",
+              "create_listing",
+              "edit_listing",
+              "delete_listing",
+              "create_list",
+              "edit_list",
+              "delete_list",
+              "manage_list",
+              "remove_listings_from_list",
+              "manage_listing_images",
+              "remove_listing_image",
+              "unlink_listing_cultivar",
+              "manage_profile_images",
+              "remove_profile_image",
+              "edit_profile_content",
+              "remove_profile_content_block",
+              "import",
+              "tags",
+            ],
+          },
+          id: {
+            type: "string",
+            description: "Owned listing or list id for a record task.",
+          },
+          imageId: {
+            type: "string",
+            description: "Owned image id for image removal review.",
+          },
+          blockId: {
+            type: "string",
+            minLength: 1,
+            maxLength: 128,
+            description:
+              "Current profile story block id to focus for removal review.",
+          },
+          listingIds: {
+            type: "array",
+            minItems: 1,
+            maxItems: 20,
+            uniqueItems: true,
+            items: { type: "string" },
+            description:
+              "Current members of the list to select for removal review.",
+          },
+        },
+      },
+      outputSchema: dashboardLinkOutputSchema,
+      securitySchemes: [...privateSecuritySchemes],
+      annotations: READ_ONLY_TOOL_ANNOTATIONS,
+      _meta: toolMeta("Preparing dashboard link", "Dashboard link ready"),
     },
   ];
 

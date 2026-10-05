@@ -197,6 +197,24 @@ test("Profile retains drafts across refresh and fast failed navigation", async (
   await expect(profile.gardenNameInput).toHaveValue("Retained draft");
   await page.unroute("**/api/trpc/dashboardDb.userProfile.updateContent?*");
   await page.getByRole("link", { name: "View Public Profile" }).click();
+  await expect(page).toHaveURL("/dashboard/profile");
+  await expect(paragraph).toHaveText("Fast navigation content");
+  expect((await profileRecord()).title).toBe("External title");
+  expect((await profileRecord()).content).toBe(content);
+  await page
+    .getByRole("button", {
+      name: "Discard this draft and load the latest story",
+    })
+    .click();
+  await page
+    .getByRole("button", {
+      name: "Discard unsaved profile fields and load the latest profile",
+    })
+    .click();
+  await expect(profile.gardenNameInput).toHaveValue("External title");
+  await profile.gardenNameInput.fill("Retained draft");
+  await paragraph.fill("Fast navigation content");
+  await page.getByRole("link", { name: "View Public Profile" }).click();
   await expect(page).toHaveURL("/integration-seller");
   await expect(
     page.getByText("Fast navigation content", { exact: true }),
@@ -220,6 +238,9 @@ test("Profile retains drafts across refresh and fast failed navigation", async (
     route.abort("failed"),
   );
   await page.getByRole("link", { name: "View Public Profile" }).click();
+  await expect(
+    page.getByText("Changes were not saved", { exact: true }),
+  ).toBeVisible();
   await expect(page).toHaveURL("/dashboard/profile");
   await expect(profile.locationInput).toHaveValue("Parent retry draft");
   await expect(profile.saveChangesButton).toBeEnabled();
@@ -253,14 +274,21 @@ test("Profile retains drafts across refresh and fast failed navigation", async (
     .locator('.ce-paragraph[contenteditable="true"]')
     .first();
   await liveParagraph.fill("New content during parent save");
-  const contentWritten = page.waitForResponse(
-    (response) =>
-      response.url().includes("dashboardDb.userProfile.updateContent") &&
-      response.ok(),
+  const contentConflict = page.waitForResponse((response) =>
+    response.url().includes("dashboardDb.userProfile.updateContent"),
   );
   await page.getByRole("heading", { name: "Profile", exact: true }).click();
-  await contentWritten;
-  expect((await profileRecord()).content).toContain(
+  await contentConflict;
+  await expect(
+    page
+      .getByText(
+        "Profile changed. Read it again before replacing its content.",
+        { exact: true },
+      )
+      .last(),
+  ).toBeVisible();
+  await expect(liveParagraph).toHaveText("New content during parent save");
+  expect((await profileRecord()).content).not.toContain(
     "New content during parent save",
   );
   releaseParent();
@@ -283,7 +311,7 @@ test("Profile URL checks ignore late results and preserve eligibility", async ({
   const profile = new DashboardProfile(page);
   await page.goto("/dashboard/profile");
   await profile.isReady();
-  await profile.slugInput.focus();
+  await profile.slugInput.click();
   const warning = page.getByRole("alertdialog", {
     name: "Before You Edit Your URL",
   });
@@ -515,6 +543,65 @@ test("Profile loading, empty images, crop recovery and image limits", async ({
   );
   await expect(page.locator("#image-upload-input")).toHaveCount(0);
   await capture(page, "mobile-image-limit");
+});
+
+test("Profile retains new text when a pending story save normalizes a link", async ({
+  page,
+}) => {
+  const profile = new DashboardProfile(page);
+  await page.goto("/dashboard/profile");
+  await profile.isReady();
+  const paragraph = profile.contentEditor
+    .locator('.ce-paragraph[contenteditable="true"]')
+    .first();
+  let releaseContent!: () => void;
+  const heldResponse = new Promise<void>((resolve) => {
+    releaseContent = resolve;
+  });
+  let contentWritten!: () => void;
+  const writeFinished = new Promise<void>((resolve) => {
+    contentWritten = resolve;
+  });
+  await page.route(
+    "**/api/trpc/dashboardDb.userProfile.updateContent?*",
+    async (route) => {
+      const response = await route.fetch();
+      contentWritten();
+      await heldResponse;
+      await route.fulfill({ response });
+    },
+  );
+  try {
+    await paragraph.evaluate((element) => {
+      element.innerHTML =
+        'Visit <a href="https://daylilycatalog.com/catalogs">our garden</a>';
+      element.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    });
+    await profile.heading.click();
+    await writeFinished;
+    const saved = await profileRecord();
+    expect(saved.content).toContain("/catalogs");
+    expect(saved.content).not.toContain("https://daylilycatalog.com");
+    await paragraph.fill("New story text during save");
+    const refreshed = page.waitForResponse((response) =>
+      response.url().includes("dashboardDb.userProfile.get"),
+    );
+    releaseContent();
+    await refreshed;
+    await expect(paragraph).toHaveText("New story text during save");
+    await expect(
+      page.getByText("Saving it will report a conflict.", { exact: false }),
+    ).toHaveCount(0);
+    await page.unroute("**/api/trpc/dashboardDb.userProfile.updateContent?*");
+    await profile.saveChangesButton.click();
+    await expect(profile.saveChangesButton).toBeDisabled();
+    await page.reload();
+    await expect(profile.contentEditor).toContainText(
+      "New story text during save",
+    );
+  } finally {
+    releaseContent();
+  }
 });
 
 test("Profile content types keep edits, order and removal after a parent commit", async ({

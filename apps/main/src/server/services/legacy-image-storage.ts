@@ -1,6 +1,6 @@
 import "server-only";
 
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { S3Client } from "@aws-sdk/client-s3";
 import { env, requireEnv } from "@/env";
 import {
   imageExtensionByContentType,
@@ -53,22 +53,6 @@ export function buildLegacyImageKey(args: {
 }) {
   const extension = imageExtensionByContentType[args.contentType];
   return `${args.userId}/${args.referenceId}/${args.fileId}${extension}`;
-}
-
-export async function uploadLegacyImageBuffer(args: {
-  body: Buffer;
-  contentType: ImageContentType;
-  key: string;
-}) {
-  await getLegacyS3Client().send(
-    new PutObjectCommand({
-      Bucket: getLegacyImageUploadBucketName(),
-      Key: args.key,
-      Body: args.body,
-      ContentType: args.contentType,
-      ContentLength: args.body.byteLength,
-    }),
-  );
 }
 
 export function isLegacyImageKeyForTarget(args: {
