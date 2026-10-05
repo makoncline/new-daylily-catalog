@@ -269,12 +269,6 @@ export async function getInitialListings(userSlugOrId: string) {
   return transformListings(items);
 }
 
-export interface GetPublicListingsPageArgs {
-  userSlugOrId: string;
-  page: number;
-  pageSize?: number;
-}
-
 export interface GetPublicListingsPageIdsForUserIdArgs {
   userId: string;
   page: number;
@@ -320,33 +314,6 @@ export async function getPublicListingsPageIdsForUserId(
     pageSize,
     totalCount,
     totalPages,
-  };
-}
-
-async function getPublicListingsPageIds({
-  userSlugOrId,
-  page,
-  pageSize = PUBLIC_PROFILE_LISTINGS_PAGE_SIZE,
-}: GetPublicListingsPageArgs) {
-  const userId = await getUserIdFromSlugOrId(userSlugOrId);
-
-  return getPublicListingsPageIdsForUserId({
-    userId,
-    page,
-    pageSize,
-  });
-}
-
-export async function getPublicListingsPage(args: GetPublicListingsPageArgs) {
-  const pageData = await getPublicListingsPageIds(args);
-  const items = await getPublicListingCardsByIds(pageData.ids);
-
-  return {
-    items,
-    page: pageData.page,
-    pageSize: pageData.pageSize,
-    totalCount: pageData.totalCount,
-    totalPages: pageData.totalPages,
   };
 }
 
