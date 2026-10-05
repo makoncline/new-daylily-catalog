@@ -66,6 +66,22 @@ The current Connect panel shows Authorization unavailable and has no
 predefined client-ID field. Clerk discovery does not advertise DCR or CIMD.
 Resolve the supported predefined-client setup path before the live tool scan.
 Passing package metadata and domain verification does not prove a connection.
+
+The standalone Codex package route was also tested on October 4. It declared
+`oauth.clientId` and `oauth.callbackUrl` in `.mcp.json`, as documented for
+[Codex plugin MCP servers](https://learn.chatgpt.com/docs/extend/mcp#plugin-provided-mcp-servers).
+Clerk's Production dashboard and the running app confirmed the existing public
+client ID. The callback came from that client's registered URI list.
+
+Updating the portable draft with that package was rejected as an MCP server
+replacement. A [separate unpublished test draft](https://platform.openai.com/plugins/manage/plugins_6ac3183de22c8191a43b70ecb3ce096f)
+accepted the Codex package. Both the `http` transport and the submission guide's
+URL-only entry had no Connect action. An explicit `streamable-http` entry
+retained the OAuth fields, but still had no associated app or Connect action.
+The response reported `can_configure: false`. This package route did not repair
+hosted OAuth setup. Keep the portable package as the source release until the
+supported hosted setup path is confirmed. No OAuth grant or Clerk setting was
+changed. The test draft is not a release candidate.
 Keep client secrets and tokens out of the ZIP. A change to Clerk client
 admission needs a separate security review and owner approval.
 
