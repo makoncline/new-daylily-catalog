@@ -24,7 +24,7 @@ it("builds a public upload ZIP whose review cases match the current MCP", async 
     ).toEqual(["assets/icon.svg", "mcp.json", "plugin.json"]);
     const manifest = JSON.parse(await zip.file("plugin.json")!.async("string"));
     const mcp = JSON.parse(await zip.file("mcp.json")!.async("string"));
-    expect(manifest.name).toBe("app-6a061b5279b88191a07a9e0866721e29");
+    expect(manifest.name).toBe("daylily-catalog");
     expect(manifest.version).toMatch(/^\d+\.\d+\.\d+$/);
     const metadata = manifest.extensions["com.openai"];
     expect(metadata.interface.displayName.length).toBeLessThanOrEqual(30);

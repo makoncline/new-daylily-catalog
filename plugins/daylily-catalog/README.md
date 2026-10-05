@@ -1,8 +1,8 @@
 # Daylily Catalog plugin
 
-This folder is the source package for the existing OpenAI plugin submission.
-The package name matches the registered plugin. The display name remains
-Daylily Catalog. The plugin uses the app's remote MCP server and Clerk OAuth.
+This folder is the source package for the OpenAI plugin submission. The
+package name is `daylily-catalog`. The display name is Daylily Catalog.
+The plugin uses the app's remote MCP server and Clerk OAuth.
 
 ## Build
 
@@ -33,9 +33,10 @@ It copies that fixture into a disposable database. It does not write to Turso.
    story, and at least two profile photos. Do not use a real member's account.
    Keep its credentials out of this folder and Git.
 3. Upload the ZIP to the
-   [existing submission](https://platform.openai.com/plugins/manage/plugin_asdk_app_6a061b5279b88191a07a9e0866721e29).
+   [current draft](https://platform.openai.com/plugins/manage/plugin_asdk_app_6ac30d5ff6508191b3d2647ec281fa3e).
 4. Complete MCP setup and domain verification in the portal. Use the exact
-   challenge value and origin shown there. Connect Clerk OAuth and inspect
+   challenge value and origin shown there if verification is required. The
+   draft currently shows Domain verified. Connect Clerk OAuth and inspect
    the current tool scan. Resolve findings before submission.
 5. Enter the demo credentials separately in Review details. The reviewer
    must not need an email code, MFA approval, or private network access.
@@ -53,13 +54,12 @@ The current changes disclose reads, writes, permissions, recipients, retry
 receipts, and dashboard handoffs. Write results use explicit field schemas.
 Record versions remain available for stale-write checks.
 
-On October 4, the portal blocked the first draft upload with: "Keep the
-existing MCP connection" and "Publish the existing MCP app before updating
-its plugin ZIP." The old entry showed Configuration unavailable and no
-Connect action. Its downloaded 1.0.0 ZIP contained only a compatibility
-manifest, with no MCP mapping. Keep the current entry until OpenAI confirms
-how to repair it. Do not publish its stale metadata to pass this check.
-The local ZIP is prepared; the portal has not accepted it as a new draft.
+On October 4, the old unpublished entry blocked its ZIP update with "Publish
+the existing MCP app before updating its plugin ZIP." It had no Connect
+action. A fresh draft with the package name `daylily-catalog` accepted the
+same package and reported No Issues for metadata. It shows the correct MCP
+endpoint and a Connect action. Use the current draft above. Neither entry
+has been submitted or published by this change.
 
 The plugin has no embedded UI, bundled skills, or subscription checkout.
 Existing members use their account permissions. Destructive removal remains

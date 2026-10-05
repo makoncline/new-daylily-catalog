@@ -1,6 +1,6 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
-  "name": "app-6a061b5279b88191a07a9e0866721e29",
+  "name": "daylily-catalog",
   "version": "1.1.0",
   "description": "Search daylily catalogs and manage your own grower catalog.",
   "author": {
