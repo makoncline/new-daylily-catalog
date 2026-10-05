@@ -55,9 +55,8 @@ The production endpoint is `https://daylilycatalog.com/api/mcp/server`.
 The issuer is `https://clerk.daylilycatalog.com`.
 
 Use the exact callback shown by that form. On October 4 it showed
-`https://chatgpt.com/connector_platform_oauth_redirect`. That URL was absent
-from the production Clerk client's allowed callbacks. Its addition needs
-owner approval. The old callback-ID URL is a different address.
+`https://chatgpt.com/connector_platform_oauth_redirect`. The owner approved this callback. It was added to the existing production
+Clerk client on October 5. The old callback-ID URL is a different address.
 
 For the first read-only connection check, select `catalog:read` only. Use
 `openid`, `email`, and `profile` for OIDC. Do not copy all advertised Clerk
@@ -65,6 +64,19 @@ scopes: they include metadata scopes and `catalog:manage` that the existing
 client does not permit. Stop before a member-data grant unless the owner
 approves it. A connection created in ChatGPT must still be linked to the
 correct public submission and pass its tool scan.
+
+On October 5, `Daylily Catalog Review` was installed in ChatGPT with the
+predefined client and no account linked. Its ID is
+`plugin_asdk_app_6ac3b8d3dccc819183b2a619baae656c`. The first public case
+returned matching listings, photos, cultivar details, and a grower catalog.
+This private test is separate from the public submission.
+
+The public endpoint draft still fails Connect with:
+`OAuth client ID is required when using pre-defined OAuth client credentials.`
+Its drawer has no client ID input. Do not treat a verified domain as a
+completed OAuth connection. The official submission reference also excludes
+`apps` and `.app.json` references from public ZIPs. Do not upload a private
+connection mapping as a proposed public fix.
 
 Portable and standalone Codex import experiments are not release candidates.
 Do not use them as proof that the hosted OAuth client is configured.
@@ -75,7 +87,7 @@ Do not use them as proof that the hosted OAuth client is configured.
    Check live privacy text and tool labels before scanning.
 2. Complete the hosted OAuth setup and tool scan. Check the app identity,
    endpoint, OAuth client, callback, and discovered tools.
-3. Use a dedicated sample account with password sign-in, member permissions,
+3. Use the existing dedicated reviewer account with password sign-in and member permissions,
    hidden and public listings, private notes, lists, a profile story, and
    at least two profile photos. Do not use a real member's account.
 4. Enter review credentials separately. The reviewer must not need MFA,
