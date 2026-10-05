@@ -18,28 +18,22 @@ const mockDb = vi.hoisted(() => ({
   },
 }));
 
-const mockGetUserIdFromSlugOrId = vi.hoisted(() => vi.fn());
-
 vi.mock("@/server/db", () => ({
   db: mockDb,
   publicDb: mockDb,
   replicaDb: mockDb,
 }));
 
-vi.mock("@/server/db/getPublicProfile", () => ({
-  getUserIdFromSlugOrId: (...args: unknown[]) =>
-    mockGetUserIdFromSlugOrId(...args),
-}));
-
 import {
   getListings,
   getPublicCatalogRouteEntries,
+  getPublicListingCardsByIds,
   getPublicListingDetail,
   getPublicListingRouteEntries,
   getPublicListingRouteEntryCount,
-  getPublicListingsPage,
+  getPublicListingsPageIdsForUserId,
   transformListings,
-} from "@/server/db/getPublicListings";
+} from "@/server/db/public-listing-read-model";
 import { applyWhereIn } from "./test-utils/apply-where-in";
 
 const originalCloudflareUrl = process.env.NEXT_PUBLIC_CLOUDFLARE_URL;
@@ -92,7 +86,7 @@ interface UserFindManyArgs {
   };
 }
 
-describe("getPublicListings helpers", () => {
+describe("public listing read model", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.NEXT_PUBLIC_CLOUDFLARE_URL = "https://cf.daylilycatalog.com";
@@ -147,7 +141,6 @@ describe("getPublicListings helpers", () => {
   });
 
   it("returns SEO page slices from the same sorted-id source", async () => {
-    mockGetUserIdFromSlugOrId.mockResolvedValue("user-1");
     mockDb.listing.count.mockResolvedValue(4);
     mockDb.$queryRaw
       .mockResolvedValueOnce([])
@@ -176,25 +169,25 @@ describe("getPublicListings helpers", () => {
       },
     );
 
-    const page = await getPublicListingsPage({
-      userSlugOrId: "grower",
+    const page = await getPublicListingsPageIdsForUserId({
+      userId: "user-1",
       page: 99,
       pageSize: 2,
     });
+    const items = await getPublicListingCardsByIds(page.ids);
 
     expect(page.page).toBe(2);
     expect(page.totalPages).toBe(2);
     expect(page.totalCount).toBe(4);
-    expect(page.items.map((row) => row.id)).toEqual(["id-c", "id-d"]);
+    expect(items.map((row) => row.id)).toEqual(["id-c", "id-d"]);
   });
 
   it("uses for-sale-first sorting for SEO page ids only", async () => {
-    mockGetUserIdFromSlugOrId.mockResolvedValue("user-1");
     mockDb.listing.count.mockResolvedValue(0);
     mockDb.$queryRaw.mockResolvedValue([]);
 
-    await getPublicListingsPage({
-      userSlugOrId: "grower",
+    await getPublicListingsPageIdsForUserId({
+      userId: "user-1",
       page: 1,
       pageSize: 2,
     });
