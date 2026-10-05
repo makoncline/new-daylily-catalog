@@ -1,8 +1,9 @@
-# Daylily Catalog plugin
+# Daylily Catalog plugin submission
 
-This folder is the source package for the OpenAI plugin submission. The
-package name is `daylily-catalog`. The display name is Daylily Catalog.
-The plugin uses the app's remote MCP server and Clerk OAuth.
+This folder updates the original hosted OpenAI entry:
+[Daylily Catalog](https://platform.openai.com/plugins/manage/plugin_asdk_app_6a061b5279b88191a07a9e0866721e29).
+Its package name is `app-6a061b5279b88191a07a9e0866721e29`.
+Keep that identity for updates. The display name is Daylily Catalog.
 
 ## Build
 
@@ -12,83 +13,91 @@ From the repository root, run:
 pnpm plugin:build
 ```
 
-The ZIP is saved in ignored `local/plugins/`. It includes only the manifest,
-MCP configuration, and icon. No credentials or member data are included.
+The ZIP is saved in ignored `local/plugins/`. It contains only
+`.codex-plugin/plugin.json` and `assets/icon.svg`. The existing entry manages
+its MCP connection separately. This ZIP updates metadata. It does not create
+or prove an OAuth connection. Do not add a new bundled MCP server or an
+`.app.json` mapping to this update.
 
-Run the focused checks before building:
+`review-cases.json` contains five positive and three negative cases. It stays
+outside this ZIP. The importer rejects plugin-level review cases when the
+ZIP does not declare an MCP server. Complete these cases in the hosted review
+setup after the MCP connection is ready. Keep reviewer credentials, tokens,
+and member data out of the package and Git.
+
+Run the focused checks:
 
 ```sh
 RUN_MCP_MEMBER_WRITE_PROOF=1 pnpm verify --tests tests/mcp-read-only.test.ts tests/mcp-member-write-sqlite.test.ts tests/daylily-plugin-package.test.ts
 ```
 
-The SQLite write proof needs this checkout's local realistic-data fixture.
-It copies that fixture into a disposable database. It does not write to Turso.
+The SQLite write proof copies this checkout's realistic-data fixture into a
+disposable database. It does not write to Turso.
+
+## Verified upload and remaining setup
+
+On October 4, version 1.1.4 was accepted into the original entry. Metadata
+reported **No Issues**. The earlier update was wrong: it added a bundled
+MCP declaration to that hosted entry. A new plugin identity was not required
+for the metadata fix.
+
+The original MCP configuration still reports **Unavailable**. Its old app
+version is rejected. There is no editable pending MCP version or Connect
+action. The accepted metadata ZIP does not repair that state. Do not submit
+it while MCP setup is incomplete.
+
+The supported ChatGPT connection form is available at
+[Plugins](https://chatgpt.com/plugins) → Add → Create custom MCP server.
+After entering the endpoint, open Advanced OAuth settings. Select
+User-Defined OAuth Client, enter the existing public client ID, leave the
+secret empty, and use token endpoint authentication `none`.
+The production endpoint is `https://daylilycatalog.com/api/mcp/server`.
+The issuer is `https://clerk.daylilycatalog.com`.
+
+Use the exact callback shown by that form. On October 4 it showed
+`https://chatgpt.com/connector_platform_oauth_redirect`. That URL was absent
+from the production Clerk client's allowed callbacks. Its addition needs
+owner approval. The old callback-ID URL is a different address.
+
+For the first read-only connection check, select `catalog:read` only. Use
+`openid`, `email`, and `profile` for OIDC. Do not copy all advertised Clerk
+scopes: they include metadata scopes and `catalog:manage` that the existing
+client does not permit. Stop before a member-data grant unless the owner
+approves it. A connection created in ChatGPT must still be linked to the
+correct public submission and pass its tool scan.
+
+Portable and standalone Codex import experiments are not release candidates.
+Do not use them as proof that the hosted OAuth client is configured.
 
 ## Review preparation
 
-1. Deploy the privacy and MCP fixes through the normal app release process.
-   Check the live privacy text and all tool labels before a scan.
-2. Use a dedicated sample account. Give it password sign-in, existing member
-   permissions, private notes, lists, hidden and public listings, a profile
-   story, and at least two profile photos. Do not use a real member's account.
-   Keep its credentials out of this folder and Git.
-3. Upload the ZIP to the
-   [current draft](https://platform.openai.com/plugins/manage/plugin_asdk_app_6ac30d5ff6508191b3d2647ec281fa3e).
-4. Complete MCP setup and domain verification in the portal. Use the exact
-   challenge value and origin shown there if verification is required. The
-   draft currently shows Domain verified. Connect Clerk OAuth and inspect
-   the current tool scan. Resolve findings before submission.
-5. Enter the demo credentials separately in Review details. The reviewer
-   must not need an email code, MFA approval, or private network access.
-6. Run the five positive and three negative cases in `plugin.json` through
-   ChatGPT on desktop and mobile. The [earlier recordings](../../apps/main/docs/member-mcp-feature-proof-2026-09-30.md)
-   show the local implementation. They are supporting evidence. Add
-   `extensions.com.openai.review.demo_recording_url` with a current plugin
-   walkthrough before final submission. Do not claim the earlier recordings
-   prove the directory plugin has been tested.
-7. Check the imported review information and release notes. Submit only
-   after the required scans pass and the owner confirms the attestations.
+1. Release the privacy and MCP result fixes through the normal app process.
+   Check live privacy text and tool labels before scanning.
+2. Complete the hosted OAuth setup and tool scan. Check the app identity,
+   endpoint, OAuth client, callback, and discovered tools.
+3. Use a dedicated sample account with password sign-in, member permissions,
+   hidden and public listings, private notes, lists, a profile story, and
+   at least two profile photos. Do not use a real member's account.
+4. Enter review credentials separately. The reviewer must not need MFA,
+   email codes, magic links, or private network access.
+5. Run `review-cases.json` through the connected plugin on desktop and mobile.
+   Record a current walkthrough. The
+   [earlier local recordings](../../apps/main/docs/member-mcp-feature-proof-2026-09-30.md)
+   show the implementation, but do not prove this directory connection.
+6. Add the current video and test results to the hosted review form. Check
+   imported metadata and release notes. Submit only when scans pass and
+   the owner confirms the attestations.
 
 The May 18 rejection concerned privacy disclosures and unneeded user data.
-The current changes disclose reads, writes, permissions, recipients, retry
-receipts, and dashboard handoffs. Write results use explicit field schemas.
-Record versions remain available for stale-write checks.
-
-On October 4, the old unpublished entry blocked its ZIP update with "Publish
-the existing MCP app before updating its plugin ZIP." It had no Connect
-action. A fresh draft with the package name `daylily-catalog` accepted the
-same package and reported No Issues for metadata. It shows the correct MCP
-endpoint and a Connect action. Use the current draft above. Neither entry
-has been submitted or published by this change.
-
-OAuth setup is still blocked. The fresh draft has no attached OAuth client.
-The current Connect panel shows Authorization unavailable and has no
-predefined client-ID field. Clerk discovery does not advertise DCR or CIMD.
-Resolve the supported predefined-client setup path before the live tool scan.
-Passing package metadata and domain verification does not prove a connection.
-
-The standalone Codex package route was also tested on October 4. It declared
-`oauth.clientId` and `oauth.callbackUrl` in `.mcp.json`, as documented for
-[Codex plugin MCP servers](https://learn.chatgpt.com/docs/extend/mcp#plugin-provided-mcp-servers).
-Clerk's Production dashboard and the running app confirmed the existing public
-client ID. The callback came from that client's registered URI list.
-
-Updating the portable draft with that package was rejected as an MCP server
-replacement. A [separate unpublished test draft](https://platform.openai.com/plugins/manage/plugins_6ac3183de22c8191a43b70ecb3ce096f)
-accepted the Codex package. Both the `http` transport and the submission guide's
-URL-only entry had no Connect action. An explicit `streamable-http` entry
-retained the OAuth fields, but still had no associated app or Connect action.
-The response reported `can_configure: false`. This package route did not repair
-hosted OAuth setup. Keep the portable package as the source release until the
-supported hosted setup path is confirmed. No OAuth grant or Clerk setting was
-changed. The test draft is not a release candidate.
-Keep client secrets and tokens out of the ZIP. A change to Clerk client
-admission needs a separate security review and owner approval.
+The app fixes disclose reads, writes, permissions, recipients, retry receipts,
+and dashboard handoffs. MCP write results use explicit field schemas and
+retain record versions for stale-write checks. The normal dashboard is
+unchanged by these submission fixes.
 
 The plugin has no embedded UI, bundled skills, or subscription checkout.
-Existing members use their account permissions. Destructive removal remains
-in the dashboard approval flow. OpenAI's destructive tool label also covers
-field overwrites; it is separate from that product approval flow.
+Existing account permissions control member tools. Destructive removal
+requires dashboard approval. OpenAI's destructive tool label also covers
+field overwrites; it does not replace the product approval flow.
 
 ## Hosted AI compute
 
@@ -99,5 +108,5 @@ separate integration. Do not add it to this plugin release.
 
 - [Package format](https://developers.openai.com/plugins/build/plugins)
 - [Submission flow](https://developers.openai.com/plugins/deploy/submission)
+- [OAuth and callbacks](https://developers.openai.com/plugins/build/auth)
 - [Plugin rules](https://developers.openai.com/plugins/plugin-guidelines)
-- [Submission validation](https://developers.openai.com/plugins/deploy/submission-errors)
