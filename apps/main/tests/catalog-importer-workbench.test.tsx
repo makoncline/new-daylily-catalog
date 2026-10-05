@@ -4,11 +4,13 @@ import {
   act,
   fireEvent,
   render,
+  renderHook,
   screen,
   waitFor,
   within,
 } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useCatalogImporterWorkbench } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
 import { CatalogImporterWorkbench as CatalogImporterWorkbenchComponent } from "@/app/(public)/catalog-importer/_components/catalog-importer-workbench";
 import {
   createCatalogImportRows,
@@ -17,9 +19,11 @@ import {
   type CultivarMatchCandidate,
   type CultivarNameMatchResult,
 } from "@/lib/catalog-importer";
+import { parseCatalogImportFile } from "@/lib/catalog-importer-file";
 import {
   clearCatalogImporterDraft,
   readCatalogImporterDraft,
+  writeCatalogImporterDraft,
   type CatalogImporterDraft,
 } from "@/lib/catalog-importer-draft";
 import type {
@@ -150,10 +154,24 @@ vi.mock("@/lib/catalog-importer-match-client", () => ({
   requestCultivarMatches: requestCultivarMatchesMock,
 }));
 
-vi.mock("@/lib/catalog-importer-file", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/catalog-importer-file")>()),
-  downloadCatalogImportFile: downloadCatalogImportFileMock,
-}));
+vi.mock("@/lib/catalog-importer-file", async (importOriginal) => {
+  const original =
+    await importOriginal<typeof import("@/lib/catalog-importer-file")>();
+  return {
+    ...original,
+    downloadCatalogImportFile: downloadCatalogImportFileMock,
+    parseCatalogImportFile: vi.fn(original.parseCatalogImportFile),
+  };
+});
+
+vi.mock("@/lib/catalog-importer-draft", async (importOriginal) => {
+  const original =
+    await importOriginal<typeof import("@/lib/catalog-importer-draft")>();
+  return {
+    ...original,
+    writeCatalogImporterDraft: vi.fn(original.writeCatalogImporterDraft),
+  };
+});
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: routerPushMock }),
@@ -189,6 +207,7 @@ describe("CatalogImporterWorkbench", () => {
     window.sessionStorage.clear();
     window.history.replaceState(null, "", "/catalog-importer");
     await clearCatalogImporterDraft();
+    vi.mocked(writeCatalogImporterDraft).mockClear();
     capturePosthogEventMock.mockClear();
     downloadCatalogImportFileMock.mockReset();
     downloadCatalogImportFileMock.mockResolvedValue(undefined);
@@ -591,6 +610,200 @@ describe("CatalogImporterWorkbench", () => {
       screen.queryByRole("button", { name: "Start over with this file" }),
     ).not.toBeInTheDocument();
   });
+
+  it.each(["success", "error"])(
+    "keeps a newer manual source when an old file parse ends with %s",
+    async (outcome) => {
+      let finishReading!: () => void;
+      const file = new File([""], "obsolete.csv", { type: "text/csv" });
+      Object.defineProperty(file, "text", {
+        value: () =>
+          new Promise<string>((resolve, reject) => {
+            finishReading = () =>
+              outcome === "success"
+                ? resolve("name,price\nObsolete Bloom,19")
+                : reject(new Error("Obsolete parse failure"));
+          }),
+      });
+      const editor = renderHook(() => useCatalogImporterWorkbench());
+      let loaded!: Promise<boolean>;
+      act(() => {
+        loaded = editor.result.current.loadFile(file);
+      });
+      expect(editor.result.current.readingFile).toBe(true);
+      act(() => editor.result.current.loadManualCatalog());
+      act(() =>
+        editor.result.current.addManualCatalogRow({
+          name: "Keep Manual Bloom",
+        }),
+      );
+      await act(() => editor.result.current.flushDraft());
+      const savedManual = await readCatalogImporterDraft();
+      expect(savedManual?.parsedSpreadsheet?.source).toBe("manual");
+      expect(savedManual?.parsedSpreadsheet?.sheets[0]?.rows[1]?.[0]).toBe(
+        "Keep Manual Bloom",
+      );
+      let oldResult!: boolean;
+      await act(async () => {
+        finishReading();
+        oldResult = await loaded;
+        await editor.result.current.flushDraft();
+      });
+      expect(await readCatalogImporterDraft()).toEqual(savedManual);
+      expect(editor.result.current.parsedSpreadsheet?.source).toBe("manual");
+      expect(editor.result.current.fileError).toBeNull();
+      expect(oldResult).toBe(false);
+    },
+  );
+
+  it("keeps reading a replacement file when the obsolete parse finishes", async () => {
+    let finishOld!: (contents: string) => void;
+    let finishNew!: (contents: string) => void;
+    const oldFile = new File([""], "old.csv");
+    const newFile = new File([""], "new.csv");
+    Object.defineProperty(oldFile, "text", {
+      value: () =>
+        new Promise<string>((resolve) => {
+          finishOld = resolve;
+        }),
+    });
+    Object.defineProperty(newFile, "text", {
+      value: () =>
+        new Promise<string>((resolve) => {
+          finishNew = resolve;
+        }),
+    });
+    const editor = renderHook(() => useCatalogImporterWorkbench());
+    let oldLoad!: Promise<boolean>;
+    let newLoad!: Promise<boolean>;
+    act(() => {
+      oldLoad = editor.result.current.loadFile(oldFile);
+    });
+    act(() => editor.result.current.loadManualCatalog());
+    act(() => editor.result.current.resetImporter());
+    act(() => {
+      newLoad = editor.result.current.loadFile(newFile);
+    });
+    await act(async () => {
+      finishOld("name,price\nObsolete Bloom,19");
+      expect(await oldLoad).toBe(false);
+    });
+    expect(editor.result.current.readingFile).toBe(true);
+    expect(editor.result.current.parsedSpreadsheet).toBeNull();
+    await act(async () => {
+      finishNew("name,price\nKeep New Bloom,23");
+      expect(await newLoad).toBe(true);
+      await editor.result.current.flushDraft();
+    });
+    expect(editor.result.current.readingFile).toBe(false);
+    expect(
+      (await readCatalogImporterDraft())?.parsedSpreadsheet?.fileName,
+    ).toBe("new.csv");
+  });
+
+  it("does not advance a cleared multi-sheet upload after its pending save finishes", async () => {
+    vi.mocked(parseCatalogImportFile).mockResolvedValueOnce({
+      fileName: "multi.xlsx",
+      sheets: [
+        { name: "First", rows: [["name"], ["First Bloom"]] },
+        { name: "Second", rows: [["name"], ["Second Bloom"]] },
+      ],
+    });
+    const original = await vi.importActual<
+      typeof import("@/lib/catalog-importer-draft")
+    >("@/lib/catalog-importer-draft");
+    let finishSave!: () => void;
+    const heldSave = new Promise<void>((resolve) => {
+      finishSave = resolve;
+    });
+    vi.mocked(writeCatalogImporterDraft).mockImplementationOnce(
+      async (draft) => {
+        await heldSave;
+        return original.writeCatalogImporterDraft(draft);
+      },
+    );
+    const editor = renderHook(() => useCatalogImporterWorkbench());
+    let loaded!: Promise<boolean>;
+    act(() => {
+      loaded = editor.result.current.loadFile(new File([""], "multi.xlsx"));
+    });
+    await waitFor(() =>
+      expect(editor.result.current.parsedSpreadsheet?.fileName).toBe(
+        "multi.xlsx",
+      ),
+    );
+    act(() => editor.result.current.resetImporter());
+    await act(async () => {
+      finishSave();
+      expect(await loaded).toBe(false);
+      await editor.result.current.flushDraft();
+    });
+    expect(editor.result.current.liveAnnouncement).toBe(
+      "Local progress cleared.",
+    );
+    expect(await readCatalogImporterDraft()).toBeNull();
+  });
+
+  it.each(["preview", "saved ID rematch"] as const)(
+    "keeps a newer mounted draft after an old %s completes",
+    async (operation) => {
+      let finishMatching!: (results: CultivarNameMatchResult[]) => void;
+      requestCultivarMatchesMock.mockReturnValue(
+        new Promise<CultivarNameMatchResult[]>((resolve) => {
+          finishMatching = resolve;
+        }),
+      );
+      const initialDraft = createSavedIdDraft();
+      await writeCatalogImporterDraft(initialDraft);
+      const oldEditor = renderHook(() =>
+        useCatalogImporterWorkbench(initialDraft),
+      );
+      let oldOperation!: Promise<unknown>;
+      act(() => {
+        oldOperation =
+          operation === "preview"
+            ? oldEditor.result.current.buildCatalogPreview()
+            : oldEditor.result.current.clearCultivarReferenceIdIssues([
+                "source-row-2",
+              ]);
+      });
+      await waitFor(() =>
+        expect(requestCultivarMatchesMock).toHaveBeenCalledOnce(),
+      );
+      await oldEditor.result.current.flushDraft();
+      const sourceBeforeMatch = await readCatalogImporterDraft();
+      expect(sourceBeforeMatch?.parsedSpreadsheet?.fileName).toBe(
+        "saved-id.csv",
+      );
+      if (operation === "preview") {
+        expect(sourceBeforeMatch?.matchedRows).toBeNull();
+      }
+      oldEditor.unmount();
+      const newEditor = renderHook(() =>
+        useCatalogImporterWorkbench(sourceBeforeMatch),
+      );
+      act(() => newEditor.result.current.resetImporter());
+      act(() => newEditor.result.current.loadManualCatalog());
+      act(() =>
+        newEditor.result.current.addManualCatalogRow({
+          name: "New Mount Bloom",
+        }),
+      );
+      await act(() => newEditor.result.current.flushDraft());
+      const savedManual = await readCatalogImporterDraft();
+      expect(savedManual?.parsedSpreadsheet?.source).toBe("manual");
+      expect(savedManual?.parsedSpreadsheet?.sheets[0]?.rows[1]?.[0]).toBe(
+        "New Mount Bloom",
+      );
+      await act(async () => {
+        finishMatching(createSavedIdMatchResults());
+        await oldOperation;
+        await oldEditor.result.current.flushDraft();
+      });
+      expect(await readCatalogImporterDraft()).toEqual(savedManual);
+      expect(newEditor.result.current.parsedSpreadsheet?.source).toBe("manual");
+    },
+  );
 
   it("saves the spreadsheet before cultivar matching finishes", async () => {
     let finishMatching!: (value: []) => void;

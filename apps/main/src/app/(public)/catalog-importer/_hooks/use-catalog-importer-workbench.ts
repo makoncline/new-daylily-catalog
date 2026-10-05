@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { capturePosthogEvent } from "@/lib/analytics/posthog";
 import {
   CATALOG_IMPORT_MATCH_BATCH_SIZE,
@@ -305,6 +305,7 @@ export function useCatalogImporterWorkbench(
     },
     [sessionRef],
   );
+  const fileRequestId = useRef(0);
   const exactMatchRequestId = useRef(0);
   const exactMatchAbortController = useRef<AbortController | null>(null);
   const closeCandidateRequestId = useRef(0);
@@ -312,6 +313,25 @@ export function useCatalogImporterWorkbench(
   const savedIdRematchRequestId = useRef(0);
   const savedIdRematchAbortController = useRef<AbortController | null>(null);
   const previewTracked = useRef(initialDraft?.matchedRows != null);
+
+  const cancelMatchRequests = useCallback(() => {
+    exactMatchRequestId.current += 1;
+    exactMatchAbortController.current?.abort();
+    exactMatchAbortController.current = null;
+    closeCandidateRequestId.current += 1;
+    searchCandidateRequestId.current += 1;
+    savedIdRematchRequestId.current += 1;
+    savedIdRematchAbortController.current?.abort();
+    savedIdRematchAbortController.current = null;
+  }, []);
+
+  useEffect(
+    () => () => {
+      fileRequestId.current += 1;
+      cancelMatchRequests();
+    },
+    [cancelMatchRequests],
+  );
 
   const sourceColumns = useMemo(
     () =>
@@ -744,14 +764,7 @@ export function useCatalogImporterWorkbench(
   ]);
 
   const resetMatches = useCallback(() => {
-    exactMatchRequestId.current += 1;
-    exactMatchAbortController.current?.abort();
-    exactMatchAbortController.current = null;
-    closeCandidateRequestId.current += 1;
-    searchCandidateRequestId.current += 1;
-    savedIdRematchRequestId.current += 1;
-    savedIdRematchAbortController.current?.abort();
-    savedIdRematchAbortController.current = null;
+    cancelMatchRequests();
     setMatchingProgress(null);
     setProcessingStage(null);
     setMatchError(null);
@@ -759,9 +772,10 @@ export function useCatalogImporterWorkbench(
     setCandidateResult(null);
     setSearchCandidateResult(null);
     setLastLinkAction(null);
-  }, []);
+  }, [cancelMatchRequests]);
 
   const resetImporter = useCallback(() => {
+    fileRequestId.current += 1;
     resetSession();
     setFileError(null);
     setReadingFile(false);
@@ -874,6 +888,8 @@ export function useCatalogImporterWorkbench(
         return;
       }
 
+      fileRequestId.current += 1;
+      setReadingFile(false);
       const nextHeaderRowIndex = detectHeaderRow(sheet.rows);
       const nextColumns = getSourceColumns(sheet.rows, nextHeaderRowIndex);
       const nextMapping = suggestColumnMapping(
@@ -901,14 +917,19 @@ export function useCatalogImporterWorkbench(
 
   const loadFile = useCallback(
     async (file: File) => {
+      let requestId = ++fileRequestId.current;
       setReadingFile(true);
       setFileError(null);
 
       try {
         const spreadsheet = await parseCatalogImportFile(file);
+        if (fileRequestId.current !== requestId) {
+          return false;
+        }
         previewTracked.current = false;
         if (spreadsheet.sheets.length === 1) {
           configureSheet(spreadsheet, 0);
+          requestId = fileRequestId.current;
         } else {
           resetMatches();
           await commitSession({
@@ -924,11 +945,17 @@ export function useCatalogImporterWorkbench(
             selectedSheetIndex: -1,
           });
         }
+        if (fileRequestId.current !== requestId) {
+          return false;
+        }
         setLiveAnnouncement(
           `${spreadsheet.fileName} loaded with ${spreadsheet.sheets.length.toLocaleString()} sheet${spreadsheet.sheets.length === 1 ? "" : "s"}.`,
         );
         return true;
       } catch (error) {
+        if (fileRequestId.current !== requestId) {
+          return false;
+        }
         setFileError(getErrorMessage(error));
         capturePosthogEvent("catalog_import_failed", {
           error_code: "file_parse_failed",
@@ -938,7 +965,9 @@ export function useCatalogImporterWorkbench(
         });
         return false;
       } finally {
-        setReadingFile(false);
+        if (fileRequestId.current === requestId) {
+          setReadingFile(false);
+        }
       }
     },
     [configureSheet, commitSession, resetMatches, sessionRef],
