@@ -820,19 +820,28 @@ test("public preparation restores an interrupted match and clear rejects its lat
     await expect(
       page.getByText("interrupted.csv", { exact: true }),
     ).toBeVisible();
+    const nextMatchRequest = page.waitForEvent("request", {
+      predicate: (request) =>
+        new URL(request.url()).pathname === "/api/v1/cultivars/match",
+    });
     await page
       .getByRole("button", { name: "Build catalog preview", exact: true })
       .click();
     await attempts[1]!.started.promise;
+    const heldMatchRequest = await nextMatchRequest;
     const oldDocument = await page.locator("html").elementHandle();
     const oldMapping = await page
       .getByRole("heading", { name: "Map your columns", exact: true })
       .elementHandle();
+    const canceledMatch = page.waitForEvent("requestfailed", {
+      predicate: (request) => request === heldMatchRequest,
+    });
     await page
       .getByRole("contentinfo")
       .getByRole("link", { name: "Privacy", exact: true })
       .click();
     await expect(page).toHaveURL("/privacy");
+    expect((await canceledMatch).failure()?.errorText).toBe("net::ERR_ABORTED");
     expect(await oldMapping!.evaluate((element) => element.isConnected)).toBe(
       false,
     );

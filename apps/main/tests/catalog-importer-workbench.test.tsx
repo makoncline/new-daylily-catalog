@@ -20,6 +20,8 @@ import {
   type CultivarNameMatchResult,
 } from "@/lib/catalog-importer";
 import { parseCatalogImportFile } from "@/lib/catalog-importer-file";
+import type * as CatalogImporterFileModule from "@/lib/catalog-importer-file";
+import type * as CatalogImporterDraftModule from "@/lib/catalog-importer-draft";
 import {
   clearCatalogImporterDraft,
   readCatalogImporterDraft,
@@ -155,8 +157,7 @@ vi.mock("@/lib/catalog-importer-match-client", () => ({
 }));
 
 vi.mock("@/lib/catalog-importer-file", async (importOriginal) => {
-  const original =
-    await importOriginal<typeof import("@/lib/catalog-importer-file")>();
+  const original = await importOriginal<typeof CatalogImporterFileModule>();
   return {
     ...original,
     downloadCatalogImportFile: downloadCatalogImportFileMock,
@@ -165,8 +166,7 @@ vi.mock("@/lib/catalog-importer-file", async (importOriginal) => {
 });
 
 vi.mock("@/lib/catalog-importer-draft", async (importOriginal) => {
-  const original =
-    await importOriginal<typeof import("@/lib/catalog-importer-draft")>();
+  const original = await importOriginal<typeof CatalogImporterDraftModule>();
   return {
     ...original,
     writeCatalogImporterDraft: vi.fn(original.writeCatalogImporterDraft),
@@ -709,9 +709,9 @@ describe("CatalogImporterWorkbench", () => {
         { name: "Second", rows: [["name"], ["Second Bloom"]] },
       ],
     });
-    const original = await vi.importActual<
-      typeof import("@/lib/catalog-importer-draft")
-    >("@/lib/catalog-importer-draft");
+    const original = await vi.importActual<typeof CatalogImporterDraftModule>(
+      "@/lib/catalog-importer-draft",
+    );
     let finishSave!: () => void;
     const heldSave = new Promise<void>((resolve) => {
       finishSave = resolve;
