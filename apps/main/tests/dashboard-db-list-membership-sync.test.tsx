@@ -45,19 +45,19 @@ function RawMembershipIdsViewer({
 describe("dashboardDb list membership sync", () => {
   it("deleting a listing clears list membership on next incremental sync", async () => {
     await withTempAppDb(async ({ user }) => {
-      const {
-        listsCollection,
-        insertList,
-        addListingToList,
-        initializeListsCollection,
-      } = await import("@/app/dashboard/_lib/dashboard-db/lists-collection");
+      const { bootstrapDashboardDbFromServer } = await import(
+        "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence"
+      );
+      const { listsCollection, insertList, addListingToList } = await import(
+        "@/app/dashboard/_lib/dashboard-db/lists-collection"
+      );
 
-      const { insertListing, deleteListing, initializeListingsCollection } =
-        await import("@/app/dashboard/_lib/dashboard-db/listings-collection");
+      const { insertListing, deleteListing } = await import(
+        "@/app/dashboard/_lib/dashboard-db/listings-collection"
+      );
 
       await act(async () => {
-        await initializeListsCollection(user.id);
-        await initializeListingsCollection(user.id);
+        await bootstrapDashboardDbFromServer(user.id);
         render(<RawMembershipIdsViewer listsCollection={listsCollection} />);
       });
 
