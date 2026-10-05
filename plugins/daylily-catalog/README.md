@@ -61,6 +61,14 @@ same package and reported No Issues for metadata. It shows the correct MCP
 endpoint and a Connect action. Use the current draft above. Neither entry
 has been submitted or published by this change.
 
+OAuth setup is still blocked. The fresh draft has no attached OAuth client.
+The current Connect panel shows Authorization unavailable and has no
+predefined client-ID field. Clerk discovery does not advertise DCR or CIMD.
+Resolve the supported predefined-client setup path before the live tool scan.
+Passing package metadata and domain verification does not prove a connection.
+Keep client secrets and tokens out of the ZIP. A change to Clerk client
+admission needs a separate security review and owner approval.
+
 The plugin has no embedded UI, bundled skills, or subscription checkout.
 Existing members use their account permissions. Destructive removal remains
 in the dashboard approval flow. OpenAI's destructive tool label also covers
