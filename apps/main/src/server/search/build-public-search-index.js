@@ -2,6 +2,7 @@ import {
   CREATE_TARGET_SCHEMA_SQL,
   FACET_SQL,
   INDEX_SQL,
+  SEARCH_INDEX_SCHEMA_VERSION,
 } from "../../../scripts/public-search-index-sql.mjs";
 import { existsSync, linkSync, mkdirSync, renameSync, rmSync } from "node:fs";
 import path from "node:path";
@@ -9,7 +10,6 @@ import { createClient } from "@libsql/client";
 import { streamToTargetWorker } from "../target-worker-stream.js";
 
 const SOURCE_BATCH_SIZE = 1_000;
-export const SEARCH_INDEX_SCHEMA_VERSION = "13";
 
 /** @typedef {import("@libsql/client").Client} LibSqlClient */
 /** @typedef {import("@libsql/client").InStatement} LibSqlStatement */

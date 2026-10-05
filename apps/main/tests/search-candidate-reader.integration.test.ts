@@ -12,7 +12,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { CREATE_TARGET_SCHEMA_SQL } from "../scripts/public-search-index-sql.mjs";
+import {
+  CREATE_TARGET_SCHEMA_SQL,
+  SEARCH_INDEX_SCHEMA_VERSION,
+} from "../scripts/public-search-index-sql.mjs";
 
 const mocks = vi.hoisted(() => ({
   sync: vi.fn(),
@@ -39,7 +42,12 @@ const appRoot = process.cwd();
 let directory: string;
 let candidatePath: string;
 
-function createIndex(file: string, name: string, schema = "13", ageDays = 0) {
+function createIndex(
+  file: string,
+  name: string,
+  schema = SEARCH_INDEX_SCHEMA_VERSION,
+  ageDays = 0,
+) {
   const db = new DatabaseSync(file);
   try {
     db.exec(CREATE_TARGET_SCHEMA_SQL);
@@ -136,7 +144,7 @@ it("reads the accepted artifact for search, facets, importer and parentage, and 
 
 it("serves a stale artifact without a request-triggered rebuild", async () => {
   rmSync(candidatePath);
-  createIndex(candidatePath, "Stale", "13", 3);
+  createIndex(candidatePath, "Stale", SEARCH_INDEX_SCHEMA_VERSION, 3);
   expect(await ensurePublicSearchIndex()).toMatchObject({
     status: "stale",
     path: candidatePath,

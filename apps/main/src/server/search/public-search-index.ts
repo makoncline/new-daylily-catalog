@@ -2,8 +2,7 @@ import "server-only";
 
 import { stat } from "node:fs/promises";
 import { createClient } from "@libsql/client";
-
-const EXPECTED_SEARCH_INDEX_SCHEMA_VERSION = "13";
+import { SEARCH_INDEX_SCHEMA_VERSION } from "../../../scripts/public-search-index-sql.mjs";
 
 interface SearchIndexMeta {
   builtAt: string | null;
@@ -65,7 +64,7 @@ function getStatusFromAge(
   ageSeconds: number | null,
   schemaVersion: string | null,
 ) {
-  if (schemaVersion !== EXPECTED_SEARCH_INDEX_SCHEMA_VERSION) {
+  if (schemaVersion !== SEARCH_INDEX_SCHEMA_VERSION) {
     return "expired" satisfies PublicSearchIndexStatus["status"];
   }
 

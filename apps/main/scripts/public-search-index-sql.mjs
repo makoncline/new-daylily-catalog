@@ -1,3 +1,5 @@
+export const SEARCH_INDEX_SCHEMA_VERSION = "13";
+
 export const CREATE_TARGET_SCHEMA_SQL = `
 CREATE TABLE SearchIndexMeta (
   key TEXT PRIMARY KEY,
