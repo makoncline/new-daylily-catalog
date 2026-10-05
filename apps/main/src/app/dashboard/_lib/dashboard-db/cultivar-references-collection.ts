@@ -12,7 +12,6 @@ import { getTrpcClient } from "@/trpc/client";
 import { getUserCursorKey } from "@/lib/utils/cursor";
 import {
   fetchDashboardSyncPages,
-  refreshDashboardDbCollectionFromServer,
   writeCursorFromRows,
 } from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
 import {
@@ -130,29 +129,6 @@ export function resetCultivarReferencesCollectionWithPersistence(
     persistence,
     userId,
   );
-}
-
-async function refreshCultivarReferencesCollectionFromServer(userId: string) {
-  await refreshDashboardDbCollectionFromServer({
-    userId,
-    queryKey: QUERY_KEY,
-    cursorBase: CURSOR_BASE,
-    fetchRows: () =>
-      fetchDashboardSyncPages({
-        label: "cultivarReference.full-refresh",
-        since: null,
-        pageSize: CULTIVAR_REFERENCES_SYNC_PAGE_SIZE,
-        fetchPage: (input) =>
-          getTrpcClient().dashboardDb.cultivarReference.sync.query(input),
-      }),
-    sortRows: sortCultivarReferences,
-  });
-}
-
-export async function initializeCultivarReferencesCollection(userId: string) {
-  await refreshCultivarReferencesCollectionFromServer(userId);
-  suppressNextCultivarReferencesCollectionSync();
-  await cultivarReferencesCollection.preload();
 }
 
 export async function ensureCultivarReferencesCached(ids: string[]) {

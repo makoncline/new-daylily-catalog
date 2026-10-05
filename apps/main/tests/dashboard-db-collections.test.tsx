@@ -210,6 +210,9 @@ describe("dashboardDb TanStack DB collections", () => {
 
   it("listings: cursor does not skip writes that happen during a sync window", async () => {
     await withTempAppDb(async ({ user }) => {
+      const { bootstrapDashboardDbFromServer } = await import(
+        "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence"
+      );
       const { db } = await import("@/server/db");
 
       await db.listing.create({
@@ -278,14 +281,14 @@ describe("dashboardDb TanStack DB collections", () => {
       });
 
       const { setTestTrpcClient } = await import("@/trpc/client");
-      setTestTrpcClient(clientLike);
 
-      const { listingsCollection, initializeListingsCollection } = await import(
+      const { listingsCollection } = await import(
         "@/app/dashboard/_lib/dashboard-db/listings-collection"
       );
 
       await act(async () => {
-        await initializeListingsCollection(user.id);
+        await bootstrapDashboardDbFromServer(user.id);
+        await listingsCollection.utils.refetch();
         render(<ListingsViewer listingsCollection={listingsCollection} />);
       });
 
@@ -302,6 +305,8 @@ describe("dashboardDb TanStack DB collections", () => {
       expect(q).toBeTruthy();
       expect(q?.getObserversCount()).toBeGreaterThan(0);
       expect(q?.isDisabled()).toBe(false);
+
+      setTestTrpcClient(clientLike);
 
       // The first sync inserts B *after* the server read snapshot.
       // A correct cursor should still allow a later sync to pick it up.
@@ -333,6 +338,10 @@ describe("dashboardDb TanStack DB collections", () => {
 
   it("listings: pending delete stays deleted across full refresh", async () => {
     await withTempAppDb(async ({ user }) => {
+      const { bootstrapDashboardDbFromServer, refreshDashboardDbFromServer } =
+        await import(
+          "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence"
+        );
       const { db } = await import("@/server/db");
 
       const seeded = await db.listing.create({
@@ -360,6 +369,12 @@ describe("dashboardDb TanStack DB collections", () => {
         releaseDelete = () => resolve();
       });
 
+      let captureRefresh = false;
+      let resolveRefreshSnapshot!: () => void;
+      const refreshSnapshot = new Promise<void>((resolve) => {
+        resolveRefreshSnapshot = resolve;
+      });
+
       const delayDeleteLink: TRPCLink<AppRouter> = () => {
         return ({ op, next }) =>
           observable((emit) => {
@@ -378,7 +393,15 @@ describe("dashboardDb TanStack DB collections", () => {
               }
 
               sub = next(op).subscribe({
-                next: (value) => emit.next(value),
+                next: (value) => {
+                  emit.next(value);
+                  if (
+                    captureRefresh &&
+                    op.path === "dashboardDb.bootstrap.roots"
+                  ) {
+                    resolveRefreshSnapshot();
+                  }
+                },
                 error: (err) => emit.error(err),
                 complete: () => emit.complete(),
               });
@@ -398,15 +421,12 @@ describe("dashboardDb TanStack DB collections", () => {
       const { setTestTrpcClient } = await import("@/trpc/client");
       setTestTrpcClient(clientLike);
 
-      const {
-        listingsCollection,
-        deleteListing,
-        initializeListingsCollection,
-        refreshListingsCollectionFromServer,
-      } = await import("@/app/dashboard/_lib/dashboard-db/listings-collection");
+      const { listingsCollection, deleteListing } = await import(
+        "@/app/dashboard/_lib/dashboard-db/listings-collection"
+      );
 
       await act(async () => {
-        await initializeListingsCollection(user.id);
+        await bootstrapDashboardDbFromServer(user.id);
         render(<ListingsViewer listingsCollection={listingsCollection} />);
       });
 
@@ -425,10 +445,11 @@ describe("dashboardDb TanStack DB collections", () => {
         expect(screen.getByTestId("titles").textContent).toBe("");
       });
 
-      const refreshPromise = refreshListingsCollectionFromServer(user.id);
+      captureRefresh = true;
+      const refreshPromise = refreshDashboardDbFromServer(user.id);
 
       await act(async () => {
-        await Promise.resolve();
+        await refreshSnapshot;
       });
 
       await waitFor(() => {
@@ -444,6 +465,8 @@ describe("dashboardDb TanStack DB collections", () => {
         });
       }
 
+      expect(await refreshPromise).toBe(false);
+
       await act(async () => {
         await listingsCollection.utils.refetch();
       });
@@ -455,8 +478,12 @@ describe("dashboardDb TanStack DB collections", () => {
     });
   });
 
-  it("listings: full refresh waits for an optimistic update already in flight", async () => {
+  it("listings: full refresh rejects a snapshot read during an optimistic update", async () => {
     await withTempAppDb(async ({ user }) => {
+      const { bootstrapDashboardDbFromServer, refreshDashboardDbFromServer } =
+        await import(
+          "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence"
+        );
       const { db } = await import("@/server/db");
 
       const seeded = await db.listing.create({
@@ -484,6 +511,12 @@ describe("dashboardDb TanStack DB collections", () => {
         releaseUpdate = () => resolve();
       });
 
+      let captureRefresh = false;
+      let resolveRefreshSnapshot!: () => void;
+      const refreshSnapshot = new Promise<void>((resolve) => {
+        resolveRefreshSnapshot = resolve;
+      });
+
       const delayUpdateLink: TRPCLink<AppRouter> = () => {
         return ({ op, next }) =>
           observable((emit) => {
@@ -502,7 +535,15 @@ describe("dashboardDb TanStack DB collections", () => {
               }
 
               sub = next(op).subscribe({
-                next: (value) => emit.next(value),
+                next: (value) => {
+                  emit.next(value);
+                  if (
+                    captureRefresh &&
+                    op.path === "dashboardDb.bootstrap.roots"
+                  ) {
+                    resolveRefreshSnapshot();
+                  }
+                },
                 error: (err) => emit.error(err),
                 complete: () => emit.complete(),
               });
@@ -522,15 +563,12 @@ describe("dashboardDb TanStack DB collections", () => {
       const { setTestTrpcClient } = await import("@/trpc/client");
       setTestTrpcClient(clientLike);
 
-      const {
-        listingsCollection,
-        initializeListingsCollection,
-        refreshListingsCollectionFromServer,
-        updateListing,
-      } = await import("@/app/dashboard/_lib/dashboard-db/listings-collection");
+      const { listingsCollection, updateListing } = await import(
+        "@/app/dashboard/_lib/dashboard-db/listings-collection"
+      );
 
       await act(async () => {
-        await initializeListingsCollection(user.id);
+        await bootstrapDashboardDbFromServer(user.id);
         render(<ListingsViewer listingsCollection={listingsCollection} />);
       });
 
@@ -553,10 +591,11 @@ describe("dashboardDb TanStack DB collections", () => {
         expect(screen.getByTestId("titles").textContent).toBe("Beta");
       });
 
-      const refreshPromise = refreshListingsCollectionFromServer(user.id);
+      captureRefresh = true;
+      const refreshPromise = refreshDashboardDbFromServer(user.id);
 
       await act(async () => {
-        await Promise.resolve();
+        await refreshSnapshot;
       });
 
       await waitFor(() => {
@@ -571,6 +610,8 @@ describe("dashboardDb TanStack DB collections", () => {
         });
       }
 
+      expect(await refreshPromise).toBe(false);
+
       await act(async () => {
         await listingsCollection.utils.refetch();
       });
@@ -583,6 +624,10 @@ describe("dashboardDb TanStack DB collections", () => {
 
   it("listings: optimistic updates do not wait for an in-flight full refresh", async () => {
     await withTempAppDb(async ({ user }) => {
+      const { bootstrapDashboardDbFromServer, refreshDashboardDbFromServer } =
+        await import(
+          "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence"
+        );
       const { db } = await import("@/server/db");
 
       const seeded = await db.listing.create({
@@ -605,6 +650,10 @@ describe("dashboardDb TanStack DB collections", () => {
         };
       });
 
+      let resolveBootstrapRoots!: () => void;
+      const bootstrapRootsRead = new Promise<void>((resolve) => {
+        resolveBootstrapRoots = resolve;
+      });
       let releaseBootstrapRoots: (() => void) | undefined;
       const bootstrapRootsGate = new Promise<void>((resolve) => {
         releaseBootstrapRoots = () => resolve();
@@ -622,6 +671,7 @@ describe("dashboardDb TanStack DB collections", () => {
               next: (value) => {
                 void (async () => {
                   if (op.path === "dashboardDb.bootstrap.roots") {
+                    resolveBootstrapRoots();
                     await bootstrapRootsGate;
                   }
 
@@ -652,19 +702,13 @@ describe("dashboardDb TanStack DB collections", () => {
       });
 
       const { setTestTrpcClient } = await import("@/trpc/client");
-      setTestTrpcClient(clientLike);
 
-      const {
-        listingsCollection,
-        initializeListingsCollection,
-        updateListing,
-      } = await import("@/app/dashboard/_lib/dashboard-db/listings-collection");
-      const { refreshDashboardDbFromServer } = await import(
-        "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence"
+      const { listingsCollection, updateListing } = await import(
+        "@/app/dashboard/_lib/dashboard-db/listings-collection"
       );
 
       await act(async () => {
-        await initializeListingsCollection(user.id);
+        await bootstrapDashboardDbFromServer(user.id);
         render(<ListingsViewer listingsCollection={listingsCollection} />);
       });
 
@@ -672,13 +716,18 @@ describe("dashboardDb TanStack DB collections", () => {
         expect(screen.getByTestId("titles").textContent).toBe("Alpha");
       });
 
+      setTestTrpcClient(clientLike);
+
       let refreshResolved = false;
-      const refreshPromise = refreshDashboardDbFromServer(user.id).then(() => {
-        refreshResolved = true;
-      });
+      const refreshPromise = refreshDashboardDbFromServer(user.id).then(
+        (applied) => {
+          refreshResolved = true;
+          return applied;
+        },
+      );
 
       await act(async () => {
-        await Promise.resolve();
+        await bootstrapRootsRead;
       });
 
       let updateResolved = false;
@@ -692,8 +741,9 @@ describe("dashboardDb TanStack DB collections", () => {
         updateResolved = true;
       });
 
-      await act(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 500));
+      await waitFor(() => {
+        expect(updateResolved).toBe(true);
+        expect(screen.getByTestId("titles").textContent).toBe("Beta");
       });
 
       expect(refreshResolved).toBe(false);
@@ -706,6 +756,8 @@ describe("dashboardDb TanStack DB collections", () => {
         await Promise.all([refreshPromise, updatePromise]);
       });
 
+      expect(await refreshPromise).toBe(false);
+
       await waitFor(() => {
         expect(screen.getByTestId("titles").textContent).toBe("Beta");
       });
@@ -713,17 +765,19 @@ describe("dashboardDb TanStack DB collections", () => {
   });
 
   it("listings: insert -> update -> delete live updates", async () => {
-    await withTempAppDb(async () => {
+    await withTempAppDb(async ({ user }) => {
+      const { bootstrapDashboardDbFromServer } = await import(
+        "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence"
+      );
       const {
         listingsCollection,
         insertListing,
         updateListing,
         deleteListing,
-        initializeListingsCollection,
       } = await import("@/app/dashboard/_lib/dashboard-db/listings-collection");
 
       await act(async () => {
-        await initializeListingsCollection("test-user");
+        await bootstrapDashboardDbFromServer(user.id);
         render(<ListingsViewer listingsCollection={listingsCollection} />);
       });
 
@@ -767,19 +821,20 @@ describe("dashboardDb TanStack DB collections", () => {
   });
 
   it("listings: queued create rejects when an auth transition drops it", async () => {
-    await withTempAppDb(async () => {
+    await withTempAppDb(async ({ user }) => {
       const {
-        listingsCollection,
-        insertListing,
-        initializeListingsCollection,
-      } = await import("@/app/dashboard/_lib/dashboard-db/listings-collection");
-      const { resetDashboardRefreshLock, runWithDashboardRefreshLock } =
-        await import(
-          "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence"
-        );
+        bootstrapDashboardDbFromServer,
+        resetDashboardRefreshLock,
+        runWithDashboardRefreshLock,
+      } = await import(
+        "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence"
+      );
+      const { listingsCollection, insertListing } = await import(
+        "@/app/dashboard/_lib/dashboard-db/listings-collection"
+      );
 
       await act(async () => {
-        await initializeListingsCollection("test-user");
+        await bootstrapDashboardDbFromServer(user.id);
         render(<ListingsViewer listingsCollection={listingsCollection} />);
       });
 
@@ -831,6 +886,9 @@ describe("dashboardDb TanStack DB collections", () => {
 
   it("lists: update ignores undefined fields (no optimistic wipe)", async () => {
     await withTempAppDb(async ({ user }) => {
+      const { bootstrapDashboardDbFromServer } = await import(
+        "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence"
+      );
       const { db } = await import("@/server/db");
       const { createCaller } = await import("@/server/api/root");
       const caller = createCaller(async () => {
@@ -880,8 +938,9 @@ describe("dashboardDb TanStack DB collections", () => {
       const { setTestTrpcClient } = await import("@/trpc/client");
       setTestTrpcClient(clientLike);
 
-      const { listsCollection, updateList, initializeListsCollection } =
-        await import("@/app/dashboard/_lib/dashboard-db/lists-collection");
+      const { listsCollection, updateList } = await import(
+        "@/app/dashboard/_lib/dashboard-db/lists-collection"
+      );
 
       const seeded = await db.list.create({
         data: { userId: user.id, title: "Alpha" },
@@ -900,7 +959,7 @@ describe("dashboardDb TanStack DB collections", () => {
       });
 
       await act(async () => {
-        await initializeListsCollection(user.id);
+        await bootstrapDashboardDbFromServer(user.id);
         render(<ListTitlesViewer listsCollection={listsCollection} />);
       });
 
@@ -942,24 +1001,23 @@ describe("dashboardDb TanStack DB collections", () => {
   });
 
   it("lists: add/remove membership updates live derived view", async () => {
-    await withTempAppDb(async () => {
+    await withTempAppDb(async ({ user }) => {
+      const { bootstrapDashboardDbFromServer } = await import(
+        "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence"
+      );
       const {
         listsCollection,
         insertList,
         addListingToList,
         removeListingFromList,
-        initializeListsCollection,
       } = await import("@/app/dashboard/_lib/dashboard-db/lists-collection");
 
-      const {
-        listingsCollection,
-        insertListing,
-        initializeListingsCollection,
-      } = await import("@/app/dashboard/_lib/dashboard-db/listings-collection");
+      const { listingsCollection, insertListing } = await import(
+        "@/app/dashboard/_lib/dashboard-db/listings-collection"
+      );
 
       await act(async () => {
-        await initializeListsCollection("test-user");
-        await initializeListingsCollection("test-user");
+        await bootstrapDashboardDbFromServer(user.id);
         render(
           <MembershipViewer
             listsCollection={listsCollection}
@@ -1002,20 +1060,17 @@ describe("dashboardDb TanStack DB collections", () => {
 
   it("images: create -> reorder -> delete renumbers", async () => {
     await withTempAppDb(async ({ user }) => {
-      const { insertListing, initializeListingsCollection } = await import(
+      const { bootstrapDashboardDbFromServer } = await import(
+        "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence"
+      );
+      const { insertListing } = await import(
         "@/app/dashboard/_lib/dashboard-db/listings-collection"
       );
-      const {
-        imagesCollection,
-        createImage,
-        reorderImages,
-        deleteImage,
-        initializeImagesCollection,
-      } = await import("@/app/dashboard/_lib/dashboard-db/images-collection");
+      const { imagesCollection, createImage, reorderImages, deleteImage } =
+        await import("@/app/dashboard/_lib/dashboard-db/images-collection");
 
       await act(async () => {
-        await initializeListingsCollection("test-user");
-        await initializeImagesCollection("test-user");
+        await bootstrapDashboardDbFromServer(user.id);
       });
 
       let listingId = "";
@@ -1097,7 +1152,10 @@ describe("dashboardDb TanStack DB collections", () => {
   });
 
   it("cultivar refs: linking updates live joined AHS fields", async () => {
-    await withTempAppDb(async () => {
+    await withTempAppDb(async ({ user }) => {
+      const { bootstrapDashboardDbFromServer } = await import(
+        "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence"
+      );
       const { db } = await import("@/server/db");
 
       const v2AhsCultivar = await db.v2AhsCultivar.create({
@@ -1114,22 +1172,15 @@ describe("dashboardDb TanStack DB collections", () => {
         },
       });
 
-      const {
-        listingsCollection,
-        insertListing,
-        linkAhs,
-        initializeListingsCollection,
-      } = await import("@/app/dashboard/_lib/dashboard-db/listings-collection");
-      const {
-        cultivarReferencesCollection,
-        initializeCultivarReferencesCollection,
-      } = await import(
+      const { listingsCollection, insertListing, linkAhs } = await import(
+        "@/app/dashboard/_lib/dashboard-db/listings-collection"
+      );
+      const { cultivarReferencesCollection } = await import(
         "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection"
       );
 
       await act(async () => {
-        await initializeListingsCollection("test-user");
-        await initializeCultivarReferencesCollection("test-user");
+        await bootstrapDashboardDbFromServer(user.id);
         render(
           <CultivarJoinViewer
             listingsCollection={listingsCollection}
@@ -1166,22 +1217,17 @@ describe("dashboardDb TanStack DB collections", () => {
 
   it("loads cultivar references before publishing point-fetched listings", async () => {
     await withTempAppDb(async ({ user }) => {
+      const { bootstrapDashboardDbFromServer } = await import(
+        "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence"
+      );
       const { db } = await import("@/server/db");
-      const {
-        listingsCollection,
-        initializeListingsCollection,
-        loadMissingListing,
-        loadListingsByIds,
-      } = await import("@/app/dashboard/_lib/dashboard-db/listings-collection");
-      const {
-        cultivarReferencesCollection,
-        initializeCultivarReferencesCollection,
-      } = await import(
+      const { listingsCollection, loadMissingListing, loadListingsByIds } =
+        await import("@/app/dashboard/_lib/dashboard-db/listings-collection");
+      const { cultivarReferencesCollection } = await import(
         "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection"
       );
 
-      await initializeListingsCollection(user.id);
-      await initializeCultivarReferencesCollection(user.id);
+      await bootstrapDashboardDbFromServer(user.id);
       const cultivar = await db.v2AhsCultivar.create({
         data: {
           id: "v2-point-load",

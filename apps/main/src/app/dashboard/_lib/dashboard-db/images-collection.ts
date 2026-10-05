@@ -14,7 +14,6 @@ import { getUserCursorKey } from "@/lib/utils/cursor";
 import { runWithDashboardRefreshLock } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence";
 import {
   fetchDashboardSyncPages,
-  refreshDashboardDbCollectionFromServer,
   writeCursorFromRows,
 } from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
 import {
@@ -280,28 +279,4 @@ export async function deleteImage(draft: DeleteDraft) {
       throw error;
     }
   });
-}
-
-async function refreshImagesCollectionFromServer(userId: string) {
-  await refreshDashboardDbCollectionFromServer({
-    userId,
-    queryKey: QUERY_KEY,
-    cursorBase: CURSOR_BASE,
-    fetchRows: () =>
-      fetchDashboardSyncPages({
-        label: "image.full-refresh",
-        since: null,
-        pageSize: IMAGES_SYNC_PAGE_SIZE,
-        fetchPage: (input) =>
-          getTrpcClient().dashboardDb.image.sync.query(input),
-      }),
-    sortRows: sortImages,
-    filterRows: (row) => !DELETED_IDS.has(row.id),
-  });
-}
-
-export async function initializeImagesCollection(userId: string) {
-  await refreshImagesCollectionFromServer(userId);
-  suppressNextImagesCollectionSync();
-  await imagesCollection.preload();
 }

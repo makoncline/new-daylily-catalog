@@ -16,7 +16,6 @@ import { getUserCursorKey } from "@/lib/utils/cursor";
 import { runWithDashboardRefreshLock } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence";
 import {
   fetchDashboardSyncPages,
-  refreshDashboardDbCollectionFromServer,
   writeCursorFromRows,
 } from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
 import {
@@ -277,27 +276,4 @@ export async function removeListingsFromList(args: {
       throw error;
     }
   });
-}
-
-async function refreshListsCollectionFromServer(userId: string) {
-  await refreshDashboardDbCollectionFromServer({
-    userId,
-    queryKey: QUERY_KEY,
-    cursorBase: CURSOR_BASE,
-    fetchRows: () =>
-      fetchDashboardSyncPages({
-        label: "list.full-refresh",
-        since: null,
-        fetchPage: (input) =>
-          getTrpcClient().dashboardDb.list.sync.query(input),
-      }),
-    sortRows: sortLists,
-    filterRows: (row) => !DELETED_IDS.has(row.id),
-  });
-}
-
-export async function initializeListsCollection(userId: string) {
-  await refreshListsCollectionFromServer(userId);
-  suppressNextListsCollectionSync();
-  await listsCollection.preload();
 }
