@@ -11,6 +11,7 @@ import {
   serializeCultivarReference,
 } from "@/server/services/public-cultivar-reference";
 import { getOwnedMemberProfile } from "@/server/services/member-profile-read";
+import { memberMcpProfileResultSchema } from "@/server/mcp/member-mcp-result-contract";
 import {
   MEMBER_IMAGE_DETAIL_LIMIT,
   MEMBER_IMAGE_PAGE_LIMIT,
@@ -289,7 +290,6 @@ function serializeImage(image: {
   id: string;
   order?: number | null;
   status?: string | null;
-  updatedAt?: Date | string | null;
   url: string;
 }) {
   return {
@@ -297,9 +297,6 @@ function serializeImage(image: {
     url: image.url,
     ...(image.order !== undefined ? { order: image.order } : {}),
     ...(image.status !== undefined ? { status: image.status } : {}),
-    ...(image.updatedAt !== undefined
-      ? { updatedAt: serializeDate(image.updatedAt) }
-      : {}),
   };
 }
 
@@ -359,8 +356,6 @@ function serializePublicProfile(
     content: profile.content,
     location: profile.location,
     images: profile.images.map(serializeImage),
-    createdAt: serializeDate(profile.createdAt),
-    updatedAt: serializeDate(profile.updatedAt),
     listingCount: profile.listingCount,
     listCount: profile.listCount,
     lists: profile.lists.map((list) => ({
@@ -382,7 +377,6 @@ function serializeListing(listing: MemberListingDetail, baseUrl: string) {
     privateNote: listing.privateNote,
     status: listing.status,
     cultivarReferenceId: listing.cultivarReferenceId,
-    createdAt: serializeDate(listing.createdAt),
     updatedAt: serializeDate(listing.updatedAt),
     cultivar: serializeCultivarReference(listing.cultivarReference, baseUrl),
     images: listing.images.map(serializeImage),
@@ -413,7 +407,6 @@ function serializeList(
     description: list.description,
     status: list.status,
     hasMembers: list.hasMembers,
-    createdAt: serializeDate(list.createdAt),
     updatedAt: serializeDate(list.updatedAt),
     dashboardUrl: new URL(
       `/dashboard/lists?editing=${encodeURIComponent(list.id)}`,
@@ -684,14 +677,15 @@ async function callTool(context: McpContext, name: string, input: unknown) {
       const profile = await getOwnedMemberProfile(context.memberDb, user.id);
 
       return mcpResult({
-        profile: profile
-          ? {
-              ...profile,
-              createdAt: serializeDate(profile.createdAt),
-              updatedAt: serializeDate(profile.updatedAt),
-              images: profile.images.map(serializeImage),
-            }
-          : null,
+        profile: memberMcpProfileResultSchema.parse(
+          profile
+            ? {
+                ...profile,
+                updatedAt: serializeDate(profile.updatedAt),
+                images: profile.images.map(serializeImage),
+              }
+            : null,
+        ),
       });
     }
 

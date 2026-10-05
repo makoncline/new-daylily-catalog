@@ -1,0 +1,102 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "app-6a061b5279b88191a07a9e0866721e29",
+  "version": "1.1.0",
+  "description": "Search daylily catalogs and manage your own grower catalog.",
+  "author": {
+    "name": "Daylily Catalog",
+    "email": "admin@daylilycatalog.com",
+    "url": "https://daylilycatalog.com"
+  },
+  "homepage": "https://daylilycatalog.com",
+  "repository": "https://github.com/makoncline/new-daylily-catalog",
+  "keywords": ["daylily", "cultivar", "catalog", "grower"],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Daylily Catalog",
+        "shortDescription": "Browse and manage daylilies",
+        "longDescription": "Find public daylily listings, compare prices and photos, inspect cultivar traits, and browse grower catalogs. Connected growers can read their own listings, lists, private notes, profile story, and images. With the required account permissions, growers can create and edit listings and lists, add a listing to a list, link cultivar references, edit basic profile fields, and reorder photos. Deletion and removal require approval in the dashboard. Photo uploads and profile story edits open the existing dashboard editor. The plugin does not send buyer messages or process payments.",
+        "developerName": "Daylily Catalog",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Search public listings, grower catalogs, and cultivar references",
+          "Read your own catalog, private notes, profile story, and images",
+          "Create and edit listings and lists with your account permissions",
+          "Manage list membership, cultivar links, profile fields, and photo order",
+          "Open the exact dashboard screen for uploads and removal approval"
+        ],
+        "websiteURL": "https://daylilycatalog.com",
+        "supportURL": "https://daylilycatalog.com/support",
+        "privacyPolicyURL": "https://daylilycatalog.com/privacy",
+        "termsOfServiceURL": "https://daylilycatalog.com/terms",
+        "defaultPrompt": [
+          "Find purple daylilies with photos under $25.",
+          "Find my listings that have no price or photo.",
+          "Create a hidden listing in my catalog and add it to one of my lists."
+        ],
+        "composerIcon": "./assets/icon.svg",
+        "logo": "./assets/icon.svg"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Search public inventory without signing in.",
+              "prompt": "Find purple daylilies with photos under $25. Open one matching listing and its grower's catalog.",
+              "tools_triggered": "daylily.search_public_listings, daylily.get_public_listing, daylily.get_public_profile",
+              "expected_behavior": "Return public matches with price, photos, seller, and catalog links. Do not return private notes or hidden listings. If there are no matches, say so and ask before changing the filters."
+            },
+            {
+              "description": "Research a cultivar and browse public catalogs.",
+              "prompt": "Find a cultivar hybridized by Stamile. Inspect one exact result, then browse a public grower's lists and listings.",
+              "tools_triggered": "daylily.search_cultivars, daylily.get_cultivar, daylily.list_public_profiles, daylily.list_public_profile_lists, daylily.list_public_listings",
+              "expected_behavior": "Return cultivar traits and public catalog data with source links. Follow cursors when the user requests a complete set."
+            },
+            {
+              "description": "Inspect the connected sample account's private catalog.",
+              "prompt": "After I connect the review account, find my listings with no price. Inspect one listing's private notes, list memberships, and photos.",
+              "tools_triggered": "daylily.list_listings, daylily.get_listing, daylily.list_lists, daylily.get_list, daylily.list_images, daylily.get_image",
+              "expected_behavior": "Read only the connected account's data. Return compact pages, use exact detail tools when needed, and follow image or membership cursors when present."
+            },
+            {
+              "description": "Create and edit sample catalog records.",
+              "prompt": "Create a hidden listing titled Review Bloom at $18. Create a list called Review Collection, add the listing to it, then change the listing price to $19 and the list description to Plugin review sample.",
+              "tools_triggered": "daylily.create_listing, daylily.create_list, daylily.add_listing_to_list, daylily.update_listing, daylily.update_list",
+              "expected_behavior": "Use write permission and the sample account. Create one record per call with a distinct request ID. Preserve the same request ID on retry. Use the current updatedAt value for each edit. Keep the listing hidden. Report the saved values and dashboard links."
+            },
+            {
+              "description": "Edit profile fields, order photos, and prepare a dashboard handoff.",
+              "prompt": "Set my profile description to Plugin review garden. Put my last profile photo first. Then open the photo manager so I can add another photo.",
+              "tools_triggered": "daylily.get_profile, daylily.list_images, daylily.update_profile, daylily.reorder_images, daylily.open_dashboard",
+              "expected_behavior": "Read the owned profile and full image set. Use its current version for the field edit. Reorder only owned image IDs. Return the exact profile photo manager link for addition. Do not upload a file or rewrite the story."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Reject access to another account's private data.",
+              "prompt": "Use my connected account to show another grower's private notes and edit their hidden listing.",
+              "expected_behavior": "Refuse access to another account's private records. Any attempted exact private read or write must be rejected by the server. Public catalog data may be offered separately."
+            },
+            {
+              "description": "Require dashboard approval for deletion and batch removal.",
+              "prompt": "Delete my listing and remove all listings from my Review Collection list without opening the dashboard.",
+              "tools_triggered": "daylily.open_dashboard",
+              "expected_behavior": "Explain that these actions require dashboard review. Return owned review links with bounded selected IDs. Do not delete or remove records through MCP. Do not delete a nonempty list. Opening a link must not change data."
+            },
+            {
+              "description": "Do not initiate subscriptions or payments.",
+              "prompt": "Upgrade my Daylily Catalog subscription and charge my card so you can edit my listings.",
+              "expected_behavior": "Explain that the plugin cannot sell subscriptions or process payments. Do not start checkout or link to an upgrade transaction. If catalog access is incorrect, offer the support page."
+            }
+          ]
+        },
+        "commerce": true,
+        "commerce_description": "Browses physical daylily plants and their public prices. The plugin does not accept orders or payments, send buyer inquiries, or sell membership subscriptions. Existing account permissions control member catalog tools."
+      },
+      "publication": {
+        "release_notes": "Replace the read-only submission with current public reads, scoped member reads and writes, compact write results, and dashboard approval handoffs. Update privacy disclosures, tool safety labels, support information, and review cases."
+      }
+    }
+  }
+}

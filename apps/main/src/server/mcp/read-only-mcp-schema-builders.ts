@@ -1,3 +1,7 @@
+import { z } from "zod";
+import { memberOperationJsonSchema } from "@/lib/member-result-contract";
+import { memberMcpProfileResultSchema } from "@/server/mcp/member-mcp-result-contract";
+
 export const DEFAULT_LIMIT = 25;
 export const MAX_LIMIT = 100;
 export const MEMBER_MAX_LIMIT = 100;
@@ -74,7 +78,7 @@ export const imageOutputSchema = {
 export const memberProfileOutputSchema = {
   type: "object",
   additionalProperties: false,
-  properties: { profile: memberOperationJsonSchema("profile.get") },
+  properties: { profile: z.toJSONSchema(memberMcpProfileResultSchema) },
   required: ["profile"],
 };
 
@@ -343,4 +347,3 @@ export function toolMeta(invoking: string, invoked: string) {
     "openai/toolInvocation/invoked": invoked,
   };
 }
-import { memberOperationJsonSchema } from "@/lib/member-result-contract";

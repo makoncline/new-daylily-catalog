@@ -35,6 +35,11 @@ export const READ_ONLY_TOOL_ANNOTATIONS = {
   destructiveHint: false,
 } satisfies NonNullable<McpTool["annotations"]>;
 
+const PUBLIC_READ_ONLY_TOOL_ANNOTATIONS = {
+  ...READ_ONLY_TOOL_ANNOTATIONS,
+  openWorldHint: true,
+};
+
 export function buildReadOnlyMcpTools(privateScopes: string[]): McpTool[] {
   const privateSecuritySchemes = [
     { type: "oauth2", scopes: privateScopes },
@@ -86,7 +91,7 @@ export function buildReadOnlyMcpTools(privateScopes: string[]): McpTool[] {
       },
       outputSchema: searchResultsOutputSchema,
       securitySchemes: [...PUBLIC_SECURITY_SCHEMES],
-      annotations: READ_ONLY_TOOL_ANNOTATIONS,
+      annotations: PUBLIC_READ_ONLY_TOOL_ANNOTATIONS,
       _meta: toolMeta("Searching cultivars", "Cultivar search complete"),
     },
     {
@@ -108,7 +113,7 @@ export function buildReadOnlyMcpTools(privateScopes: string[]): McpTool[] {
       },
       outputSchema: cultivarOutputSchema,
       securitySchemes: [...PUBLIC_SECURITY_SCHEMES],
-      annotations: READ_ONLY_TOOL_ANNOTATIONS,
+      annotations: PUBLIC_READ_ONLY_TOOL_ANNOTATIONS,
       _meta: toolMeta("Loading cultivar", "Cultivar loaded"),
     },
     {
@@ -119,7 +124,7 @@ export function buildReadOnlyMcpTools(privateScopes: string[]): McpTool[] {
       inputSchema: publicListingSearchInputSchema(),
       outputSchema: paginatedOutputSchema,
       securitySchemes: [...PUBLIC_SECURITY_SCHEMES],
-      annotations: READ_ONLY_TOOL_ANNOTATIONS,
+      annotations: PUBLIC_READ_ONLY_TOOL_ANNOTATIONS,
       _meta: toolMeta(
         "Searching public listings",
         "Public listing search complete",
@@ -153,7 +158,7 @@ export function buildReadOnlyMcpTools(privateScopes: string[]): McpTool[] {
       },
       outputSchema: listingOutputSchema,
       securitySchemes: [...PUBLIC_SECURITY_SCHEMES],
-      annotations: READ_ONLY_TOOL_ANNOTATIONS,
+      annotations: PUBLIC_READ_ONLY_TOOL_ANNOTATIONS,
       _meta: toolMeta("Loading public listing", "Public listing loaded"),
     },
     {
@@ -164,7 +169,7 @@ export function buildReadOnlyMcpTools(privateScopes: string[]): McpTool[] {
       inputSchema: paginatedInputSchema(),
       outputSchema: paginatedOutputSchema,
       securitySchemes: [...PUBLIC_SECURITY_SCHEMES],
-      annotations: READ_ONLY_TOOL_ANNOTATIONS,
+      annotations: PUBLIC_READ_ONLY_TOOL_ANNOTATIONS,
       _meta: toolMeta("Loading public profiles", "Public profiles loaded"),
     },
     {
@@ -175,7 +180,7 @@ export function buildReadOnlyMcpTools(privateScopes: string[]): McpTool[] {
       inputSchema: publicProfileInputSchema(),
       outputSchema: profileOutputSchema,
       securitySchemes: [...PUBLIC_SECURITY_SCHEMES],
-      annotations: READ_ONLY_TOOL_ANNOTATIONS,
+      annotations: PUBLIC_READ_ONLY_TOOL_ANNOTATIONS,
       _meta: toolMeta("Loading public profile", "Public profile loaded"),
     },
     {
@@ -186,7 +191,7 @@ export function buildReadOnlyMcpTools(privateScopes: string[]): McpTool[] {
       inputSchema: publicProfileInputSchema(),
       outputSchema: paginatedOutputSchema,
       securitySchemes: [...PUBLIC_SECURITY_SCHEMES],
-      annotations: READ_ONLY_TOOL_ANNOTATIONS,
+      annotations: PUBLIC_READ_ONLY_TOOL_ANNOTATIONS,
       _meta: toolMeta("Loading public lists", "Public lists loaded"),
     },
     {
@@ -197,7 +202,7 @@ export function buildReadOnlyMcpTools(privateScopes: string[]): McpTool[] {
       inputSchema: publicListingSearchInputSchema({ requireSellerSlug: true }),
       outputSchema: paginatedOutputSchema,
       securitySchemes: [...PUBLIC_SECURITY_SCHEMES],
-      annotations: READ_ONLY_TOOL_ANNOTATIONS,
+      annotations: PUBLIC_READ_ONLY_TOOL_ANNOTATIONS,
       _meta: toolMeta("Loading public listings", "Public listings loaded"),
     },
     {

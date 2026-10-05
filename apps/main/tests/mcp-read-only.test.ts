@@ -215,14 +215,24 @@ describe("read-only MCP server", () => {
       if (tool.annotations?.readOnlyHint) {
         expect(tool.annotations).toMatchObject({
           readOnlyHint: true,
-          openWorldHint: false,
+          openWorldHint:
+            tool.securitySchemes.some(
+              (scheme: { type: string }) => scheme.type === "noauth",
+            ) && tool.name !== "daylily.search_help",
           destructiveHint: false,
         });
       } else {
         expect(tool.securitySchemes).toEqual([
           { type: "oauth2", scopes: ["catalog:write"] },
         ]);
-        expect(tool.annotations?.destructiveHint).toBe(false);
+        expect(tool.annotations?.openWorldHint).toBe(true);
+        expect(tool.annotations?.destructiveHint).toBe(
+          ![
+            "daylily.create_listing",
+            "daylily.create_list",
+            "daylily.add_listing_to_list",
+          ].includes(tool.name),
+        );
       }
     }
     const reorderTool = (
@@ -1214,7 +1224,6 @@ describe("read-only MCP server", () => {
       images: [
         {
           id: "image-1",
-          updatedAt: "2026-01-02T00:00:00.000Z",
           url: "https://media.daylilycatalog.com/orange.webp",
         },
       ],
@@ -1230,6 +1239,7 @@ describe("read-only MCP server", () => {
     expect(item).not.toHaveProperty("cultivarReferenceImage");
     expect(item).not.toHaveProperty("hasActiveSubscription");
     expect(item.images[0]).not.toHaveProperty("imageAsset");
+    expect(item.images[0]).not.toHaveProperty("updatedAt");
     expect(item.cultivar).not.toHaveProperty("imageAssets");
     expect(item.cultivar).not.toHaveProperty("v2AhsCultivar");
   });

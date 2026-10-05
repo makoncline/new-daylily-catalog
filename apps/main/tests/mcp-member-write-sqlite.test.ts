@@ -16,6 +16,10 @@ import path from "node:path";
 import { afterAll, describe, expect, it, vi } from "vitest";
 import { memberOperationResultSchemas } from "@/lib/member-result-contract";
 import { memberWriteMcpTools } from "@/server/mcp/member-write-mcp-tools";
+import {
+  memberMcpProfileResultSchema,
+  memberMcpWriteResultSchemas,
+} from "@/server/mcp/member-mcp-result-contract";
 
 const snapshotPath = path.resolve(
   process.cwd(),
@@ -152,7 +156,7 @@ describe.skipIf(!enabled)("remote member MCP with real local SQLite", () => {
       if (body.result && !body.result.isError) {
         const output = body.result.structuredContent;
         if (name === "daylily.create_list" || name === "daylily.update_list") {
-          memberOperationResultSchemas["list.create"].parse(output?.list);
+          memberMcpWriteResultSchemas.list.strict().parse(output?.list);
         }
         if (
           name === "daylily.create_listing" ||
@@ -160,13 +164,13 @@ describe.skipIf(!enabled)("remote member MCP with real local SQLite", () => {
           name === "daylily.link_listing_to_cultivar" ||
           name === "daylily.sync_listing_cultivar_name"
         ) {
-          memberOperationResultSchemas["listing.create"].parse(output?.listing);
+          memberMcpWriteResultSchemas.listing.strict().parse(output?.listing);
         }
         if (name === "daylily.update_profile") {
-          memberOperationResultSchemas["profile.update"].parse(output?.profile);
+          memberMcpWriteResultSchemas.profile.strict().parse(output?.profile);
         }
         if (name === "daylily.get_profile" && output?.profile) {
-          memberOperationResultSchemas["profile.get"].parse(output.profile);
+          memberMcpProfileResultSchema.unwrap().strict().parse(output.profile);
         }
         if (name === "daylily.list_images") {
           memberOperationResultSchemas["image.listForTarget"].parse(output);
