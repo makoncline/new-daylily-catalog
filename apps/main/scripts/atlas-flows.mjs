@@ -836,6 +836,7 @@ export const ATLAS_FLOWS = [
         "Reject member MCP requests before database reads when the token, scope, or client is not allowed.",
         "Allow confirmed non-Pro remote writes within dashboard limits; reject unconfirmed billing and keep destructive MCP actions in dashboard approval.",
         "Publish MCP endpoint resource metadata and complete tool-level OAuth challenges.",
+        "Store member versions as integer milliseconds and preserve stale-write rejection.",
       ],
     },
     tests: {
@@ -843,6 +844,10 @@ export const ATLAS_FLOWS = [
       integration: [
         testRef("integration", "tests/oauth-metadata.test.ts"),
         testRef("integration", "tests/mcp-read-only.test.ts"),
+        testRef(
+          "integration",
+          "tests/member-version-storage.integration.test.ts",
+        ),
         testRef(
           "integration",
           "tests/member-non-pro-access.integration.test.ts",
