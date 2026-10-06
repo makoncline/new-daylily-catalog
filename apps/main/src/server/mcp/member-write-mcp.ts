@@ -4,6 +4,7 @@ import type { McpContext } from "@/server/mcp/read-only-mcp-types";
 import { APP_CONFIG } from "@/config/constants";
 import { profileFormSchema } from "@/types/schemas/profile";
 import type { TRPCInternalContext } from "@/server/api/trpc";
+import { serializeMemberMcpWriteResult } from "@/server/mcp/member-mcp-result-contract";
 
 const id = z.string().trim().min(1).max(128);
 const title = z.string().trim().min(1).max(200);
@@ -146,7 +147,10 @@ export async function callMemberWriteTool(
         ...data,
         cultivarReferenceId: data.cultivarReferenceId ?? null,
       });
-      return { listing, dashboardUrl: listingUrl(context.baseUrl, listing.id) };
+      return {
+        listing: serializeMemberMcpWriteResult("listing", listing),
+        dashboardUrl: listingUrl(context.baseUrl, listing.id),
+      };
     }
     case "daylily.update_listing": {
       const { listingId, expectedUpdatedAt, hidden, ...fields } =
@@ -159,7 +163,10 @@ export async function callMemberWriteTool(
           ...(hidden !== undefined ? { status: hidden ? "HIDDEN" : null } : {}),
         },
       });
-      return { listing, dashboardUrl: listingUrl(context.baseUrl, listing.id) };
+      return {
+        listing: serializeMemberMcpWriteResult("listing", listing),
+        dashboardUrl: listingUrl(context.baseUrl, listing.id),
+      };
     }
     case "daylily.create_list": {
       const data = createList.parse(input);
@@ -168,7 +175,10 @@ export async function callMemberWriteTool(
         description: data.description ?? undefined,
         requestId: data.requestId,
       });
-      return { list, dashboardUrl: listUrl(context.baseUrl, list.id) };
+      return {
+        list: serializeMemberMcpWriteResult("list", list),
+        dashboardUrl: listUrl(context.baseUrl, list.id),
+      };
     }
     case "daylily.update_list": {
       const { listId, expectedUpdatedAt, ...data } = updateList.parse(input);
@@ -177,7 +187,10 @@ export async function callMemberWriteTool(
         expectedUpdatedAt,
         data,
       });
-      return { list, dashboardUrl: listUrl(context.baseUrl, listId) };
+      return {
+        list: serializeMemberMcpWriteResult("list", list),
+        dashboardUrl: listUrl(context.baseUrl, listId),
+      };
     }
     case "daylily.add_listing_to_list": {
       const data = listMembership.parse(input);
@@ -195,14 +208,20 @@ export async function callMemberWriteTool(
         cultivarReferenceId: data.cultivarReferenceId,
         syncName: data.syncName ?? false,
       });
-      return { listing, dashboardUrl: listingUrl(context.baseUrl, listing.id) };
+      return {
+        listing: serializeMemberMcpWriteResult("listing", listing),
+        dashboardUrl: listingUrl(context.baseUrl, listing.id),
+      };
     }
     case "daylily.sync_listing_cultivar_name": {
       const data = syncCultivarName.parse(input);
       const listing = await caller.dashboardDb.listing.syncAhsName({
         id: data.listingId,
       });
-      return { listing, dashboardUrl: listingUrl(context.baseUrl, listing.id) };
+      return {
+        listing: serializeMemberMcpWriteResult("listing", listing),
+        dashboardUrl: listingUrl(context.baseUrl, listing.id),
+      };
     }
     case "daylily.update_profile": {
       const { expectedUpdatedAt, ...data } = updateProfile.parse(input);
@@ -211,7 +230,7 @@ export async function callMemberWriteTool(
         data,
       });
       return {
-        profile,
+        profile: serializeMemberMcpWriteResult("profile", profile),
         dashboardUrl: new URL("/dashboard/profile", context.baseUrl).toString(),
       };
     }

@@ -1,6 +1,7 @@
 import type { McpTool } from "@/server/mcp/read-only-mcp-types";
 import { APP_CONFIG } from "@/config/constants";
-import { memberOperationJsonSchema } from "@/lib/member-result-contract";
+import { z } from "zod";
+import { memberMcpWriteResultSchemas } from "@/server/mcp/member-mcp-result-contract";
 
 const securitySchemes = [
   { type: "oauth2", scopes: ["catalog:write"] },
@@ -9,7 +10,7 @@ const listingOutputSchema = {
   type: "object",
   additionalProperties: false,
   properties: {
-    listing: memberOperationJsonSchema("listing.create"),
+    listing: z.toJSONSchema(memberMcpWriteResultSchemas.listing),
     dashboardUrl: { type: "string", format: "uri" },
   },
   required: ["listing", "dashboardUrl"],
@@ -18,7 +19,7 @@ const listOutputSchema = {
   type: "object",
   additionalProperties: false,
   properties: {
-    list: memberOperationJsonSchema("list.create"),
+    list: z.toJSONSchema(memberMcpWriteResultSchemas.list),
     dashboardUrl: { type: "string", format: "uri" },
   },
   required: ["list", "dashboardUrl"],
@@ -27,7 +28,7 @@ const profileOutputSchema = {
   type: "object",
   additionalProperties: false,
   properties: {
-    profile: memberOperationJsonSchema("profile.update"),
+    profile: z.toJSONSchema(memberMcpWriteResultSchemas.profile),
     dashboardUrl: { type: "string", format: "uri" },
   },
   required: ["profile", "dashboardUrl"],
@@ -58,6 +59,13 @@ const outputSchemas = {
   },
 } as const;
 
+// All other writes can overwrite existing fields, links, or image order.
+const additiveWriteTools = new Set<keyof typeof outputSchemas>([
+  "create_listing",
+  "create_list",
+  "add_listing_to_list",
+]);
+
 function tool(
   name: keyof typeof outputSchemas,
   title: string,
@@ -80,8 +88,8 @@ function tool(
     securitySchemes: [...securitySchemes],
     annotations: {
       readOnlyHint: false,
-      destructiveHint: false,
-      openWorldHint: false,
+      destructiveHint: !additiveWriteTools.has(name),
+      openWorldHint: true,
       idempotentHint: idempotent,
     },
     _meta: { securitySchemes: [...securitySchemes] },

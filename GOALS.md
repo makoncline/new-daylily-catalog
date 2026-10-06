@@ -14,3 +14,11 @@
 Judge growth by paid conversion, activation, and retention. Traffic, SEO
 impressions, imports, and captures are leading indicators. Replace completed
 or superseded current priorities when the user changes direction.
+
+## Deferred work
+
+- [ ] **Hosted ChatGPT compute:** Let members use their own ChatGPT plan for
+  AI requests inside the dashboard. Keep this on the back burner. Resume only
+  after the plugin submission fixes are complete and OpenAI confirms access
+  for this paid, hosted app. Keep Clerk membership and ownership checks.
+  See [ChatGPT plan usage](https://developers.openai.com/siwc/token-sharing-open-source).

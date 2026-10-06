@@ -67,8 +67,8 @@ const HELP_ENTRIES: HelpEntry[] = [
     id: "membership",
     title: "Manage membership",
     answer:
-      "Open the dashboard and use its membership or billing control to review plan and payment details. Membership changes require the member to use the browser flow.",
-    path: "/dashboard",
+      "Membership changes and payments are not supported through this plugin. An existing member can use the catalog features allowed by their account. Contact support if access is incorrect.",
+    path: "/support",
     terms: ["membership", "subscription", "billing", "payment", "plan"],
   },
 ];

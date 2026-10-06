@@ -1,6 +1,10 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { getTrustedBaseUrl } from "@/lib/agent-readiness";
+import {
+  getTrustedBaseUrl,
+  MCP_RESOURCE_METADATA_PATH,
+  MCP_RESOURCE_PATH,
+} from "@/lib/agent-readiness";
 import {
   getOwnedMemberListingDetail,
   type MemberListingDetail,
@@ -11,6 +15,7 @@ import {
   serializeCultivarReference,
 } from "@/server/services/public-cultivar-reference";
 import { getOwnedMemberProfile } from "@/server/services/member-profile-read";
+import { memberMcpProfileResultSchema } from "@/server/mcp/member-mcp-result-contract";
 import {
   MEMBER_IMAGE_DETAIL_LIMIT,
   MEMBER_IMAGE_PAGE_LIMIT,
@@ -102,6 +107,7 @@ class McpAuthRequiredError extends Error {
     readonly status: 401 | 403 = 401,
     readonly reason:
       | "unauthenticated"
+      | "invalid_token"
       | "insufficient_scope"
       | "wrong_client" = "unauthenticated",
   ) {
@@ -289,7 +295,6 @@ function serializeImage(image: {
   id: string;
   order?: number | null;
   status?: string | null;
-  updatedAt?: Date | string | null;
   url: string;
 }) {
   return {
@@ -297,9 +302,6 @@ function serializeImage(image: {
     url: image.url,
     ...(image.order !== undefined ? { order: image.order } : {}),
     ...(image.status !== undefined ? { status: image.status } : {}),
-    ...(image.updatedAt !== undefined
-      ? { updatedAt: serializeDate(image.updatedAt) }
-      : {}),
   };
 }
 
@@ -359,8 +361,6 @@ function serializePublicProfile(
     content: profile.content,
     location: profile.location,
     images: profile.images.map(serializeImage),
-    createdAt: serializeDate(profile.createdAt),
-    updatedAt: serializeDate(profile.updatedAt),
     listingCount: profile.listingCount,
     listCount: profile.listCount,
     lists: profile.lists.map((list) => ({
@@ -382,7 +382,6 @@ function serializeListing(listing: MemberListingDetail, baseUrl: string) {
     privateNote: listing.privateNote,
     status: listing.status,
     cultivarReferenceId: listing.cultivarReferenceId,
-    createdAt: serializeDate(listing.createdAt),
     updatedAt: serializeDate(listing.updatedAt),
     cultivar: serializeCultivarReference(listing.cultivarReference, baseUrl),
     images: listing.images.map(serializeImage),
@@ -413,7 +412,6 @@ function serializeList(
     description: list.description,
     status: list.status,
     hasMembers: list.hasMembers,
-    createdAt: serializeDate(list.createdAt),
     updatedAt: serializeDate(list.updatedAt),
     dashboardUrl: new URL(
       `/dashboard/lists?editing=${encodeURIComponent(list.id)}`,
@@ -445,14 +443,21 @@ async function requireMcpUser(
     | "catalog:read"
     | "catalog:write" = REQUIRED_PRIVATE_OAUTH_SCOPE,
 ) {
+  const unauthenticatedError = new McpAuthRequiredError(
+    requiredScope,
+    401,
+    /^Bearer\b/i.test(context.request.headers.get("authorization") ?? "")
+      ? "invalid_token"
+      : "unauthenticated",
+  );
   let client: Awaited<ReturnType<typeof getScopedOAuthClient>>;
   try {
     client = await getScopedOAuthClient(context.request, requiredScope);
   } catch {
-    throw new McpAuthRequiredError(requiredScope);
+    throw unauthenticatedError;
   }
   if (client.status === "unauthenticated") {
-    throw new McpAuthRequiredError(requiredScope);
+    throw unauthenticatedError;
   }
   if (client.status === "insufficient_scope") {
     throw new McpAuthRequiredError(requiredScope, 403, "insufficient_scope");
@@ -485,21 +490,57 @@ async function requireMcpUser(
   };
 }
 
-function mcpAuthChallenge(baseUrl: string, error: McpAuthRequiredError) {
-  return `Bearer resource_metadata="${baseUrl}/.well-known/oauth-protected-resource", scope="${error.scope}"${error.reason === "insufficient_scope" ? ', error="insufficient_scope"' : ""}`;
+function mcpAuthErrorDetails(error: McpAuthRequiredError) {
+  switch (error.reason) {
+    case "invalid_token":
+      return {
+        code: "invalid_token",
+        description:
+          "The OAuth token is invalid or expired. Connect Daylily Catalog again.",
+      };
+    case "insufficient_scope":
+      return {
+        code: "insufficient_scope",
+        description: `Grant ${error.scope} access to continue.`,
+      };
+    case "wrong_client":
+      return {
+        code: "insufficient_scope",
+        description:
+          "This OAuth client is not allowed to use the Daylily Catalog MCP server.",
+      };
+    case "unauthenticated":
+      return {
+        code: "insufficient_scope",
+        description: "Connect Daylily Catalog to continue.",
+      };
+  }
+}
+
+function mcpHttpAuthChallenge(baseUrl: string, error: McpAuthRequiredError) {
+  const challenge = `Bearer resource_metadata="${baseUrl}${MCP_RESOURCE_METADATA_PATH}", scope="${error.scope}"`;
+  if (error.reason === "unauthenticated") return challenge;
+  const details = mcpAuthErrorDetails(error);
+  return `${challenge}, error="${details.code}", error_description="${details.description}"`;
 }
 
 function mcpAuthRequiredResult(baseUrl: string, error: McpAuthRequiredError) {
+  const details = mcpAuthErrorDetails(error);
+  const challenge = mcpHttpAuthChallenge(baseUrl, error);
   return {
     content: [
       {
         type: "text",
-        text: "Authentication required: connect Daylily Catalog to continue.",
+        text: details.description,
       },
     ],
     isError: true,
     _meta: {
-      "mcp/www_authenticate": [mcpAuthChallenge(baseUrl, error)],
+      "mcp/www_authenticate": [
+        error.reason === "unauthenticated"
+          ? `${challenge}, error="${details.code}", error_description="${details.description}"`
+          : challenge,
+      ],
     },
   };
 }
@@ -684,14 +725,15 @@ async function callTool(context: McpContext, name: string, input: unknown) {
       const profile = await getOwnedMemberProfile(context.memberDb, user.id);
 
       return mcpResult({
-        profile: profile
-          ? {
-              ...profile,
-              createdAt: serializeDate(profile.createdAt),
-              updatedAt: serializeDate(profile.updatedAt),
-              images: profile.images.map(serializeImage),
-            }
-          : null,
+        profile: memberMcpProfileResultSchema.parse(
+          profile
+            ? {
+                ...profile,
+                updatedAt: serializeDate(profile.updatedAt),
+                images: profile.images.map(serializeImage),
+              }
+            : null,
+        ),
       });
     }
 
@@ -996,7 +1038,7 @@ export function getMcpServerCard(baseUrl: string) {
     transports: [
       {
         type: "streamable-http",
-        url: `${baseUrl}/api/mcp/server`,
+        url: `${baseUrl}${MCP_RESOURCE_PATH}`,
       },
     ],
     capabilities: {
@@ -1010,7 +1052,7 @@ export function getMcpServerCard(baseUrl: string) {
     },
     authentication: {
       type: "oauth2",
-      protectedResourceMetadata: `${baseUrl}/.well-known/oauth-protected-resource`,
+      protectedResourceMetadata: `${baseUrl}${MCP_RESOURCE_METADATA_PATH}`,
       note: "Public data and help tools do not require authentication. Member reads require catalog:read scope. Member writes require catalog:write scope and active membership.",
     },
   };
@@ -1129,7 +1171,7 @@ export async function handleMcpRequest(request: Request) {
           status: error.status,
           headers: {
             "Cache-Control": "no-store",
-            "WWW-Authenticate": mcpAuthChallenge(baseUrl, error),
+            "WWW-Authenticate": mcpHttpAuthChallenge(baseUrl, error),
           },
         },
       );
