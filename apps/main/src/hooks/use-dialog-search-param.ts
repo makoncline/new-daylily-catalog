@@ -1,8 +1,6 @@
 "use client";
 
-import { type PrimitiveAtom, useAtom } from "jotai";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef } from "react";
 
 interface SearchParamLike {
   get: (name: string) => string | null;
@@ -13,10 +11,6 @@ interface QueryParamDialogStateOptions {
   history?: "push" | "replace";
   paramName: string;
   scroll?: boolean;
-}
-
-interface AtomDialogSearchParamOptions extends QueryParamDialogStateOptions {
-  atom: PrimitiveAtom<string | null>;
 }
 
 function buildCurrentUrl(
@@ -100,60 +94,6 @@ export function useQueryParamDialogState({
 
   return {
     setValue,
-    value,
-  };
-}
-
-export function useAtomDialogSearchParam({
-  atom,
-  history = "push",
-  paramName,
-  scroll,
-}: AtomDialogSearchParamOptions) {
-  const [value, setValue] = useAtom(atom);
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const hasInitializedRef = useRef(false);
-
-  useEffect(() => {
-    if (!hasInitializedRef.current) {
-      return;
-    }
-
-    const nextUrl = buildDialogSearchParamUrl(
-      pathname,
-      searchParams,
-      paramName,
-      value,
-    );
-    const currentUrl = buildCurrentUrl(pathname, searchParams);
-
-    if (nextUrl !== currentUrl) {
-      navigateToUrl(history, router, nextUrl, scroll);
-    }
-  }, [history, paramName, pathname, router, scroll, searchParams, value]);
-
-  useEffect(() => {
-    if (hasInitializedRef.current) {
-      return;
-    }
-
-    const urlValue = searchParams.get(paramName);
-    if (urlValue) {
-      setValue(urlValue);
-    }
-
-    hasInitializedRef.current = true;
-  }, [paramName, searchParams, setValue]);
-
-  return {
-    close: () => {
-      setValue(null);
-    },
-    open: (id: string) => {
-      setValue(id);
-    },
     value,
   };
 }
