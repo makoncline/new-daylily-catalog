@@ -19,10 +19,10 @@
       "expected_behavior": "Read only the connected account's data. Return compact pages, use exact detail tools when needed, and follow image or membership cursors when present."
     },
     {
-      "description": "Create and edit sample catalog records.",
-      "prompt": "Inspect my sample records first. If Review Bloom or Review Collection is missing, create the missing record: a hidden Review Bloom listing at $18 and a Review Collection list. Reuse either record if it exists. Add the listing to that list, then set its price to $19 and the list description to Plugin review sample. Keep the listing hidden.",
-      "tools_triggered": "daylily.create_listing, daylily.create_list, daylily.add_listing_to_list, daylily.update_listing, daylily.update_list",
-      "expected_behavior": "Use write permission and the sample account. Read existing sample records before creation so repeat runs fit the one-list limit. Create only missing records, one record per call with a distinct request ID. Preserve the same request ID on retry. Use the current updatedAt value for each edit. Keep the listing hidden. Repeated addition must keep one membership. Report which records were created or reused, the saved values, and dashboard links."
+      "description": "Inspect and edit the sample catalog records.",
+      "prompt": "Find my hidden Review Bloom listing and Review Collection list. Reuse these sample records. Add the listing to that list twice. Set the listing price to $18, then to $19. Set the list description to Plugin review draft, then to Plugin review sample. Keep the listing hidden. Read the exact saved listing and list after the edits.",
+      "tools_triggered": "daylily.list_listings, daylily.list_lists, daylily.get_listing, daylily.get_list, daylily.add_listing_to_list, daylily.update_listing, daylily.update_list",
+      "expected_behavior": "Use write permission and the existing sample records. If a sample is missing, report the missing fixture and stop this case. Do not create another listing or list. Use the current updatedAt value for each edit, including after membership addition. Both intermediate and final values must be saved. Repeated addition must keep one membership. Report the final hidden listing at $19, the list description Plugin review sample, and dashboard links."
     },
     {
       "description": "Edit profile fields, order photos, and prepare a dashboard handoff.",

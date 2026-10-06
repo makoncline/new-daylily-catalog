@@ -63,8 +63,10 @@ sample listings hidden from creation.
 
 The sample has unpriced hidden listings, a synthetic private note, two profile
 photo references, and the hidden Review Bloom listing in Review Collection.
-Case 4 reuses these records when present. This makes repeat runs fit the
-one-list limit. Creation paths were exercised when the records were absent.
+Case 4 requires and reuses these records. It stops if a fixture is missing.
+It saves intermediate and final field values on each run, so the expected
+read and edit tools match the repeat path. Creation paths were exercised
+separately when the records were absent.
 Create one record per call. Preserve its request ID on retry. Read current
 versions before editing. Repeat membership addition must not create duplicates.
 

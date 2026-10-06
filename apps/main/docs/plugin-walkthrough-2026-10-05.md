@@ -14,7 +14,7 @@ draft has working OAuth and a clean authenticated scan of 26 tools.
 | Public inventory | Search results, exact listing, photo, price, and grower page agree. |
 | Cultivar research | Cultivar detail and public grower collections returned source links. |
 | Own catalog | Hidden listings, synthetic private note, memberships, and profile images were read. |
-| Catalog writes | Listing and list creation, edits, and membership addition saved correctly. A repeat run reused the samples and kept one membership. |
+| Catalog writes | Listing and list creation, edits, and membership addition saved correctly. Repeat runs reuse the samples, save intermediate and final values, and keep one membership. |
 | Profile | Description and photo order saved. Exact reads and the normal dashboard agree. Photo addition opens the existing image manager. |
 | Foreign private data | ChatGPT refused the request. Separate isolated server integration tests prove ownership rejection. No foreign production probe was made. |
 | Destructive actions | Exact owned dashboard review links were returned. A populated list cannot be deleted. Opening the removal link did not mutate data. Cancel kept the membership. |
