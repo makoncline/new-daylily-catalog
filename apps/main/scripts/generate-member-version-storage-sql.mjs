@@ -12,7 +12,7 @@ const sql = [
   "CREATE TEMP TABLE member_version_storage_check (valid INTEGER NOT NULL CHECK (valid = 1));",
   ...tables.map(
     (table) =>
-      `INSERT INTO member_version_storage_check SELECT CASE WHEN EXISTS (SELECT 1 FROM "${table}" WHERE typeof("updatedAt") = 'text' AND strftime('%s', "updatedAt") IS NULL) THEN 0 ELSE 1 END;`,
+      `INSERT INTO member_version_storage_check SELECT CASE WHEN EXISTS (SELECT 1 FROM "${table}" WHERE typeof("updatedAt") = 'text' AND (strftime('%s', "updatedAt") IS NULL OR date(substr("updatedAt", 1, 10), '+0 days') IS NOT substr("updatedAt", 1, 10))) THEN 0 ELSE 1 END;`,
   ),
   ...tables.map(
     (table) =>

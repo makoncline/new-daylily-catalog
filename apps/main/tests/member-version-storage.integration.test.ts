@@ -102,20 +102,34 @@ describe("member version storage correction", () => {
     });
   }, 30_000);
 
-  it("stops before changing data when a stored text date is invalid", async () => {
-    await withTempAppDb(async ({ user }) => {
-      const { db } = await import("@/server/db");
-      await db.userProfile.create({ data: { userId: user.id, slug: user.id } });
-      await db.$executeRaw`UPDATE UserProfile SET updatedAt = 'invalid' WHERE userId = ${user.id}`;
-      const client = createClient({ url: process.env.DATABASE_URL! });
-      try {
-        await expect(client.executeMultiple(sql)).rejects.toThrow();
-      } finally {
-        client.close();
-      }
-      expect(
-        await db.$queryRaw`SELECT CAST(updatedAt AS TEXT) AS value FROM UserProfile WHERE userId = ${user.id}`,
-      ).toEqual([{ value: "invalid" }]);
-    });
-  }, 30_000);
+  it.each(["invalid", "2026-02-29T00:00:00.000Z"])(
+    "stops all updates for an invalid stored date: %s",
+    async (invalidDate) => {
+      await withTempAppDb(async ({ user }) => {
+        const { db } = await import("@/server/db");
+        await db.userProfile.create({
+          data: { userId: user.id, slug: user.id },
+        });
+        const list = await db.list.create({
+          data: { userId: user.id, title: "Collection" },
+        });
+        const validDate = "2026-03-02T22:28:08.430+05:30";
+        await db.$executeRaw`UPDATE UserProfile SET updatedAt = ${validDate} WHERE userId = ${user.id}`;
+        await db.$executeRaw`UPDATE List SET updatedAt = ${invalidDate} WHERE id = ${list.id}`;
+        const client = createClient({ url: process.env.DATABASE_URL! });
+        try {
+          await expect(client.executeMultiple(sql)).rejects.toThrow();
+        } finally {
+          client.close();
+        }
+        expect(
+          await db.$queryRaw`SELECT CAST(updatedAt AS TEXT) AS value FROM UserProfile WHERE userId = ${user.id}`,
+        ).toEqual([{ value: validDate }]);
+        expect(
+          await db.$queryRaw`SELECT CAST(updatedAt AS TEXT) AS value FROM List WHERE id = ${list.id}`,
+        ).toEqual([{ value: invalidDate }]);
+      });
+    },
+    30_000,
+  );
 });

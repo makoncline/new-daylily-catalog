@@ -176,3 +176,5 @@ check current code before applying them.
 [2026-10-06] Public hide verification: A primary read and the dashboard can show HIDDEN while the public API still serves an older replica row. The reviewer sample reached public 404 after replica sync. When a test changes visibility, check the anonymous public response after sync. Do not use a primary read as public withdrawal proof. Create new private test listings as hidden.
 
 - [2026-10-06] Mixed member version storage: ISO text updatedAt values read as valid dates but fail the unixepoch-ms adapter equality guard. Check raw typeof(updatedAt) when fresh versions repeatedly conflict. Normalize stored UserProfile, Listing, and List versions with the tracked data correction; keep the date unchanged and add no request fallback.
+
+- [2026-10-06] SQLite calendar validation: strftime can normalize invalid ISO dates such as February 29 in a non-leap year. For data corrections, compare the date part with date(..., +0 days) before UTC conversion, and test that all table updates stop on failure.

@@ -26,8 +26,9 @@ and `List`. It keeps the same date, including milliseconds and the UTC offset.
 It does not change schema, ownership, content, membership, or photos. Integer
 versions stay unchanged. Repeating the SQL makes no further changes.
 
-The SQL checks all three tables before the first update. An invalid text date
-fails the check. Use a client that stops on the first SQL error. For SQLite,
+The SQL checks all three tables before the first update. It rejects invalid
+calendar dates such as February 29 in a non-leap year. It checks the local date
+before applying the UTC offset. Use a client that stops on the first SQL error. For SQLite,
 use `sqlite3 -bail`. Roll back and stop if any statement fails.
 
 ## Verification and apply
