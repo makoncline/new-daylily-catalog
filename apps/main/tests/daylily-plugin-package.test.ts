@@ -13,21 +13,36 @@ it("builds a complete MCP submission with its endpoint, assets, and review cases
   const directory = mkdtempSync(path.join(tmpdir(), "daylily-plugin-"));
   try {
     const zipPath = path.join(directory, "plugin.zip");
-    execFileSync(process.execPath, ["scripts/build-plugin.mjs", zipPath], {
-      cwd: process.cwd(),
-    });
+    const reviewVideoUrl = "https://example.com/private-plugin-review.mp4";
+    execFileSync(
+      process.execPath,
+      [
+        "scripts/build-plugin.mjs",
+        zipPath,
+        "--review-video-url",
+        reviewVideoUrl,
+      ],
+      {
+        cwd: process.cwd(),
+      },
+    );
     const zip = await JSZip.loadAsync(readFileSync(zipPath));
     expect(
       Object.keys(zip.files)
         .filter((name) => !zip.files[name]?.dir)
         .sort(),
     ).toEqual(["assets/icon.svg", "mcp.json", "plugin.json"]);
-    const manifest = JSON.parse(
-      await zip.file("plugin.json")!.async("string"),
-    );
+    const manifest = JSON.parse(await zip.file("plugin.json")!.async("string"));
     expect(manifest.name).toBe("daylily-catalog");
     expect(manifest.version).toMatch(/^\d+\.\d+\.\d+$/);
     const metadata = manifest.extensions["com.openai"];
+    expect(metadata.review.demo_recording_url).toBe(reviewVideoUrl);
+    const sourceManifest = JSON.parse(
+      readFileSync("../../plugins/daylily-catalog/plugin.json", "utf8"),
+    );
+    expect(sourceManifest.extensions["com.openai"].review).not.toHaveProperty(
+      "demo_recording_url",
+    );
     const listing = metadata.interface;
     expect(listing.displayName.length).toBeLessThanOrEqual(30);
     expect(listing.shortDescription.length).toBeLessThanOrEqual(30);

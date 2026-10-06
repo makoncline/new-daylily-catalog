@@ -1,7 +1,7 @@
 # Plugin OAuth repair plan
 
-Date: 2026-10-05. Status: production connection and scan passed; full review
-cases remain open.
+Date: 2026-10-05. Updated on 2026-10-06. Production connection, scan, and
+review cases passed. Final package upload and test cleanup remain open.
 
 ## Goal
 
@@ -148,10 +148,11 @@ that the existing public record can use it.
 - [x] Complete production hosted authentication and a fresh authenticated
       scan on the original public record. It shows Configured and Account
       connected. All 26 tools are present, with no scan findings.
-- [x] Make a narrated walkthrough draft. Label current production captures
-      and earlier local recordings. See [walkthrough status](plugin-walkthrough-2026-10-05.md).
-- [ ] Complete all production reviewer cases and the submission recording.
-      Keep the reviewer non-Pro until the private-catalog requirement is resolved.
+- [x] Complete all production reviewer cases. Keep the reviewer non-Pro and
+      all sample listings hidden. Verify saved values in the normal dashboard.
+      See [current walkthrough proof](plugin-walkthrough-2026-10-05.md).
+- [ ] Host and inspect the final production review video. Upload its complete
+      package to the original draft and verify a fresh authenticated scan.
 - [ ] Complete final test cleanup after the original plugin passes production
       connection, tool discovery, and review checks. The owner requested this
       cleanup. Use the checklist below.
@@ -241,12 +242,13 @@ resource. The original public record now shows Configured and Account
 connected. A fresh authenticated scan has no findings.
 
 The dedicated reviewer remains non-Pro. No subscription was created. The owner
-accepts its direct profile link. Keep it out of public browsing and search,
-and keep sample listings hidden. Limited non-Pro MCP and member API writes
-are implemented locally with the existing dashboard limits. Production still
-has the active-membership write gate until this change is deployed.
-Full hosted write cases, photo-order cases, the current recording, and
-submission remain open. See [non-Pro access](non-pro-plugin-review-research-2026-10-06.md).
+accepts its direct profile link. Public discovery excludes it and all four
+sample listings return public 404. PR 434 deployed limited remote writes
+under the existing dashboard quotas. Production catalog and profile cases
+passed. PR 435 deployed the timestamp correction tools; the approved data
+correction was rehearsed on a restored fresh backup and applied. No schema
+changed. See [non-Pro access](non-pro-plugin-review-research-2026-10-06.md) and
+[the current walkthrough](plugin-walkthrough-2026-10-05.md).
 The older private Review connection requested its retired
 predefined client; its different grant was canceled and it remains unlinked.
 After Refresh tools, a new connection attempt still requested that client.
@@ -271,7 +273,7 @@ temporary access and test assets have been checked.
 - [ ] Check Clerk for remaining test grants. Revoke temporary grants. Remove
       obsolete test client registrations. Retain the intended development
       and production clients and the dedicated submission reviewer account.
-- [ ] Remove `apps/main/local/plugin-cimd-proof-20261005.sqlite` and its
+- [x] Remove `apps/main/local/plugin-cimd-proof-20261005.sqlite` and its
       journal, WAL, or SHM files. Remove other isolated database copies created
       only for these tests. Check ownership before removal.
 - [ ] Remove obsolete diagnostic ZIP variants, temporary probe scripts,

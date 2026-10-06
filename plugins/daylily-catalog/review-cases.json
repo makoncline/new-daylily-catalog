@@ -20,9 +20,9 @@
     },
     {
       "description": "Create and edit sample catalog records.",
-      "prompt": "Create a hidden listing titled Review Bloom at $18. Create a list called Review Collection, add the listing to it, then change the listing price to $19 and the list description to Plugin review sample.",
+      "prompt": "Inspect my sample records first. If Review Bloom or Review Collection is missing, create the missing record: a hidden Review Bloom listing at $18 and a Review Collection list. Reuse either record if it exists. Add the listing to that list, then set its price to $19 and the list description to Plugin review sample. Keep the listing hidden.",
       "tools_triggered": "daylily.create_listing, daylily.create_list, daylily.add_listing_to_list, daylily.update_listing, daylily.update_list",
-      "expected_behavior": "Use write permission and the sample account. Create one record per call with a distinct request ID. Preserve the same request ID on retry. Use the current updatedAt value for each edit. Keep the listing hidden. Report the saved values and dashboard links."
+      "expected_behavior": "Use write permission and the sample account. Read existing sample records before creation so repeat runs fit the one-list limit. Create only missing records, one record per call with a distinct request ID. Preserve the same request ID on retry. Use the current updatedAt value for each edit. Keep the listing hidden. Repeated addition must keep one membership. Report which records were created or reused, the saved values, and dashboard links."
     },
     {
       "description": "Edit profile fields, order photos, and prepare a dashboard handoff.",

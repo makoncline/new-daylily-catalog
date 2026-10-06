@@ -1,93 +1,96 @@
 # Daylily Catalog plugin submission
 
-This folder builds the portable package for the
-[remaining Daylily Catalog draft](https://platform.openai.com/plugins/manage/plugin_asdk_app_6ac30d5ff6508191b3d2647ec281fa3e).
-The portal has version `1.2.0`. Production OAuth setup passed on 2026-10-05.
-The original draft shows Configured and Account connected. Its fresh
-authenticated scan found all 26 tools with no findings. A narrated walkthrough
-draft is complete. Full production reviewer cases and the submission recording
-remain incomplete. See [walkthrough status](../../apps/main/docs/plugin-walkthrough-2026-10-05.md).
+Use the [original Daylily Catalog draft](https://platform.openai.com/plugins/manage/plugin_asdk_app_6ac30d5ff6508191b3d2647ec281fa3e).
+Keep its identity and MCP server key. Do not create another submission.
+The draft has working production OAuth and 26 discovered tools.
+See [review evidence](../../apps/main/docs/plugin-walkthrough-2026-10-05.md).
 
 ## Build and test
 
-Run these commands from the repository root:
+Run from the repository root:
 
 ```sh
-pnpm plugin:build
+pnpm plugin:build --review-video-url '<reviewer-accessible HTTPS video URL>'
 pnpm verify --tests tests/daylily-plugin-package.test.ts
 ```
 
-The ZIP is saved in ignored `local/plugins/`. It contains:
+The video URL is required. Obtain the final URL from the private review report.
+Keep it out of this public repository. The builder adds it as
+`extensions.com.openai.review.demo_recording_url` in the ZIP.
 
-- `plugin.json`: Portable identity and OpenAI listing metadata. The build adds
-  the five positive and three negative cases from `review-cases.json`.
+The ignored `local/plugins/daylily-catalog-1.2.1.zip` contains:
+
+- `plugin.json`: Portable identity, listing metadata, video URL, and the five
+  positive and three negative cases from `review-cases.json`.
 - `mcp.json`: The production Streamable HTTP endpoint.
 - `assets/icon.svg`: The referenced icon.
 
-Include all components in each update. Keep the package name and MCP server
-name as `daylily-catalog`. Update this existing draft. Public submission does
-not accept `apps` or `.app.json` references. Keep tokens, client secrets,
-reviewer credentials, and member data outside the ZIP and Git.
+Each upload must contain all three files. Keep the package name and MCP server
+key as `daylily-catalog`. Update the existing draft. Keep credentials, tokens,
+client secrets, and member data outside the ZIP and Git. Enter reviewer
+credentials only in the portal's private Review details.
 
 ## OAuth setup
 
-The endpoint is `https://daylilycatalog.com/api/mcp/server`.
-The issuer is `https://clerk.daylilycatalog.com`.
-The intended MCP client ID is `https://chatgpt.com/oauth/client.json`. It is
-a public metadata URL. Clerk admits only pre-registered clients. The client
-can request `catalog:read`, `catalog:write`, `offline_access`, `openid`,
-`email`, and `profile`. The owner approved these scopes. Default scopes are
-read and offline access. DCR stays off and PKCE stays on. The production app
-uses this exact client URL for its MCP client check.
+- Endpoint: `https://daylilycatalog.com/api/mcp/server`.
+- Issuer: `https://clerk.daylilycatalog.com`.
+- Registered CIMD client: `https://chatgpt.com/oauth/client.json`.
+- Admission: pre-registered clients only. DCR is off. PKCE is on.
+- Permitted scopes: `catalog:read`, `catalog:write`, `offline_access`, `openid`,
+  `email`, and `profile`. Defaults are read and offline access.
 
-CIMD publication resolved the public draft's missing client-ID setup.
-Complete hosted setup through the portal's Connect drawer. Use Reconnect
-after OAuth discovery changes. A tool Rescan alone did not refresh old
-account-connection scopes. Reconnect and Continue reached the correct
-reviewer consent. The actual grant requested `openid`, `email`,
-`offline_access`, `catalog:read`, and `catalog:write`. It did not request
-`catalog:manage`. The portal uses the site-root resource in this flow.
-The server also publishes the endpoint-specific resource metadata at
+CIMD discovery resolved the missing OAuth client-ID setup. The portable MCP
+schema has no OAuth client-ID field. Do not add unsupported OAuth fields to
+the ZIP. Use the portal's Connect drawer to set up the hosted connection.
+A Rescan does not refresh an old OAuth client binding or grant scope.
+
+The approved reviewer grant contains `openid`, `email`, `offline_access`,
+`catalog:read`, and `catalog:write`. It excludes `catalog:manage` and metadata
+scopes. The portal uses the site-root OAuth resource. The endpoint also
+publishes its own protected-resource metadata at
 `/.well-known/oauth-protected-resource/api/mcp/server`.
 
-Keep OAuth credentials out of the ZIP. The portable MCP 1.0.0 schema has no
-OAuth client-ID field. Do not repeat unsupported auth-field uploads.
-Check the saved client, exact consent, Configured status, account connection,
-and a fresh scan. A verified domain or clean anonymous scan is insufficient.
+After an upload, check Configured, Authorized, Domain verified, and a fresh
+scan of all 26 tools. “Not live” is expected while the plugin is unpublished.
+A domain check or an anonymous scan alone does not prove member access.
 
-The older private `Daylily Catalog Review` test connection requested the
-retired predefined client. Its different grant was canceled. It remains
-unlinked. Refresh tools did not change that client binding: a new connection
-attempt still requested the retired client and was canceled. It does not
-prove current member reads. The approved development
-CIMD connections previously passed bounded member reads against local SQLite.
+## Review account and cases
 
-## Review preparation
+Use the dedicated password-enabled reviewer account. It stays non-Pro and
+uses the normal limits: 25 listings, one list, and four photos per target.
+Its direct profile link is accepted. Public discovery excludes it. Keep all
+sample listings hidden from creation.
 
-1. Preserve the working hosted setup on the original draft. Recheck its
-   account connection and tool scan after a relevant change.
-2. Use the dedicated reviewer account with password sign-in and sample data.
-   The prepared cases need member permissions, listings, lists, notes, and
-   photos. Enter credentials only in private Review details. The reviewer
-   remains non-Pro and uses the normal limits: 25 listings and one list.
-   The owner accepts its direct profile link. Keep it out of public browsing
-   and search, and keep the sample listings hidden. Limited non-Pro MCP and
-   member API writes are implemented locally. Deploy and run the hosted
-   review cases before claiming that the positive cases pass.
-3. Run all cases in `review-cases.json` through the connected plugin. Record a
-   current walkthrough and add its accessible URL to review information.
-   [Earlier local recordings](../../apps/main/docs/member-mcp-feature-proof-2026-09-30.md)
-   do not prove this hosted connection.
-4. Check metadata, cases, privacy disclosures, tool safety labels, release notes,
-   and scan results. Get owner approval before final submission and legal
-   attestations.
+The sample has unpriced hidden listings, a synthetic private note, two profile
+photo references, and the hidden Review Bloom listing in Review Collection.
+Case 4 reuses these records when present. This makes repeat runs fit the
+one-list limit. Creation paths were exercised when the records were absent.
+Create one record per call. Preserve its request ID on retry. Read current
+versions before editing. Repeat membership addition must not create duplicates.
 
-Hosted ChatGPT compute is deferred in [GOALS.md](../../GOALS.md).
+Remote tools support owned reads and non-destructive writes. Deletion,
+removal, photo addition, and rich story editing use exact dashboard handoffs.
+The plugin cannot process subscriptions or payments.
+
+Run the cases in `review-cases.json`. Check the saved results in the normal
+dashboard. Check hidden-record exclusion through anonymous public endpoints.
+Keep a model refusal separate from a server ownership-rejection test.
+
+## Final portal checks
+
+1. Upload the complete final ZIP to the original draft.
+2. Check metadata, support and privacy links, release notes, commerce
+   disclosure, review cases, private credentials, video URL, and countries.
+3. Check the existing OAuth setup and run a fresh authenticated MCP scan.
+4. Remove temporary test connections. Keep the original draft, intended Clerk
+   clients, dedicated reviewer account, sample fixtures, and final evidence.
+5. Leave final Submit and legal attestations to the owner.
+
+Hosted ChatGPT compute remains deferred in [GOALS.md](../../GOALS.md).
 
 ## Sources
 
 - [Package format](https://developers.openai.com/plugins/build/plugins)
 - [Hosted setup and submission](https://developers.openai.com/plugins/deploy/submission)
-- [OAuth registration methods](https://developers.openai.com/plugins/build/auth)
+- [OAuth registration](https://developers.openai.com/plugins/build/auth)
 - [Portable MCP schema](https://agent-plugins.org/schemas/1.0.0/mcp.schema.json)
-- [Codex plugin OAuth fields](https://learn.chatgpt.com/docs/extend/mcp#plugin-provided-mcp-servers)
