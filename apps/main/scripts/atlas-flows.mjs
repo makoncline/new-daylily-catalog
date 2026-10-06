@@ -828,6 +828,14 @@ export const ATLAS_FLOWS = [
           label: "MCP OAuth resource discovery",
           path: "src/app/.well-known/oauth-protected-resource/api/mcp/server/route.ts",
         },
+        {
+          label: "Plugin submission package",
+          path: "scripts/build-plugin.mjs",
+        },
+        {
+          label: "Plugin review cases",
+          path: "../../plugins/daylily-catalog/review-cases.json",
+        },
       ],
       invariants: [
         "Keep field and content drafts during refresh and failed navigation saves.",
@@ -836,6 +844,7 @@ export const ATLAS_FLOWS = [
         "Reject member MCP requests before database reads when the token, scope, or client is not allowed.",
         "Allow confirmed non-Pro remote writes within dashboard limits; reject unconfirmed billing and keep destructive MCP actions in dashboard approval.",
         "Publish MCP endpoint resource metadata and complete tool-level OAuth challenges.",
+        "Build the complete plugin with a reviewer video URL kept outside public source. Reuse sample records on repeated review runs.",
         "Store member versions as integer milliseconds and preserve stale-write rejection.",
       ],
     },
@@ -848,6 +857,7 @@ export const ATLAS_FLOWS = [
           "integration",
           "tests/member-version-storage.integration.test.ts",
         ),
+        testRef("integration", "tests/daylily-plugin-package.test.ts"),
         testRef(
           "integration",
           "tests/member-non-pro-access.integration.test.ts",
@@ -1003,6 +1013,7 @@ export const ATLAS_FLOWS = [
           "integration",
           "tests/member-version-storage.integration.test.ts",
         ),
+        testRef("integration", "tests/daylily-plugin-package.test.ts"),
         testRef(
           "integration",
           "tests/dashboard-db-listing-entitlements.integration.test.ts",
@@ -1520,6 +1531,7 @@ export const ATLAS_FLOWS = [
           "integration",
           "tests/member-version-storage.integration.test.ts",
         ),
+        testRef("integration", "tests/daylily-plugin-package.test.ts"),
         testRef("integration", "tests/add-listings-combobox.test.tsx"),
         testRef(
           "integration",

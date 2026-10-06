@@ -1,6 +1,6 @@
 # Non-Pro plugin review access
 
-Date: 2026-10-06. Status: implemented locally; deployment and hosted review remain open.
+Date: 2026-10-06. Status: PR 434 deployed; production reviewer cases passed.
 
 ## Recommendation
 
@@ -10,7 +10,8 @@ Pro grant or larger quotas are not required for those cases.
 
 The MCP and member HTTP API now admit confirmed non-Pro writes in this
 checkout. Both use the shared dashboard handlers and their existing caps.
-The deployed version still has the old Pro-only write gate.
+PR 434 deployed this change. The production reviewer cases passed. See
+[the current walkthrough](plugin-walkthrough-2026-10-05.md).
 
 The owner accepts a working direct profile link. The review catalog must stay
 out of public browsing and search. The existing non-Pro membership filter
@@ -123,9 +124,9 @@ account can ever exist.
 ## Review fixtures and repeat runs
 
 Prepare a small, synthetic account with a few hidden listings, two profile
-images, and no list before the create-list case. Keep private credentials out
-of the package and video. Reset disposable records through the approved UI
-flow between complete runs, so the one-list cap does not block the next run.
+images, and no list before the first create-list case. Keep private credentials
+out of the package and video. Reuse the named sample records on repeat runs.
+Create only missing records, so the one-list cap does not block later runs.
 
 Photo uploads use the normal cropper, resize, moderation, and storage path.
 The MCP returns the dashboard photo-manager link. This research made no upload,
@@ -211,5 +212,7 @@ INTEGRATION_MODE=1 RUN_MCP_MEMBER_WRITE_PROOF=1 RUN_MEMBER_HTTP_PROOF=1 \
   --maxWorkers=1 --silent
 ```
 
-Production accounts, configuration, and schema are unchanged. Run the actual
-production review cases through the current ChatGPT connection after release.
+The access change made no schema change. Production review used the current
+ChatGPT OAuth client and passed the catalog and profile cases. A legacy
+timestamp data correction was required for existing profile edits; see
+[the correction report](member-version-storage-correction-2026-10-06.md).

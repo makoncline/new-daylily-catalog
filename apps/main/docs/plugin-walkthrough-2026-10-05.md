@@ -1,57 +1,60 @@
-# Plugin walkthrough status
+# Plugin review walkthrough
 
-## Submission requirement
+Updated on 2026-10-06.
 
-The [OpenAI submission guide](https://developers.openai.com/plugins/deploy/submission)
-requires a reviewer-accessible video URL. The video must show the test cases
-and plugin functions. Run the positive cases with the dedicated test account
-before submission. Keep credentials outside the public package.
+## Production proof
 
-## Completed draft
+The five positive and three negative submission cases were checked against
+the production MCP endpoint. The member cases used the dedicated non-Pro
+reviewer and a temporary private ChatGPT connection. The original submission
+draft has working OAuth and a clean authenticated scan of 26 tools.
 
-The local artifact is `daylily-plugin-walkthrough-draft.mp4`. It has narration,
-visible English captions, an English subtitle track, and 15 chapters.
-It is a review draft. It is not the final submission recording.
+| Case | Observed result |
+| --- | --- |
+| Public inventory | Search results, exact listing, photo, price, and grower page agree. |
+| Cultivar research | Cultivar detail and public grower collections returned source links. |
+| Own catalog | Hidden listings, synthetic private note, memberships, and profile images were read. |
+| Catalog writes | Listing and list creation, edits, and membership addition saved correctly. Repeat runs reuse the samples, save intermediate and final values, and keep one membership. |
+| Profile | Description and photo order saved. Exact reads and the normal dashboard agree. Photo addition opens the existing image manager. |
+| Foreign private data | ChatGPT refused the request. Separate isolated server integration tests prove ownership rejection. No foreign production probe was made. |
+| Destructive actions | Exact owned dashboard review links were returned. A populated list cannot be deleted. Opening the removal link did not mutate data. Cancel kept the membership. |
+| Payments | No checkout or charge was started. The plugin directs access problems to support. |
 
-The artifact folder is `plugin-walkthrough-2026-10-05` in this task's
-visualizations directory. It contains the MP4, subtitle files, source manifest,
-render script, chapter list, and verification results. Media stays outside Git.
+Additional checks covered cultivar linking, name synchronization, title
+restoration, repeat membership addition, and help search.
 
-The draft includes:
+## Releases
 
-- October 5 production portal captures of the configured original plugin and
-  its clean scan.
-- October 5 ChatGPT public catalog responses and the actual public pages.
-- September 30 local recordings of member reads, listing and list writes,
-  cultivar links, profile fields, photo ordering, and dashboard approvals.
-- October 5 ChatGPT refusals for foreign private data, direct deletion, and
-  payment requests. This test connection has no linked member account.
+- [PR 434](https://github.com/makoncline/new-daylily-catalog/pull/434) deployed
+  limited non-Pro remote access with the existing dashboard quotas.
+- [PR 435](https://github.com/makoncline/new-daylily-catalog/pull/435) added the
+  reviewed timestamp data correction. Legacy text versions caused profile
+  edit conflicts. The correction was rehearsed against a restored fresh
+  backup, applied, and checked in production. No schema changed. See
+  [the correction report](member-version-storage-correction-2026-10-06.md).
 
-The local recordings use real app handlers, a local Next dashboard, isolated
-SQLite, synthetic records, and simulated Clerk. They show an earlier dashboard
-presentation. They do not prove the current production reviewer connection.
-The draft omits the old crop-coordinate controls. See
-[local recording limits](member-mcp-feature-proof-2026-09-30.md#proof-limits).
+All four review listings return public 404. Seller search, the directory, and
+the sitemap exclude the reviewer. Its direct profile link works as accepted
+by the owner. Keep new samples hidden from creation. Public replica reads can
+lag a visibility change; a primary read alone does not prove public removal.
 
-The current ChatGPT captures show prompts and responses. They do not contain
-an exported tool invocation trace. A model refusal is not proof of a server
-ownership rejection. The labeled local checks show that separate boundary.
+## Review video and package
 
-## Remaining submission checks
+The final video uses edited captures of real production ChatGPT results and
+normal site screens. It includes local narration, visible English captions,
+a subtitle track, and chapter metadata. It is not a continuous screencast or
+an exported raw tool trace. The older mixed local/production draft is obsolete
+and must not be submitted.
 
-1. Deploy the limited non-Pro remote access change. Keep the reviewer non-Pro,
-   within the 25-listing and one-list limits. Keep sample listings hidden.
-   Its direct profile link is acceptable; public discovery must exclude it.
-2. Use a connection bound to the current production OAuth client. The old
-   private Review connection still uses the retired client for member access.
-3. Run all five positive and three negative cases from
-   `plugins/daylily-catalog/review-cases.json`. Record the current member flows
-   with sample data. Replace the local member excerpts in the submission cut.
-4. Host the completed video at an accessible URL. Check that reviewers can
-   open it without owner sign-in. Set `review.demo_recording_url` in the package
-   or the applicable portal field.
-5. Review the exact submission materials. Obtain owner approval for final
-   submission and the required legal attestations.
+Media and the private reviewer report stay in this task's visualization
+folder, outside Git. The report records the hosted video URL and final ZIP
+checksum. Keep the URL out of this public repository. The package builder
+requires `--review-video-url` and adds it to
+`extensions.com.openai.review.demo_recording_url` in the ignored ZIP.
 
-No video was hosted or submitted during this work. No paid narration,
-inference API, upload service, subscription, or new infrastructure was used.
+Reviewer credentials stay in the original portal's private Review details.
+They must not appear in the video, ZIP, public docs, or PR description.
+
+See [the submission checklist](../../../plugins/daylily-catalog/README.md).
+The owner performs final Submit and legal attestations. Hosted ChatGPT compute
+remains deferred in [GOALS.md](../../../GOALS.md).
