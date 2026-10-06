@@ -6,7 +6,10 @@ import JSZip from "jszip";
 const repoRoot = fileURLToPath(new URL("../../../", import.meta.url));
 const pluginRoot = path.join(repoRoot, "plugins/daylily-catalog");
 const manifest = JSON.parse(
-  await readFile(path.join(pluginRoot, ".codex-plugin/plugin.json"), "utf8"),
+  await readFile(path.join(pluginRoot, "plugin.json"), "utf8"),
+);
+manifest.extensions["com.openai"].review.test_cases = JSON.parse(
+  await readFile(path.join(pluginRoot, "review-cases.json"), "utf8"),
 );
 const outputPath = path.resolve(
   process.argv[2] ??
@@ -18,9 +21,10 @@ const outputPath = path.resolve(
 );
 const archive = new JSZip();
 
-// This updates the existing hosted entry. Connection settings stay in OpenAI.
-// Reviewer cases and credentials stay outside this metadata-only ZIP.
-for (const file of [".codex-plugin/plugin.json", "assets/icon.svg"]) {
+archive.file("plugin.json", `${JSON.stringify(manifest, null, 2)}\n`);
+// Each release must contain the MCP endpoint and all referenced assets.
+// OAuth grants and reviewer credentials stay in the private hosted setup.
+for (const file of ["mcp.json", "assets/icon.svg"]) {
   archive.file(file, await readFile(path.join(pluginRoot, file)));
 }
 await mkdir(path.dirname(outputPath), { recursive: true });

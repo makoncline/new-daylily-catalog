@@ -816,16 +816,28 @@ export const ATLAS_FLOWS = [
           label: "Profile image actions",
           path: "src/app/dashboard/profile/_components/profile-image-manager.tsx",
         },
+        {
+          label: "Remote MCP member authentication",
+          path: "src/server/mcp/read-only-mcp.ts",
+        },
+        {
+          label: "MCP OAuth resource discovery",
+          path: "src/app/.well-known/oauth-protected-resource/api/mcp/server/route.ts",
+        },
       ],
       invariants: [
         "Keep field and content drafts during refresh and failed navigation saves.",
         "Include child content and media changes in the parent commit.",
         "Ignore late URL validation results and keep drafts after rejected writes.",
+        "Reject member MCP requests before database reads when the token, scope, or client is not allowed.",
+        "Publish MCP endpoint resource metadata and complete tool-level OAuth challenges.",
       ],
     },
     tests: {
       unit: [testRef("unit", "tests/profile-slug-rules.test.ts")],
       integration: [
+        testRef("integration", "tests/oauth-metadata.test.ts"),
+        testRef("integration", "tests/mcp-read-only.test.ts"),
         testRef("integration", "tests/slug-change-confirm-dialog.test.tsx"),
         testRef(
           "integration",

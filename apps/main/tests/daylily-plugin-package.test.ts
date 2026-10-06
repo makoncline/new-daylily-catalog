@@ -9,7 +9,7 @@ import { expect, it } from "vitest";
 import { buildReadOnlyMcpTools } from "@/server/mcp/read-only-mcp-tools";
 import { memberWriteMcpTools } from "@/server/mcp/member-write-mcp-tools";
 
-it("builds the original hosted metadata update and checks its separate review cases", async () => {
+it("builds a complete MCP submission with its endpoint, assets, and review cases", async () => {
   const directory = mkdtempSync(path.join(tmpdir(), "daylily-plugin-"));
   try {
     const zipPath = path.join(directory, "plugin.zip");
@@ -21,33 +21,42 @@ it("builds the original hosted metadata update and checks its separate review ca
       Object.keys(zip.files)
         .filter((name) => !zip.files[name]?.dir)
         .sort(),
-    ).toEqual([".codex-plugin/plugin.json", "assets/icon.svg"]);
+    ).toEqual(["assets/icon.svg", "mcp.json", "plugin.json"]);
     const manifest = JSON.parse(
-      await zip.file(".codex-plugin/plugin.json")!.async("string"),
+      await zip.file("plugin.json")!.async("string"),
     );
-    expect(manifest.name).toBe("app-6a061b5279b88191a07a9e0866721e29");
+    expect(manifest.name).toBe("daylily-catalog");
     expect(manifest.version).toMatch(/^\d+\.\d+\.\d+$/);
     const metadata = manifest.extensions["com.openai"];
-    expect(manifest.interface.displayName.length).toBeLessThanOrEqual(30);
-    expect(manifest.interface.shortDescription.length).toBeLessThanOrEqual(30);
+    const listing = metadata.interface;
+    expect(listing.displayName.length).toBeLessThanOrEqual(30);
+    expect(listing.shortDescription.length).toBeLessThanOrEqual(30);
     for (const name of [
       "websiteURL",
       "supportURL",
       "privacyPolicyURL",
       "termsOfServiceURL",
     ]) {
-      expect(new URL(manifest.interface[name]).origin).toBe(
-        "https://daylilycatalog.com",
-      );
+      expect(new URL(listing[name]).origin).toBe("https://daylilycatalog.com");
     }
     for (const field of ["logo", "composerIcon"]) {
-      expect(
-        zip.file(manifest.interface[field].replace(/^\.\//, "")),
-      ).not.toBeNull();
+      expect(zip.file(listing[field].replace(/^\.\//, ""))).not.toBeNull();
     }
+    expect(manifest.$schema).toBe(
+      "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+    );
     expect(manifest).not.toHaveProperty("mcpServers");
     expect(manifest).not.toHaveProperty("apps");
-    expect(metadata.review).not.toHaveProperty("test_cases");
+    const mcp = JSON.parse(await zip.file("mcp.json")!.async("string"));
+    expect(mcp).toEqual({
+      $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+      mcpServers: {
+        "daylily-catalog": {
+          type: "streamable-http",
+          url: "https://daylilycatalog.com/api/mcp/server",
+        },
+      },
+    });
     const reviewCases = JSON.parse(
       readFileSync(
         path.join(
@@ -57,6 +66,7 @@ it("builds the original hosted metadata update and checks its separate review ca
         "utf8",
       ),
     );
+    expect(metadata.review.test_cases).toEqual(reviewCases);
     expect(reviewCases.positive).toHaveLength(5);
     expect(reviewCases.negative).toHaveLength(3);
     const tools = new Set(
@@ -69,7 +79,7 @@ it("builds the original hosted metadata update and checks its separate review ca
         expect(tools.has(tool), tool).toBe(true);
       }
     }
-    expect(manifest.interface).not.toHaveProperty("screenshots");
+    expect(listing).not.toHaveProperty("screenshots");
     expect(metadata).not.toHaveProperty("apps");
     expect(reviewCases.negative[1].expected_behavior).toContain(
       "Do not delete or remove records through MCP",

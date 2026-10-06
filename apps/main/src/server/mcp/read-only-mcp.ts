@@ -1,6 +1,10 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { getTrustedBaseUrl } from "@/lib/agent-readiness";
+import {
+  getTrustedBaseUrl,
+  MCP_RESOURCE_METADATA_PATH,
+  MCP_RESOURCE_PATH,
+} from "@/lib/agent-readiness";
 import {
   getOwnedMemberListingDetail,
   type MemberListingDetail,
@@ -103,6 +107,7 @@ class McpAuthRequiredError extends Error {
     readonly status: 401 | 403 = 401,
     readonly reason:
       | "unauthenticated"
+      | "invalid_token"
       | "insufficient_scope"
       | "wrong_client" = "unauthenticated",
   ) {
@@ -438,14 +443,21 @@ async function requireMcpUser(
     | "catalog:read"
     | "catalog:write" = REQUIRED_PRIVATE_OAUTH_SCOPE,
 ) {
+  const unauthenticatedError = new McpAuthRequiredError(
+    requiredScope,
+    401,
+    /^Bearer\b/i.test(context.request.headers.get("authorization") ?? "")
+      ? "invalid_token"
+      : "unauthenticated",
+  );
   let client: Awaited<ReturnType<typeof getScopedOAuthClient>>;
   try {
     client = await getScopedOAuthClient(context.request, requiredScope);
   } catch {
-    throw new McpAuthRequiredError(requiredScope);
+    throw unauthenticatedError;
   }
   if (client.status === "unauthenticated") {
-    throw new McpAuthRequiredError(requiredScope);
+    throw unauthenticatedError;
   }
   if (client.status === "insufficient_scope") {
     throw new McpAuthRequiredError(requiredScope, 403, "insufficient_scope");
@@ -478,21 +490,57 @@ async function requireMcpUser(
   };
 }
 
-function mcpAuthChallenge(baseUrl: string, error: McpAuthRequiredError) {
-  return `Bearer resource_metadata="${baseUrl}/.well-known/oauth-protected-resource", scope="${error.scope}"${error.reason === "insufficient_scope" ? ', error="insufficient_scope"' : ""}`;
+function mcpAuthErrorDetails(error: McpAuthRequiredError) {
+  switch (error.reason) {
+    case "invalid_token":
+      return {
+        code: "invalid_token",
+        description:
+          "The OAuth token is invalid or expired. Connect Daylily Catalog again.",
+      };
+    case "insufficient_scope":
+      return {
+        code: "insufficient_scope",
+        description: `Grant ${error.scope} access to continue.`,
+      };
+    case "wrong_client":
+      return {
+        code: "insufficient_scope",
+        description:
+          "This OAuth client is not allowed to use the Daylily Catalog MCP server.",
+      };
+    case "unauthenticated":
+      return {
+        code: "insufficient_scope",
+        description: "Connect Daylily Catalog to continue.",
+      };
+  }
+}
+
+function mcpHttpAuthChallenge(baseUrl: string, error: McpAuthRequiredError) {
+  const challenge = `Bearer resource_metadata="${baseUrl}${MCP_RESOURCE_METADATA_PATH}", scope="${error.scope}"`;
+  if (error.reason === "unauthenticated") return challenge;
+  const details = mcpAuthErrorDetails(error);
+  return `${challenge}, error="${details.code}", error_description="${details.description}"`;
 }
 
 function mcpAuthRequiredResult(baseUrl: string, error: McpAuthRequiredError) {
+  const details = mcpAuthErrorDetails(error);
+  const challenge = mcpHttpAuthChallenge(baseUrl, error);
   return {
     content: [
       {
         type: "text",
-        text: "Authentication required: connect Daylily Catalog to continue.",
+        text: details.description,
       },
     ],
     isError: true,
     _meta: {
-      "mcp/www_authenticate": [mcpAuthChallenge(baseUrl, error)],
+      "mcp/www_authenticate": [
+        error.reason === "unauthenticated"
+          ? `${challenge}, error="${details.code}", error_description="${details.description}"`
+          : challenge,
+      ],
     },
   };
 }
@@ -990,7 +1038,7 @@ export function getMcpServerCard(baseUrl: string) {
     transports: [
       {
         type: "streamable-http",
-        url: `${baseUrl}/api/mcp/server`,
+        url: `${baseUrl}${MCP_RESOURCE_PATH}`,
       },
     ],
     capabilities: {
@@ -1004,7 +1052,7 @@ export function getMcpServerCard(baseUrl: string) {
     },
     authentication: {
       type: "oauth2",
-      protectedResourceMetadata: `${baseUrl}/.well-known/oauth-protected-resource`,
+      protectedResourceMetadata: `${baseUrl}${MCP_RESOURCE_METADATA_PATH}`,
       note: "Public data and help tools do not require authentication. Member reads require catalog:read scope. Member writes require catalog:write scope and active membership.",
     },
   };
@@ -1123,7 +1171,7 @@ export async function handleMcpRequest(request: Request) {
           status: error.status,
           headers: {
             "Cache-Control": "no-store",
-            "WWW-Authenticate": mcpAuthChallenge(baseUrl, error),
+            "WWW-Authenticate": mcpHttpAuthChallenge(baseUrl, error),
           },
         },
       );

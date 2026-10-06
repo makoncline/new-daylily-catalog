@@ -60,6 +60,19 @@ describe("seller funnel proxy protection", () => {
     ({ proxy } = await import("@/proxy"));
   });
 
+  it("allows MCP resource discovery without Clerk authentication or public HTML caching", async () => {
+    const response = await proxy(
+      new NextRequest(
+        "https://daylilycatalog.com/.well-known/oauth-protected-resource/api/mcp/server",
+      ),
+      {} as Parameters<NextMiddleware>[1],
+    );
+
+    expect(response).toBeUndefined();
+    expect(authMock).not.toHaveBeenCalled();
+    expect(redirectToSignInMock).not.toHaveBeenCalled();
+  });
+
   it("adds Cloudflare-only cache directives to public HTML document routes", async () => {
     const middlewareEvent = {} as Parameters<NextMiddleware>[1];
     const publicDocumentUrls = [

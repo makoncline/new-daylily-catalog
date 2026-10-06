@@ -5,6 +5,7 @@ import {
 } from "@/lib/agent-readiness";
 import { GET as getOAuthAuthorizationServer } from "@/app/.well-known/oauth-authorization-server/route";
 import { GET as getOAuthProtectedResource } from "@/app/.well-known/oauth-protected-resource/route";
+import { GET as getMcpOAuthProtectedResource } from "@/app/.well-known/oauth-protected-resource/api/mcp/server/route";
 
 const ORIGINAL_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
 const TEST_CLERK_HOST = "agent-ready-test.clerk.accounts.dev";
@@ -71,6 +72,25 @@ describe("OAuth metadata", () => {
     await expect(protectedResourceResponse.json()).resolves.toMatchObject({
       resource: "https://daylilycatalog.com",
       authorization_servers: [`https://${TEST_CLERK_HOST}`],
+    });
+  });
+
+  test("serves MCP metadata with the endpoint identity and only its tool scopes", async () => {
+    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = TEST_PUBLISHABLE_KEY;
+    const response = getMcpOAuthProtectedResource(
+      new Request(
+        "https://daylilycatalog.com/.well-known/oauth-protected-resource/api/mcp/server",
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    await expect(response.json()).resolves.toEqual({
+      resource: "https://daylilycatalog.com/api/mcp/server",
+      authorization_servers: [`https://${TEST_CLERK_HOST}`],
+      scopes_supported: ["catalog:read", "catalog:write"],
+      bearer_methods_supported: ["header"],
+      resource_documentation: "https://daylilycatalog.com/llms-full.txt",
     });
   });
 });

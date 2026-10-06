@@ -483,6 +483,7 @@ describe("read-only MCP server", () => {
     expect(response.headers.get("www-authenticate")).toContain(
       'scope="catalog:read"',
     );
+    expect(response.headers.get("www-authenticate")).not.toContain("error=");
     expect(body).toMatchObject({
       id: 2,
       result: {
@@ -490,7 +491,7 @@ describe("read-only MCP server", () => {
         _meta: {
           "mcp/www_authenticate": [
             expect.stringContaining(
-              'resource_metadata="https://daylilycatalog.com/.well-known/oauth-protected-resource"',
+              'resource_metadata="https://daylilycatalog.com/.well-known/oauth-protected-resource/api/mcp/server"',
             ),
           ],
         },
@@ -499,7 +500,47 @@ describe("read-only MCP server", () => {
     expect(body.result._meta["mcp/www_authenticate"][0]).toContain(
       'scope="catalog:read"',
     );
+    expect(body.result._meta["mcp/www_authenticate"][0]).toContain(
+      'error="insufficient_scope"',
+    );
+    expect(body.result._meta["mcp/www_authenticate"][0]).toContain(
+      'error_description="Connect Daylily Catalog to continue."',
+    );
     expect(mocks.authenticateRequest).toHaveBeenCalledTimes(1);
+    expect(mocks.memberDb.user.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("returns an invalid-token challenge before member reads for a rejected bearer token", async () => {
+    mocks.authenticateRequest.mockResolvedValueOnce({
+      toAuth: () => ({ isAuthenticated: false, userId: null }),
+    } as never);
+    const { handleMcpRequest } = await import("@/server/mcp/read-only-mcp");
+    const response = await handleMcpRequest(
+      new Request("https://daylilycatalog.com/api/mcp/server", {
+        headers: { Authorization: "Bearer rejected-test-token" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 24,
+          method: "tools/call",
+          params: { name: "daylily.get_profile", arguments: {} },
+        }),
+        method: "POST",
+      }),
+    );
+
+    expect(response.status).toBe(401);
+    expect(response.headers.get("www-authenticate")).toContain(
+      'error="invalid_token"',
+    );
+    const body = await response.json();
+    expect(body.result.isError).toBe(true);
+    expect(body.result._meta["mcp/www_authenticate"][0]).toBe(
+      response.headers.get("www-authenticate"),
+    );
+    expect(body.result._meta["mcp/www_authenticate"][0]).toContain(
+      'error_description="The OAuth token is invalid or expired.',
+    );
+    expect(mocks.memberDb.user.findUnique).not.toHaveBeenCalled();
   });
 
   it("rejects private catalog tools when OAuth scope is missing", async () => {
@@ -531,6 +572,9 @@ describe("read-only MCP server", () => {
     expect(response.status).toBe(403);
     expect(response.headers.get("www-authenticate")).toContain(
       'error="insufficient_scope"',
+    );
+    expect(response.headers.get("www-authenticate")).toContain(
+      'error_description="Grant catalog:read access to continue."',
     );
     await expect(response.json()).resolves.toMatchObject({
       id: 22,
@@ -568,6 +612,9 @@ describe("read-only MCP server", () => {
     );
 
     expect(response.status).toBe(403);
+    expect(response.headers.get("www-authenticate")).toContain(
+      'error_description="This OAuth client is not allowed to use the Daylily Catalog MCP server."',
+    );
     await expect(response.json()).resolves.toMatchObject({
       id: 23,
       result: {
@@ -1600,7 +1647,7 @@ describe("read-only MCP server", () => {
       ],
       authentication: {
         protectedResourceMetadata:
-          "https://daylilycatalog.com/.well-known/oauth-protected-resource",
+          "https://daylilycatalog.com/.well-known/oauth-protected-resource/api/mcp/server",
       },
     });
   });

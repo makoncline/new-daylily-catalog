@@ -45,6 +45,9 @@ export const AGENT_DISCOVERY_HEADERS = {
   "Cache-Control": "no-store",
 } as const;
 
+export const MCP_RESOURCE_PATH = "/api/mcp/server";
+export const MCP_RESOURCE_METADATA_PATH = `/.well-known/oauth-protected-resource${MCP_RESOURCE_PATH}`;
+
 const OAUTH_SCOPES_SUPPORTED = [
   "email",
   "offline_access",
@@ -130,6 +133,14 @@ export function getOAuthProtectedResourceMetadata(baseUrl: string) {
     scopes_supported: OAUTH_PROTECTED_RESOURCE_SCOPES,
     bearer_methods_supported: ["header"],
     resource_documentation: `${baseUrl}/llms-full.txt`,
+  };
+}
+
+export function getMcpOAuthProtectedResourceMetadata(baseUrl: string) {
+  return {
+    ...getOAuthProtectedResourceMetadata(baseUrl),
+    resource: `${baseUrl}${MCP_RESOURCE_PATH}`,
+    scopes_supported: ["catalog:read", "catalog:write"],
   };
 }
 
