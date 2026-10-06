@@ -836,6 +836,7 @@ export const ATLAS_FLOWS = [
         "Reject member MCP requests before database reads when the token, scope, or client is not allowed.",
         "Allow confirmed non-Pro remote writes within dashboard limits; reject unconfirmed billing and keep destructive MCP actions in dashboard approval.",
         "Publish MCP endpoint resource metadata and complete tool-level OAuth challenges.",
+        "Store member versions as integer milliseconds and preserve stale-write rejection.",
       ],
     },
     tests: {
@@ -843,6 +844,10 @@ export const ATLAS_FLOWS = [
       integration: [
         testRef("integration", "tests/oauth-metadata.test.ts"),
         testRef("integration", "tests/mcp-read-only.test.ts"),
+        testRef(
+          "integration",
+          "tests/member-version-storage.integration.test.ts",
+        ),
         testRef(
           "integration",
           "tests/member-non-pro-access.integration.test.ts",
@@ -982,6 +987,7 @@ export const ATLAS_FLOWS = [
         },
       ],
       invariants: [
+        "Store member versions as integer milliseconds and preserve stale-write rejection.",
         "Scope listing writes to the authenticated user on the server.",
         "Enforce the same non-Pro create cap for dashboard, member API, and MCP callers. Reuse the confirmed tier within each remote request.",
         "Validate before save and keep the form open when save fails.",
@@ -993,6 +999,10 @@ export const ATLAS_FLOWS = [
     tests: {
       unit: [testRef("unit", "tests/listings-search-normalization.test.tsx")],
       integration: [
+        testRef(
+          "integration",
+          "tests/member-version-storage.integration.test.ts",
+        ),
         testRef(
           "integration",
           "tests/dashboard-db-listing-entitlements.integration.test.ts",
@@ -1496,6 +1506,7 @@ export const ATLAS_FLOWS = [
         },
       ],
       invariants: [
+        "Store member versions as integer milliseconds and preserve stale-write rejection.",
         "Save list fields through the editor; write membership changes at once and mark the parent for commit.",
         "Enforce the same non-Pro list cap for dashboard, member API, and MCP callers, including safe create retries.",
         "Keep drafts after rejected saves and canceled browser history changes.",
@@ -1505,6 +1516,10 @@ export const ATLAS_FLOWS = [
     tests: {
       unit: [testRef("unit", "tests/manage-list-columns.test.ts")],
       integration: [
+        testRef(
+          "integration",
+          "tests/member-version-storage.integration.test.ts",
+        ),
         testRef("integration", "tests/add-listings-combobox.test.tsx"),
         testRef(
           "integration",
