@@ -66,7 +66,7 @@ function required<T>(value: T | null | undefined): T {
 }
 
 describe.skipIf(!enabled)("remote member MCP with real local SQLite", () => {
-  it("enforces write scope and membership, applies safe writes once, and prepares approval links", async () => {
+  it("enforces write scope and ownership, permits non-Pro edits, and prepares approval links", async () => {
     process.env.DATABASE_URL = `file:${databasePath}`;
     process.env.TURSO_DATABASE_AUTH_TOKEN = "";
     process.env.TURSO_EMBEDDED_REPLICA_URL = "";
@@ -689,16 +689,18 @@ describe.skipIf(!enabled)("remote member MCP with real local SQLite", () => {
       where: { key: `stripe:customer:${owner!.stripeCustomerId}` },
       data: { value: JSON.stringify({ status: "none" }) },
     });
-    const noMembership = await call("daylily.update_list", {
-      listId,
-      expectedUpdatedAt: required(
-        changedList.result?.structuredContent?.list?.updatedAt,
-      ),
-      title: "Denied",
+    const currentList = await db.list.findUniqueOrThrow({
+      where: { id: listId },
     });
-    expect(noMembership.error?.message).toContain("active membership");
+    const nonProEdit = await call("daylily.update_list", {
+      listId,
+      expectedUpdatedAt: currentList.updatedAt.toISOString(),
+      title: "Non-Pro edit",
+    });
+    expect(nonProEdit.error).toBeUndefined();
+    expect(nonProEdit.result?.isError).not.toBe(true);
     expect((await db.list.findUnique({ where: { id: listId } }))?.title).toBe(
-      listArgs.title,
+      "Non-Pro edit",
     );
 
     await expect(
@@ -800,6 +802,7 @@ describe.skipIf(!enabled)("remote member MCP with real local SQLite", () => {
           { listingId, cultivarReferenceId: cultivar.id },
           authUser,
           "mcp_member_write_test",
+          true,
         ),
       ),
     );

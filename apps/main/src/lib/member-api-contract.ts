@@ -72,13 +72,14 @@ const errorResponses = {
   "400": { description: "Invalid procedure input." },
   "401": { description: "Missing or rejected OAuth bearer token." },
   "403": {
-    description: "OAuth scope, membership, or ownership denied.",
+    description: "OAuth scope, account limit, or ownership denied.",
   },
   "404": { description: "Operation or owned record not found." },
   "409": { description: "The record changed since it was read." },
   "412": { description: "The current record does not meet a precondition." },
   "413": { description: "Mutation request body is too large." },
   "429": { description: "The per-client member request budget is exhausted." },
+  "503": { description: "Account tier or local public data is unavailable." },
 } as const;
 
 export function getMemberOpenApiPaths(
@@ -150,8 +151,8 @@ export function getMemberOpenApiPaths(
         tags: ["Member"],
         summary,
         description: isManage
-          ? "Requires a verified Clerk OAuth bearer token with catalog:manage scope from an allowed member API client, plus a confirmed active membership. The client must present its own review and approval UI before calling this operation. The remote MCP exposes dashboard review links instead."
-          : "Requires a verified Clerk OAuth bearer token from an allowed client with catalog:write scope and a confirmed active membership. Send one procedure input in the json property. Creates require a retry ID.",
+          ? `Requires a verified Clerk OAuth bearer token with catalog:manage scope from an allowed member API client, plus a confirmed account tier. Account tier limits apply.${name === "profile.updateWithUrl" ? " Custom profile URLs require Pro membership." : ""} The client must present its own review and approval UI before calling this operation. The remote MCP exposes dashboard review links instead.`
+          : "Requires a verified Clerk OAuth bearer token from an allowed client with catalog:write scope and a confirmed account tier. Account tier limits apply. Send one procedure input in the json property. Creates require a retry ID.",
         security: [{ memberOAuthBearer: [] }],
         requestBody: {
           required: true,

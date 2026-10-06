@@ -54,7 +54,7 @@ export interface TRPCContext {
 }
 
 export interface TRPCInternalContext extends TRPCContext {
-  /** Set only after the bearer or MCP entrypoint confirms an active membership. */
+  /** Confirmed tier from bearer or MCP admission: true = Pro, false = non-Pro, undefined = unresolved. */
   _confirmedActiveMembership?: boolean;
   /**
    * Auth sentinel:

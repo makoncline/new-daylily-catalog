@@ -554,12 +554,9 @@ async function callTool(context: McpContext, name: string, input: unknown) {
     const subscription = await getStripeSubscriptionResult(
       user.stripeCustomerId,
     );
-    if (
-      !subscription.confirmed ||
-      !hasActiveSubscription(subscription.subscription.status)
-    ) {
+    if (!subscription.confirmed) {
       throw new McpError(
-        "An active membership is required for dashboard writes.",
+        "Membership status could not be confirmed. Try again.",
         -32003,
       );
     }
@@ -575,6 +572,7 @@ async function callTool(context: McpContext, name: string, input: unknown) {
           input,
           authUser,
           user.oauthClientId,
+          hasActiveSubscription(subscription.subscription.status),
         ),
       );
     } catch (error) {
@@ -1053,7 +1051,7 @@ export function getMcpServerCard(baseUrl: string) {
     authentication: {
       type: "oauth2",
       protectedResourceMetadata: `${baseUrl}${MCP_RESOURCE_METADATA_PATH}`,
-      note: "Public data and help tools do not require authentication. Member reads require catalog:read scope. Member writes require catalog:write scope and active membership.",
+      note: "Public data and help tools do not require authentication. Member reads require catalog:read scope. Member writes require catalog:write scope and a confirmed account tier. Non-Pro account limits apply.",
     },
   };
 }

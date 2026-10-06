@@ -102,9 +102,10 @@ export const dashboardDbListingRouter = createTRPCRouter({
         }
       }
 
-      const subscriptionResult = ctx._confirmedActiveMembership
-        ? null
-        : await getStripeSubscriptionResult(ctx.user.stripeCustomerId);
+      const subscriptionResult =
+        ctx._confirmedActiveMembership === undefined
+          ? await getStripeSubscriptionResult(ctx.user.stripeCustomerId)
+          : null;
 
       return ctx.db.$transaction(async (tx) => {
         const existingImportedRows = await tx.listing.findMany({
@@ -157,8 +158,9 @@ export const dashboardDbListingRouter = createTRPCRouter({
         );
 
         if (
-          subscriptionResult?.confirmed &&
-          !hasActiveSubscription(subscriptionResult.subscription.status)
+          ctx._confirmedActiveMembership === false ||
+          (subscriptionResult?.confirmed &&
+            !hasActiveSubscription(subscriptionResult.subscription.status))
         ) {
           const existingListingsAtLimit = await tx.listing.findMany({
             where: { userId: ctx.user.id },
@@ -239,9 +241,10 @@ export const dashboardDbListingRouter = createTRPCRouter({
       const id = input.requestId
         ? memberCreateId("listing", ctx.user.id, input.requestId)
         : undefined;
-      const subscriptionResult = ctx._confirmedActiveMembership
-        ? null
-        : await getStripeSubscriptionResult(ctx.user.stripeCustomerId);
+      const subscriptionResult =
+        ctx._confirmedActiveMembership === undefined
+          ? await getStripeSubscriptionResult(ctx.user.stripeCustomerId)
+          : null;
       if (input.cultivarReferenceId) {
         const cultivarReference = await ctx.db.cultivarReference.findUnique({
           where: { id: input.cultivarReferenceId },
@@ -287,8 +290,9 @@ export const dashboardDbListingRouter = createTRPCRouter({
           }
         }
         if (
-          subscriptionResult?.confirmed &&
-          !hasActiveSubscription(subscriptionResult.subscription.status)
+          ctx._confirmedActiveMembership === false ||
+          (subscriptionResult?.confirmed &&
+            !hasActiveSubscription(subscriptionResult.subscription.status))
         ) {
           const existingListingsAtLimit = await tx.listing.findMany({
             where: { userId: ctx.user.id },

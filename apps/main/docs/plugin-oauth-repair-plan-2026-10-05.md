@@ -1,6 +1,7 @@
 # Plugin OAuth repair plan
 
-Date: 2026-10-05. Status: work in progress.
+Date: 2026-10-05. Status: production connection and scan passed; full review
+cases remain open.
 
 ## Goal
 
@@ -144,7 +145,13 @@ that the existing public record can use it.
       private Daylily CIMD Automatic Dev test requests only catalog:read and
       offline_access, with OIDC off. The owner approved its grant. On resume,
       ChatGPT showed the connected account. Both bounded member reads passed.
-- [ ] Complete hosted authentication, scan, and review proof.
+- [x] Complete production hosted authentication and a fresh authenticated
+      scan on the original public record. It shows Configured and Account
+      connected. All 26 tools are present, with no scan findings.
+- [x] Make a narrated walkthrough draft. Label current production captures
+      and earlier local recordings. See [walkthrough status](plugin-walkthrough-2026-10-05.md).
+- [ ] Complete all production reviewer cases and the submission recording.
+      Keep the reviewer non-Pro until the private-catalog requirement is resolved.
 - [ ] Complete final test cleanup after the original plugin passes production
       connection, tool discovery, and review checks. The owner requested this
       cleanup. Use the checklist below.
@@ -209,7 +216,8 @@ The owner approved production configuration and the release. Final legal
 acceptance and submission remain owner steps. No paid service is authorized.
 
 Production Clerk now has the exact ChatGPT client metadata URL registered
-with `catalog:read`, `catalog:write`, and `offline_access`. CIMD publication
+with `catalog:read`, `catalog:write`, `offline_access`, `openid`, `email`, and
+`profile`. The owner specifically approved the identity scopes. CIMD publication
 is on. Admission is pre-registered clients only. DCR is off. PKCE is on.
 Opaque access tokens and Include Audience off are unchanged. The saved
 fallback scopes for a client that omits `scope` are `catalog:read` and
@@ -217,12 +225,33 @@ fallback scopes for a client that omits `scope` are `catalog:read` and
 has no registration endpoint. The Hobby workspace required no upgrade.
 
 The server preparation check found the app healthy at `509bbe0e`. Its saved
-and live MCP client ID was `udNP759ccyxQ5ayX`; the member API OAuth allowlist
-was unset. The authorized runtime change replaces the MCP client ID with
-`https://chatgpt.com/oauth/client.json` for the next normal deploy. Keep the
-member API allowlist unchanged. The saved `.env` is preserved by config sync
-and loaded when the container is recreated. This repair has no database
-schema changes.
+and live MCP client ID was the former predefined client; the member API OAuth
+allowlist was unset. The authorized release is now deployed at
+`17ccbdac26f26911aad818363c54bb80891e625c`. The live client ID is
+`https://chatgpt.com/oauth/client.json`. The member API allowlist remains
+unset. The deployed MCP contract checks, normal dashboard reload, and public
+listing check passed. This repair has no database schema changes.
+
+The portal's old account-connection bootstrap still requested `catalog:manage`
+after the anonymous tool scan passed. The supported Connect drawer's
+Reconnect and Continue controls refreshed the setup. The owner-approved
+reviewer grant completed with `openid`, `email`, `offline_access`,
+`catalog:read`, and `catalog:write`. The hosted flow uses the site-root
+resource. The original public record now shows Configured and Account
+connected. A fresh authenticated scan has no findings.
+
+The dedicated reviewer remains non-Pro. No subscription was created. The owner
+accepts its direct profile link. Keep it out of public browsing and search,
+and keep sample listings hidden. Limited non-Pro MCP and member API writes
+are implemented locally with the existing dashboard limits. Production still
+has the active-membership write gate until this change is deployed.
+Full hosted write cases, photo-order cases, the current recording, and
+submission remain open. See [non-Pro access](non-pro-plugin-review-research-2026-10-06.md).
+The older private Review connection requested its retired
+predefined client; its different grant was canceled and it remains unlinked.
+After Refresh tools, a new connection attempt still requested that client.
+The consent was canceled again. Do not repeat Refresh tools to repair this
+client binding or grant access to the retired client.
 
 ## Final test cleanup
 

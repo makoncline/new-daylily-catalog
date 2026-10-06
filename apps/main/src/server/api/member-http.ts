@@ -230,15 +230,22 @@ export async function handleMemberHttpRequest(request: Request, path: string) {
     return denied(403, "Member account not found.");
   }
 
+  let confirmedActiveMembership: boolean | undefined;
   if (isMutationPath(path)) {
     const subscription = await getStripeSubscriptionResult(
       user.stripeCustomerId,
     );
-    if (
-      !subscription.confirmed ||
-      !hasActiveSubscription(subscription.subscription.status)
-    ) {
-      return denied(403, "An active membership is required for writes.");
+    if (!subscription.confirmed) {
+      return denied(
+        503,
+        "Membership status could not be confirmed. Try again.",
+      );
+    }
+    confirmedActiveMembership = hasActiveSubscription(
+      subscription.subscription.status,
+    );
+    if (path === "profile.updateWithUrl" && !confirmedActiveMembership) {
+      return denied(403, "Upgrade to Pro to customize your profile URL.");
     }
   }
 
@@ -250,7 +257,7 @@ export async function handleMemberHttpRequest(request: Request, path: string) {
     oauthScope: requiredScope,
   });
   context._authUser = user;
-  if (isMutationPath(path)) context._confirmedActiveMembership = true;
+  context._confirmedActiveMembership = confirmedActiveMembership;
   const response = await fetchRequestHandler({
     endpoint: "/api/v1/member",
     req: checkedRequest,

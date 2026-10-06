@@ -2,8 +2,11 @@
 
 This folder builds the portable package for the
 [remaining Daylily Catalog draft](https://platform.openai.com/plugins/manage/plugin_asdk_app_6ac30d5ff6508191b3d2647ec281fa3e).
-The portal has version `1.2.0`. Metadata checks passed. The domain is verified.
-OAuth setup and live tool discovery are incomplete.
+The portal has version `1.2.0`. Production OAuth setup passed on 2026-10-05.
+The original draft shows Configured and Account connected. Its fresh
+authenticated scan found all 26 tools with no findings. A narrated walkthrough
+draft is complete. Full production reviewer cases and the submission recording
+remain incomplete. See [walkthrough status](../../apps/main/docs/plugin-walkthrough-2026-10-05.md).
 
 ## Build and test
 
@@ -26,48 +29,51 @@ name as `daylily-catalog`. Update this existing draft. Public submission does
 not accept `apps` or `.app.json` references. Keep tokens, client secrets,
 reviewer credentials, and member data outside the ZIP and Git.
 
-## OAuth setup blocker
+## OAuth setup
 
 The endpoint is `https://daylilycatalog.com/api/mcp/server`.
 The issuer is `https://clerk.daylilycatalog.com`.
 The intended MCP client ID is `https://chatgpt.com/oauth/client.json`. It is
 a public metadata URL. Clerk admits only pre-registered clients. The client
-has `catalog:read`, `catalog:write`, and `offline_access`. Default scopes are
-read and offline access. DCR stays off and PKCE stays on.
+can request `catalog:read`, `catalog:write`, `offline_access`, `openid`,
+`email`, and `profile`. The owner approved these scopes. Default scopes are
+read and offline access. DCR stays off and PKCE stays on. The production app
+uses this exact client URL for its MCP client check.
 
-The remaining draft's Connect drawer shows OAuth and Authorization unavailable.
-It has no client ID input. The reported save error is:
+CIMD publication resolved the public draft's missing client-ID setup.
+Complete hosted setup through the portal's Connect drawer. Use Reconnect
+after OAuth discovery changes. A tool Rescan alone did not refresh old
+account-connection scopes. Reconnect and Continue reached the correct
+reviewer consent. The actual grant requested `openid`, `email`,
+`offline_access`, `catalog:read`, and `catalog:write`. It did not request
+`catalog:manage`. The portal uses the site-root resource in this flow.
+The server also publishes the endpoint-specific resource metadata at
+`/.well-known/oauth-protected-resource/api/mcp/server`.
 
-> OAuth client ID is required when using pre-defined OAuth client credentials.
+Keep OAuth credentials out of the ZIP. The portable MCP 1.0.0 schema has no
+OAuth client-ID field. Do not repeat unsupported auth-field uploads.
+Check the saved client, exact consent, Configured status, account connection,
+and a fresh scan. A verified domain or clean anonymous scan is insufficient.
 
-The portable MCP 1.0.0 schema has no OAuth or auth extension field. OpenAI
-instructs builders to complete hosted setup in the dashboard. Codex separately
-documents `oauth.clientId` in `.mcp.json`. Earlier Codex ZIP trials retained that
-field but exposed no hosted Connect action. Do not repeat those uploads as a
-portable-package fix.
-
-The submission guide's setup screenshot contains a server-level
-`extensions.com.openai.auth` object. Its shape is not defined in the text, and
-its only shown field is `type: "oauth"`. The linked portable schema rejects
-server-level extensions. This is a documentation and setup gap. No supported
-client-ID import path was found on 2026-10-05.
-
-A metadata check, verified domain, or accepted ZIP does not prove a connection.
-Complete the hosted client setup, authenticate, and verify discovered tools
-and a current scan before reporting readiness. Keep the current production
-permission checks. The approved restricted CIMD path passed native ChatGPT development OAuth
-and bounded member reads. The existing public record still needs live proof.
-
-The private `Daylily Catalog Review` connection in ChatGPT is separate. Earlier
-checks showed anonymous reads working there. This does not prove that the public
-submission is connected. Inspect the exact consent before a new member grant.
+The older private `Daylily Catalog Review` test connection requested the
+retired predefined client. Its different grant was canceled. It remains
+unlinked. Refresh tools did not change that client binding: a new connection
+attempt still requested the retired client and was canceled. It does not
+prove current member reads. The approved development
+CIMD connections previously passed bounded member reads against local SQLite.
 
 ## Review preparation
 
-1. Resolve the hosted client setup on the remaining draft. Verify tool discovery.
+1. Preserve the working hosted setup on the original draft. Recheck its
+   account connection and tool scan after a relevant change.
 2. Use the dedicated reviewer account with password sign-in and sample data.
    The prepared cases need member permissions, listings, lists, notes, and
-   photos. Enter credentials only in private Review details.
+   photos. Enter credentials only in private Review details. The reviewer
+   remains non-Pro and uses the normal limits: 25 listings and one list.
+   The owner accepts its direct profile link. Keep it out of public browsing
+   and search, and keep the sample listings hidden. Limited non-Pro MCP and
+   member API writes are implemented locally. Deploy and run the hosted
+   review cases before claiming that the positive cases pass.
 3. Run all cases in `review-cases.json` through the connected plugin. Record a
    current walkthrough and add its accessible URL to review information.
    [Earlier local recordings](../../apps/main/docs/member-mcp-feature-proof-2026-09-30.md)
