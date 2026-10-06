@@ -127,6 +127,7 @@ export async function callMemberWriteTool(
   input: unknown,
   authUser: NonNullable<TRPCInternalContext["_authUser"]>,
   oauthClientId: string,
+  confirmedActiveMembership: boolean,
 ) {
   const caller = createCaller({
     db: context.memberDb,
@@ -136,7 +137,7 @@ export async function callMemberWriteTool(
     oauthClientId,
     oauthScope: "catalog:write",
     mcpToolName: name,
-    _confirmedActiveMembership: true,
+    _confirmedActiveMembership: confirmedActiveMembership,
     _authUser: authUser,
   });
 

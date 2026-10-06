@@ -102,9 +102,10 @@ export const dashboardDbListRouter = createTRPCRouter({
       const id = input.requestId
         ? memberCreateId("list", ctx.user.id, input.requestId)
         : undefined;
-      const subscriptionResult = ctx._confirmedActiveMembership
-        ? null
-        : await getStripeSubscriptionResult(ctx.user.stripeCustomerId);
+      const subscriptionResult =
+        ctx._confirmedActiveMembership === undefined
+          ? await getStripeSubscriptionResult(ctx.user.stripeCustomerId)
+          : null;
 
       return ctx.db.$transaction(async (tx) => {
         if (id && input.requestId) {
@@ -126,13 +127,15 @@ export const dashboardDbListRouter = createTRPCRouter({
             if (existing?.userId === ctx.user.id) return existing;
             throw new TRPCError({
               code: "CONFLICT",
-              message: "This create request already completed. The list was deleted.",
+              message:
+                "This create request already completed. The list was deleted.",
             });
           }
         }
         if (
-          subscriptionResult?.confirmed &&
-          !hasActiveSubscription(subscriptionResult.subscription.status)
+          ctx._confirmedActiveMembership === false ||
+          (subscriptionResult?.confirmed &&
+            !hasActiveSubscription(subscriptionResult.subscription.status))
         ) {
           const existingLists = await tx.list.findMany({
             where: { userId: ctx.user.id },

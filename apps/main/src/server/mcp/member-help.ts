@@ -1,3 +1,5 @@
+import { APP_CONFIG } from "@/config/constants";
+
 interface HelpEntry {
   id: string;
   title: string;
@@ -7,6 +9,13 @@ interface HelpEntry {
 }
 
 const HELP_ENTRIES: HelpEntry[] = [
+  {
+    id: "account-limits",
+    title: "Account limits",
+    answer: `Non-Pro accounts can manage their own catalog through this plugin within the dashboard limits: ${APP_CONFIG.LISTING.FREE_TIER_MAX_LISTINGS} listings and ${APP_CONFIG.LIST.FREE_TIER_MAX_LISTS} list. Hidden listings count toward the limit. The normal photo limits apply to all accounts. Destructive actions require dashboard approval.`,
+    path: "/dashboard",
+    terms: ["limit", "quota", "free", "non-pro", "tier", "account", "plan"],
+  },
   {
     id: "listing-visibility",
     title: "Listing visibility",

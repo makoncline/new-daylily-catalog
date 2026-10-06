@@ -77,7 +77,7 @@ function tool(
   return {
     name: `daylily.${name}`,
     title,
-    description: `${description} Requires an active membership and the catalog:write OAuth scope.`,
+    description: `${description} Requires a connected account and the catalog:write OAuth scope. Account tier limits apply.`,
     inputSchema: {
       type: "object",
       additionalProperties: false,
@@ -105,7 +105,7 @@ export const memberWriteMcpTools: McpTool[] = [
   tool(
     "create_listing",
     "Create Listing",
-    "Create one listing. Set hidden=true to keep it private or hidden=false to publish it. Supply a unique requestId and reuse it when retrying the same creation.",
+    `Create one listing. Non-Pro accounts can have up to ${APP_CONFIG.LISTING.FREE_TIER_MAX_LISTINGS} listings, including hidden listings. Set hidden=true to keep it private or hidden=false to publish it. Supply a unique requestId and reuse it when retrying the same creation.`,
     {
       requestId: { type: "string", format: "uuid" },
       title,
@@ -135,7 +135,7 @@ export const memberWriteMcpTools: McpTool[] = [
   tool(
     "create_list",
     "Create List",
-    "Create one list. Supply a unique requestId and reuse it when retrying the same creation.",
+    `Create one list. Non-Pro accounts can have up to ${APP_CONFIG.LIST.FREE_TIER_MAX_LISTS} list. Supply a unique requestId and reuse it when retrying the same creation.`,
     {
       requestId: { type: "string", format: "uuid" },
       title,

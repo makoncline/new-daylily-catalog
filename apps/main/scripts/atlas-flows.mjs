@@ -821,6 +821,10 @@ export const ATLAS_FLOWS = [
           path: "src/server/mcp/read-only-mcp.ts",
         },
         {
+          label: "Member API authentication and account tier",
+          path: "src/server/api/member-http.ts",
+        },
+        {
           label: "MCP OAuth resource discovery",
           path: "src/app/.well-known/oauth-protected-resource/api/mcp/server/route.ts",
         },
@@ -830,6 +834,7 @@ export const ATLAS_FLOWS = [
         "Include child content and media changes in the parent commit.",
         "Ignore late URL validation results and keep drafts after rejected writes.",
         "Reject member MCP requests before database reads when the token, scope, or client is not allowed.",
+        "Allow confirmed non-Pro remote writes within dashboard limits; reject unconfirmed billing and keep destructive MCP actions in dashboard approval.",
         "Publish MCP endpoint resource metadata and complete tool-level OAuth challenges.",
       ],
     },
@@ -838,6 +843,10 @@ export const ATLAS_FLOWS = [
       integration: [
         testRef("integration", "tests/oauth-metadata.test.ts"),
         testRef("integration", "tests/mcp-read-only.test.ts"),
+        testRef(
+          "integration",
+          "tests/member-non-pro-access.integration.test.ts",
+        ),
         testRef("integration", "tests/slug-change-confirm-dialog.test.tsx"),
         testRef(
           "integration",
@@ -956,6 +965,10 @@ export const ATLAS_FLOWS = [
           path: "src/server/api/routers/dashboard-db/listing.ts",
         },
         {
+          label: "Remote member write adapter",
+          path: "src/server/mcp/member-write-mcp.ts",
+        },
+        {
           label: "Listing edit form",
           path: "src/components/forms/listing-form.tsx",
         },
@@ -970,6 +983,7 @@ export const ATLAS_FLOWS = [
       ],
       invariants: [
         "Scope listing writes to the authenticated user on the server.",
+        "Enforce the same non-Pro create cap for dashboard, member API, and MCP callers. Reuse the confirmed tier within each remote request.",
         "Validate before save and keep the form open when save fails.",
         "Save listing fields through the editor; write media and membership changes at once and mark the parent for commit.",
         "Keep drafts after rejected saves and canceled browser history changes.",
@@ -982,6 +996,10 @@ export const ATLAS_FLOWS = [
         testRef(
           "integration",
           "tests/dashboard-db-listing-entitlements.integration.test.ts",
+        ),
+        testRef(
+          "integration",
+          "tests/member-non-pro-access.integration.test.ts",
         ),
         testRef("integration", "tests/listings-table-filter-columns.test.tsx"),
         testRef("integration", "tests/create-listing-dialog.test.tsx"),
@@ -1461,6 +1479,10 @@ export const ATLAS_FLOWS = [
           path: "src/app/dashboard/lists/_components/lists-table.tsx",
         },
         {
+          label: "List mutations and account limits",
+          path: "src/server/api/routers/dashboard-db/list.ts",
+        },
+        {
           label: "List editor save and draft state",
           path: "src/components/forms/list-form.tsx",
         },
@@ -1475,6 +1497,7 @@ export const ATLAS_FLOWS = [
       ],
       invariants: [
         "Save list fields through the editor; write membership changes at once and mark the parent for commit.",
+        "Enforce the same non-Pro list cap for dashboard, member API, and MCP callers, including safe create retries.",
         "Keep drafts after rejected saves and canceled browser history changes.",
         "Keep title and actions pinned in the overview; keep selection and title pinned in Manage List.",
       ],
@@ -1483,6 +1506,10 @@ export const ATLAS_FLOWS = [
       unit: [testRef("unit", "tests/manage-list-columns.test.ts")],
       integration: [
         testRef("integration", "tests/add-listings-combobox.test.tsx"),
+        testRef(
+          "integration",
+          "tests/member-non-pro-access.integration.test.ts",
+        ),
         testRef(
           "integration",
           "tests/dashboard-db-list-membership-sync.test.tsx",
