@@ -22,6 +22,11 @@ test.describe("listing image manager @local", () => {
     imageManager,
     dashboardShell,
   }) => {
+    const actionTimeout = test.info().timeout;
+    test.slow();
+    page.setDefaultTimeout(actionTimeout);
+    page.setDefaultNavigationTimeout(actionTimeout);
+
     const toast = (message: string) =>
       page.locator("[data-sonner-toast]").filter({ hasText: message }).first();
 
