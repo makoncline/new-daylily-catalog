@@ -106,7 +106,12 @@ test("member signs in on the native preview URL @preview", async ({
     await expect(page).not.toHaveURL(/\/dashboard/);
     await page.goto("/dashboard");
     await expect(emailInput).toBeVisible();
+    // auth.protect() may use Clerk's hosted development sign-in page. That
+    // is a valid signed-out redirect, not a native-preview domain failure.
+    await expect(page).not.toHaveURL(`${origin}/dashboard`);
+    await page.goto("/sign-in");
+    await expect(emailInput).toBeVisible();
     expect(new URL(page.url()).origin).toBe(origin);
-    expect(new URL(page.url()).pathname).toMatch(/^\/sign-in/);
+    expect(new URL(page.url()).pathname).toBe("/sign-in");
   });
 });
