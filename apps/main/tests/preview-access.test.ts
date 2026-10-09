@@ -34,19 +34,8 @@ describe("preview access cookie", () => {
     expect(dispose).toHaveBeenCalledOnce();
   });
 
-  it("supports the existing preview alias during migration", async () => {
-    const { request, get } = fixture();
-    await preparePreviewAccess(
-      request,
-      "https://abc.deploy-preview.daylilycatalog.com",
-      "test-secret",
-    );
-    expect(get.mock.calls[0]?.[0]).toBe(
-      "https://abc.deploy-preview.daylilycatalog.com/",
-    );
-  });
-
   it.each([
+    "https://abc.deploy-preview.daylilycatalog.com",
     "https://clerk.example.com",
     "https://daylilycatalog.com",
     "https://preview.vercel.app.attacker.example",

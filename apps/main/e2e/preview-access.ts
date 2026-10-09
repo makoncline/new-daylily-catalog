@@ -13,8 +13,7 @@ export async function preparePreviewAccess(
     target.protocol !== "https:" ||
     target.username ||
     target.password ||
-    (!target.hostname.endsWith(".vercel.app") &&
-      !target.hostname.endsWith(".deploy-preview.daylilycatalog.com"))
+    !target.hostname.endsWith(".vercel.app")
   ) {
     throw new Error("Preview bypass requires a trusted HTTPS preview origin.");
   }

@@ -47,6 +47,8 @@ headers, so Clerk and other origins do not receive the bypass header.
 - A profile mismatch after sign-in is distinct from authentication. Inspect the
   existing seeded identity mapping; do not reseed automatically.
 
-The alias-creation workflow remains until this test passes on a native preview.
-Remove that workflow after the proof passes, without changing the production
-host, Clerk instance, seed data, or domain configuration.
+The native preview proof passed on October 9, 2026: all six preview tests,
+including real member sign-in, passed in [run 37952557761](https://github.com/makoncline/new-daylily-catalog/actions/runs/37952557761).
+The per-commit alias-creation workflow is removed. This does not delete existing
+deployments or change the production host, Clerk instance, seed data, or domain
+configuration. Existing preview cleanup is a separate operation.
