@@ -713,6 +713,7 @@ export const ATLAS_FLOWS = [
         testRef("integration", "tests/persisted-subscription-query.test.ts"),
       ],
       e2e: [
+        testRef("e2e", "tests/e2e/preview-sign-in.e2e.ts"),
         testRef("e2e", "tests/e2e/new-user-journey.e2e.ts"),
         testRef("e2e", "tests/e2e/catalog-importer-onboarding.e2e.ts"),
       ],

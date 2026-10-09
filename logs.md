@@ -180,3 +180,5 @@ check current code before applying them.
 - [2026-10-06] SQLite calendar validation: strftime can normalize invalid ISO dates such as February 29 in a non-leap year. For data corrections, compare the date part with date(..., +0 days) before UTC conversion, and test that all table updates stop on failure.
 
 [2026-10-06] Private plugin review video: The hosted submission video field is ZIP-managed. This repository is public. Keep the reviewer video URL outside tracked source and pass it through the required plugin build option. Verify the complete ZIP, original OAuth connection, and authenticated scan after each upload. Do not put reviewer credentials in the ZIP or recording.
+
+[2026-10-09] Native preview sign-in: Clerk development instances support vercel.app previews. Guest smoke tests do not prove member login. Use the existing seeded persona in a real-form @preview test before removing preview aliases. Set Vercel bypass cookies with one native-fetch request without redirects; Playwright API-request errors can retain secret headers in reports. Skip preview-only login checks in local, production, and profile attach runs.
