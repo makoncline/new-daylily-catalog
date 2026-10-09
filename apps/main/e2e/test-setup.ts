@@ -5,7 +5,7 @@ import { preparePreviewAccess } from "./preview-access";
 export const previewTest = base.extend({
   context: async ({ context, baseURL }, use) => {
     await preparePreviewAccess(
-      context.request,
+      context,
       baseURL,
       process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
     );

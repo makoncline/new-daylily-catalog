@@ -8,23 +8,14 @@ const persona = REALISTIC_DATA_PERSONAS.find(
 if (!persona)
   throw new Error("The existing Rolling Oaks test persona is required.");
 
-test.afterEach(async ({ page }, testInfo) => {
-  if (testInfo.status === testInfo.expectedStatus) return;
-  // Report auth state without recording cookies, tokens, user IDs, or emails.
-  const state = await page
-    .evaluate(() => ({
-      path: window.location.pathname,
-      clerkLoaded: Boolean(window.Clerk?.loaded),
-      signedIn: Boolean(window.Clerk?.user),
-      activeSession: Boolean(window.Clerk?.session),
-      catalogLoading: Boolean(document.querySelector('[role="status"]')),
-    }))
-    .catch(() => ({ unavailable: true }));
-  await testInfo.attach("preview-auth-state.json", {
-    body: JSON.stringify(state, null, 2),
-    contentType: "application/json",
-  });
-});
+const previewURL = process.env.BASE_URL;
+test.skip(
+  !previewURL ||
+    !new URL(previewURL).hostname.endsWith(".vercel.app") ||
+    process.env.E2E_PROD_SCENARIO === "1" ||
+    process.env.E2E_PROFILE_SCENARIO === "1",
+  "Member preview sign-in runs only against a native development preview.",
+);
 
 // Use existing seeded data. Do not create users, change memberships, or reseed.
 test("member signs in on the native preview URL @preview", async ({
@@ -32,11 +23,6 @@ test("member signs in on the native preview URL @preview", async ({
   baseURL,
 }) => {
   test.setTimeout(120_000);
-  if (!baseURL || !new URL(baseURL).hostname.endsWith(".vercel.app")) {
-    throw new Error(
-      "This test requires the immutable native Vercel preview URL.",
-    );
-  }
   if (
     !process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.startsWith("pk_test_") ||
     !process.env.CLERK_SECRET_KEY?.startsWith("sk_test_")
@@ -45,7 +31,7 @@ test("member signs in on the native preview URL @preview", async ({
       "Preview sign-in tests require the existing Clerk development keys.",
     );
   }
-  const origin = new URL(baseURL).origin;
+  const origin = new URL(baseURL!).origin;
   const emailInput = page.getByLabel(/email/i).first();
 
   await test.step("load Clerk on the native preview", async () => {
