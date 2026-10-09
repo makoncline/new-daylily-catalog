@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { expect, test } from "../../e2e/test-setup";
 import { readFile } from "node:fs/promises";
 import { mockCultivarMatches } from "./utils/catalog-importer";
 
