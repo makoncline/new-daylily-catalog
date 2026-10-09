@@ -2,7 +2,7 @@
 import { test as base, expect } from "@playwright/test";
 import { preparePreviewAccess } from "./preview-access";
 
-export const test = base.extend({
+export const previewTest = base.extend({
   context: async ({ context, baseURL }, use) => {
     await preparePreviewAccess(
       context.request,
@@ -11,6 +11,9 @@ export const test = base.extend({
     );
     await use(context);
   },
+});
+
+export const test = previewTest.extend({
   page: async ({ page }, use) => {
     await page.addInitScript(() => {
       const css = `

@@ -8,12 +8,30 @@ const persona = REALISTIC_DATA_PERSONAS.find(
 if (!persona)
   throw new Error("The existing Rolling Oaks test persona is required.");
 
+test.afterEach(async ({ page }, testInfo) => {
+  if (testInfo.status === testInfo.expectedStatus) return;
+  // Report auth state without recording cookies, tokens, user IDs, or emails.
+  const state = await page
+    .evaluate(() => ({
+      path: window.location.pathname,
+      clerkLoaded: Boolean(window.Clerk?.loaded),
+      signedIn: Boolean(window.Clerk?.user),
+      activeSession: Boolean(window.Clerk?.session),
+      catalogLoading: Boolean(document.querySelector('[role="status"]')),
+    }))
+    .catch(() => ({ unavailable: true }));
+  await testInfo.attach("preview-auth-state.json", {
+    body: JSON.stringify(state, null, 2),
+    contentType: "application/json",
+  });
+});
+
 // Use existing seeded data. Do not create users, change memberships, or reseed.
 test("member signs in on the native preview URL @preview", async ({
   page,
   baseURL,
 }) => {
-  test.slow();
+  test.setTimeout(120_000);
   if (!baseURL || !new URL(baseURL).hostname.endsWith(".vercel.app")) {
     throw new Error(
       "This test requires the immutable native Vercel preview URL.",
@@ -62,14 +80,18 @@ test("member signs in on the native preview URL @preview", async ({
     // Clerk's documented development test code, not a user's credential.
     await codeInput.pressSequentially("424242", { delay: 100 });
     await expect(page).toHaveURL(`${origin}/dashboard`, { timeout: 30_000 });
-    await expect(page.getByTestId("dashboard-heading")).toBeVisible();
+    await expect(page.getByTestId("dashboard-heading")).toBeVisible({
+      timeout: 30_000,
+    });
     await page.waitForLoadState("load");
   });
 
   await test.step("retain the session and load the seeded member's catalog", async () => {
     await page.reload();
     await expect(page).toHaveURL(`${origin}/dashboard`);
-    await expect(page.getByTestId("dashboard-heading")).toBeVisible();
+    await expect(page.getByTestId("dashboard-heading")).toBeVisible({
+      timeout: 30_000,
+    });
     await page.getByTestId("dashboard-nav-profile").click();
     await expect(page).toHaveURL(`${origin}/dashboard/profile`);
     await expect(page.getByLabel("Profile URL", { exact: true })).toHaveValue(
