@@ -197,6 +197,17 @@ export const ATLAS_FLOWS = [
     title: "Search and inspect registered cultivars",
     description:
       "Search the production-shaped cultivar registry, refine the results, and inspect a cultivar at mobile and desktop sizes.",
+    implementation: {
+      entryPoints: [
+        {
+          label: "Search request correlation and response headers",
+          path: "src/app/api/v1/cultivars/search/route.ts",
+        },
+      ],
+      invariants: [
+        "Use one correlation ID for each search request and its logs. Return that ID on errors, but keep it off cached success responses.",
+      ],
+    },
     tests: {
       unit: [],
       integration: [
