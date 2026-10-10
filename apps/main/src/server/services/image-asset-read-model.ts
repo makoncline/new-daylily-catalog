@@ -1,3 +1,4 @@
+import { logEvent } from "@/lib/telemetry";
 import type { Prisma } from "@prisma/client";
 
 export interface LegacyImageRow {
@@ -84,12 +85,7 @@ function logImageAssetFallback(args: {
   if (reportedFallbacks.has(reportKey)) return;
   reportedFallbacks.add(reportKey);
 
-  console.warn(
-    JSON.stringify({
-      event: "image_asset_fallback",
-      ...args,
-    }),
-  );
+  logEvent("warn", "image_asset_fallback", args);
 }
 
 export function resolveImageAssetUrl(args: {

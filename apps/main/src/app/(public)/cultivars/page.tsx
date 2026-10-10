@@ -1,6 +1,6 @@
 // eslint-disable react/no-danger -- intentional static JSON-LD injection.
 import { type Metadata } from "next";
-import { headers } from "next/headers";
+import { getLogContext } from "@/lib/telemetry";
 import { notFound } from "next/navigation";
 import { MainContent } from "@/app/(public)/_components/main-content";
 import { buildPublicPageMetadata } from "@/app/(public)/_seo/public-seo";
@@ -10,10 +10,7 @@ import { IMAGES } from "@/lib/constants/images";
 import { reportError } from "@/lib/error-utils";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import { serializeJsonLd } from "@/lib/utils/json-ld";
-import {
-  getRequestId,
-  logSearchRequest,
-} from "@/server/search/cultivar-search-request-telemetry";
+import { logSearchRequest } from "@/server/search/cultivar-search-request-telemetry";
 import {
   CultivarSearchPageClient,
   type CultivarSearchResponse,
@@ -40,7 +37,7 @@ async function getInitialSearchResponse(
   baseUrl: string,
 ): Promise<CultivarSearchResponse | undefined> {
   const startedAt = performance.now();
-  const requestId = getRequestId(await headers());
+  const requestId = getLogContext().correlation_id;
   const searchParams = new URLSearchParams({
     hasListings: "true",
     limit: String(INITIAL_RESULT_LIMIT),
@@ -103,7 +100,10 @@ async function getInitialSearchResponse(
     reportError({
       error,
       level: "warning",
-      context: { requestId, source: "cultivar-search-initial-results" },
+      context: {
+        correlation_id: requestId,
+        source: "cultivar-search-initial-results",
+      },
     });
     return undefined;
   }

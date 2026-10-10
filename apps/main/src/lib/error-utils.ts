@@ -1,4 +1,12 @@
 import * as Sentry from "@sentry/nextjs";
+import {
+  getErrorContext,
+  getLogContext,
+  logEvent,
+  sanitizeTelemetry,
+  setErrorContext,
+  validCorrelationId,
+} from "./telemetry";
 
 export interface ErrorReporterOptions {
   error: unknown;
@@ -19,23 +27,26 @@ export function reportError({
     const err = normalizeError(error);
     const message = err.message;
 
-    if (process.env.NODE_ENV === "development") {
-      const logArgs = [
-        `${level.toUpperCase()}:`,
-        message,
-        "\nAdditional Context:",
-        context,
-      ];
-      if (level === "fatal" || level === "error") {
-        console.error(...logArgs);
-      } else if (level === "warning") {
-        console.warn(...logArgs);
-      } else if (level === "info") {
-        console.info(...logArgs);
-      } else {
-        console.log(...logArgs);
-      }
-    }
+    const logContext = getErrorContext(error) ?? getLogContext();
+    const correlationId =
+      validCorrelationId(context.correlation_id) ?? logContext.correlation_id;
+    setErrorContext(err, { ...logContext, correlation_id: correlationId });
+    logEvent(
+      level === "fatal"
+        ? "error"
+        : level === "warning"
+          ? "warn"
+          : level === "log"
+            ? "info"
+            : level,
+      "application_error",
+      {
+        ...context,
+        ...logContext,
+        correlation_id: correlationId,
+        error: err,
+      },
+    );
 
     // Build per-event context
     const componentStack = context?.errorInfo?.componentStack;
@@ -48,9 +59,16 @@ export function reportError({
         ? { reactComponentStack: { componentStack } }
         : undefined,
       // arbitrary key/values (shows under Additional Data)
-      extra: Object.keys(extraRest).length ? extraRest : undefined,
+      extra: sanitizeTelemetry({
+        ...extraRest,
+        ...logContext,
+        correlation_id: correlationId,
+      }) as Record<string, unknown>,
       // indexed metadata for filtering in Sentry UI
-      tags: source ? { source: String(source) } : undefined,
+      tags: {
+        ...(source ? { source: String(source) } : {}),
+        correlation_id: correlationId,
+      },
     };
 
     // Capture and return eventId for correlation if you want to log it

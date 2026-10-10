@@ -31,7 +31,9 @@ describe("user action audit logging", () => {
       },
     };
 
-    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    const infoSpy = vi
+      .spyOn(console, "info")
+      .mockImplementation(() => undefined);
     const caller = createCaller(async () => {
       return {
         db: db as unknown as TRPCInternalContext["db"],
@@ -53,34 +55,23 @@ describe("user action audit logging", () => {
       expectedUpdatedAt: "2026-01-02T00:00:00.000Z",
     });
 
-    const payload = JSON.parse(String(infoSpy.mock.calls.at(-1)?.[0])) as {
-      event: string;
-      status: string;
-      path: string;
-      appUserId: string;
-      clerkUserId: string;
-      email: string;
-      requestId: string;
-      requestUrl: string;
-      oauthClientId: string;
-      oauthScope: string;
-      mcpToolName: string;
-      content?: string;
-    };
+    const payload = infoSpy.mock.calls
+      .map(([line]) => JSON.parse(String(line)) as Record<string, unknown>)
+      .find((row) => row.event === "user_mutation");
 
     expect(payload).toMatchObject({
       event: "user_mutation",
       status: "success",
-      path: "dashboardDb.userProfile.updateContent",
+      procedure: "dashboardDb.userProfile.updateContent",
       appUserId: "user-1",
       clerkUserId: "clerk-1",
-      email: "seller@example.com",
-      requestId: "request-1",
       requestUrl: "https://daylilycatalog.com/api/trpc",
       oauthClientId: "client-1",
       oauthScope: "catalog:write",
       mcpToolName: "daylily.update_profile_content",
     });
-    expect(payload.content).toBeUndefined();
+    expect(payload?.correlation_id).toBeTypeOf("string");
+    expect(payload?.content).toBeUndefined();
+    expect(payload).not.toHaveProperty("email");
   });
 });

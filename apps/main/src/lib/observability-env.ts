@@ -1,3 +1,5 @@
+import { logEvent } from "./telemetry";
+
 const NEXT_PUBLIC_PREFIX = "NEXT_PUBLIC";
 
 const SENTRY_ENABLED_ENV_NAME = `${NEXT_PUBLIC_PREFIX}_SENTRY_ENABLED`;
@@ -140,14 +142,11 @@ function logObservabilityStatusOnce(status: ObservabilityStatus) {
   }
 
   globalState[OBSERVABILITY_LOG_KEY] = true;
-  console.info(
-    JSON.stringify({
-      event: "observability_status",
-      nodeEnv: process.env.NODE_ENV ?? null,
-      vercelEnv: process.env.VERCEL_ENV ?? null,
-      sentryEnvironment: getRuntimeSentryEnvironment(),
-      sentry: status.sentry,
-      posthog: status.posthog,
-    }),
-  );
+  logEvent("info", "observability_status", {
+    nodeEnv: process.env.NODE_ENV ?? null,
+    vercelEnv: process.env.VERCEL_ENV ?? null,
+    sentryEnvironment: getRuntimeSentryEnvironment(),
+    sentry: status.sentry,
+    posthog: status.posthog,
+  });
 }

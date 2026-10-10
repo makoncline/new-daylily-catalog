@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import type { Response } from "@playwright/test";
 import { DashboardLists } from "../e2e/pages/dashboard-lists";
 import { ManageListPage } from "../e2e/pages/manage-list-page";
 import { expect, test } from "./fixtures";
@@ -9,6 +11,19 @@ for (const [device, viewport] of [
   test(`seller creates and manages a list on ${device}`, async ({ page }) => {
     test.setTimeout(90_000);
     await page.setViewportSize(viewport);
+    const responses: Response[] = [];
+    const clientLogs: Record<string, unknown>[] = [];
+    page.on("response", (response) => {
+      if (new URL(response.url()).pathname.startsWith("/api/trpc/")) {
+        responses.push(response);
+      }
+    });
+    page.on("console", (message) => {
+      if (message.text().startsWith("{")) {
+        clientLogs.push(JSON.parse(message.text()) as Record<string, unknown>);
+      }
+    });
+
     const createdTitle = `Integration Created List ${device}`;
     const editedTitle = `Integration Managed List ${device}`;
     const description = "A list saved through the real application.";
@@ -133,16 +148,85 @@ for (const [device, viewport] of [
     await lists.setGlobalSearch(editedTitle);
     await lists.openFirstVisibleRowActions();
     await lists.chooseRowActionDelete();
+    const rejectedResponse = page.waitForResponse((response) =>
+      response.url().includes("dashboardDb.list.delete"),
+    );
     await lists.confirmDelete();
     await expect(toast("Failed to delete list")).toContainText(
       "Cannot delete list with associated listings",
     );
+    const rejected = await rejectedResponse;
+    const rejectedId = await rejected.headerValue("x-correlation-id");
+    await expect
+      .poll(() =>
+        clientLogs.find(
+          (record) =>
+            record.event === "trpc_client_failed" &&
+            record.correlation_id === rejectedId,
+        ),
+      )
+      .toMatchObject({
+        procedure: "dashboardDb.list.delete",
+        http_status: 412,
+        error_code: "PRECONDITION_FAILED",
+      });
+
     await expect(page.getByRole("alertdialog")).toBeHidden();
     await expect(lists.listRow(editedTitle)).toBeVisible();
     await page.reload();
     await expect(lists.listRow(editedTitle)).toBeVisible();
     await page.goto(manageHref!);
     await expect(manageList.listingRow(listingTitle)).toBeVisible();
+
+    const observedResponses = responses.slice();
+    for (const procedure of [
+      "dashboardDb.bootstrap.roots",
+      "dashboardDb.list.create",
+    ]) {
+      const response = observedResponses.find((response) =>
+        response.url().includes(procedure),
+      );
+      expect(response).toBeDefined();
+      const correlationId = await response!.headerValue("x-correlation-id");
+      expect(clientLogs).toContainEqual(
+        expect.objectContaining({
+          event: "trpc_client_completed",
+          procedure,
+          correlation_id: correlationId,
+          correlation_scope: "request",
+          http_status: 200,
+        }),
+      );
+    }
+    const serverLog = readFileSync("tests/.tmp/integration-server.log", "utf8");
+    const records = serverLog
+      .split("\n")
+      .filter((line) => line.startsWith("{"))
+      .map((line) => JSON.parse(line) as Record<string, unknown>);
+    const ids = new Set<string>();
+    for (const response of observedResponses) {
+      const id = await response.headerValue("x-correlation-id");
+      expect(id).toMatch(/^[a-zA-Z0-9_-]{8,80}$/);
+      expect(response.request().headers()["x-correlation-id"]).toBe(id);
+      ids.add(id!);
+      const events = records
+        .filter((record) => record.correlation_id === id)
+        .map((record) => record.event);
+      expect(events).toContain("http_request_started");
+      expect(events).toContain("http_response_created");
+    }
+    expect(observedResponses.length).toBeGreaterThan(4);
+    expect(ids.size).toBe(observedResponses.length);
+    expect(records).toContainEqual(
+      expect.objectContaining({
+        event: "trpc_procedure_rejected",
+        procedure: "dashboardDb.list.delete",
+        error_code: "PRECONDITION_FAILED",
+        correlation_id: rejectedId,
+        level: "warn",
+      }),
+    );
+    expect(serverLog).not.toContain(description);
 
     await manageList.selectFirstVisibleRow();
     await manageList.clickRemoveSelected();
