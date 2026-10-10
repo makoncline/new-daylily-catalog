@@ -122,7 +122,6 @@ describe("Clerk webhook route", () => {
       action: "signup",
       appUserId: "app_user",
       clerkUserId: "user_created",
-      email: "user@example.com",
       source: "clerk-webhook",
     });
     expect(mocks.captureEvent).toHaveBeenCalledWith({

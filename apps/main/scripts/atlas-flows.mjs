@@ -197,6 +197,17 @@ export const ATLAS_FLOWS = [
     title: "Search and inspect registered cultivars",
     description:
       "Search the production-shaped cultivar registry, refine the results, and inspect a cultivar at mobile and desktop sizes.",
+    implementation: {
+      entryPoints: [
+        {
+          label: "Search request correlation and response headers",
+          path: "src/app/api/v1/cultivars/search/route.ts",
+        },
+      ],
+      invariants: [
+        "Use one correlation ID for each search request and its logs. Return that ID on errors, but keep it off cached success responses.",
+      ],
+    },
     tests: {
       unit: [],
       integration: [
@@ -1516,6 +1527,22 @@ export const ATLAS_FLOWS = [
           label: "List editor history",
           path: "src/app/dashboard/lists/_hooks/use-list-surface-state.ts",
         },
+        {
+          label: "Server request correlation",
+          path: "src/server/observability/log-context.ts",
+        },
+        {
+          label: "Browser request correlation",
+          path: "src/trpc/correlated-fetch.ts",
+        },
+        {
+          label: "Browser request logs",
+          path: "src/trpc/client-links.ts",
+        },
+        {
+          label: "Structured logs and safe attributes",
+          path: "src/lib/telemetry.ts",
+        },
       ],
       invariants: [
         "Store member versions as integer milliseconds and preserve stale-write rejection.",
@@ -1523,6 +1550,8 @@ export const ATLAS_FLOWS = [
         "Enforce the same non-Pro list cap for dashboard, member API, and MCP callers, including safe create retries.",
         "Keep drafts after rejected saves and canceled browser history changes.",
         "Keep title and actions pinned in the overview; keep selection and title pinned in Manage List.",
+        "Use the same correlation ID in request headers, responses, browser logs, and server logs for successful requests and rejected deletions.",
+        "Keep list descriptions out of diagnostic logs.",
       ],
     },
     tests: {

@@ -1,11 +1,10 @@
+import { logEvent, safeUrl } from "@/lib/telemetry";
+
 type AuditValue = boolean | null | number | string | undefined;
 
 interface AuditUser {
   id?: string | null;
   clerkUserId?: string | null;
-  clerk?: {
-    email?: string | null;
-  } | null;
 }
 
 interface LogUserMutationInput {
@@ -16,7 +15,6 @@ interface LogUserMutationInput {
   oauthClientId?: string;
   oauthScope?: string;
   mcpToolName?: string;
-  headers?: Headers;
   status: "success" | "error";
   durationMs: number;
   errorCode?: string;
@@ -26,7 +24,6 @@ interface LogUserAuthInput {
   action: "signup" | "signin";
   appUserId?: string | null;
   clerkUserId?: string | null;
-  email?: string | null;
   source: string;
 }
 
@@ -80,15 +77,6 @@ function pickInputIdentifiers(input: unknown): Record<string, AuditValue> {
   return summary;
 }
 
-function requestIdFromHeaders(headers?: Headers) {
-  return (
-    headers?.get("x-vercel-id") ??
-    headers?.get("x-request-id") ??
-    headers?.get("cf-ray") ??
-    undefined
-  );
-}
-
 export function logUserMutation({
   path,
   user,
@@ -97,50 +85,39 @@ export function logUserMutation({
   oauthClientId,
   oauthScope,
   mcpToolName,
-  headers,
   status,
   durationMs,
   errorCode,
 }: LogUserMutationInput) {
-  console.info(
-    JSON.stringify({
-      event: "user_mutation",
-      status,
-      path,
-      appUserId: user.id ?? undefined,
-      clerkUserId: user.clerkUserId ?? undefined,
-      email: user.clerk?.email ?? undefined,
-      requestId: requestIdFromHeaders(headers),
-      requestUrl,
-      oauthClientId,
-      oauthScope,
-      mcpToolName,
-      clientRequestId:
-        isRecord(rawInput) && typeof rawInput.requestId === "string"
-          ? rawInput.requestId
-          : undefined,
-      durationMs,
-      errorCode,
-      ...pickInputIdentifiers(rawInput),
-    }),
-  );
+  logEvent("info", "user_mutation", {
+    status,
+    procedure: path,
+    appUserId: user.id ?? undefined,
+    clerkUserId: user.clerkUserId ?? undefined,
+    requestUrl: requestUrl ? safeUrl(requestUrl) : undefined,
+    oauthClientId,
+    oauthScope,
+    mcpToolName,
+    clientRequestId:
+      isRecord(rawInput) && typeof rawInput.requestId === "string"
+        ? rawInput.requestId
+        : undefined,
+    duration_ms: durationMs,
+    error_code: errorCode,
+    ...pickInputIdentifiers(rawInput),
+  });
 }
 
 export function logUserAuth({
   action,
   appUserId,
   clerkUserId,
-  email,
   source,
 }: LogUserAuthInput) {
-  console.info(
-    JSON.stringify({
-      event: "user_auth",
-      action,
-      appUserId,
-      clerkUserId,
-      email,
-      source,
-    }),
-  );
+  logEvent("info", "user_auth", {
+    action,
+    appUserId,
+    clerkUserId,
+    source,
+  });
 }

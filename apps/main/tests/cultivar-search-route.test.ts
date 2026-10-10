@@ -72,7 +72,7 @@ describe("public cultivar search route", () => {
     const response = await GET(
       new Request(
         "https://daylilycatalog.com/api/v1/cultivars/search?mode=summary&q=Stell&limit=24&offset=24&award=HM&flowerShow=Large&sculptedType=Cristate%7CRelief&hybridizer=Reed%7CStone&hasCultivarPhoto=true&photosFirst=true&sort=name",
-        { headers: { "cf-ray": "cultivar-search-request" } },
+        { headers: { "x-correlation-id": "cultivar-search-request" } },
       ),
     );
 
@@ -94,23 +94,29 @@ describe("public cultivar search route", () => {
         sort: "name",
       }),
     );
-    await expect(response.json()).resolves.toMatchObject({
+    const body = (await response.json()) as {
+      pagination: unknown;
+      results: unknown[];
+    };
+    expect(body).toMatchObject({
       pagination: {
         hasMore: true,
         limit: 24,
         nextOffset: 48,
       },
-      results: expect.arrayContaining([
+    });
+    expect(body.results).toEqual(
+      expect.arrayContaining([
         expect.objectContaining({ cultivarReferenceId: "cultivar-0" }),
       ]),
-    });
-    expect(response.headers.get("X-Cultivar-Search-Request-Id")).toBeNull();
+    );
+    expect(response.headers.get("X-Correlation-Id")).toBeNull();
     expect(response.headers.get("Cloudflare-CDN-Cache-Control")).toBe(
       "public, max-age=43200, stale-while-revalidate=604800, stale-if-error=86400",
     );
     expect(response.headers.get("X-Cultivar-Search-Duration-Ms")).toBeNull();
 
-    const rawLog = infoMock.mock.calls.at(-1)?.[0];
+    const rawLog: unknown = infoMock.mock.calls.at(-1)?.[0];
     expect(JSON.parse(String(rawLog))).toMatchObject({
       active_filters:
         "award|flower_show|has_cultivar_photo|hybridizer|sculpted_type",
@@ -128,7 +134,7 @@ describe("public cultivar search route", () => {
       photos_first: true,
       query: "stell",
       query_kind: "query_and_filters",
-      request_id: "cultivar-search-request",
+      correlation_id: "cultivar-search-request",
       results_returned: 24,
       sculpted_type: "cristate|relief",
       sort: "name",
@@ -197,13 +203,13 @@ describe("public cultivar search route", () => {
     const { GET } = await import("@/app/api/v1/cultivars/search/route");
     const response = await GET(
       new Request("https://daylilycatalog.com/api/v1/cultivars/search", {
-        headers: { "x-request-id": "failed-search-request" },
+        headers: { "x-correlation-id": "failed-search-request" },
       }),
     );
 
     expect(response.status).toBe(500);
     expect(response.headers.get("Cloudflare-CDN-Cache-Control")).toBeNull();
-    expect(response.headers.get("X-Cultivar-Search-Request-Id")).toBe(
+    expect(response.headers.get("X-Correlation-Id")).toBe(
       "failed-search-request",
     );
     expect(
@@ -216,14 +222,14 @@ describe("public cultivar search route", () => {
     expect(reportErrorMock).toHaveBeenCalledWith({
       error: failure,
       context: {
-        requestId: "failed-search-request",
+        correlation_id: "failed-search-request",
         source: "public-cultivar-search",
       },
     });
     expect(JSON.parse(String(errorMock.mock.calls.at(-1)?.[0]))).toMatchObject({
       error_name: "Error",
       http_status: 500,
-      request_id: "failed-search-request",
+      correlation_id: "failed-search-request",
       status: "error",
     });
   });

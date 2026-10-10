@@ -31,7 +31,7 @@ export default defineConfig({
       stdout: "pipe",
     },
     {
-      command: `pnpm exec next dev --hostname localhost --port ${port}`,
+      command: `pnpm exec next dev --hostname localhost --port ${port} > tests/.tmp/integration-server.log 2>&1`,
       cwd: ".",
       url: appReadyURL,
       reuseExistingServer: false,

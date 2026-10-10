@@ -3,6 +3,7 @@
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
 import * as Sentry from "@sentry/nextjs";
+import { enrichSentryEvent, enrichSentryLog } from "./src/lib/telemetry";
 import { SENTRY_DSN } from "./src/lib/sentry-config";
 import {
   getRuntimeSentryEnabled,
@@ -21,6 +22,9 @@ if (isSentryEnabled) {
 
     // Enable logs to be sent to Sentry
     enableLogs: true,
+    beforeSend: enrichSentryEvent,
+    beforeSendTransaction: enrichSentryEvent,
+    beforeSendLog: enrichSentryLog,
     tracesSampleRate: isProduction ? 0.1 : 1.0,
 
     // Setting this option to true will print useful information to the console while you're setting up Sentry.

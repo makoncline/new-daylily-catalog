@@ -1,3 +1,8 @@
+import { getLogContext } from "@/lib/telemetry";
+import {
+  requestLogContext,
+  withLogContext,
+} from "@/server/observability/log-context";
 import { NextResponse } from "next/server";
 import { getTrustedBaseUrl } from "@/lib/agent-readiness";
 import { reportError } from "@/lib/error-utils";
@@ -9,7 +14,6 @@ import {
 } from "@/server/search/public-search-api-platform";
 import { searchCultivars } from "@/server/search/cultivar-search";
 import {
-  getRequestId,
   getTelemetryHeaders,
   logSearchRequest,
 } from "@/server/search/cultivar-search-request-telemetry";
@@ -58,12 +62,18 @@ function getSummaryLimit(params: URLSearchParams) {
 }
 
 export async function GET(request: Request) {
+  return withLogContext(requestLogContext(request), () =>
+    handleSearch(request),
+  );
+}
+
+async function handleSearch(request: Request) {
   if (!isPublicSearchApiEnabled()) {
     return getPublicSearchApiDisabledResponse();
   }
 
   const startedAt = performance.now();
-  const requestId = getRequestId(request.headers);
+  const requestId = getLogContext().correlation_id;
   const { searchParams } = new URL(request.url);
   const summaryMode = searchParams.get("mode") === "summary";
   const mode = summaryMode ? "summary" : "full";
@@ -195,7 +205,7 @@ export async function GET(request: Request) {
     reportError({
       error,
       context: {
-        requestId,
+        correlation_id: requestId,
         source: "public-cultivar-search",
       },
     });
