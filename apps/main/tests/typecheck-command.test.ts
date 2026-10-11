@@ -75,7 +75,8 @@ it("checks fresh routes and ignores preserved dev validators after a rename", ()
     writeFileSync(route, validRoute);
     const devTypes = path.join(fixtureApp, ".next/dev/types");
     mkdirSync(devTypes, { recursive: true });
-    const staleValidator = "import '../../../src/app/api/before/route.js';\n";
+    const staleValidator =
+      "export type StaleRoute = typeof import('../../../src/app/api/before/route.js');\n";
     writeFileSync(path.join(devTypes, "validator.ts"), staleValidator);
     renameSync(path.dirname(route), path.join(fixtureApp, "src/app/api/after"));
     const renamed = run();
