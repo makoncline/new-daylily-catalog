@@ -24,6 +24,10 @@ and test runners. Update the flow entry when its source or tests change.
 Keep this registry as the only flow map.
 
 - `pnpm verify` runs lint, typecheck, and all Vitest tests.
+- `pnpm typecheck` generates current Next route types, then checks the app and
+  tests with `apps/main/tsconfig.typecheck.json`. It needs no app-service
+  credentials or dev server. This config excludes `.next/dev` so old dev
+  validators cannot fail the check. Keep `tsconfig.json` for Next dev/build.
 - `pnpm verify --tests tests/<file>` runs lint, typecheck, and selected Vitest files. Paths are relative to `apps/main`.
 - `pnpm verify --flow <Atlas ID>` runs only the mapped tests. Run lint and typecheck separately.
 - `pnpm verify --full` adds all full-app Playwright integration tests to the default checks. The runner uses a disposable local database and loopback service providers.
