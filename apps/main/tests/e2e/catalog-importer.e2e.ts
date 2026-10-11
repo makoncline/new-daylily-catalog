@@ -111,11 +111,11 @@ test.describe("catalog importer", () => {
       page.getByLabel("Cultivar reference ID", { exact: true }),
     ).toHaveCount(0);
     await expect(
-      page.getByText("A whole number. Currency symbols are cleaned."),
+      page.getByText("A nonnegative number. Currency symbols are cleaned."),
     ).toHaveCount(0);
     await page.getByRole("button", { name: "About Price" }).click();
     await expect(page.getByRole("tooltip")).toContainText(
-      "A whole number. Currency symbols are cleaned.",
+      "A nonnegative number. Currency symbols are cleaned.",
     );
     await page.keyboard.press("Escape");
 

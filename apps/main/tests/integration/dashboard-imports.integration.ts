@@ -1089,4 +1089,14 @@ test("temp spreadsheet becomes a named list with its original values", async ({
   expect(nextList.listings.map((row) => row.id).sort()).toEqual(
     saved.listings.map((row) => row.id).sort(),
   );
+  await db.list.deleteMany({ where: { id: { in: [saved.id, nextList.id] } } });
+  await db.listing.deleteMany({
+    where: {
+      id: {
+        in: saved.listings
+          .filter((row) => row.importKey !== null)
+          .map((row) => row.id),
+      },
+    },
+  });
 });
