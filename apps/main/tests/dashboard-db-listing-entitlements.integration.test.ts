@@ -243,4 +243,92 @@ describe("dashboard listing creation entitlements", () => {
       ).resolves.toBe(2);
     });
   });
+  it("atomically reuses exact owned rows in a retry-safe named list", async () => {
+    getStripeSubscriptionResult.mockResolvedValue({
+      subscription: { status: "active" },
+      confirmed: true,
+    });
+    await withTempAppDb(async ({ user }) => {
+      const { caller, db } = await createAuthedCaller(user.id);
+      const row = {
+        cultivarReferenceId: null,
+        description: "Line one\nLine two",
+        importKey: "club:one",
+        price: 15.5,
+        privateNote: "Private\nNote",
+        title: "Seedling - 2",
+      };
+      const existing = await db.listing.create({
+        data: {
+          ...row,
+          importKey: null,
+          userId: user.id,
+          slug: "seedling-two",
+        },
+      });
+      const list = { key: "club", title: "Club sale" };
+      const first = await caller.dashboardDb.listing.importRows({
+        rows: [row],
+        list,
+      });
+      expect(first).toMatchObject({
+        createdCount: 0,
+        skippedExactCount: 1,
+        listingIds: [existing.id],
+      });
+      await caller.dashboardDb.listing.importRows({ rows: [row], list });
+      const second = { ...row, importKey: "club:two", title: "2026", price: 0 };
+      await caller.dashboardDb.listing.importRows({ rows: [second], list });
+      const saved = await db.list.findUniqueOrThrow({
+        where: { id: first.listId! },
+        include: { listings: true },
+      });
+      expect(saved.listings).toHaveLength(2);
+      expect(saved.listings.map((item) => item.price).sort()).toEqual([
+        0, 15.5,
+      ]);
+      await expect(
+        caller.dashboardDb.listing.importRows({
+          rows: [
+            {
+              ...second,
+              importKey: "club:bad",
+              title: "Unsaved",
+              cultivarReferenceId: "missing-reference",
+            },
+          ],
+          list,
+        }),
+      ).rejects.toMatchObject({ code: "NOT_FOUND" });
+      expect(await db.listing.count({ where: { userId: user.id } })).toBe(2);
+      expect(await db.list.count({ where: { userId: user.id } })).toBe(1);
+    });
+  });
+
+  it("requires confirmed Pro membership before writing a named import", async () => {
+    getStripeSubscriptionResult.mockResolvedValue({
+      subscription: { status: "none" },
+      confirmed: true,
+    });
+    await withTempAppDb(async ({ user }) => {
+      const { caller, db } = await createAuthedCaller(user.id);
+      await expect(
+        caller.dashboardDb.listing.importRows({
+          rows: [
+            {
+              cultivarReferenceId: null,
+              description: null,
+              importKey: "free:one",
+              price: 0,
+              privateNote: null,
+              title: "Free row",
+            },
+          ],
+          list: { key: "free", title: "Not saved" },
+        }),
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+      expect(await db.list.count({ where: { userId: user.id } })).toBe(0);
+      expect(await db.listing.count({ where: { userId: user.id } })).toBe(0);
+    });
+  });
 });

@@ -182,7 +182,7 @@ describe("catalog importer normalization", () => {
     });
   });
 
-  it("treats common not-for-sale markers and zero as a blank price", () => {
+  it("keeps zero and decimal prices while treating not-for-sale markers as blank", () => {
     const importedRows = createCatalogImportRows({
       headerRowIndex: 0,
       mapping: {
@@ -211,10 +211,10 @@ describe("catalog importer normalization", () => {
     ).toEqual([
       { price: null, priceWarning: null },
       { price: null, priceWarning: null },
-      { price: null, priceWarning: null },
-      { price: null, priceWarning: null },
+      { price: 0, priceWarning: null },
+      { price: 0, priceWarning: null },
       { price: 12, priceWarning: null },
-      { price: null, priceWarning: "12.50" },
+      { price: 12.5, priceWarning: null },
     ]);
   });
 
@@ -364,8 +364,8 @@ describe("catalog importer normalization", () => {
         null,
         null,
         null,
-        "Spider, dark red",
-        "Back garden",
+        "Spider,   dark red",
+        "Back   garden",
         "https://example.com/daylily image.jpg",
         null,
         25,

@@ -498,7 +498,10 @@ export function useCatalogImporterWorkbench(
         rows: sheet.rows,
       });
       const rowsToMatch = rows.filter(
-        (row) => row.rowKind === "listing" && row.outputState === "included",
+        (row) =>
+          row.rowKind === "listing" &&
+          row.outputState === "included" &&
+          row.linkState !== "intentionally-unmatched",
       );
       if (rowsToMatch.length === 0) {
         const nextImportState = getCatalogImportState(rows);

@@ -2,6 +2,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import writeExcelFile from "write-excel-file/node";
 import readExcelFile from "read-excel-file/node";
 import {
+  applyAutomaticCultivarMatches,
+  createCatalogImportRows,
+  getSourceColumns,
+  suggestColumnMapping,
+  prepareCatalogImportListing,
+  type SpreadsheetCell,
+  type CultivarMatchCandidate,
+} from "@/lib/catalog-importer";
+import {
   createTempListSpreadsheet,
   createTempListing,
   matchTempListings,
@@ -38,19 +47,19 @@ describe("temp list matching", () => {
 });
 
 describe("temp list spreadsheet", () => {
-  it("exports restored browser fields without losing decimals, notes, or unlinked entries", async () => {
+  it("round trips restored browser fields through XLSX and import preparation", async () => {
     const saved = JSON.stringify([
       {
         id: "one",
-        name: "Millions of Peaches",
+        name: "Millions of Peaches - club stock",
         price: 15.5,
         description: "Peach blooms\nReady to divide",
-        privateNote: "East garden — row 2",
-        cultivarReferenceId: null,
+        privateNote: "East garden\nrow 2",
+        cultivarReferenceId: "peaches-reference",
       },
       {
         id: "two",
-        name: "Garden seedling",
+        name: "Seedling - 2",
         price: 0,
         description: "",
         privateNote: "Keep",
@@ -68,16 +77,56 @@ describe("temp list spreadsheet", () => {
       })),
     ).toBuffer();
     const output = await readExcelFile(buffer);
+    const rows = output[0]!.data as SpreadsheetCell[][];
+    const imported = createCatalogImportRows({
+      rows,
+      headerRowIndex: 0,
+      mapping: suggestColumnMapping(rows, 0, getSourceColumns(rows, 0)),
+    });
+    const candidate: CultivarMatchCandidate = {
+      cultivarReferenceId: "peaches-reference",
+      displayName: "Millions of Peaches",
+      normalizedName: "millions of peaches",
+      confidence: 100,
+      bloomSizeIn: null,
+      bloomSeason: null,
+      color: null,
+      form: null,
+      hybridizer: null,
+      imageAsset: null,
+      imageUrl: null,
+      listingCount: 0,
+      ploidy: null,
+      rebloom: null,
+      scapeHeightIn: null,
+      year: null,
+    };
+    const matched = applyAutomaticCultivarMatches({
+      rows: imported,
+      automaticMatches: new Map(),
+      cultivarReferenceMatches: new Map([
+        [candidate.cultivarReferenceId, candidate],
+      ]),
+    });
+    expect(matched.map(prepareCatalogImportListing)).toEqual(
+      listings.map((listing) => ({
+        title: listing.name,
+        price: listing.price,
+        description: listing.description || null,
+        privateNote: listing.privateNote || null,
+        cultivarReferenceId: listing.cultivarReferenceId,
+      })),
+    );
     expect(output[0]?.data).toHaveLength(3);
     expect(output[0]?.data[1]?.slice(0, 5)).toEqual([
-      "Millions of Peaches",
+      "Millions of Peaches - club stock",
       15.5,
       "Peach blooms\nReady to divide",
-      "East garden — row 2",
-      null,
+      "East garden\nrow 2",
+      "peaches-reference",
     ]);
     expect(output[0]?.data[2]?.slice(0, 5)).toEqual([
-      "Garden seedling",
+      "Seedling - 2",
       0,
       null,
       "Keep",

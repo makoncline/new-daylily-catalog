@@ -55,6 +55,8 @@ export function useCatalogImporterSession(
     projectId: initialDraft?.projectId ?? createCatalogImporterProjectId(),
     reviewedIssueActions: initialReviewedIssueActions,
     selectedSheetIndex: initialDraft?.selectedSheetIndex ?? 0,
+    importListTitle: initialDraft?.importListTitle ?? "",
+    importListId: initialDraft?.importListId,
   }));
   const sessionRef = useRef(session);
   const [storageWarning, setStorageWarning] = useState<string | null>(null);
@@ -100,6 +102,8 @@ export function useCatalogImporterSession(
       projectId: nextProjectId,
       reviewedIssueActions: [],
       selectedSheetIndex: 0,
+      importListTitle: "",
+      importListId: undefined,
     });
     setStorageWarning(null);
   }, [commitSession]);

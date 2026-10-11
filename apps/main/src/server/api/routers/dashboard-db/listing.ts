@@ -39,7 +39,7 @@ const importListingSchema = z.object({
   cultivarReferenceId: z.string().trim().min(1).nullable(),
   description: z.string().trim().max(10_000).nullable(),
   importKey: z.string().trim().min(1).max(300),
-  price: z.number().int().nonnegative().nullable(),
+  price: z.number().nonnegative().nullable(),
   privateNote: z.string().trim().max(10_000).nullable(),
   title: z.string().trim().min(1).max(200),
 });
@@ -67,6 +67,12 @@ export const dashboardDbListingRouter = createTRPCRouter({
     .input(
       z.object({
         rows: z.array(importListingSchema).min(1).max(100),
+        list: z
+          .object({
+            key: z.string().trim().min(1).max(200),
+            title: z.string().trim().min(1).max(200),
+          })
+          .optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -107,7 +113,53 @@ export const dashboardDbListingRouter = createTRPCRouter({
           ? await getStripeSubscriptionResult(ctx.user.stripeCustomerId)
           : null;
 
+      if (
+        input.list &&
+        !(
+          ctx._confirmedActiveMembership === true ||
+          (subscriptionResult?.confirmed &&
+            hasActiveSubscription(subscriptionResult.subscription.status))
+        )
+      ) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message:
+            "Upgrade to Pro to import a named list. If you already have Pro, retry once membership is confirmed.",
+        });
+      }
+      const listId = input.list
+        ? memberCreateId(
+            "list",
+            ctx.user.id,
+            `catalog-import:${input.list.key}`,
+          )
+        : null;
+
       return ctx.db.$transaction(async (tx) => {
+        if (listId && input.list) {
+          const fresh = await reserveMemberCreateRequest(
+            tx,
+            "list",
+            ctx.user.id,
+            `catalog-import:${input.list.key}`,
+            { title: input.list.title },
+          );
+          const existingList = await tx.list.findUnique({
+            where: { id: listId },
+          });
+          if (
+            (!fresh && !existingList) ||
+            (existingList &&
+              (existingList.userId !== ctx.user.id ||
+                existingList.title !== input.list.title))
+          ) {
+            throw new TRPCError({
+              code: "CONFLICT",
+              message:
+                "This import already has a named list. If it was renamed or deleted, start a new import.",
+            });
+          }
+        }
         const existingImportedRows = await tx.listing.findMany({
           where: {
             userId: ctx.user.id,
@@ -178,15 +230,6 @@ export const dashboardDbListingRouter = createTRPCRouter({
           }
         }
 
-        if (rowsToCreate.length === 0) {
-          return {
-            createdCount: 0,
-            existingCount: existingImportedRows.length,
-            listingIds: existingImportedRows.map((row) => row.id),
-            skippedExactCount,
-          };
-        }
-
         const existingSlugs = await tx.listing.findMany({
           where: { userId: ctx.user.id },
           select: { slug: true },
@@ -195,18 +238,19 @@ export const dashboardDbListingRouter = createTRPCRouter({
           existingSlugs.map((listing) => listing.slug),
         );
 
-        await tx.listing.createMany({
-          data: rowsToCreate.map((row) => ({
-            cultivarReferenceId: row.cultivarReferenceId,
-            description: row.description,
-            importKey: row.importKey,
-            price: row.price,
-            privateNote: row.privateNote,
-            slug: reserveUniqueSlug(row.title, reservedSlugs),
-            title: row.title,
-            userId: ctx.user.id,
-          })),
-        });
+        if (rowsToCreate.length > 0)
+          await tx.listing.createMany({
+            data: rowsToCreate.map((row) => ({
+              cultivarReferenceId: row.cultivarReferenceId,
+              description: row.description,
+              importKey: row.importKey,
+              price: row.price,
+              privateNote: row.privateNote,
+              slug: reserveUniqueSlug(row.title, reservedSlugs),
+              title: row.title,
+              userId: ctx.user.id,
+            })),
+          });
 
         const importedRows = await tx.listing.findMany({
           where: {
@@ -216,10 +260,35 @@ export const dashboardDbListingRouter = createTRPCRouter({
           select: { id: true },
         });
 
+        const listingIds = [
+          ...new Set([
+            ...importedRows.map((row) => row.id),
+            ...classifiedRows.flatMap(({ match, row }) =>
+              match.kind === "exact" && !row.allowExistingDuplicate
+                ? [match.listings[0]!.id]
+                : [],
+            ),
+          ]),
+        ];
+        if (listId && input.list) {
+          const listings = { connect: listingIds.map((id) => ({ id })) };
+          await tx.list.upsert({
+            where: { id: listId },
+            create: {
+              id: listId,
+              title: input.list.title,
+              userId: ctx.user.id,
+              listings,
+            },
+            update: { listings, updatedAt: new Date() },
+          });
+        }
+
         return {
+          listId,
           createdCount: rowsToCreate.length,
           existingCount: existingImportedRows.length,
-          listingIds: importedRows.map((row) => row.id),
+          listingIds,
           skippedExactCount,
         };
       });

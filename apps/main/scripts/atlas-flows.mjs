@@ -334,6 +334,7 @@ export const ATLAS_FLOWS = [
         testRef("integration", "tests/cultivar-name-match.integration.test.ts"),
         testRef("integration", "tests/cultivar-match-route.test.ts"),
         testRef("integration", "tests/catalog-importer.test.ts"),
+        testRef("integration", "tests/temp-list.test.ts"),
         testRef("integration", "tests/catalog-importer-draft.test.ts"),
         testRef("integration", "tests/catalog-importer-workbench.test.tsx"),
         testRef("integration", "tests/catalog-importer-session.test.tsx"),
@@ -521,6 +522,8 @@ export const ATLAS_FLOWS = [
       invariants: [
         "Keep the prepared draft and source rows across reloads and rejected writes.",
         "Create eligible, selected rows in batches of at most 100 and prevent duplicate writes.",
+        "Keep native temp-list names, prices, notes, and explicit cultivar links through import.",
+        "Save an optional named list atomically with its listings and reuse exact owned matches.",
         "After a saved write, retry a failed dashboard refresh without writing the rows again.",
       ],
     },
@@ -528,6 +531,10 @@ export const ATLAS_FLOWS = [
       unit: [],
       integration: [
         testRef("integration", "tests/dashboard-import-table.test.tsx"),
+        testRef(
+          "integration",
+          "tests/dashboard-db-listing-entitlements.integration.test.ts",
+        ),
         testRef(
           "integration",
           "tests/dashboard-import-existing-listings.test.tsx",

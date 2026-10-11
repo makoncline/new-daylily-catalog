@@ -20,7 +20,9 @@ function getImportErrorMessage(error: unknown) {
     error instanceof Error &&
     (error.message.includes("Upgrade to Pro") ||
       error.message.includes("Cultivar reference not found") ||
-      error.message.includes("Review the existing listing"))
+      error.message.includes("Review the existing listing") ||
+      error.message.includes("This import already has a named list") ||
+      error.message.includes("Request ID was already used"))
   ) {
     return error.message;
   }
@@ -31,8 +33,21 @@ function getImportErrorMessage(error: unknown) {
 export function useDashboardCatalogImport(
   initialDraft: CatalogImporterDraft | null,
 ) {
-  const { session, resetSession, getSourceCellsForRow } =
-    useCatalogImporterSession(initialDraft);
+  const {
+    session,
+    commitSession,
+    storageWarning,
+    resetSession,
+    getSourceCellsForRow,
+  } = useCatalogImporterSession(initialDraft);
+  const listTitle = session.importListTitle ?? "";
+  const hasList = listTitle.trim().length > 0;
+  const setListTitle = (value: string) => {
+    if (busy.current || session.importListId) return;
+    void commitSession({ importListTitle: value });
+    setSelectedRowIds(null);
+    if (Boolean(value.trim()) !== hasList) setImportedRowIds(new Set());
+  };
   const [liveAnnouncement, setLiveAnnouncement] = useState("");
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string> | null>(
     null,
@@ -105,12 +120,24 @@ export function useDashboardCatalogImport(
     () => new Set(existingMatchRows.map(({ row }) => row.id)),
     [existingMatchRows],
   );
+  const exactRowIds = useMemo(
+    () =>
+      new Set(
+        existingMatchRows
+          .filter(({ match }) => match.kind === "exact")
+          .map(({ row }) => row.id),
+      ),
+    [existingMatchRows],
+  );
   const readyRows = useMemo(
     () =>
       eligibleRows.filter(
-        (row) => !existingRowIds.has(row.id) && !importedRowIds.has(row.id),
+        (row) =>
+          (!existingRowIds.has(row.id) ||
+            (hasList && exactRowIds.has(row.id))) &&
+          !importedRowIds.has(row.id),
       ),
-    [eligibleRows, existingRowIds, importedRowIds],
+    [eligibleRows, existingRowIds, importedRowIds, exactRowIds, hasList],
   );
   const readyRowIds = useMemo(
     () => new Set(readyRows.map((row) => row.id)),
@@ -230,11 +257,29 @@ export function useDashboardCatalogImport(
       return;
     }
 
+    const oversizedRow = rows.find(
+      (row) =>
+        (row.description?.length ?? 0) > 10_000 ||
+        (row.privateNote?.length ?? 0) > 10_000,
+    );
+    if (oversizedRow) {
+      setImportError(
+        `Shorten the description or private note for ${oversizedRow.title} to 10,000 characters or fewer in the import builder.`,
+      );
+      return;
+    }
+
     busy.current = true;
     setIsImporting(true);
     setRefreshWarning(false);
     try {
-      const result = await importRows.mutateAsync({ rows });
+      const result = await importRows.mutateAsync({
+        rows,
+        ...(hasList
+          ? { list: { key: session.projectId, title: listTitle.trim() } }
+          : {}),
+      });
+      if (result.listId) void commitSession({ importListId: result.listId });
       const importedIds = selectedReadyRows.map((row) => row.id);
       const remainingCount = Math.max(0, readyRows.length - rows.length);
       const nextTotals = {
@@ -257,7 +302,11 @@ export function useDashboardCatalogImport(
         importCompleted.current = true;
         capturePosthogEvent("catalog_import_completed", {
           created_count: nextTotals.createdCount,
-          existing_count: existingMatchRows.length + nextTotals.existingCount,
+          existing_count:
+            existingMatchRows.filter(
+              ({ row }) =>
+                !importedRowIds.has(row.id) && !importedIds.includes(row.id),
+            ).length + nextTotals.existingCount,
           import_id: session.projectId,
           imported_count: nextTotals.importedCount,
           skipped_count:
@@ -293,6 +342,10 @@ export function useDashboardCatalogImport(
     isRefreshing,
     issueRows,
     liveAnnouncement,
+    listTitle,
+    listId: session.importListId,
+    setListTitle,
+    storageWarning,
     projectId: session.projectId,
     readyRows,
     refreshWarning,
