@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "exclude": [
+    "node_modules",
+    "artifacts",
+    "downloads",
+    "local",
+    "playwright-report",
+    "src/components/ui/**/*",
+    ".next/dev"
+  ]
+}

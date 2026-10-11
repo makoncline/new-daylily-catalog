@@ -189,3 +189,7 @@ check current code before applying them.
 [2026-10-11] Temp-list import: Native exports carry edited listing names and explicit cultivar links. Preserve blank links, decimal and zero prices, and multiline notes. Verify downloaded workbooks through a saved list. Clear the saved list target when starting a new import.
 
 - [2026-10-11] XLSX date cell types: read-excel-file 9.0.0 declares date cells as typeof Date, but its parser returns Date instances. When changing spreadsheet cell casts, check the installed types and parser before removing the cast to SpreadsheetCell[][].
+
+- [2026-10-11] Next route typecheck: Next 16.3 `next typegen` writes current `.next/types` but retains `.next/dev/types` and both include globs in `tsconfig.json`. For a standalone typecheck after a route rename, use the dedicated typecheck config. Do not delete an active dev cache or remove the generated route validators.
+
+- [2026-10-11] PR base freshness: GitHub returned the prior baseRefOid while it flagged a conflict with newly merged main. When checking PR integration, fetch origin/main and use its commit ID to verify the actual base.
