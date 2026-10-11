@@ -39,7 +39,7 @@ const importListingSchema = z.object({
   cultivarReferenceId: z.string().trim().min(1).nullable(),
   description: z.string().trim().max(10_000).nullable(),
   importKey: z.string().trim().min(1).max(300),
-  price: z.number().int().nonnegative().nullable(),
+  price: z.number().nonnegative().nullable(),
   privateNote: z.string().trim().max(10_000).nullable(),
   title: z.string().trim().min(1).max(200),
 });
@@ -67,6 +67,12 @@ export const dashboardDbListingRouter = createTRPCRouter({
     .input(
       z.object({
         rows: z.array(importListingSchema).min(1).max(100),
+        list: z
+          .object({
+            key: z.string().trim().min(1).max(200),
+            title: z.string().trim().min(1).max(200),
+          })
+          .optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -107,7 +113,59 @@ export const dashboardDbListingRouter = createTRPCRouter({
           ? await getStripeSubscriptionResult(ctx.user.stripeCustomerId)
           : null;
 
+      if (
+        input.list &&
+        !(
+          ctx._confirmedActiveMembership === true ||
+          (subscriptionResult?.confirmed &&
+            hasActiveSubscription(subscriptionResult.subscription.status))
+        )
+      ) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message:
+            "Upgrade to Pro to import a named list. If you already have Pro, retry once membership is confirmed.",
+        });
+      }
+      const listId = input.list
+        ? memberCreateId(
+            "list",
+            ctx.user.id,
+            `catalog-import:${input.list.key}`,
+          )
+        : null;
+
       return ctx.db.$transaction(async (tx) => {
+        let listUpdatedAt = new Date();
+        if (listId && input.list) {
+          const fresh = await reserveMemberCreateRequest(
+            tx,
+            "list",
+            ctx.user.id,
+            `catalog-import:${input.list.key}`,
+            { title: input.list.title },
+          );
+          const existingList = await tx.list.findUnique({
+            where: { id: listId },
+          });
+          if (
+            (!fresh && !existingList) ||
+            (existingList &&
+              (existingList.userId !== ctx.user.id ||
+                existingList.title !== input.list.title))
+          ) {
+            throw new TRPCError({
+              code: "CONFLICT",
+              message:
+                "This import already has a named list. If it was renamed or deleted, start a new import.",
+            });
+          }
+          if (existingList) {
+            listUpdatedAt = new Date(
+              Math.max(Date.now(), existingList.updatedAt.getTime() + 1),
+            );
+          }
+        }
         const existingImportedRows = await tx.listing.findMany({
           where: {
             userId: ctx.user.id,
@@ -132,81 +190,63 @@ export const dashboardDbListingRouter = createTRPCRouter({
             id: true,
             price: true,
             privateNote: true,
+            slug: true,
             title: true,
           },
         });
-        const classifiedRows = newImportRows.map((row) => ({
-          match: getCatalogImportExistingListingMatch(row, existingListings),
-          row,
-        }));
-        const unresolvedExistingRow = classifiedRows.find(
-          ({ match, row }) =>
-            match.kind === "possible" && !row.allowExistingDuplicate,
-        );
-        if (unresolvedExistingRow) {
-          throw new TRPCError({
-            code: "CONFLICT",
-            message: `Review the existing listing for ${unresolvedExistingRow.row.title} before importing.`,
-          });
-        }
-        const skippedExactCount = classifiedRows.filter(
-          ({ match, row }) =>
-            match.kind === "exact" && !row.allowExistingDuplicate,
-        ).length;
-        const rowsToCreate = classifiedRows.flatMap(({ match, row }) =>
-          match.kind === "exact" && !row.allowExistingDuplicate ? [] : [row],
-        );
-
-        if (
-          ctx._confirmedActiveMembership === false ||
-          (subscriptionResult?.confirmed &&
-            !hasActiveSubscription(subscriptionResult.subscription.status))
-        ) {
-          const existingListingsAtLimit = await tx.listing.findMany({
-            where: { userId: ctx.user.id },
-            select: { id: true },
-            take: APP_CONFIG.LISTING.FREE_TIER_MAX_LISTINGS,
-          });
-          if (
-            existingListingsAtLimit.length + rowsToCreate.length >
-            APP_CONFIG.LISTING.FREE_TIER_MAX_LISTINGS
-          ) {
+        const rowsToCreate: z.infer<typeof importListingSchema>[] = [];
+        const reusedListingIds: string[] = [];
+        for (const row of newImportRows) {
+          const match = getCatalogImportExistingListingMatch(
+            row,
+            existingListings,
+          );
+          if (match.kind === "possible" && !row.allowExistingDuplicate) {
             throw new TRPCError({
-              code: "FORBIDDEN",
-              message: "Upgrade to Pro to import this catalog.",
+              code: "CONFLICT",
+              message: `Review the existing listing for ${row.title} before importing.`,
             });
+          }
+          if (match.kind === "exact" && !row.allowExistingDuplicate) {
+            reusedListingIds.push(match.listings[0]!.id);
+          } else {
+            rowsToCreate.push(row);
           }
         }
 
-        if (rowsToCreate.length === 0) {
-          return {
-            createdCount: 0,
-            existingCount: existingImportedRows.length,
-            listingIds: existingImportedRows.map((row) => row.id),
-            skippedExactCount,
-          };
+        if (
+          rowsToCreate.length > 0 &&
+          (ctx._confirmedActiveMembership === false ||
+            (subscriptionResult?.confirmed &&
+              !hasActiveSubscription(
+                subscriptionResult.subscription.status,
+              ))) &&
+          existingListings.length + rowsToCreate.length >
+            APP_CONFIG.LISTING.FREE_TIER_MAX_LISTINGS
+        ) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Upgrade to Pro to import this catalog.",
+          });
         }
 
-        const existingSlugs = await tx.listing.findMany({
-          where: { userId: ctx.user.id },
-          select: { slug: true },
-        });
-        const reservedSlugs = new Set(
-          existingSlugs.map((listing) => listing.slug),
-        );
-
-        await tx.listing.createMany({
-          data: rowsToCreate.map((row) => ({
-            cultivarReferenceId: row.cultivarReferenceId,
-            description: row.description,
-            importKey: row.importKey,
-            price: row.price,
-            privateNote: row.privateNote,
-            slug: reserveUniqueSlug(row.title, reservedSlugs),
-            title: row.title,
-            userId: ctx.user.id,
-          })),
-        });
+        if (rowsToCreate.length > 0) {
+          const reservedSlugs = new Set(
+            existingListings.map((listing) => listing.slug),
+          );
+          await tx.listing.createMany({
+            data: rowsToCreate.map((row) => ({
+              cultivarReferenceId: row.cultivarReferenceId,
+              description: row.description,
+              importKey: row.importKey,
+              price: row.price,
+              privateNote: row.privateNote,
+              slug: reserveUniqueSlug(row.title, reservedSlugs),
+              title: row.title,
+              userId: ctx.user.id,
+            })),
+          });
+        }
 
         const importedRows = await tx.listing.findMany({
           where: {
@@ -216,11 +256,32 @@ export const dashboardDbListingRouter = createTRPCRouter({
           select: { id: true },
         });
 
+        const listingIds = [
+          ...new Set([
+            ...importedRows.map((row) => row.id),
+            ...reusedListingIds,
+          ]),
+        ];
+        if (listId && input.list) {
+          const listings = { connect: listingIds.map((id) => ({ id })) };
+          await tx.list.upsert({
+            where: { id: listId },
+            create: {
+              id: listId,
+              title: input.list.title,
+              userId: ctx.user.id,
+              listings,
+            },
+            update: { listings, updatedAt: listUpdatedAt },
+          });
+        }
+
         return {
+          listId,
           createdCount: rowsToCreate.length,
           existingCount: existingImportedRows.length,
-          listingIds: importedRows.map((row) => row.id),
-          skippedExactCount,
+          listingIds,
+          skippedExactCount: reusedListingIds.length,
         };
       });
     }),

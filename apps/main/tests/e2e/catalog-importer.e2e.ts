@@ -1,3 +1,7 @@
+import { withTempE2EDb } from "../../src/lib/test-utils/e2e-db";
+import { createAuthedUser } from "../../src/lib/test-utils/e2e-users";
+import { signInTestUser } from "./utils/auth";
+import { setStripeSubscriptionStatus } from "./utils/stripe";
 import type { Page } from "@playwright/test";
 import { expect, previewTest as test } from "../../e2e/test-setup";
 import { readFile } from "node:fs/promises";
@@ -111,11 +115,11 @@ test.describe("catalog importer", () => {
       page.getByLabel("Cultivar reference ID", { exact: true }),
     ).toHaveCount(0);
     await expect(
-      page.getByText("A whole number. Currency symbols are cleaned."),
+      page.getByText("A nonnegative number. Currency symbols are cleaned."),
     ).toHaveCount(0);
     await page.getByRole("button", { name: "About Price" }).click();
     await expect(page.getByRole("tooltip")).toContainText(
-      "A whole number. Currency symbols are cleaned.",
+      "A nonnegative number. Currency symbols are cleaned.",
     );
     await page.keyboard.press("Escape");
 
@@ -476,5 +480,205 @@ test.describe("catalog importer", () => {
     expect(tabletOverflow.scrollWidth).toBeLessThanOrEqual(
       tabletOverflow.clientWidth,
     );
+  });
+});
+
+test("temp spreadsheet becomes a named list with its original values @local", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  page.setDefaultTimeout(30_000);
+  await withTempE2EDb(async (db) => {
+    const user = await createAuthedUser(db);
+    await setStripeSubscriptionStatus({
+      db,
+      stripeCustomerId: user.stripeCustomerId!,
+    });
+    await signInTestUser(page);
+    const listings = [
+      {
+        id: "roundtrip-one",
+        name: "Seedling - 2",
+        price: 15.5,
+        description: "Peach blooms\nReady to divide",
+        privateNote: "East garden\nRow 2",
+        cultivarReferenceId: null,
+      },
+      {
+        id: "roundtrip-two",
+        name: "2026",
+        price: 0,
+        description: "",
+        privateNote: "",
+        cultivarReferenceId: null,
+      },
+    ];
+    await page.goto("/temp-list");
+    await page.evaluate(
+      (rows) =>
+        localStorage.setItem("daylily-catalog:temp-list", JSON.stringify(rows)),
+      listings,
+    );
+    await page.reload();
+    const download = page.waitForEvent("download");
+    await page
+      .getByRole("button", { name: "Download spreadsheet", exact: true })
+      .click();
+    const file = await download;
+    const filePath = await file.path();
+    if (!filePath) throw new Error("Expected a downloaded spreadsheet.");
+    await page
+      .getByRole("link", { name: "Open importer", exact: true })
+      .click();
+    await page.locator('input[type="file"]').setInputFiles({
+      name: file.suggestedFilename(),
+      mimeType:
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      buffer: await readFile(filePath),
+    });
+    await page
+      .getByRole("button", { name: "Build catalog preview", exact: true })
+      .click();
+    await expect(
+      page.getByRole("heading", {
+        name: "2 listings are ready without cultivar links",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Finish", exact: true }).click();
+    await page
+      .getByRole("link", { name: "Continue to import", exact: true })
+      .click();
+    const title = `Club sale ${Date.now()}`;
+    await page
+      .getByLabel("Save together in a named list (optional)")
+      .fill(title);
+    await page
+      .getByRole("button", { name: "Import 2 listings", exact: true })
+      .click();
+    await expect(page.getByRole("alertdialog")).toContainText(title);
+    await page.getByRole("button", { name: "Cancel", exact: true }).click();
+    expect(await db.list.count({ where: { title } })).toBe(0);
+    await page.reload();
+    await expect(
+      page.getByLabel("Save together in a named list (optional)"),
+    ).toHaveValue(title);
+    await page
+      .getByRole("button", { name: "Import 2 listings", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Import listings", exact: true })
+      .click();
+    await expect(
+      page.getByRole("link", { name: "View saved list", exact: true }),
+    ).toBeVisible();
+    const saved = await db.list.findFirstOrThrow({
+      where: { title },
+      include: { listings: true },
+    });
+    expect(saved.listings).toHaveLength(2);
+    for (const row of listings) {
+      expect(
+        saved.listings.find((listing) => listing.title === row.name),
+      ).toMatchObject({
+        price: row.price,
+        description: row.description || null,
+        privateNote: row.privateNote || null,
+        cultivarReferenceId: null,
+      });
+    }
+    await page.reload();
+    await expect(
+      page.getByRole("link", { name: "View saved list", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByLabel("Save together in a named list (optional)"),
+    ).toBeDisabled();
+    const futureVersion = new Date(Date.now() + 60_000);
+    await db.list.update({
+      where: { id: saved.id },
+      data: { updatedAt: futureVersion },
+    });
+    // Reloading can offer exact existing rows again. The same import must remain idempotent.
+    await page
+      .getByRole("button", { name: "Import 2 listings", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Import listings", exact: true })
+      .click();
+    await expect(
+      page.getByRole("button", { name: "Import 2 listings", exact: true }),
+    ).toHaveCount(0);
+    expect(await db.list.count({ where: { title } })).toBe(1);
+    await expect
+      .poll(async () => {
+        const retried = await db.list.findUniqueOrThrow({
+          where: { id: saved.id },
+        });
+        return retried.updatedAt.getTime();
+      })
+      .toBeGreaterThan(futureVersion.getTime());
+    expect(
+      await db.listing.count({ where: { lists: { some: { id: saved.id } } } }),
+    ).toBe(2);
+    await page
+      .getByRole("link", { name: "Return to import builder", exact: true })
+      .click();
+    await page.getByRole("button", { name: "Start", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Clear local progress", exact: true })
+      .click();
+    await page
+      .getByRole("alertdialog")
+      .getByRole("button", { name: "Clear local progress", exact: true })
+      .click();
+    await page.locator('input[type="file"]').setInputFiles({
+      name: file.suggestedFilename(),
+      mimeType:
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      buffer: await readFile(filePath),
+    });
+    await page
+      .getByRole("button", { name: "Build catalog preview", exact: true })
+      .click();
+    await page.getByRole("button", { name: "Finish", exact: true }).click();
+    await page
+      .getByRole("link", { name: "Continue to import", exact: true })
+      .click();
+    const newListTitle = page.getByLabel(
+      "Save together in a named list (optional)",
+    );
+    await expect(newListTitle).toHaveValue("");
+    await expect(newListTitle).toBeEnabled();
+    await newListTitle.fill(`${title} next event`);
+    await page
+      .getByRole("button", { name: "Import 2 listings", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Import listings", exact: true })
+      .click();
+    await expect(
+      page.getByRole("link", { name: "View saved list", exact: true }),
+    ).toBeVisible();
+    const nextList = await db.list.findFirstOrThrow({
+      where: { title: `${title} next event` },
+      include: { listings: true },
+    });
+    expect(nextList.id).not.toBe(saved.id);
+    expect(nextList.listings.map((row) => row.id).sort()).toEqual(
+      saved.listings.map((row) => row.id).sort(),
+    );
+    await db.list.deleteMany({
+      where: { id: { in: [saved.id, nextList.id] } },
+    });
+    await db.listing.deleteMany({
+      where: {
+        id: {
+          in: saved.listings
+            .filter((row) => row.importKey !== null)
+            .map((row) => row.id),
+        },
+      },
+    });
   });
 });

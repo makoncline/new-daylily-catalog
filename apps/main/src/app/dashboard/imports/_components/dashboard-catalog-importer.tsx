@@ -15,6 +15,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import type { CatalogImporterDraft } from "@/lib/catalog-importer-draft";
 import { DashboardImportExcludedRows } from "./dashboard-import-excluded-rows";
@@ -47,6 +49,10 @@ export function DashboardCatalogImporter({
     isRefreshing,
     issueRows,
     liveAnnouncement,
+    listTitle,
+    listId,
+    setListTitle,
+    storageWarning,
     projectId,
     readyRows,
     refreshWarning,
@@ -169,6 +175,32 @@ export function DashboardCatalogImporter({
               disabled={isImporting}
               onStartOver={startOver}
             />
+          </div>
+
+          <div className="flex max-w-md flex-col gap-2">
+            <Label htmlFor="import-list-title">
+              Save together in a named list (optional)
+            </Label>
+            <Input
+              id="import-list-title"
+              value={listTitle}
+              maxLength={200}
+              disabled={isImporting || !!listId}
+              onChange={(event) => setListTitle(event.target.value)}
+              placeholder="Club plant sale"
+              aria-describedby="import-list-help"
+            />
+            <p id="import-list-help" className="text-muted-foreground text-sm">
+              Leave blank to add listings to your catalog only. Exact matches
+              already in your catalog can join the list without being
+              duplicated.
+            </p>
+            {listId ? (
+              <Link className="underline" href={`/dashboard/lists/${listId}`}>
+                View saved list
+              </Link>
+            ) : null}
+            {storageWarning ? <p role="alert">{storageWarning}</p> : null}
           </div>
 
           {batchResult ? (
@@ -300,7 +332,9 @@ export function DashboardCatalogImporter({
               {selectedReadyRows.length === 1 ? "listing" : "listings"}?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              These listings will be added to your catalog.
+              {listTitle.trim()
+                ? `These listings will be added to your catalog and the list “${listTitle.trim()}”. Exact existing listings will be reused.`
+                : "These listings will be added to your catalog."}
               {readyRows.length - selectedReadyRows.length > 0
                 ? ` ${(
                     readyRows.length - selectedReadyRows.length

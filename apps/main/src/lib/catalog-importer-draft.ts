@@ -21,6 +21,8 @@ export interface CatalogImporterDraft {
   projectId?: string;
   reviewedIssueActions?: CatalogImporterReviewedIssueAction[];
   selectedSheetIndex: number;
+  importListTitle?: string;
+  importListId?: string;
   version: 3;
 }
 
@@ -36,6 +38,8 @@ export interface CatalogImporterSession {
   projectId: string;
   reviewedIssueActions: CatalogImporterReviewedIssueAction[];
   selectedSheetIndex: number;
+  importListTitle?: string;
+  importListId?: string;
 }
 
 export interface CatalogImporterReviewedIssueAction {
