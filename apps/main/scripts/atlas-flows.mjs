@@ -524,6 +524,7 @@ export const ATLAS_FLOWS = [
         "Create eligible, selected rows in batches of at most 100 and prevent duplicate writes.",
         "Keep native temp-list names, prices, notes, and explicit cultivar links through import.",
         "Save an optional named list atomically with its listings and reuse exact owned matches.",
+        "Advance the saved list version for each import batch so incremental sync includes its membership.",
         "After a saved write, retry a failed dashboard refresh without writing the rows again.",
       ],
     },

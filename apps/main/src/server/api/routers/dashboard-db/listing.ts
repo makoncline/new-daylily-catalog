@@ -136,6 +136,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
         : null;
 
       return ctx.db.$transaction(async (tx) => {
+        let listUpdatedAt = new Date();
         if (listId && input.list) {
           const fresh = await reserveMemberCreateRequest(
             tx,
@@ -158,6 +159,11 @@ export const dashboardDbListingRouter = createTRPCRouter({
               message:
                 "This import already has a named list. If it was renamed or deleted, start a new import.",
             });
+          }
+          if (existingList) {
+            listUpdatedAt = new Date(
+              Math.max(Date.now(), existingList.updatedAt.getTime() + 1),
+            );
           }
         }
         const existingImportedRows = await tx.listing.findMany({
@@ -184,61 +190,50 @@ export const dashboardDbListingRouter = createTRPCRouter({
             id: true,
             price: true,
             privateNote: true,
+            slug: true,
             title: true,
           },
         });
-        const classifiedRows = newImportRows.map((row) => ({
-          match: getCatalogImportExistingListingMatch(row, existingListings),
-          row,
-        }));
-        const unresolvedExistingRow = classifiedRows.find(
-          ({ match, row }) =>
-            match.kind === "possible" && !row.allowExistingDuplicate,
-        );
-        if (unresolvedExistingRow) {
-          throw new TRPCError({
-            code: "CONFLICT",
-            message: `Review the existing listing for ${unresolvedExistingRow.row.title} before importing.`,
-          });
-        }
-        const skippedExactCount = classifiedRows.filter(
-          ({ match, row }) =>
-            match.kind === "exact" && !row.allowExistingDuplicate,
-        ).length;
-        const rowsToCreate = classifiedRows.flatMap(({ match, row }) =>
-          match.kind === "exact" && !row.allowExistingDuplicate ? [] : [row],
-        );
-
-        if (
-          ctx._confirmedActiveMembership === false ||
-          (subscriptionResult?.confirmed &&
-            !hasActiveSubscription(subscriptionResult.subscription.status))
-        ) {
-          const existingListingsAtLimit = await tx.listing.findMany({
-            where: { userId: ctx.user.id },
-            select: { id: true },
-            take: APP_CONFIG.LISTING.FREE_TIER_MAX_LISTINGS,
-          });
-          if (
-            existingListingsAtLimit.length + rowsToCreate.length >
-            APP_CONFIG.LISTING.FREE_TIER_MAX_LISTINGS
-          ) {
+        const rowsToCreate: z.infer<typeof importListingSchema>[] = [];
+        const reusedListingIds: string[] = [];
+        for (const row of newImportRows) {
+          const match = getCatalogImportExistingListingMatch(
+            row,
+            existingListings,
+          );
+          if (match.kind === "possible" && !row.allowExistingDuplicate) {
             throw new TRPCError({
-              code: "FORBIDDEN",
-              message: "Upgrade to Pro to import this catalog.",
+              code: "CONFLICT",
+              message: `Review the existing listing for ${row.title} before importing.`,
             });
+          }
+          if (match.kind === "exact" && !row.allowExistingDuplicate) {
+            reusedListingIds.push(match.listings[0]!.id);
+          } else {
+            rowsToCreate.push(row);
           }
         }
 
-        const existingSlugs = await tx.listing.findMany({
-          where: { userId: ctx.user.id },
-          select: { slug: true },
-        });
-        const reservedSlugs = new Set(
-          existingSlugs.map((listing) => listing.slug),
-        );
+        if (
+          rowsToCreate.length > 0 &&
+          (ctx._confirmedActiveMembership === false ||
+            (subscriptionResult?.confirmed &&
+              !hasActiveSubscription(
+                subscriptionResult.subscription.status,
+              ))) &&
+          existingListings.length + rowsToCreate.length >
+            APP_CONFIG.LISTING.FREE_TIER_MAX_LISTINGS
+        ) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Upgrade to Pro to import this catalog.",
+          });
+        }
 
-        if (rowsToCreate.length > 0)
+        if (rowsToCreate.length > 0) {
+          const reservedSlugs = new Set(
+            existingListings.map((listing) => listing.slug),
+          );
           await tx.listing.createMany({
             data: rowsToCreate.map((row) => ({
               cultivarReferenceId: row.cultivarReferenceId,
@@ -251,6 +246,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
               userId: ctx.user.id,
             })),
           });
+        }
 
         const importedRows = await tx.listing.findMany({
           where: {
@@ -263,11 +259,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
         const listingIds = [
           ...new Set([
             ...importedRows.map((row) => row.id),
-            ...classifiedRows.flatMap(({ match, row }) =>
-              match.kind === "exact" && !row.allowExistingDuplicate
-                ? [match.listings[0]!.id]
-                : [],
-            ),
+            ...reusedListingIds,
           ]),
         ];
         if (listId && input.list) {
@@ -280,7 +272,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
               userId: ctx.user.id,
               listings,
             },
-            update: { listings, updatedAt: new Date() },
+            update: { listings, updatedAt: listUpdatedAt },
           });
         }
 
@@ -289,7 +281,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
           createdCount: rowsToCreate.length,
           existingCount: existingImportedRows.length,
           listingIds,
-          skippedExactCount,
+          skippedExactCount: reusedListingIds.length,
         };
       });
     }),

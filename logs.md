@@ -187,3 +187,5 @@ check current code before applying them.
 - [2026-10-10] Browser tRPC stream observation: In the local Playwright runner, rereading a tRPC response body can fail with `Network.getResponseBody`, and waiting for all earlier responses to finish after navigation can time out. For correlation checks, compare response headers with the actual client error and server logs; use visible app state to verify the completed action.
 
 [2026-10-11] Temp-list import: Native exports carry edited listing names and explicit cultivar links. Preserve blank links, decimal and zero prices, and multiline notes. Verify downloaded workbooks through a saved list. Clear the saved list target when starting a new import.
+
+- [2026-10-11] XLSX date cell types: read-excel-file 9.0.0 declares date cells as typeof Date, but its parser returns Date instances. When changing spreadsheet cell casts, check the installed types and parser before removing the cast to SpreadsheetCell[][].

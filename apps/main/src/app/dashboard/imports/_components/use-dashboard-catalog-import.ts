@@ -116,28 +116,20 @@ export function useDashboardCatalogImport(
       }),
     [eligibleRows, existingListings.data],
   );
-  const existingRowIds = useMemo(
-    () => new Set(existingMatchRows.map(({ row }) => row.id)),
-    [existingMatchRows],
-  );
-  const exactRowIds = useMemo(
+  const existingMatchKinds = useMemo(
     () =>
-      new Set(
-        existingMatchRows
-          .filter(({ match }) => match.kind === "exact")
-          .map(({ row }) => row.id),
-      ),
+      new Map(existingMatchRows.map(({ match, row }) => [row.id, match.kind])),
     [existingMatchRows],
   );
   const readyRows = useMemo(
     () =>
       eligibleRows.filter(
         (row) =>
-          (!existingRowIds.has(row.id) ||
-            (hasList && exactRowIds.has(row.id))) &&
+          (!existingMatchKinds.has(row.id) ||
+            (hasList && existingMatchKinds.get(row.id) === "exact")) &&
           !importedRowIds.has(row.id),
       ),
-    [eligibleRows, existingRowIds, importedRowIds, exactRowIds, hasList],
+    [eligibleRows, existingMatchKinds, importedRowIds, hasList],
   );
   const readyRowIds = useMemo(
     () => new Set(readyRows.map((row) => row.id)),
@@ -160,9 +152,9 @@ export function useDashboardCatalogImport(
   const importedRows = useMemo(
     () =>
       eligibleRows.filter(
-        (row) => importedRowIds.has(row.id) && !existingRowIds.has(row.id),
+        (row) => importedRowIds.has(row.id) && !existingMatchKinds.has(row.id),
       ),
-    [eligibleRows, existingRowIds, importedRowIds],
+    [eligibleRows, existingMatchKinds, importedRowIds],
   );
   const builderExcludedRows = listingRows.filter(
     (row) => getCatalogImportRowDisposition(row) === "excluded",
@@ -275,9 +267,9 @@ export function useDashboardCatalogImport(
     try {
       const result = await importRows.mutateAsync({
         rows,
-        ...(hasList
-          ? { list: { key: session.projectId, title: listTitle.trim() } }
-          : {}),
+        list: hasList
+          ? { key: session.projectId, title: listTitle.trim() }
+          : undefined,
       });
       if (result.listId) void commitSession({ importListId: result.listId });
       const importedIds = selectedReadyRows.map((row) => row.id);

@@ -305,6 +305,50 @@ describe("dashboard listing creation entitlements", () => {
     });
   });
 
+  it("keeps named-list membership in incremental sync when its version is ahead of the clock", async () => {
+    getStripeSubscriptionResult.mockResolvedValue({
+      subscription: { status: "active" },
+      confirmed: true,
+    });
+    await withTempAppDb(async ({ user }) => {
+      const { caller, db } = await createAuthedCaller(user.id);
+      const list = { key: "future-version", title: "Club sale" };
+      const row = {
+        cultivarReferenceId: null,
+        description: null,
+        importKey: "future-version:one",
+        price: null,
+        privateNote: null,
+        title: "First seedling",
+      };
+      const first = await caller.dashboardDb.listing.importRows({
+        rows: [row],
+        list,
+      });
+      const futureVersion = new Date(Date.now() + 60_000);
+      await db.list.update({
+        where: { id: first.listId! },
+        data: { updatedAt: futureVersion },
+      });
+      const second = await caller.dashboardDb.listing.importRows({
+        rows: [
+          { ...row, importKey: "future-version:two", title: "Second seedling" },
+        ],
+        list,
+      });
+      const synced = await caller.dashboardDb.list.sync({
+        since: futureVersion.toISOString(),
+      });
+      const saved = synced.find((item) => item.id === first.listId);
+      expect(saved?.updatedAt.getTime()).toBeGreaterThan(
+        futureVersion.getTime(),
+      );
+      expect(saved?.listings.map((item) => item.id).sort()).toEqual(
+        [...first.listingIds, ...second.listingIds].sort(),
+      );
+    });
+  });
+
   it("requires confirmed Pro membership before writing a named import", async () => {
     getStripeSubscriptionResult.mockResolvedValue({
       subscription: { status: "none" },
