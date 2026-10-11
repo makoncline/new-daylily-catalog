@@ -610,12 +610,14 @@ test("temp spreadsheet becomes a named list with its original values @local", as
       page.getByRole("button", { name: "Import 2 listings", exact: true }),
     ).toHaveCount(0);
     expect(await db.list.count({ where: { title } })).toBe(1);
-    const retried = await db.list.findUniqueOrThrow({
-      where: { id: saved.id },
-    });
-    expect(retried.updatedAt.getTime()).toBeGreaterThan(
-      futureVersion.getTime(),
-    );
+    await expect
+      .poll(async () => {
+        const retried = await db.list.findUniqueOrThrow({
+          where: { id: saved.id },
+        });
+        return retried.updatedAt.getTime();
+      })
+      .toBeGreaterThan(futureVersion.getTime());
     expect(
       await db.listing.count({ where: { lists: { some: { id: saved.id } } } }),
     ).toBe(2);
