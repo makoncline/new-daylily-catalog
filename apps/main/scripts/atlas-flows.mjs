@@ -1255,6 +1255,14 @@ export const ATLAS_FLOWS = [
           label: "Print document geometry",
           path: "src/app/dashboard/tags/_components/tag-designer-html.ts",
         },
+        {
+          label: "Atlas app readiness",
+          path: "scripts/atlas-app-readiness.mjs",
+        },
+        {
+          label: "Atlas member workspace readiness",
+          path: "tests/atlas/atlas-member-readiness.ts",
+        },
       ],
       invariants: [
         "Keep selected listings for output when search filters change.",
@@ -1267,6 +1275,10 @@ export const ATLAS_FLOWS = [
       integration: [
         testRef("integration", "tests/tag-designer-panel.test.tsx"),
         testRef("integration", "tests/tag-print-table.test.ts"),
+        testRef("integration", "tests/atlas-app-readiness.test.ts"),
+        fullAppIntegrationRef(
+          "tests/integration/atlas-member-readiness.integration.ts",
+        ),
         fullAppIntegrationRef("tests/integration/tag-printing.integration.ts"),
         fullAppIntegrationRef("tests/integration/tags-search.integration.ts"),
       ],
@@ -1784,6 +1796,7 @@ export const ATLAS_FLOWS = [
         testRef("integration", "tests/floating-cart-button.test.tsx"),
         testRef("integration", "tests/public-inquiry.test.ts"),
         testRef("integration", "tests/public-inquiry-rate-limit.test.ts"),
+        testRef("integration", "tests/atlas-app-readiness.test.ts"),
         testRef("integration", "tests/public-router-send-message.test.ts"),
         fullAppIntegrationRef(
           "tests/integration/buyer-inquiry-email.integration.ts",
