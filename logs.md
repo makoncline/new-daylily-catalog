@@ -196,6 +196,3 @@ check current code before applying them.
 - [2026-10-11] PR base freshness: GitHub returned the prior baseRefOid while it flagged a conflict with newly merged main. When checking PR integration, fetch origin/main and use its commit ID to verify the actual base.
 
 - [2026-10-11] Cultivar browser settled results: A filtered URL first renders the server browse batch, then replaces it with the browser search response. For Chromium pagination or capture checks, wait for the initial search response and the requested sort result before using the displayed count. The initial 24 shown status alone does not prove that refinement has completed.
-
-- [2026-10-12] Atlas structured diagnostics: Browser warnings can arrive as JSON console_message records, and Next forwards them in a second record with message [browser]. When checking Atlas proof, parse both current envelopes and preserve each full line. Allow only the exact Clerk development warning at warn level; keep malformed records and errors visible.
-- [2026-10-12] Atlas media ownership: Managed listing-media and profile-management runs create reserved local image records only in disposable snapshots. For media captures, unset BASE_URL, DATABASE_URL, and ATLAS_DATABASE_URL before the command; pnpm env:dev can inject DATABASE_URL and is not needed because the runner loads development service values itself.
