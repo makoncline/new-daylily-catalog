@@ -64,6 +64,12 @@ describe("production browser smoke boundary", () => {
     expect(productionSmokeConfig(inputs)).toMatchObject({
       release: inputs.DAYLILY_SMOKE_RELEASE,
     });
+    expect(
+      productionSmokeConfig({
+        ...inputs,
+        DAYLILY_SMOKE_PROFILE_SLUG: "_existing--garden-",
+      }).profileSlug,
+    ).toBe("_existing--garden-");
     for (const override of [
       { BASE_URL: "http://localhost:3000" },
       { DAYLILY_SMOKE_RELEASE: "aaaaaaa" },
@@ -71,6 +77,9 @@ describe("production browser smoke boundary", () => {
       { npm_config_pwdebug: "1" },
       { npm_package_config_pwdebug: "console" },
       { DAYLILY_SMOKE_CLERK_USER_ID: "" },
+      { DAYLILY_SMOKE_PROFILE_SLUG: "../existing-garden" },
+      { DAYLILY_SMOKE_PROFILE_SLUG: "existing-garden?edit=1" },
+      { DAYLILY_SMOKE_PROFILE_SLUG: "existing-garden#profile" },
     ]) {
       expect(() => productionSmokeConfig({ ...inputs, ...override })).toThrow();
     }

@@ -53,7 +53,7 @@ export function productionSmokeConfig(env) {
   if (
     !/^[a-zA-Z0-9.+_-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]+$/.test(email ?? "") ||
     !/^user_[a-zA-Z0-9]+$/.test(clerkUserId ?? "") ||
-    !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(profileSlug ?? "") ||
+    !/^[a-z0-9_-]+$/.test(profileSlug) ||
     !/^[a-f0-9]{40}$/.test(release ?? "")
   ) {
     throw new SmokePrerequisite(
