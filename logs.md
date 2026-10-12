@@ -179,3 +179,5 @@ check current code before applying them.
 - [2026-10-11] PR base freshness: GitHub returned the prior baseRefOid while it flagged a conflict with newly merged main. When checking PR integration, fetch origin/main and use its commit ID to verify the actual base.
 
 - [2026-10-11] Cultivar browser settled results: A filtered URL first renders the server browse batch, then replaces it with the browser search response. For Chromium pagination or capture checks, wait for the initial search response and the requested sort result before using the displayed count. The initial 24 shown status alone does not prove that refinement has completed.
+
+- [2026-10-12] Dashboard POST reads: Image listByListingIds and cultivarReference getByIdsBatch procedures use tRPC mutations for large read batches. A blanket POST block breaks dashboard bootstrap. For a read-only browser check, audit and allow only those exact read procedures. Block mixed batches that contain a write.
