@@ -8,6 +8,7 @@ scripts and installed package documentation as the source of truth.
 - Keep route, UI, server, and data concerns separate. Check existing patterns, dependencies, and installed types before adding code.
 - Add a few meaningful tests for changed behavior. Prefer integration tests. Do not test facts that TypeScript guarantees. Check the user-visible result when a flow changes.
 - Do not run `codex review` unless the user asks for it.
+- Use clear code and tests as examples. Keep per-change reports, plans, and screenshots out of Git. Add only essential operating docs that code and tests cannot explain.
 - If you learn a reusable, non-obvious detail, append it to `logs.md` in this format: `[YYYY-MM-DD] Short label: What was learned. When it matters. What future agents should do.`
 
 When choosing or prioritizing work, read [GOALS.md](GOALS.md). When a prior
@@ -24,6 +25,10 @@ and test runners. Update the flow entry when its source or tests change.
 Keep this registry as the only flow map.
 
 - `pnpm verify` runs lint, typecheck, and all Vitest tests.
+- `pnpm typecheck` generates current Next route types, then checks the app and
+  tests with `apps/main/tsconfig.typecheck.json`. It needs no app-service
+  credentials or dev server. This config excludes `.next/dev` so old dev
+  validators cannot fail the check. Keep `tsconfig.json` for Next dev/build.
 - `pnpm verify --tests tests/<file>` runs lint, typecheck, and selected Vitest files. Paths are relative to `apps/main`.
 - `pnpm verify --flow <Atlas ID>` runs only the mapped tests. Run lint and typecheck separately.
 - `pnpm verify --full` adds all full-app Playwright integration tests to the default checks. The runner uses a disposable local database and loopback service providers.

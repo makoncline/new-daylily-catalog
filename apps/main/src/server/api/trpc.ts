@@ -4,6 +4,13 @@ import superjson from "superjson";
 import { db, hasEmbeddedReplica, replicaDb } from "@/server/db";
 import { getClerkUserData } from "@/server/clerk/sync-user";
 import { ZodError } from "zod";
+import {
+  getErrorContext,
+  getLogContext,
+  logEvent,
+  setErrorContext,
+} from "@/lib/telemetry";
+import { reportError } from "@/lib/error-utils";
 import { logUserMutation } from "@/server/audit/user-action-audit";
 
 export async function getUserByClerkId(clerkUserId: string) {
@@ -108,6 +115,8 @@ const t = initTRPC.context<TRPCInternalContext>().create({
       ...shape,
       data: {
         ...shape.data,
+        correlationId: (getErrorContext(error) ?? getLogContext())
+          .correlation_id,
         zodError:
           error.cause instanceof ZodError ? error.cause.flatten() : null,
       },
@@ -142,7 +151,7 @@ export const createTRPCRouter = t.router;
  * You can remove this if you don't like it, but it can help catch unwanted waterfalls by simulating
  * network latency that would occur in production but not in local development.
  */
-const timingMiddleware = t.middleware(async ({ next, path }) => {
+const timingMiddleware = t.middleware(async ({ next, path, type }) => {
   const start = Date.now();
 
   if (t._config.isDev && process.env.INTEGRATION_MODE !== "1") {
@@ -154,7 +163,36 @@ const timingMiddleware = t.middleware(async ({ next, path }) => {
   const result = await next();
 
   const end = Date.now();
-  console.log(`[TRPC] ${path} took ${end - start}ms to execute`);
+  const attributes = {
+    procedure: path,
+    operation_type: type,
+    duration_ms: end - start,
+  };
+  if (result.ok) {
+    logEvent("info", "trpc_procedure_completed", attributes);
+  } else {
+    setErrorContext(result.error, {
+      ...getLogContext(),
+      ...attributes,
+      error_code: result.error.code,
+    });
+    if (result.error.code === "INTERNAL_SERVER_ERROR") {
+      reportError({
+        error: result.error,
+        context: {
+          source: "trpc",
+          ...attributes,
+          error_code: result.error.code,
+        },
+      });
+    } else {
+      logEvent("warn", "trpc_procedure_rejected", {
+        ...attributes,
+        error_code: result.error.code,
+        error: result.error,
+      });
+    }
+  }
 
   return result;
 });
@@ -258,7 +296,6 @@ const isAuthenticated = t.middleware(async (opts) => {
       oauthClientId: opts.ctx.oauthClientId,
       oauthScope: opts.ctx.oauthScope,
       mcpToolName: opts.ctx.mcpToolName,
-      headers: opts.ctx.headers,
       status: result.ok ? "success" : "error",
       durationMs: Date.now() - startedAt,
       errorCode: result.ok ? undefined : result.error.code,

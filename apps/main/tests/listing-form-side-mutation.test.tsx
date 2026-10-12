@@ -1,3 +1,5 @@
+import { TRPCClientError } from "@trpc/client";
+import type { AppRouter } from "@/server/api/root";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ListingForm } from "@/components/forms/listing-form";
@@ -123,7 +125,13 @@ describe("listing form after a cultivar mutation", () => {
 
   it("retains the old version when the same field changed elsewhere", async () => {
     updateListing.mockRejectedValue(
-      new Error("Listing changed. Load the latest version."),
+      TRPCClientError.from<AppRouter>({
+        error: {
+          code: -32009,
+          message: "A newer saved version exists.",
+          data: { code: "CONFLICT", httpStatus: 409, zodError: null },
+        },
+      }),
     );
     render(
       <ListingForm listingId="listing-1" onDelete={vi.fn()} onSave={vi.fn()} />,

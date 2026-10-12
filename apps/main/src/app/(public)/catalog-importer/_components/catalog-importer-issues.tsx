@@ -97,11 +97,11 @@ function parsePrice(value: string): ParsedInput<number | null> {
   }
 
   const price = Number(normalized);
-  if (!Number.isFinite(price) || price < 0 || !Number.isInteger(price)) {
+  if (!Number.isFinite(price) || price < 0) {
     return { valid: false, value: null };
   }
 
-  return { valid: true, value: price === 0 ? null : price };
+  return { valid: true, value: price };
 }
 
 function ExcludeRowButton({
@@ -448,7 +448,7 @@ function PriceIssuesTable({
                     id={`catalog-importer-price-message-${row.sourceRow}`}
                     className="text-destructive mt-1 text-xs"
                   >
-                    Price must be a whole number.
+                    Price must be a nonnegative number.
                   </p>
                 ) : null}
               </TableCell>

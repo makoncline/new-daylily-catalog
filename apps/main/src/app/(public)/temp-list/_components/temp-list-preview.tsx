@@ -2,6 +2,7 @@
 
 import { useMemo, useState, type CSSProperties } from "react";
 import { type ColumnFiltersState, useReactTable } from "@tanstack/react-table";
+import Link from "next/link";
 import { Download, Flower2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { CatalogListingCard } from "@/components/catalog-listing-card";
@@ -184,6 +185,20 @@ export function TempListPreview({
               : "Download cards PDF"}
           </Button>
         </div>
+      </div>
+      <div className="rounded-md border p-4 text-sm">
+        <p className="font-medium">Keep this list online</p>
+        <p className="text-muted-foreground mt-1">
+          Download the spreadsheet, then upload it in the importer. With Pro,
+          you can save the listings together as a named list and share it from
+          your catalog. Private notes stay private on the website, but are
+          included in the spreadsheet.
+        </p>
+        <Button asChild variant="link" className="px-0">
+          <Link href="/catalog-importer?returnTo=%2Fdashboard%2Fimports">
+            Open importer
+          </Link>
+        </Button>
       </div>
       <Tabs defaultValue="listings" className="min-w-0">
         <div className="flex flex-wrap items-center justify-between gap-3">
