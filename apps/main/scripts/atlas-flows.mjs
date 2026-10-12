@@ -200,17 +200,35 @@ export const ATLAS_FLOWS = [
     implementation: {
       entryPoints: [
         {
+          label: "Browser URL controls, defaults, and canonicalization",
+          path: "src/app/(public)/cultivars/_lib/cultivar-search-url.ts",
+        },
+        {
+          label: "Server-rendered browser controls",
+          path: "src/app/(public)/cultivars/page.tsx",
+        },
+        {
+          label: "Browser controls and history-entry result restoration",
+          path: "src/app/(public)/cultivars/_components/cultivar-search-page-client.tsx",
+        },
+        {
           label: "Search request correlation and response headers",
           path: "src/app/api/v1/cultivars/search/route.ts",
         },
       ],
       invariants: [
+        "Parse shareable controls through cultivar-search-url on the server and from the current URL on mount. Keep first repeated values, literal Booleans, and existing canonicalization.",
+        "A consumed snapshot restores only the same history entry's results, pagination, and scroll anchor. It must not replace URL controls or add result depth to shared URLs.",
         "Use one correlation ID for each search request and its logs. Return that ID on errors, but keep it off cached success responses.",
       ],
     },
     tests: {
       unit: [],
       integration: [
+        testRef("integration", "tests/cultivar-search-url.test.ts"),
+        fullAppIntegrationRef(
+          "tests/integration/cultivar-url-controls.integration.ts",
+        ),
         testRef("integration", "tests/cultivar-search-page-client.test.tsx"),
         testRef("integration", "tests/cultivar-search-route.test.ts"),
         testRef("integration", "tests/cultivar-search-facets-route.test.ts"),
