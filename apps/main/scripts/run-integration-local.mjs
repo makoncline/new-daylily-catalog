@@ -27,6 +27,9 @@ const databasePath = path.join(
   `integration-${runId}.sqlite`,
 );
 const databaseUrl = `file:${databasePath}`;
+const runtimeFlagsPath =
+  process.env.RUNTIME_FEATURE_FLAGS_PATH ??
+  path.join(appRoot, "tests", ".tmp", `integration-flags-${runId}.json`);
 const guardUrl = pathToFileURL(
   path.join(appRoot, "scripts", "integration-network-guard.mjs"),
 ).href;
@@ -40,6 +43,7 @@ const integrationEnv = {
   APP_BASE_URL: appBaseUrl,
   INTEGRATION_PROVIDER_URL: providerUrl,
   DATABASE_URL: databaseUrl,
+  RUNTIME_FEATURE_FLAGS_PATH: runtimeFlagsPath,
   CLERK_SECRET_KEY: "sk_test_integration",
   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_integration",
   STRIPE_SECRET_KEY: "sk_test_integration",
@@ -120,6 +124,8 @@ try {
   );
 } finally {
   removeIntegrationDatabaseFiles(databaseUrl);
+  if (!process.env.RUNTIME_FEATURE_FLAGS_PATH)
+    fs.rmSync(runtimeFlagsPath, { force: true });
 }
 
 if (forwardedSignal) process.kill(process.pid, forwardedSignal);
