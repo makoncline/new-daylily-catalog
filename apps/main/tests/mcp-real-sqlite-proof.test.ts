@@ -37,8 +37,12 @@ vi.mock("@/server/clerk/client", () => ({
   }),
 }));
 
-const runProof =
-  process.env.RUN_MCP_REAL_SQLITE_PROOF === "1" && existsSync(snapshotPath);
+const runProof = process.env.RUN_MCP_REAL_SQLITE_PROOF === "1";
+if (runProof && !existsSync(snapshotPath)) {
+  throw new Error(
+    "RUN_MCP_REAL_SQLITE_PROOF=1 requires local/realistic-data/realistic-data.sqlite. Run pnpm db:seed:prepare from the repository root first.",
+  );
+}
 
 describe.skipIf(!runProof)("real SQLite MCP proof", () => {
   it("keeps public listing search on its supplied database", async () => {
