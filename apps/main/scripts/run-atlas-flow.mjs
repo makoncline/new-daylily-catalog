@@ -34,7 +34,10 @@ import {
   ATLAS_MEDIA_FLOW_IDS,
   createAtlasMediaSnapshot,
 } from "./atlas-media-fixtures.mjs";
-const ATLAS_HEALTH_PATH = "/api/runtime-config";
+import {
+  assertAtlasAppReady,
+  assertAtlasPortAvailable,
+} from "./atlas-app-readiness.mjs";
 const appRoot = path.resolve(import.meta.dirname, "..");
 const repoRoot = path.resolve(appRoot, "../..");
 const [requestedFlowId, outputArgument, ...unexpected] = process.argv.slice(2);
@@ -122,25 +125,18 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
     });
   });
 }
-async function isHealthy() {
-  try {
-    const response = await fetch(new URL(ATLAS_HEALTH_PATH, baseURL), {
-      signal: AbortSignal.timeout(5_000),
-    });
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
 async function startServer() {
-  if (await isHealthy()) {
-    if (process.env.BASE_URL) return;
-    throw new Error(
-      `${baseURL} is already serving an app. Stop it or pass BASE_URL explicitly to reuse it.`,
-    );
+  if (process.env.BASE_URL) {
+    try {
+      await assertAtlasAppReady(baseURL);
+    } catch (error) {
+      throw new Error(
+        `BASE_URL app is not ready: ${baseURL}. ${error.message}`,
+      );
+    }
+    return;
   }
-  if (process.env.BASE_URL)
-    throw new Error(`BASE_URL is not healthy: ${process.env.BASE_URL}`);
+  await assertAtlasPortAvailable(baseURL);
   for (const envPath of [
     path.join(repoRoot, ".env.development"),
     path.join(appRoot, ".env.development"),
@@ -195,14 +191,27 @@ async function startServer() {
     },
   });
   const deadline = Date.now() + 120_000;
+  let readinessFailure = "The owned Next listener has not started.";
   while (Date.now() < deadline) {
     if (server.exitCode !== null)
       throw new Error(`Atlas dev server exited early. See ${serverLogPath}.`);
-    if (await isHealthy()) return;
+    // Next emits this line after its own listener binds the requested port.
+    if (readFileSync(serverLogPath, "utf8").includes("Ready in ")) {
+      try {
+        await assertAtlasAppReady(baseURL);
+        if (server.exitCode !== null)
+          throw new Error(
+            `Atlas dev server exited early. See ${serverLogPath}.`,
+          );
+        return;
+      } catch (error) {
+        readinessFailure = error.message;
+      }
+    }
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
   throw new Error(
-    `Atlas dev server was not ready at ${baseURL}. See ${serverLogPath}.`,
+    `Atlas dev server was not ready at ${baseURL}. ${readinessFailure} See ${serverLogPath}.`,
   );
 }
 try {

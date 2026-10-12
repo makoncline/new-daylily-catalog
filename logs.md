@@ -1,5 +1,7 @@
 # Reusable Project Lessons
 
+- [2026-10-12] Atlas app readiness: Runtime config can return HTTP success while database reads fail. Before Atlas captures, require the public profile tRPC read and its successful catalog payload. Keep TCP port occupancy separate from app readiness. Put Chromium helper tests in the Playwright integration suite; the Vitest CI job does not install a browser.
+
 Read a note when its topic affects the work. These are historical lessons;
 check current code before applying them.
 

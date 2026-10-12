@@ -1,6 +1,5 @@
-import { mkdirSync } from "node:fs";
-import path from "node:path";
 import { expect, test as setup } from "./atlas-test";
+import { publishAtlasMemberState } from "./atlas-member-readiness";
 
 const authState = process.env.ATLAS_AUTH_STATE;
 
@@ -28,7 +27,5 @@ setup("authenticate realistic catalog member", async ({ page }) => {
   }
   await codeInput.pressSequentially("424242", { delay: 100 });
 
-  await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
-  mkdirSync(path.dirname(authState), { recursive: true });
-  await page.context().storageState({ path: authState });
+  await publishAtlasMemberState(page, authState);
 });
