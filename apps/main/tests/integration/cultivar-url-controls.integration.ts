@@ -22,6 +22,7 @@ const db = new PrismaClient({
 const queryPlaceholder =
   "Search names, hybridizers, colors, awards, or parentage…";
 let savedFlags: Buffer | undefined;
+let flagsCaptured = false;
 let hadCandidate = false;
 let candidatePrepared = false;
 let errors: string[];
@@ -56,6 +57,7 @@ test.beforeAll(async () => {
     )
       throw error;
   }
+  flagsCaptured = true;
   await fs.writeFile(
     process.env.RUNTIME_FEATURE_FLAGS_PATH!,
     JSON.stringify({ publicCultivarSearch: true }),
@@ -124,9 +126,12 @@ test.afterAll(async () => {
       await fs.rm(candidateDirectory, { recursive: true, force: true });
       if (hadCandidate) await fs.rename(preservedDirectory, candidateDirectory);
     }
-    if (savedFlags)
-      await fs.writeFile(process.env.RUNTIME_FEATURE_FLAGS_PATH!, savedFlags);
-    else await fs.rm(process.env.RUNTIME_FEATURE_FLAGS_PATH!, { force: true });
+    if (flagsCaptured) {
+      if (savedFlags)
+        await fs.writeFile(process.env.RUNTIME_FEATURE_FLAGS_PATH!, savedFlags);
+      else
+        await fs.rm(process.env.RUNTIME_FEATURE_FLAGS_PATH!, { force: true });
+    }
   }
 });
 
