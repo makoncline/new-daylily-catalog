@@ -140,6 +140,7 @@ async function capture(page: Page, name: string) {
 test("Profile retains drafts across refresh and fast failed navigation", async ({
   page,
 }) => {
+  const navigationTimeout = test.info().timeout;
   test.setTimeout(120_000);
   const profile = new DashboardProfile(page);
   await page.goto("/dashboard/profile");
@@ -214,7 +215,10 @@ test("Profile retains drafts across refresh and fast failed navigation", async (
   await expect(profile.gardenNameInput).toHaveValue("External title");
   await profile.gardenNameInput.fill("Retained draft");
   await paragraph.fill("Fast navigation content");
-  await page.getByRole("link", { name: "View Public Profile" }).click();
+  await Promise.all([
+    page.waitForURL("/integration-seller", { timeout: navigationTimeout }),
+    page.getByRole("link", { name: "View Public Profile" }).click(),
+  ]);
   await expect(page).toHaveURL("/integration-seller");
   await expect(
     page.getByText("Fast navigation content", { exact: true }),

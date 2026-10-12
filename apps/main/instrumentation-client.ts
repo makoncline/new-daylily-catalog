@@ -1,8 +1,17 @@
+import type * as SentryTypes from "@sentry/nextjs";
+import {
+  enrichSentryEvent,
+  enrichSentryLog,
+  installConsoleLogging,
+} from "./src/lib/telemetry";
+
+installConsoleLogging();
+
 // This file configures the initialization of client-side observability libraries.
 // Next.js 15.3+ loads this file automatically.
 
 const isProduction = process.env.NODE_ENV === "production";
-type SentryModule = typeof import("@sentry/nextjs");
+type SentryModule = typeof SentryTypes;
 type RouterTransitionStartArgs = Parameters<
   SentryModule["captureRouterTransitionStart"]
 >;
@@ -22,6 +31,8 @@ async function initializeSentry(runtimeConfig: RuntimeConfig) {
   }
 
   const Sentry = await import("@sentry/nextjs");
+  const { connectSentryLogging } = await import("./src/lib/sentry-telemetry");
+  connectSentryLogging();
   Sentry.init({
     dsn: runtimeConfig.sentry.dsn,
     environment: runtimeConfig.sentry.environment,
@@ -29,6 +40,7 @@ async function initializeSentry(runtimeConfig: RuntimeConfig) {
 
     integrations: [Sentry.replayIntegration()],
     enableLogs: true,
+    beforeSendLog: enrichSentryLog,
     tracesSampleRate: isProduction ? 0.1 : 1.0,
     replaysSessionSampleRate: 0.1,
     replaysOnErrorSampleRate: 1.0,
@@ -45,7 +57,9 @@ async function initializeSentry(runtimeConfig: RuntimeConfig) {
       );
       const original = hint?.originalException as { name?: string } | undefined;
       const hasAbortName = original?.name === "AbortError";
-      return hasAbortType || hasAbortName ? null : event;
+      return hasAbortType || hasAbortName
+        ? null
+        : enrichSentryEvent(event, hint);
     },
   });
   return true;

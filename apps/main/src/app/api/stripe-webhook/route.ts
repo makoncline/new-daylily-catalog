@@ -1,3 +1,4 @@
+import { withRequestLogging } from "@/server/observability/log-context";
 import { NextResponse } from "next/server";
 import { env, requireEnv } from "@/env";
 import type Stripe from "stripe";
@@ -33,6 +34,10 @@ const relevantEvents = new Set<Stripe.Event.Type>([
 ]);
 
 export async function POST(req: Request) {
+  return withRequestLogging(req, () => handleWebhook(req));
+}
+
+async function handleWebhook(req: Request) {
   const body = await req.text();
   const signature = req.headers.get("stripe-signature");
   const stripe = getStripeClient();

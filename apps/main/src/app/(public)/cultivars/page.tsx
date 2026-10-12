@@ -1,6 +1,6 @@
 // eslint-disable react/no-danger -- intentional static JSON-LD injection.
 import { type Metadata } from "next";
-import { headers } from "next/headers";
+import { getLogContext } from "@/lib/telemetry";
 import { notFound } from "next/navigation";
 import { MainContent } from "@/app/(public)/_components/main-content";
 import { buildPublicPageMetadata } from "@/app/(public)/_seo/public-seo";
@@ -10,15 +10,12 @@ import { IMAGES } from "@/lib/constants/images";
 import { reportError } from "@/lib/error-utils";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import { serializeJsonLd } from "@/lib/utils/json-ld";
-import {
-  getRequestId,
-  logSearchRequest,
-} from "@/server/search/cultivar-search-request-telemetry";
+import { logSearchRequest } from "@/server/search/cultivar-search-request-telemetry";
 import {
   CultivarSearchPageClient,
   type CultivarSearchResponse,
 } from "./_components/cultivar-search-page-client";
-import { hasAdvancedCultivarSearchState } from "./_lib/cultivar-search-url";
+import { parseCultivarSearchUrl } from "./_lib/cultivar-search-url";
 
 export const dynamic = "force-dynamic";
 
@@ -28,19 +25,11 @@ interface CultivarsPageProps {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }
 
-function getFirstSearchParam(
-  params: Record<string, string | string[] | undefined>,
-  key: string,
-) {
-  const value = params[key];
-  return Array.isArray(value) ? value[0] : value;
-}
-
 async function getInitialSearchResponse(
   baseUrl: string,
 ): Promise<CultivarSearchResponse | undefined> {
   const startedAt = performance.now();
-  const requestId = getRequestId(await headers());
+  const requestId = getLogContext().correlation_id;
   const searchParams = new URLSearchParams({
     hasListings: "true",
     limit: String(INITIAL_RESULT_LIMIT),
@@ -103,7 +92,10 @@ async function getInitialSearchResponse(
     reportError({
       error,
       level: "warning",
-      context: { requestId, source: "cultivar-search-initial-results" },
+      context: {
+        correlation_id: requestId,
+        source: "cultivar-search-initial-results",
+      },
     });
     return undefined;
   }
@@ -186,52 +178,10 @@ export default async function CultivarsPage({
 
       <CultivarSearchPageClient
         initialResponse={initialResponse}
-        initialState={{
-          advanced:
-            getFirstSearchParam(rawSearchParams, "advanced") === "true" ||
-            hasAdvancedCultivarSearchState(
-              (key) => getFirstSearchParam(rawSearchParams, key) !== undefined,
-            ),
-          award: getFirstSearchParam(rawSearchParams, "award"),
-          bloomHabit: getFirstSearchParam(rawSearchParams, "bloomHabit"),
-          bloomSizeMax: getFirstSearchParam(rawSearchParams, "bloomSizeMax"),
-          bloomSizeMin: getFirstSearchParam(rawSearchParams, "bloomSizeMin"),
-          bloomSeason: getFirstSearchParam(rawSearchParams, "bloomSeason"),
-          branchesMax: getFirstSearchParam(rawSearchParams, "branchesMax"),
-          branchesMin: getFirstSearchParam(rawSearchParams, "branchesMin"),
-          budCountMax: getFirstSearchParam(rawSearchParams, "budCountMax"),
-          budCountMin: getFirstSearchParam(rawSearchParams, "budCountMin"),
-          color: getFirstSearchParam(rawSearchParams, "color"),
-          cultivarName: getFirstSearchParam(rawSearchParams, "cultivarName"),
-          foliageType: getFirstSearchParam(rawSearchParams, "foliageType"),
-          flowerShow: getFirstSearchParam(rawSearchParams, "flowerShow"),
-          form: getFirstSearchParam(rawSearchParams, "form"),
-          fragrance: getFirstSearchParam(rawSearchParams, "fragrance"),
-          hasCultivarPhoto:
-            getFirstSearchParam(rawSearchParams, "hasCultivarPhoto") === "true",
-          hasForSaleListings:
-            getFirstSearchParam(rawSearchParams, "hasForSaleListings") ===
-            "true",
-          hasListings:
-            getFirstSearchParam(rawSearchParams, "hasListings") !== "false",
-          hybridizer: getFirstSearchParam(rawSearchParams, "hybridizer"),
-          parentage: getFirstSearchParam(rawSearchParams, "parentage"),
-          ploidy: getFirstSearchParam(rawSearchParams, "ploidy"),
-          q: getFirstSearchParam(rawSearchParams, "q") ?? "",
-          rebloom: getFirstSearchParam(rawSearchParams, "rebloom") === "true",
-          scapeHeightMax: getFirstSearchParam(
-            rawSearchParams,
-            "scapeHeightMax",
-          ),
-          scapeHeightMin: getFirstSearchParam(
-            rawSearchParams,
-            "scapeHeightMin",
-          ),
-          sculptedType: getFirstSearchParam(rawSearchParams, "sculptedType"),
-          sort: getFirstSearchParam(rawSearchParams, "sort") ?? "name",
-          yearMax: getFirstSearchParam(rawSearchParams, "yearMax"),
-          yearMin: getFirstSearchParam(rawSearchParams, "yearMin"),
-        }}
+        initialState={parseCultivarSearchUrl((key) => {
+          const value = rawSearchParams[key];
+          return Array.isArray(value) ? value[0] : value;
+        })}
       />
     </MainContent>
   );

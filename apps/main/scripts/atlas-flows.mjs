@@ -70,6 +70,11 @@ const fullAppIntegrationRef = (file) => ({
   path: file,
   runner: "full-app-integration",
   command: `node apps/main/scripts/run-integration-local.mjs ${file}`,
+  ...(file === "tests/integration/editor-save.integration.ts"
+    ? {
+        evidenceCommand: `node apps/main/scripts/run-integration-local.mjs --evidence ${file}`,
+      }
+    : {}),
 });
 export const ATLAS_FLOWS = [
   {
@@ -197,9 +202,38 @@ export const ATLAS_FLOWS = [
     title: "Search and inspect registered cultivars",
     description:
       "Search the production-shaped cultivar registry, refine the results, and inspect a cultivar at mobile and desktop sizes.",
+    implementation: {
+      entryPoints: [
+        {
+          label: "Browser URL controls, defaults, and canonicalization",
+          path: "src/app/(public)/cultivars/_lib/cultivar-search-url.ts",
+        },
+        {
+          label: "Server-rendered browser controls",
+          path: "src/app/(public)/cultivars/page.tsx",
+        },
+        {
+          label: "Browser controls and history-entry result restoration",
+          path: "src/app/(public)/cultivars/_components/cultivar-search-page-client.tsx",
+        },
+        {
+          label: "Search request correlation and response headers",
+          path: "src/app/api/v1/cultivars/search/route.ts",
+        },
+      ],
+      invariants: [
+        "Parse shareable controls through cultivar-search-url on the server and from the current URL on mount. Keep first repeated values, literal Booleans, and existing canonicalization.",
+        "A consumed snapshot restores only the same history entry's results, pagination, and scroll anchor. It must not replace URL controls or add result depth to shared URLs.",
+        "Use one correlation ID for each search request and its logs. Return that ID on errors, but keep it off cached success responses.",
+      ],
+    },
     tests: {
       unit: [],
       integration: [
+        testRef("integration", "tests/cultivar-search-url.test.ts"),
+        fullAppIntegrationRef(
+          "tests/integration/cultivar-url-controls.integration.ts",
+        ),
         testRef("integration", "tests/cultivar-search-page-client.test.tsx"),
         testRef("integration", "tests/cultivar-search-route.test.ts"),
         testRef("integration", "tests/cultivar-search-facets-route.test.ts"),
@@ -323,6 +357,7 @@ export const ATLAS_FLOWS = [
         testRef("integration", "tests/cultivar-name-match.integration.test.ts"),
         testRef("integration", "tests/cultivar-match-route.test.ts"),
         testRef("integration", "tests/catalog-importer.test.ts"),
+        testRef("integration", "tests/temp-list.test.ts"),
         testRef("integration", "tests/catalog-importer-draft.test.ts"),
         testRef("integration", "tests/catalog-importer-workbench.test.tsx"),
         testRef("integration", "tests/catalog-importer-session.test.tsx"),
@@ -510,6 +545,9 @@ export const ATLAS_FLOWS = [
       invariants: [
         "Keep the prepared draft and source rows across reloads and rejected writes.",
         "Create eligible, selected rows in batches of at most 100 and prevent duplicate writes.",
+        "Keep native temp-list names, prices, notes, and explicit cultivar links through import.",
+        "Save an optional named list atomically with its listings and reuse exact owned matches.",
+        "Advance the saved list version for each import batch so incremental sync includes its membership.",
         "After a saved write, retry a failed dashboard refresh without writing the rows again.",
       ],
     },
@@ -517,6 +555,10 @@ export const ATLAS_FLOWS = [
       unit: [],
       integration: [
         testRef("integration", "tests/dashboard-import-table.test.tsx"),
+        testRef(
+          "integration",
+          "tests/dashboard-db-listing-entitlements.integration.test.ts",
+        ),
         testRef(
           "integration",
           "tests/dashboard-import-existing-listings.test.tsx",
@@ -713,6 +755,7 @@ export const ATLAS_FLOWS = [
         testRef("integration", "tests/persisted-subscription-query.test.ts"),
       ],
       e2e: [
+        testRef("e2e", "tests/e2e/preview-sign-in.e2e.ts"),
         testRef("e2e", "tests/e2e/new-user-journey.e2e.ts"),
         testRef("e2e", "tests/e2e/catalog-importer-onboarding.e2e.ts"),
       ],
@@ -805,12 +848,24 @@ export const ATLAS_FLOWS = [
     implementation: {
       entryPoints: [
         {
+          label: "Managed disposable media fixtures",
+          path: "scripts/atlas-media-fixtures.mjs",
+        },
+        {
+          label: "Profile capture assertions",
+          path: "tests/atlas/profile-management.atlas.ts",
+        },
+        {
           label: "Profile sections",
           path: "src/components/forms/profile-form.tsx",
         },
         {
           label: "Profile save and draft state",
           path: "src/hooks/use-profile-form.ts",
+        },
+        {
+          label: "Structured editor conflict classification",
+          path: "src/trpc/is-conflict-error.ts",
         },
         {
           label: "Profile image actions",
@@ -838,6 +893,7 @@ export const ATLAS_FLOWS = [
         },
       ],
       invariants: [
+        "Use five reserved local image records on the realistic profile in a runner-owned disposable snapshot. Refuse attach and explicit database modes.",
         "Keep field and content drafts during refresh and failed navigation saves.",
         "Include child content and media changes in the parent commit.",
         "Ignore late URL validation results and keep drafts after rejected writes.",
@@ -846,11 +902,14 @@ export const ATLAS_FLOWS = [
         "Publish MCP endpoint resource metadata and complete tool-level OAuth challenges.",
         "Build the complete plugin with a reviewer video URL kept outside public source. Reuse sample records on repeated review runs.",
         "Store member versions as integer milliseconds and preserve stale-write rejection.",
+        "Classify editor save conflicts by the tRPC code; keep drafts and load the latest version only on explicit recovery.",
       ],
     },
     tests: {
       unit: [testRef("unit", "tests/profile-slug-rules.test.ts")],
       integration: [
+        testRef("integration", "tests/atlas-media-fixtures.test.ts"),
+        testRef("integration", "tests/atlas-browser-diagnostics.test.ts"),
         testRef("integration", "tests/oauth-metadata.test.ts"),
         testRef("integration", "tests/mcp-read-only.test.ts"),
         testRef(
@@ -863,6 +922,7 @@ export const ATLAS_FLOWS = [
           "tests/member-non-pro-access.integration.test.ts",
         ),
         testRef("integration", "tests/slug-change-confirm-dialog.test.tsx"),
+        testRef("integration", "tests/profile-form-content-rebase.test.tsx"),
         testRef(
           "integration",
           "tests/dashboard-db-user-profile-router.test.ts",
@@ -878,6 +938,9 @@ export const ATLAS_FLOWS = [
         fullAppIntegrationRef(
           "tests/integration/profile-workflow.integration.ts",
         ),
+        fullAppIntegrationRef(
+          "tests/integration/editor-conflict.integration.ts",
+        ),
       ],
       e2e: [testRef("e2e", "tests/e2e/new-user-journey.e2e.ts")],
     },
@@ -888,7 +951,7 @@ export const ATLAS_FLOWS = [
           profileState(
             "profile-management-desktop-populated",
             "Desktop populated profile",
-            "Realistic grower details, five profile images, and catalog content at the supported iPad width.",
+            "Realistic grower details, five local fixture images, and catalog content at the supported iPad width.",
             "/dashboard/profile",
           ),
           profileState(
@@ -952,7 +1015,7 @@ export const ATLAS_FLOWS = [
           profileState(
             "profile-management-desktop-preview",
             "Desktop profile image preview",
-            "A seeded profile image opened in the complete gallery preview.",
+            "A local fixture profile image opened in the complete gallery preview.",
             "/dashboard/profile",
             false,
           ),
@@ -992,12 +1055,17 @@ export const ATLAS_FLOWS = [
           path: "src/components/forms/use-listing-form.ts",
         },
         {
+          label: "Structured editor conflict classification",
+          path: "src/trpc/is-conflict-error.ts",
+        },
+        {
           label: "Listing editor history",
           path: "src/app/dashboard/listings/_components/edit-listing-dialog.tsx",
         },
       ],
       invariants: [
         "Store member versions as integer milliseconds and preserve stale-write rejection.",
+        "Classify editor save conflicts by the tRPC code; keep drafts and load the latest version only on explicit recovery.",
         "Scope listing writes to the authenticated user on the server.",
         "Enforce the same non-Pro create cap for dashboard, member API, and MCP callers. Reuse the confirmed tier within each remote request.",
         "Validate before save and keep the form open when save fails.",
@@ -1025,11 +1093,19 @@ export const ATLAS_FLOWS = [
         testRef("integration", "tests/listings-table-filter-columns.test.tsx"),
         testRef("integration", "tests/create-listing-dialog.test.tsx"),
         testRef("integration", "tests/listing-dialog-query-state.test.tsx"),
+        testRef(
+          "integration",
+          "tests/listing-form-refresh.integration.test.tsx",
+        ),
+        testRef("integration", "tests/listing-form-side-mutation.test.tsx"),
         testRef("integration", "tests/edit-listing-dialog-url-sync.test.tsx"),
         fullAppIntegrationRef(
           "tests/integration/create-edit-listing.integration.ts",
         ),
         fullAppIntegrationRef("tests/integration/editor-save.integration.ts"),
+        fullAppIntegrationRef(
+          "tests/integration/editor-conflict.integration.ts",
+        ),
         fullAppIntegrationRef(
           "tests/integration/surface-history.integration.ts",
         ),
@@ -1184,6 +1260,14 @@ export const ATLAS_FLOWS = [
           label: "Print document geometry",
           path: "src/app/dashboard/tags/_components/tag-designer-html.ts",
         },
+        {
+          label: "Atlas app readiness",
+          path: "scripts/atlas-app-readiness.mjs",
+        },
+        {
+          label: "Atlas member workspace readiness",
+          path: "tests/atlas/atlas-member-readiness.ts",
+        },
       ],
       invariants: [
         "Keep selected listings for output when search filters change.",
@@ -1196,6 +1280,10 @@ export const ATLAS_FLOWS = [
       integration: [
         testRef("integration", "tests/tag-designer-panel.test.tsx"),
         testRef("integration", "tests/tag-print-table.test.ts"),
+        testRef("integration", "tests/atlas-app-readiness.test.ts"),
+        fullAppIntegrationRef(
+          "tests/integration/atlas-member-readiness.integration.ts",
+        ),
         fullAppIntegrationRef("tests/integration/tag-printing.integration.ts"),
         fullAppIntegrationRef("tests/integration/tags-search.integration.ts"),
       ],
@@ -1390,9 +1478,29 @@ export const ATLAS_FLOWS = [
     title: "Manage listing images",
     description:
       "Review, preview, reorder, remove, and prepare listing photos without sending an upload.",
+    implementation: {
+      entryPoints: [
+        {
+          label: "Managed disposable media fixtures",
+          path: "scripts/atlas-media-fixtures.mjs",
+        },
+        { label: "Managed Atlas runner", path: "scripts/run-atlas-flow.mjs" },
+        {
+          label: "Listing media capture assertions",
+          path: "tests/atlas/listing-media.atlas.ts",
+        },
+      ],
+      invariants: [
+        "Use two reserved synthetic listings with nine local images and zero images. Keep the surrounding realistic catalog.",
+        "Create media fixtures only in a runner-owned disposable snapshot. Refuse BASE_URL, DATABASE_URL, and ATLAS_DATABASE_URL overrides before any write.",
+        "Keep populated, empty, preview, crop, reorder, and delete-confirmation assertions. Do not send an upload.",
+      ],
+    },
     tests: {
       unit: [testRef("unit", "tests/use-image-upload.test.ts")],
       integration: [
+        testRef("integration", "tests/atlas-media-fixtures.test.ts"),
+        testRef("integration", "tests/atlas-browser-diagnostics.test.ts"),
         testRef("integration", "tests/image-upload.test.tsx"),
         testRef("integration", "tests/dashboard-db-image-router.test.ts"),
         fullAppIntegrationRef("tests/integration/listing-media.integration.ts"),
@@ -1406,29 +1514,29 @@ export const ATLAS_FLOWS = [
           listingMediaState(
             "listing-media-desktop-populated",
             "Desktop populated image grid",
-            "Nine real listing photos in the four-column desktop manager.",
-            "/dashboard/listings?size=10&query=18-33",
+            "Nine local fixture photos in the four-column desktop manager.",
+            "/dashboard/listings?size=10&query=Atlas%20Media%20Populated",
             false,
           ),
           listingMediaState(
             "listing-media-mobile-populated",
             "Mobile populated image grid",
             "The same listing photos in the two-column mobile manager.",
-            "/dashboard/listings?size=10&query=18-33",
+            "/dashboard/listings?size=10&query=Atlas%20Media%20Populated",
             false,
           ),
           listingMediaState(
             "listing-media-desktop-empty",
             "Desktop empty image manager",
             "A listing with no owned photos and its available upload dropzone.",
-            "/dashboard/listings?size=10&query=Bee-ba-tized",
+            "/dashboard/listings?size=10&query=Atlas%20Media%20Empty",
             false,
           ),
           listingMediaState(
             "listing-media-mobile-empty",
             "Mobile empty image manager",
             "The empty owned-photo state and upload dropzone on a phone.",
-            "/dashboard/listings?size=10&query=Bee-ba-tized",
+            "/dashboard/listings?size=10&query=Atlas%20Media%20Empty",
             false,
           ),
         ],
@@ -1440,14 +1548,14 @@ export const ATLAS_FLOWS = [
             "listing-media-desktop-preview",
             "Desktop full-size preview",
             "A listing photo opened in the real gallery preview.",
-            "/dashboard/listings?size=10&query=18-33",
+            "/dashboard/listings?size=10&query=Atlas%20Media%20Populated",
             false,
           ),
           listingMediaState(
             "listing-media-mobile-preview",
             "Mobile full-size preview",
             "The same gallery preview at the phone viewport.",
-            "/dashboard/listings?size=10&query=18-33",
+            "/dashboard/listings?size=10&query=Atlas%20Media%20Populated",
             false,
           ),
         ],
@@ -1459,28 +1567,28 @@ export const ATLAS_FLOWS = [
             "listing-media-delete-confirmation",
             "Delete image confirmation",
             "The destructive confirmation before any listing photo is removed.",
-            "/dashboard/listings?size=10&query=18-33",
+            "/dashboard/listings?size=10&query=Atlas%20Media%20Populated",
             false,
           ),
           listingMediaState(
             "listing-media-reorder-active",
             "Pointer reorder target",
             "The first photo held between the first two slots with the sortable control active, before dropping.",
-            "/dashboard/listings?size=10&query=18-33",
+            "/dashboard/listings?size=10&query=Atlas%20Media%20Populated",
             false,
           ),
           listingMediaState(
             "listing-media-desktop-crop",
             "Desktop selected-file crop",
             "A local image selected for cropping before any upload request.",
-            "/dashboard/listings?size=10&query=Bee-ba-tized",
+            "/dashboard/listings?size=10&query=Atlas%20Media%20Empty",
             false,
           ),
           listingMediaState(
             "listing-media-mobile-crop",
             "Mobile selected-file crop",
             "The same pre-upload crop controls on a phone.",
-            "/dashboard/listings?size=10&query=Bee-ba-tized",
+            "/dashboard/listings?size=10&query=Atlas%20Media%20Empty",
             false,
           ),
         ],
@@ -1508,6 +1616,10 @@ export const ATLAS_FLOWS = [
           path: "src/components/forms/list-form.tsx",
         },
         {
+          label: "Structured editor conflict classification",
+          path: "src/trpc/is-conflict-error.ts",
+        },
+        {
           label: "List membership and navigation",
           path: "src/app/dashboard/lists/[listId]/page.tsx",
         },
@@ -1515,13 +1627,32 @@ export const ATLAS_FLOWS = [
           label: "List editor history",
           path: "src/app/dashboard/lists/_hooks/use-list-surface-state.ts",
         },
+        {
+          label: "Server request correlation",
+          path: "src/server/observability/log-context.ts",
+        },
+        {
+          label: "Browser request correlation",
+          path: "src/trpc/correlated-fetch.ts",
+        },
+        {
+          label: "Browser request logs",
+          path: "src/trpc/client-links.ts",
+        },
+        {
+          label: "Structured logs and safe attributes",
+          path: "src/lib/telemetry.ts",
+        },
       ],
       invariants: [
         "Store member versions as integer milliseconds and preserve stale-write rejection.",
+        "Classify editor save conflicts by the tRPC code; keep drafts and load the latest version only on explicit recovery.",
         "Save list fields through the editor; write membership changes at once and mark the parent for commit.",
         "Enforce the same non-Pro list cap for dashboard, member API, and MCP callers, including safe create retries.",
         "Keep drafts after rejected saves and canceled browser history changes.",
         "Keep title and actions pinned in the overview; keep selection and title pinned in Manage List.",
+        "Use the same correlation ID in request headers, responses, browser logs, and server logs for successful requests and rejected deletions.",
+        "Keep list descriptions out of diagnostic logs.",
       ],
     },
     tests: {
@@ -1551,6 +1682,9 @@ export const ATLAS_FLOWS = [
           "tests/integration/list-management.integration.ts",
         ),
         fullAppIntegrationRef("tests/integration/editor-save.integration.ts"),
+        fullAppIntegrationRef(
+          "tests/integration/editor-conflict.integration.ts",
+        ),
         fullAppIntegrationRef(
           "tests/integration/surface-history.integration.ts",
         ),
@@ -1667,6 +1801,7 @@ export const ATLAS_FLOWS = [
         testRef("integration", "tests/floating-cart-button.test.tsx"),
         testRef("integration", "tests/public-inquiry.test.ts"),
         testRef("integration", "tests/public-inquiry-rate-limit.test.ts"),
+        testRef("integration", "tests/atlas-app-readiness.test.ts"),
         testRef("integration", "tests/public-router-send-message.test.ts"),
         fullAppIntegrationRef(
           "tests/integration/buyer-inquiry-email.integration.ts",

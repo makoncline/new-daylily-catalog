@@ -48,8 +48,12 @@ vi.mock("@/server/clerk/sync-user", () => ({
   getClerkUserData: async () => ({ email: "member@example.com" }),
 }));
 
-const enabled =
-  process.env.RUN_MCP_MEMBER_WRITE_PROOF === "1" && existsSync(snapshotPath);
+const enabled = process.env.RUN_MCP_MEMBER_WRITE_PROOF === "1";
+if (enabled && !existsSync(snapshotPath)) {
+  throw new Error(
+    "RUN_MCP_MEMBER_WRITE_PROOF=1 requires local/realistic-data/realistic-data.sqlite. Run pnpm db:seed:prepare from the repository root first.",
+  );
+}
 const tempDir = enabled
   ? mkdtempSync(path.join(tmpdir(), "daylily-mcp-write-"))
   : null;

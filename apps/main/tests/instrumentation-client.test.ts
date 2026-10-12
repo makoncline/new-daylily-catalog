@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { configureTraceContext, installConsoleLogging } from "@/lib/telemetry";
 import type { MockInstance } from "vitest";
 
 const initMock = vi.hoisted(() => vi.fn());
@@ -6,6 +7,7 @@ const mutableEnv = process.env as Record<string, string | undefined>;
 
 vi.mock("@sentry/nextjs", () => ({
   init: initMock,
+  getActiveSpan: vi.fn(),
   replayIntegration: vi.fn(() => ({ name: "replay" })),
   captureRouterTransitionStart: vi.fn(),
 }));
@@ -22,6 +24,8 @@ describe("instrumentation-client", () => {
   });
 
   afterEach(() => {
+    installConsoleLogging()();
+    configureTraceContext(() => undefined);
     fetchMock.mockRestore();
 
     if (previousNodeEnv === undefined) {

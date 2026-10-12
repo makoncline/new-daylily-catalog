@@ -62,6 +62,17 @@ describe("Atlas flow contract", () => {
     expect(commands[2]).toMatch(
       /^pnpm main exec playwright test --retries=0 tests\/e2e\//,
     );
+    const editorSave = getAtlasFlow("list-management").tests.integration.find(
+      ({ path: file }) =>
+        file === "tests/integration/editor-save.integration.ts",
+    );
+    expect(
+      editorSave && "evidenceCommand" in editorSave
+        ? editorSave.evidenceCommand
+        : null,
+    ).toBe(
+      "node apps/main/scripts/run-integration-local.mjs --evidence tests/integration/editor-save.integration.ts",
+    );
   });
 
   it.each([

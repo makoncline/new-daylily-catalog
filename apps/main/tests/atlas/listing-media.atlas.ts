@@ -4,11 +4,15 @@ import { DashboardListings } from "../e2e/pages/dashboard-listings";
 import { EditListingDialog } from "../e2e/pages/edit-listing-dialog";
 import { ImageManager } from "../e2e/pages/image-manager";
 import { captureAtlasState, expect, test } from "./atlas-test";
+import {
+  ATLAS_MEDIA_POPULATED_TITLE,
+  ATLAS_MEDIA_EMPTY_TITLE,
+} from "../../scripts/atlas-media-fixtures.mjs";
 
 const desktop = { height: 768, width: 1024 };
 const mobile = { height: 874, width: 402 };
-const populatedListingTitle = "18-33";
-const emptyListingTitle = "Bee-ba-tized";
+const populatedListingTitle = ATLAS_MEDIA_POPULATED_TITLE;
+const emptyListingTitle = ATLAS_MEDIA_EMPTY_TITLE;
 const uploadPath = path.resolve(
   import.meta.dirname,
   "../../public/assets/catalog-blooms.webp",
