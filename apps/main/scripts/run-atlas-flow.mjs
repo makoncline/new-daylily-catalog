@@ -30,6 +30,10 @@ import {
   resolveRealisticDataOutputPath,
 } from "./realistic-data-snapshot.mjs";
 import { assertNoUnexpectedBrowserDiagnostics } from "./atlas-browser-diagnostics.mjs";
+import {
+  ATLAS_MEDIA_FLOW_IDS,
+  createAtlasMediaSnapshot,
+} from "./atlas-media-fixtures.mjs";
 const ATLAS_HEALTH_PATH = "/api/runtime-config";
 const appRoot = path.resolve(import.meta.dirname, "..");
 const repoRoot = path.resolve(appRoot, "../..");
@@ -43,6 +47,18 @@ if (
 
 const flows =
   requestedFlowId === "all" ? ATLAS_FLOWS : [getAtlasFlow(requestedFlowId)];
+const mediaFlowIds = flows
+  .map((flow) => flow.id)
+  .filter((id) => ATLAS_MEDIA_FLOW_IDS.includes(id));
+if (
+  mediaFlowIds.length &&
+  (process.env.BASE_URL ||
+    process.env.DATABASE_URL ||
+    process.env.ATLAS_DATABASE_URL)
+)
+  throw new Error(
+    "Atlas media fixtures require a managed disposable database. Unset BASE_URL, DATABASE_URL, and ATLAS_DATABASE_URL.",
+  );
 validateAtlasFlows({ appRoot });
 const outputDirectory = path.resolve(process.cwd(), outputArgument.slice(9));
 const finalServerLogPath = path.join(outputDirectory, "server.log");
@@ -145,9 +161,14 @@ async function startServer() {
       throw new Error(
         "Seeded database missing. Run `pnpm db:seed:prepare` first.",
       );
-    disposableDatabase = await createDisposableRealisticDataSnapshot({
-      sourcePath: seededDatabase,
-    });
+    disposableDatabase = mediaFlowIds.length
+      ? await createAtlasMediaSnapshot({
+          sourcePath: seededDatabase,
+          flowIds: mediaFlowIds,
+        })
+      : await createDisposableRealisticDataSnapshot({
+          sourcePath: seededDatabase,
+        });
     databaseUrl = `file:${disposableDatabase.databasePath}`;
   }
   atlasDatabaseUrl = databaseUrl;
