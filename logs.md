@@ -3,6 +3,8 @@
 Read a note when its topic affects the work. These are historical lessons;
 check current code before applying them.
 
+- [2026-10-12] Playwright evidence attachments: A screenshot attached from a buffer stays in `attachment.body`; a recorded video uses `attachment.path`. When selecting public browser evidence, handle both forms and keep traces and other diagnostics private.
+
 - [2026-09-24] Cultivar social images: Next ImageResponse rejected WOFF2, and Satori ignored `inset` on absolute overlays. When changing social cards, use TTF or OTF fonts, set explicit overlay bounds, and inspect a generated PNG.
 - [2026-07-19] AHS award labels: V2 AHS uses `L/W` for both the Lambert-Webster and Lenington All-American awards. When expanding award codes, keep the combined label or use the award URL to distinguish them.
 - [2026-07-21] Cloudflare origin headers: A prior hostname-wide Cache Rule followed ordinary Next `Cache-Control` when no CDN-specific header was present. When excluding a public document, send an explicit CDN `no-store` directive and verify the result at the edge.

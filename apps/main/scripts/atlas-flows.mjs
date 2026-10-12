@@ -70,6 +70,11 @@ const fullAppIntegrationRef = (file) => ({
   path: file,
   runner: "full-app-integration",
   command: `node apps/main/scripts/run-integration-local.mjs ${file}`,
+  ...(file === "tests/integration/editor-save.integration.ts"
+    ? {
+        evidenceCommand: `node apps/main/scripts/run-integration-local.mjs --evidence ${file}`,
+      }
+    : {}),
 });
 export const ATLAS_FLOWS = [
   {
