@@ -8,11 +8,15 @@ import {
   removeIntegrationDatabaseFiles,
   validateIntegrationRuntime,
 } from "./integration-network-guard.mjs";
+import { startEvidence } from "./integration-evidence.mjs";
 
 const appRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
 );
+const args = process.argv.slice(2);
+const recording = args[0] === "--evidence";
+const specs = recording ? args.slice(1) : args;
 const port = Number(process.env.INTEGRATION_PORT ?? "3210");
 if (!Number.isInteger(port) || port < 1 || port >= 65535) {
   throw new Error("INTEGRATION_PORT must be a port from 1 to 65534.");
@@ -101,6 +105,13 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
 
 fs.mkdirSync(path.dirname(databasePath), { recursive: true });
 removeIntegrationDatabaseFiles(databaseUrl);
+const evidence = recording ? startEvidence(appRoot, specs) : null;
+if (evidence) {
+  integrationEnv.INTEGRATION_EVIDENCE_DIR = evidence.directory;
+  console.log(`Evidence: ${evidence.directory}`);
+} else {
+  delete integrationEnv.INTEGRATION_EVIDENCE_DIR;
+}
 
 let exitCode = 1;
 try {
@@ -117,15 +128,21 @@ try {
   ]);
   if (exitCode !== 0) throw new Error("Failed to seed integration database.");
 
-  const specs = process.argv.slice(2);
   exitCode = await run(
     path.join(appRoot, "node_modules", ".bin", "playwright"),
     ["test", "--config", "playwright.integration.config.ts", ...specs],
   );
+} catch (error) {
+  exitCode = 1;
+  console.error(error);
 } finally {
   removeIntegrationDatabaseFiles(databaseUrl);
   if (!process.env.RUNTIME_FEATURE_FLAGS_PATH)
     fs.rmSync(runtimeFlagsPath, { force: true });
+  if (evidence?.finish(exitCode, forwardedSignal)) {
+    console.error("Source changed during recording. Evidence is invalid.");
+    exitCode = 1;
+  }
 }
 
 if (forwardedSignal) process.kill(process.pid, forwardedSignal);

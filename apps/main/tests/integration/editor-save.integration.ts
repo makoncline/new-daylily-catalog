@@ -6,9 +6,28 @@ for (const [device, viewport] of [
 ] as const) {
   test(`editor saves recover from rejected writes on ${device}`, async ({
     page,
-  }) => {
+    browser,
+  }, testInfo) => {
     test.setTimeout(120_000);
     await page.setViewportSize(viewport);
+    if (process.env.INTEGRATION_EVIDENCE_DIR) {
+      await testInfo.attach("evidence-context", {
+        body: JSON.stringify({
+          browser: browser.browserType().name(),
+          version: browser.version(),
+          viewport: page.viewportSize(),
+          device,
+        }),
+        contentType: "application/json",
+      });
+    }
+    const capture = async (name: string) => {
+      if (!process.env.INTEGRATION_EVIDENCE_DIR) return;
+      await testInfo.attach(name, {
+        body: await page.screenshot({ animations: "disabled" }),
+        contentType: "image/png",
+      });
+    };
     const toast = (message: string) =>
       page.locator("[data-sonner-toast]").filter({ hasText: message }).first();
 
@@ -99,6 +118,7 @@ for (const [device, viewport] of [
       await expect(page).toHaveURL(editorUrl);
 
       await page.unroute(updateRequest);
+      await capture(`evidence-${family}-before-save`);
       await edit.getByRole("button", { name: "Save", exact: true }).click();
       await expect(edit).toBeHidden();
       await expect(page).toHaveURL(`/dashboard/${family}`);
@@ -107,11 +127,13 @@ for (const [device, viewport] of [
       await expect(edit.getByLabel("Description", { exact: true })).toHaveValue(
         "Saved after a rejected write.",
       );
+      await capture(`evidence-${family}-reopened`);
       await page.reload();
       await expect(field).toHaveValue(savedTitle);
       await expect(edit.getByLabel("Description", { exact: true })).toHaveValue(
         "Saved after a rejected write.",
       );
+      await capture(`evidence-${family}-reloaded`);
     }
   });
 }
