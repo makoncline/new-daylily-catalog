@@ -181,3 +181,5 @@ check current code before applying them.
 - [2026-10-11] Cultivar browser settled results: A filtered URL first renders the server browse batch, then replaces it with the browser search response. For Chromium pagination or capture checks, wait for the initial search response and the requested sort result before using the displayed count. The initial 24 shown status alone does not prove that refinement has completed.
 
 - [2026-10-12] Dashboard POST reads: Image listByListingIds and cultivarReference getByIdsBatch procedures use tRPC mutations for large read batches. A blanket POST block breaks dashboard bootstrap. For a read-only browser check, audit and allow only those exact read procedures. Block mixed batches that contain a write.
+
+- [2026-10-12] Clerk sign-in cache action: Clerk's Next provider calls invalidateCacheAction before it activates a session. This posts to the current sign-in page and deletes a Clerk cache cookie. For a guarded production browser check, allow this server action only during sign-in. Observe public client identity before navigation; do not evaluate the page while its navigation is paused.

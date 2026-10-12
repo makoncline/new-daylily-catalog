@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { spawnSync } from "node:child_process";
 import path from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   allowedProductionRequest,
   authFailureCategory,
@@ -9,6 +9,7 @@ import {
   productionOrigin,
   productionSmokeConfig,
   productionSmokePassword,
+  watchSignedInSmokeIdentity,
 } from "../scripts/production-smoke-config.mjs";
 
 const inputs = {
@@ -19,6 +20,46 @@ const inputs = {
 };
 
 describe("production browser smoke boundary", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("observes only the matching public identity from one completed client session and rejects pending or ambiguous sessions", () => {
+    const active = {
+      status: "active",
+      user: {
+        id: "user_existing",
+        emailAddresses: [
+          { emailAddress: "primary@example.test" },
+          { emailAddress: inputs.DAYLILY_SMOKE_EMAIL.toUpperCase() },
+        ],
+      },
+      token: "private-token-sentinel",
+    };
+    type Snapshot = { client: { sessions: (typeof active)[] } };
+    let emit: (snapshot: Snapshot) => void = vi.fn();
+    const publish = vi.fn(() => Promise.resolve());
+    vi.stubGlobal("window", {
+      Clerk: {
+        addListener: (callback: typeof emit) => {
+          emit = callback;
+        },
+      },
+      __daylilySmokeIdentity: publish,
+    });
+    watchSignedInSmokeIdentity(inputs.DAYLILY_SMOKE_EMAIL);
+    for (const sessions of [
+      [],
+      [{ ...active, status: "pending" }],
+      [active, active],
+    ]) {
+      emit({ client: { sessions } });
+      expect(publish).toHaveBeenLastCalledWith(null);
+    }
+    emit({ client: { sessions: [active] } });
+    expect(publish).toHaveBeenLastCalledWith({
+      id: "user_existing",
+      email: inputs.DAYLILY_SMOKE_EMAIL.toUpperCase(),
+    });
+  });
   it("rejects other targets, short releases, debug output, and missing existing-account facts", () => {
     expect(productionSmokeConfig(inputs)).toMatchObject({
       release: inputs.DAYLILY_SMOKE_RELEASE,
@@ -147,6 +188,47 @@ describe("production browser smoke boundary", () => {
     expect(
       allowedProductionRequest(`${productionOrigin}/dashboard`, "POST", true),
     ).toBe(false);
+    expect(
+      allowedProductionRequest(
+        `${productionOrigin}/sign-in`,
+        "POST",
+        false,
+        true,
+      ),
+    ).toBe(true);
+    expect(
+      allowedProductionRequest(`${productionOrigin}/sign-in`, "POST", false),
+    ).toBe(false);
+    expect(
+      allowedProductionRequest(
+        `${productionOrigin}/dashboard`,
+        "POST",
+        false,
+        true,
+      ),
+    ).toBe(false);
+    expect(
+      allowedProductionRequest(
+        `${productionOrigin}/api/trpc/dashboardDb.userProfile.update`,
+        "POST",
+        false,
+        true,
+      ),
+    ).toBe(false);
+    expect(
+      allowedProductionRequest(
+        `${productionOrigin}/cdn-cgi/rum`,
+        "POST",
+        false,
+      ),
+    ).toBe(true);
+    expect(
+      allowedProductionRequest(
+        `${productionOrigin}/cdn-cgi/challenge-platform/h/b/flow/private`,
+        "POST",
+        false,
+      ),
+    ).toBe(false);
   });
 
   it("reports only fixed auth categories and bounded paths without private request inputs", () => {
@@ -157,8 +239,21 @@ describe("production browser smoke boundary", () => {
       ),
     ).toBe("/api/trpc/dashboardDb.userProfile.update");
     expect(
+      blockedRequestLabel(
+        `${productionOrigin}/api/trpc/user.getCurrentUser%2CdashboardDb.userProfile.get?input=${sentinel}`,
+      ),
+    ).toBe("/api/trpc/user.getCurrentUser,dashboardDb.userProfile.get");
+    expect(
+      blockedRequestLabel(`${productionOrigin}/sign-in?email=${sentinel}`),
+    ).toBe("/sign-in");
+    expect(
       blockedRequestLabel(`${productionOrigin}/api/upload/${sentinel}`),
-    ).toBe("unlisted-app-request");
+    ).toBe("/api/[redacted]/[redacted]");
+    expect(
+      blockedRequestLabel(
+        `${productionOrigin}/cdn-cgi/challenge-platform/h/b/flow/${sentinel}`,
+      ),
+    ).toBe("/cdn-cgi/challenge-platform/h/b/flow/[redacted]");
     expect(authFailureCategory(`Incorrect password: ${sentinel}`)).toBe(
       "credential-or-input-error",
     );

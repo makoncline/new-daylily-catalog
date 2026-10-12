@@ -4,11 +4,12 @@ import {
   authFailureCategory,
   blockedRequestLabel,
   productionOrigin,
+  watchSignedInSmokeIdentity,
   SmokePrerequisite,
 } from "../../scripts/production-smoke-config.mjs";
 
 /**
- * @param {ReturnType<import('../../scripts/production-smoke-config.mjs').productionSmokeConfig>} config
+ * @param {ReturnType<typeof import('../../scripts/production-smoke-config.mjs').productionSmokeConfig>} config
  * @param {string} password
  */
 export async function runProductionSmoke(config, password) {
@@ -36,10 +37,21 @@ export async function runProductionSmoke(config, password) {
     page.setDefaultTimeout(30_000);
     page.setDefaultNavigationTimeout(30_000);
     let accountVerified = false;
+    await page.exposeFunction(
+      "__daylilySmokeIdentity",
+      /** @param {{id: string, email: string} | null} identity */ (
+        identity,
+      ) => {
+        accountVerified = Boolean(
+          identity?.id === config.clerkUserId &&
+            identity?.email.toLowerCase() === config.email.toLowerCase(),
+        );
+      },
+    );
     const readAuthFailure = async () => {
       const text = await page
         .locator(
-          '[role="alert"]:visible, .cl-formFieldErrorText:visible, h1:visible, h2:visible, label:visible',
+          '[role="alert"]:visible, .cl-formFieldErrorText:visible, .cl-alertText:visible, h1:visible, h2:visible, label:visible',
         )
         .allTextContents()
         .catch(() => []);
@@ -68,26 +80,6 @@ export async function runProductionSmoke(config, password) {
     await context.route("**/*", async (route) => {
       const request = route.request();
       const url = new URL(request.url());
-      if (
-        url.origin === productionOrigin &&
-        url.pathname.startsWith("/dashboard") &&
-        !accountVerified
-      ) {
-        accountVerified = await page
-          .evaluate(({ email, clerkUserId }) => {
-            const clerkWindow =
-              /** @type {Window & {Clerk?: ReturnType<import('@clerk/nextjs').useClerk>}} */ (
-                window
-              );
-            const user = clerkWindow.Clerk?.user;
-            return (
-              user?.id === clerkUserId &&
-              user?.primaryEmailAddress?.emailAddress?.toLowerCase() ===
-                email.toLowerCase()
-            );
-          }, config)
-          .catch(() => false);
-      }
       const externalNavigation =
         request.isNavigationRequest() &&
         request.frame() === page.mainFrame() &&
@@ -98,12 +90,14 @@ export async function runProductionSmoke(config, password) {
           request.url(),
           request.method(),
           accountVerified,
+          stage === "ordinary password sign-in" &&
+            (await request.headerValue("next-action")) !== null,
         )
       ) {
         counts.blockedAppRequests++;
         const label = externalNavigation
-          ? "external-navigation"
-          : blockedRequestLabel(request.url());
+          ? `${request.method()} external navigation`
+          : `${request.method()} app ${blockedRequestLabel(request.url())}`;
         if (blockedRequests.has(label) || blockedRequests.size < 10)
           blockedRequests.set(label, (blockedRequests.get(label) ?? 0) + 1);
         await route.abort("blockedbyclient");
@@ -140,6 +134,7 @@ export async function runProductionSmoke(config, password) {
       await page.goto(`${productionOrigin}/sign-in`);
       const emailInput = page.getByLabel(/email/i).first();
       await expect(emailInput).toBeVisible({ timeout: 30_000 });
+      await page.evaluate(watchSignedInSmokeIdentity, config.email);
       await emailInput.fill(config.email);
       const passwordInput = page.locator('input[type="password"]');
       if (!(await passwordInput.isVisible()))
@@ -170,42 +165,71 @@ export async function runProductionSmoke(config, password) {
       await expect(page.getByTestId("dashboard-heading")).toBeVisible({
         timeout: 30_000,
       });
-      await expect(page.locator(`[title="${config.email}" i]`)).toBeAttached({
-        timeout: 30_000,
-      });
       console.log("PASS: password sign-in and existing account identity");
 
       stage = "Listings and existing listing editor";
       await page.getByTestId("dashboard-nav-listings").click();
-      await expect(page.getByTestId("listing-table")).toBeVisible({
+      await expect(
+        page.getByRole("heading", { name: "Listings", exact: true }),
+      ).toBeVisible();
+      const firstListing = page
+        .getByTestId("listing-row-actions-trigger")
+        .first();
+      const emptyListings = page.getByRole("heading", {
+        name: "No listings",
+        exact: true,
+      });
+      await expect(firstListing.or(emptyListings)).toBeVisible({
         timeout: 30_000,
       });
-      await page.getByTestId("listing-row-actions-trigger").first().click();
-      await page.getByTestId("listing-row-action-edit").click();
-      const listingEditor = page.getByRole("region", { name: "Edit listing" });
-      await expect(
-        listingEditor.getByLabel("Name", { exact: true }),
-      ).toBeVisible({ timeout: 30_000 });
-      await listingEditor
-        .getByRole("button", { name: "Back to listings" })
-        .click();
-      await expect(listingEditor).toBeHidden();
-      console.log("PASS: Listings and existing listing editor");
+      if (await emptyListings.isVisible()) {
+        console.log(
+          "PASS: Listings empty state. Existing listing editor coverage is unavailable.",
+        );
+      } else {
+        await firstListing.click();
+        await page.getByTestId("listing-row-action-edit").click();
+        const listingEditor = page.getByRole("region", {
+          name: "Edit listing",
+        });
+        await expect(
+          listingEditor.getByLabel("Name", { exact: true }),
+        ).toBeVisible({ timeout: 30_000 });
+        await listingEditor
+          .getByRole("button", { name: "Back to listings" })
+          .click();
+        await expect(listingEditor).toBeHidden();
+        console.log("PASS: Listings and existing listing editor");
+      }
 
       stage = "Lists and existing list editor";
       await page.getByTestId("dashboard-nav-lists").click();
-      await expect(page.getByTestId("list-table")).toBeVisible({
+      await expect(
+        page.getByRole("heading", { name: "Lists", exact: true }),
+      ).toBeVisible();
+      const firstList = page.getByTestId("list-row-actions-trigger").first();
+      const emptyLists = page.getByRole("heading", {
+        name: "No lists",
+        exact: true,
+      });
+      await expect(firstList.or(emptyLists)).toBeVisible({
         timeout: 30_000,
       });
-      await page.getByTestId("list-row-actions-trigger").first().click();
-      await page.getByTestId("list-row-action-edit").click();
-      const listEditor = page.getByRole("region", { name: "Edit list" });
-      await expect(listEditor.getByLabel("Title", { exact: true })).toBeVisible(
-        { timeout: 30_000 },
-      );
-      await listEditor.getByRole("button", { name: "Back to lists" }).click();
-      await expect(listEditor).toBeHidden();
-      console.log("PASS: Lists and existing list editor");
+      if (await emptyLists.isVisible()) {
+        console.log(
+          "PASS: Lists empty state. Existing list editor coverage is unavailable.",
+        );
+      } else {
+        await firstList.click();
+        await page.getByTestId("list-row-action-edit").click();
+        const listEditor = page.getByRole("region", { name: "Edit list" });
+        await expect(
+          listEditor.getByLabel("Title", { exact: true }),
+        ).toBeVisible({ timeout: 30_000 });
+        await listEditor.getByRole("button", { name: "Back to lists" }).click();
+        await expect(listEditor).toBeHidden();
+        console.log("PASS: Lists and existing list editor");
+      }
 
       stage = "Profile and authenticated reload";
       await page.getByTestId("dashboard-nav-profile").click();

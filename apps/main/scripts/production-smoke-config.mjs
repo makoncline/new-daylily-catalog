@@ -4,6 +4,30 @@ export const productionOrigin = "https://daylilycatalog.com";
 
 export class SmokePrerequisite extends Error {}
 
+/** @param {string} email */
+export function watchSignedInSmokeIdentity(email) {
+  const clerk =
+    /** @type {ReturnType<typeof import('@clerk/nextjs').useClerk> | undefined} */ (
+      Reflect.get(window, "Clerk")
+    );
+  const publish =
+    /** @type {(identity: {id: string, email: string} | null) => Promise<void>} */ (
+      Reflect.get(window, "__daylilySmokeIdentity")
+    );
+  clerk?.addListener(({ client }) => {
+    const activeSessions = client.sessions.filter(
+      (session) => session.status === "active",
+    );
+    const user = activeSessions.length === 1 ? activeSessions[0]?.user : null;
+    const address = user?.emailAddresses.find(
+      (address) => address.emailAddress.toLowerCase() === email.toLowerCase(),
+    );
+    void publish(
+      user && address ? { id: user.id, email: address.emailAddress } : null,
+    ).catch(() => undefined);
+  });
+}
+
 /** @param {Record<string, string | undefined>} env */
 export function productionSmokeConfig(env) {
   if (
@@ -100,10 +124,19 @@ const readPosts = new Set([
   "dashboardDb.cultivarReference.getByIdsBatchReplica",
 ]);
 
-/** @param {string} url @param {string} method @param {boolean} accountVerified */
-export function allowedProductionRequest(url, method, accountVerified) {
+/** @param {string} url @param {string} method @param {boolean} accountVerified @param {boolean} [signInServerAction] */
+export function allowedProductionRequest(
+  url,
+  method,
+  accountVerified,
+  signInServerAction = false,
+) {
   const target = new URL(url);
   if (target.origin !== productionOrigin) return true;
+  if (target.pathname === "/cdn-cgi/rum" && method === "POST") return true;
+  // Clerk calls invalidateCacheAction before it activates the normal session.
+  if (target.pathname === "/sign-in" && method === "POST" && signInServerAction)
+    return true;
   if (target.pathname.startsWith("/api/trpc/")) {
     const names = decodeURIComponent(
       target.pathname.slice("/api/trpc/".length),
@@ -129,9 +162,9 @@ export function allowedProductionRequest(url, method, accountVerified) {
 
 /** @param {string} url */
 export function blockedRequestLabel(url) {
-  const path = new URL(url).pathname;
+  const path = decodeURIComponent(new URL(url).pathname);
   if (
-    /^\/api\/trpc\/[a-zA-Z]+(?:\.[a-zA-Z]+)+(?:,[a-zA-Z]+(?:\.[a-zA-Z]+)+)*$/.test(
+    /^\/api\/trpc\/[a-zA-Z][a-zA-Z0-9_]*(?:\.[a-zA-Z][a-zA-Z0-9_]*)+(?:,[a-zA-Z][a-zA-Z0-9_]*(?:\.[a-zA-Z][a-zA-Z0-9_]*)+)*$/.test(
       path,
     ) &&
     path.length <= 240
@@ -139,7 +172,37 @@ export function blockedRequestLabel(url) {
     return path;
   if (/^\/api\/[a-z-]+$/.test(path) && path.length <= 80) return path;
   if (path.startsWith("/dashboard")) return "/dashboard";
-  return "unlisted-app-request";
+  if (path === "/sign-in" || path === "/") return path;
+  const staticSegments = new Set([
+    "api",
+    "auth",
+    "clerk",
+    "__clerk",
+    "v1",
+    "client",
+    "environment",
+    "sign_ins",
+    "attempt_first_factor",
+    "_next",
+    "cdn-cgi",
+    "rum",
+    "challenge-platform",
+    "h",
+    "b",
+    "jsd",
+    "oneshot",
+    "flow",
+    "orchestrate",
+    "turnstile",
+    "pat",
+  ]);
+  return path
+    .split("/")
+    .slice(0, 9)
+    .map((segment) =>
+      !segment || staticSegments.has(segment) ? segment : "[redacted]",
+    )
+    .join("/");
 }
 
 /** @param {string} visibleText */
