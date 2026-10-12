@@ -8,6 +8,7 @@ scripts and installed package documentation as the source of truth.
 - Keep route, UI, server, and data concerns separate. Check existing patterns, dependencies, and installed types before adding code.
 - Add a few meaningful tests for changed behavior. Prefer integration tests. Do not test facts that TypeScript guarantees. Check the user-visible result when a flow changes.
 - Do not run `codex review` unless the user asks for it.
+- Use clear code and tests as examples. Keep per-change reports, plans, and screenshots out of Git. Add only essential operating docs that code and tests cannot explain.
 - If you learn a reusable, non-obvious detail, append it to `logs.md` in this format: `[YYYY-MM-DD] Short label: What was learned. When it matters. What future agents should do.`
 
 When choosing or prioritizing work, read [GOALS.md](GOALS.md). When a prior
