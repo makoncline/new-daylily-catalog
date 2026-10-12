@@ -36,6 +36,7 @@ import {
   removeListingFromList,
 } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
 import { rebaseFormValues } from "@/lib/rebase-form-values";
+import { isConflictError } from "@/trpc/is-conflict-error";
 
 export interface ListingFormProps {
   listingId: string;
@@ -242,7 +243,7 @@ export function useListingFormController({
           }
           return true;
         } catch (error) {
-          if (getErrorMessage(error).includes("changed. Load the latest")) {
+          if (isConflictError(error)) {
             setHasRemoteChange(true);
           }
           if (shouldUpdateUi) {

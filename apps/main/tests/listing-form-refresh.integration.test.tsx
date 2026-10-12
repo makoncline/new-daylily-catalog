@@ -1,3 +1,5 @@
+import { TRPCClientError } from "@trpc/client";
+import type { AppRouter } from "@/server/api/root";
 import * as React from "react";
 import {
   act,
@@ -226,7 +228,13 @@ describe("Listing form refreshed data", () => {
       "Your unsaved fields are still here",
     );
     updateListing.mockRejectedValueOnce(
-      new Error("Listing changed. Load the latest version."),
+      TRPCClientError.from<AppRouter>({
+        error: {
+          code: -32009,
+          message: "A newer saved version exists.",
+          data: { code: "CONFLICT", httpStatus: 409, zodError: null },
+        },
+      }),
     );
     fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
     await waitFor(() => expect(updateListing).toHaveBeenCalledOnce());

@@ -16,6 +16,7 @@ import type { ContentManagerFormHandle } from "@/components/forms/content-form";
 import type { z } from "zod";
 import { useWatch } from "react-hook-form";
 import { rebaseFormValues } from "@/lib/rebase-form-values";
+import { isConflictError } from "@/trpc/is-conflict-error";
 
 export type UserProfile = RouterOutputs["dashboardDb"]["userProfile"]["get"];
 type SaveReason = "manual" | "navigate";
@@ -238,8 +239,7 @@ export function useProfileForm(
         toast.success("Changes saved");
         return true;
       } catch (error) {
-        if (getErrorMessage(error).includes("changed. Load the latest"))
-          setHasRemoteChange(true);
+        if (isConflictError(error)) setHasRemoteChange(true);
         setSaveError(getErrorMessage(error));
         if (reason === "manual")
           toast.error("Failed to save changes", {

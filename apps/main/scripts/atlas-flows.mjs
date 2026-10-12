@@ -859,6 +859,10 @@ export const ATLAS_FLOWS = [
           path: "src/hooks/use-profile-form.ts",
         },
         {
+          label: "Structured editor conflict classification",
+          path: "src/trpc/is-conflict-error.ts",
+        },
+        {
           label: "Profile image actions",
           path: "src/app/dashboard/profile/_components/profile-image-manager.tsx",
         },
@@ -893,6 +897,7 @@ export const ATLAS_FLOWS = [
         "Publish MCP endpoint resource metadata and complete tool-level OAuth challenges.",
         "Build the complete plugin with a reviewer video URL kept outside public source. Reuse sample records on repeated review runs.",
         "Store member versions as integer milliseconds and preserve stale-write rejection.",
+        "Classify editor save conflicts by the tRPC code; keep drafts and load the latest version only on explicit recovery.",
       ],
     },
     tests: {
@@ -912,6 +917,7 @@ export const ATLAS_FLOWS = [
           "tests/member-non-pro-access.integration.test.ts",
         ),
         testRef("integration", "tests/slug-change-confirm-dialog.test.tsx"),
+        testRef("integration", "tests/profile-form-content-rebase.test.tsx"),
         testRef(
           "integration",
           "tests/dashboard-db-user-profile-router.test.ts",
@@ -926,6 +932,9 @@ export const ATLAS_FLOWS = [
         ),
         fullAppIntegrationRef(
           "tests/integration/profile-workflow.integration.ts",
+        ),
+        fullAppIntegrationRef(
+          "tests/integration/editor-conflict.integration.ts",
         ),
       ],
       e2e: [testRef("e2e", "tests/e2e/new-user-journey.e2e.ts")],
@@ -1041,12 +1050,17 @@ export const ATLAS_FLOWS = [
           path: "src/components/forms/use-listing-form.ts",
         },
         {
+          label: "Structured editor conflict classification",
+          path: "src/trpc/is-conflict-error.ts",
+        },
+        {
           label: "Listing editor history",
           path: "src/app/dashboard/listings/_components/edit-listing-dialog.tsx",
         },
       ],
       invariants: [
         "Store member versions as integer milliseconds and preserve stale-write rejection.",
+        "Classify editor save conflicts by the tRPC code; keep drafts and load the latest version only on explicit recovery.",
         "Scope listing writes to the authenticated user on the server.",
         "Enforce the same non-Pro create cap for dashboard, member API, and MCP callers. Reuse the confirmed tier within each remote request.",
         "Validate before save and keep the form open when save fails.",
@@ -1074,11 +1088,19 @@ export const ATLAS_FLOWS = [
         testRef("integration", "tests/listings-table-filter-columns.test.tsx"),
         testRef("integration", "tests/create-listing-dialog.test.tsx"),
         testRef("integration", "tests/listing-dialog-query-state.test.tsx"),
+        testRef(
+          "integration",
+          "tests/listing-form-refresh.integration.test.tsx",
+        ),
+        testRef("integration", "tests/listing-form-side-mutation.test.tsx"),
         testRef("integration", "tests/edit-listing-dialog-url-sync.test.tsx"),
         fullAppIntegrationRef(
           "tests/integration/create-edit-listing.integration.ts",
         ),
         fullAppIntegrationRef("tests/integration/editor-save.integration.ts"),
+        fullAppIntegrationRef(
+          "tests/integration/editor-conflict.integration.ts",
+        ),
         fullAppIntegrationRef(
           "tests/integration/surface-history.integration.ts",
         ),
@@ -1577,6 +1599,10 @@ export const ATLAS_FLOWS = [
           path: "src/components/forms/list-form.tsx",
         },
         {
+          label: "Structured editor conflict classification",
+          path: "src/trpc/is-conflict-error.ts",
+        },
+        {
           label: "List membership and navigation",
           path: "src/app/dashboard/lists/[listId]/page.tsx",
         },
@@ -1603,6 +1629,7 @@ export const ATLAS_FLOWS = [
       ],
       invariants: [
         "Store member versions as integer milliseconds and preserve stale-write rejection.",
+        "Classify editor save conflicts by the tRPC code; keep drafts and load the latest version only on explicit recovery.",
         "Save list fields through the editor; write membership changes at once and mark the parent for commit.",
         "Enforce the same non-Pro list cap for dashboard, member API, and MCP callers, including safe create retries.",
         "Keep drafts after rejected saves and canceled browser history changes.",
@@ -1638,6 +1665,9 @@ export const ATLAS_FLOWS = [
           "tests/integration/list-management.integration.ts",
         ),
         fullAppIntegrationRef("tests/integration/editor-save.integration.ts"),
+        fullAppIntegrationRef(
+          "tests/integration/editor-conflict.integration.ts",
+        ),
         fullAppIntegrationRef(
           "tests/integration/surface-history.integration.ts",
         ),

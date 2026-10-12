@@ -148,7 +148,13 @@ describe("profile fields after a story save", () => {
   it("keeps the old version when the garden name also changed remotely", async () => {
     state.saved = { ...state.saved, title: "Remote garden" };
     updateProfile.mockRejectedValue(
-      new Error("Profile changed. Load the latest version."),
+      TRPCClientError.from<AppRouter>({
+        error: {
+          code: -32009,
+          message: "A newer saved version exists.",
+          data: { code: "CONFLICT", httpStatus: 409, zodError: null },
+        },
+      }),
     );
     render(<ProfileForm initialProfile={state.initial} />);
 
@@ -192,8 +198,7 @@ describe("profile fields after a story save", () => {
       TRPCClientError.from<AppRouter>({
         error: {
           code: -32009,
-          message:
-            "The profile changed. Load the latest version before saving.",
+          message: "A newer saved version exists.",
           data: { code: "CONFLICT", httpStatus: 409, zodError: null },
         },
       }),
