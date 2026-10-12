@@ -1,13 +1,13 @@
 import path from "node:path";
 import { mkdir } from "node:fs/promises";
-import { PrismaLibSql } from "@prisma/adapter-libsql";
+import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import { PrismaClient } from "@prisma/client";
 import { jsonlStreamProducer } from "@trpc/server/unstable-core-do-not-import";
 import SuperJSON from "superjson";
 import { expect, test } from "./fixtures";
 
 const db = new PrismaClient({
-  adapter: new PrismaLibSql(
+  adapter: new PrismaBetterSqlite3(
     { url: process.env.DATABASE_URL! },
     { timestampFormat: "unixepoch-ms" },
   ),
