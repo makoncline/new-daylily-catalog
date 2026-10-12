@@ -32,6 +32,7 @@ import { useListResource } from "@/app/dashboard/_lib/dashboard-db/use-list-reso
 import { ListMissingState } from "@/components/list-missing-state";
 import { useConfirmableAsyncAction } from "@/hooks/use-confirmable-async-action";
 import { getErrorMessage } from "@/lib/error-utils";
+import { isConflictError } from "@/trpc/is-conflict-error";
 
 interface ListFormProps {
   listId: string;
@@ -215,7 +216,7 @@ function ListFormInner({
         }
         return true;
       } catch (error) {
-        if (getErrorMessage(error).includes("changed. Load the latest")) {
+        if (isConflictError(error)) {
           setHasRemoteChange(true);
         }
         if (shouldUpdateUi) {
