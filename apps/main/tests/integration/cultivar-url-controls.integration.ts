@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -7,8 +8,13 @@ import { PrismaClient } from "@prisma/client";
 import type { Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
 
-const candidatePath = path.resolve(
-  ".tmp/search/public-search-candidate.sqlite",
+const candidateDirectory = path.resolve(".tmp/search");
+const preservedDirectory = path.resolve(
+  `tests/.tmp/cultivar-url-search-${process.pid}`,
+);
+const candidatePath = path.join(
+  candidateDirectory,
+  "public-search-candidate.sqlite",
 );
 const db = new PrismaClient({
   adapter: new PrismaLibSql({ url: process.env.DATABASE_URL! }),
@@ -16,6 +22,8 @@ const db = new PrismaClient({
 const queryPlaceholder =
   "Search names, hybridizers, colors, awards, or parentage…";
 let savedFlags: Buffer | undefined;
+let hadCandidate = false;
+let candidatePrepared = false;
 let errors: string[];
 let failures: string[];
 
@@ -52,6 +60,9 @@ test.beforeAll(async () => {
     process.env.RUNTIME_FEATURE_FLAGS_PATH!,
     JSON.stringify({ publicCultivarSearch: true }),
   );
+  hadCandidate = existsSync(candidateDirectory);
+  if (hadCandidate) await fs.rename(candidateDirectory, preservedDirectory);
+  candidatePrepared = true;
   for (let index = 0; index < 55; index++) {
     const id = `url-bloom-${String(index).padStart(2, "0")}`;
     await db.v2AhsCultivar.create({
@@ -97,19 +108,26 @@ test.beforeAll(async () => {
 });
 
 test.afterAll(async () => {
-  await db.listing.deleteMany({ where: { id: { startsWith: "url-bloom-" } } });
-  await db.cultivarReference.deleteMany({
-    where: { id: { startsWith: "url-bloom-" } },
-  });
-  await db.v2AhsCultivar.deleteMany({
-    where: { id: { startsWith: "url-bloom-" } },
-  });
-  await db.$disconnect();
-  for (const suffix of ["", ".next", ".previous"])
-    await fs.rm(candidatePath + suffix, { force: true });
-  if (savedFlags)
-    await fs.writeFile(process.env.RUNTIME_FEATURE_FLAGS_PATH!, savedFlags);
-  else await fs.rm(process.env.RUNTIME_FEATURE_FLAGS_PATH!, { force: true });
+  try {
+    await db.listing.deleteMany({
+      where: { id: { startsWith: "url-bloom-" } },
+    });
+    await db.cultivarReference.deleteMany({
+      where: { id: { startsWith: "url-bloom-" } },
+    });
+    await db.v2AhsCultivar.deleteMany({
+      where: { id: { startsWith: "url-bloom-" } },
+    });
+  } finally {
+    await db.$disconnect();
+    if (candidatePrepared) {
+      await fs.rm(candidateDirectory, { recursive: true, force: true });
+      if (hadCandidate) await fs.rename(preservedDirectory, candidateDirectory);
+    }
+    if (savedFlags)
+      await fs.writeFile(process.env.RUNTIME_FEATURE_FLAGS_PATH!, savedFlags);
+    else await fs.rm(process.env.RUNTIME_FEATURE_FLAGS_PATH!, { force: true });
+  }
 });
 
 async function capture(page: Page, name: string) {

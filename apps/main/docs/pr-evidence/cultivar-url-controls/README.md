@@ -50,7 +50,7 @@ From the repository root:
 INTEGRATION_PORT=3260 node apps/main/scripts/run-integration-local.mjs cultivar-url-controls.integration.ts
 ```
 
-Set `CULTIVAR_URL_EVIDENCE_DIR` to a local directory to capture the four states. The runner creates an owned runtime-flag file when no path is supplied. The test enables public search, builds its local index, then restores flags and removes its records and index. The runner removes its database and owned flag file.
+Set `CULTIVAR_URL_EVIDENCE_DIR` to a local directory to capture the four states. The runner creates an owned runtime-flag file when no path is supplied. The test enables public search, builds its local index, then restores flags and the existing search directory and removes its fixture records. The runner removes its database and owned flag file.
 
 ## Limits and corrected verification
 
