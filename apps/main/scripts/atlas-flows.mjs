@@ -843,6 +843,14 @@ export const ATLAS_FLOWS = [
     implementation: {
       entryPoints: [
         {
+          label: "Managed disposable media fixtures",
+          path: "scripts/atlas-media-fixtures.mjs",
+        },
+        {
+          label: "Profile capture assertions",
+          path: "tests/atlas/profile-management.atlas.ts",
+        },
+        {
           label: "Profile sections",
           path: "src/components/forms/profile-form.tsx",
         },
@@ -876,6 +884,7 @@ export const ATLAS_FLOWS = [
         },
       ],
       invariants: [
+        "Use five reserved local image records on the realistic profile in a runner-owned disposable snapshot. Refuse attach and explicit database modes.",
         "Keep field and content drafts during refresh and failed navigation saves.",
         "Include child content and media changes in the parent commit.",
         "Ignore late URL validation results and keep drafts after rejected writes.",
@@ -889,6 +898,8 @@ export const ATLAS_FLOWS = [
     tests: {
       unit: [testRef("unit", "tests/profile-slug-rules.test.ts")],
       integration: [
+        testRef("integration", "tests/atlas-media-fixtures.test.ts"),
+        testRef("integration", "tests/atlas-browser-diagnostics.test.ts"),
         testRef("integration", "tests/oauth-metadata.test.ts"),
         testRef("integration", "tests/mcp-read-only.test.ts"),
         testRef(
@@ -926,7 +937,7 @@ export const ATLAS_FLOWS = [
           profileState(
             "profile-management-desktop-populated",
             "Desktop populated profile",
-            "Realistic grower details, five profile images, and catalog content at the supported iPad width.",
+            "Realistic grower details, five local fixture images, and catalog content at the supported iPad width.",
             "/dashboard/profile",
           ),
           profileState(
@@ -990,7 +1001,7 @@ export const ATLAS_FLOWS = [
           profileState(
             "profile-management-desktop-preview",
             "Desktop profile image preview",
-            "A seeded profile image opened in the complete gallery preview.",
+            "A local fixture profile image opened in the complete gallery preview.",
             "/dashboard/profile",
             false,
           ),
@@ -1428,9 +1439,29 @@ export const ATLAS_FLOWS = [
     title: "Manage listing images",
     description:
       "Review, preview, reorder, remove, and prepare listing photos without sending an upload.",
+    implementation: {
+      entryPoints: [
+        {
+          label: "Managed disposable media fixtures",
+          path: "scripts/atlas-media-fixtures.mjs",
+        },
+        { label: "Managed Atlas runner", path: "scripts/run-atlas-flow.mjs" },
+        {
+          label: "Listing media capture assertions",
+          path: "tests/atlas/listing-media.atlas.ts",
+        },
+      ],
+      invariants: [
+        "Use two reserved synthetic listings with nine local images and zero images. Keep the surrounding realistic catalog.",
+        "Create media fixtures only in a runner-owned disposable snapshot. Refuse BASE_URL, DATABASE_URL, and ATLAS_DATABASE_URL overrides before any write.",
+        "Keep populated, empty, preview, crop, reorder, and delete-confirmation assertions. Do not send an upload.",
+      ],
+    },
     tests: {
       unit: [testRef("unit", "tests/use-image-upload.test.ts")],
       integration: [
+        testRef("integration", "tests/atlas-media-fixtures.test.ts"),
+        testRef("integration", "tests/atlas-browser-diagnostics.test.ts"),
         testRef("integration", "tests/image-upload.test.tsx"),
         testRef("integration", "tests/dashboard-db-image-router.test.ts"),
         fullAppIntegrationRef("tests/integration/listing-media.integration.ts"),
@@ -1444,29 +1475,29 @@ export const ATLAS_FLOWS = [
           listingMediaState(
             "listing-media-desktop-populated",
             "Desktop populated image grid",
-            "Nine real listing photos in the four-column desktop manager.",
-            "/dashboard/listings?size=10&query=18-33",
+            "Nine local fixture photos in the four-column desktop manager.",
+            "/dashboard/listings?size=10&query=Atlas%20Media%20Populated",
             false,
           ),
           listingMediaState(
             "listing-media-mobile-populated",
             "Mobile populated image grid",
             "The same listing photos in the two-column mobile manager.",
-            "/dashboard/listings?size=10&query=18-33",
+            "/dashboard/listings?size=10&query=Atlas%20Media%20Populated",
             false,
           ),
           listingMediaState(
             "listing-media-desktop-empty",
             "Desktop empty image manager",
             "A listing with no owned photos and its available upload dropzone.",
-            "/dashboard/listings?size=10&query=Bee-ba-tized",
+            "/dashboard/listings?size=10&query=Atlas%20Media%20Empty",
             false,
           ),
           listingMediaState(
             "listing-media-mobile-empty",
             "Mobile empty image manager",
             "The empty owned-photo state and upload dropzone on a phone.",
-            "/dashboard/listings?size=10&query=Bee-ba-tized",
+            "/dashboard/listings?size=10&query=Atlas%20Media%20Empty",
             false,
           ),
         ],
@@ -1478,14 +1509,14 @@ export const ATLAS_FLOWS = [
             "listing-media-desktop-preview",
             "Desktop full-size preview",
             "A listing photo opened in the real gallery preview.",
-            "/dashboard/listings?size=10&query=18-33",
+            "/dashboard/listings?size=10&query=Atlas%20Media%20Populated",
             false,
           ),
           listingMediaState(
             "listing-media-mobile-preview",
             "Mobile full-size preview",
             "The same gallery preview at the phone viewport.",
-            "/dashboard/listings?size=10&query=18-33",
+            "/dashboard/listings?size=10&query=Atlas%20Media%20Populated",
             false,
           ),
         ],
@@ -1497,28 +1528,28 @@ export const ATLAS_FLOWS = [
             "listing-media-delete-confirmation",
             "Delete image confirmation",
             "The destructive confirmation before any listing photo is removed.",
-            "/dashboard/listings?size=10&query=18-33",
+            "/dashboard/listings?size=10&query=Atlas%20Media%20Populated",
             false,
           ),
           listingMediaState(
             "listing-media-reorder-active",
             "Pointer reorder target",
             "The first photo held between the first two slots with the sortable control active, before dropping.",
-            "/dashboard/listings?size=10&query=18-33",
+            "/dashboard/listings?size=10&query=Atlas%20Media%20Populated",
             false,
           ),
           listingMediaState(
             "listing-media-desktop-crop",
             "Desktop selected-file crop",
             "A local image selected for cropping before any upload request.",
-            "/dashboard/listings?size=10&query=Bee-ba-tized",
+            "/dashboard/listings?size=10&query=Atlas%20Media%20Empty",
             false,
           ),
           listingMediaState(
             "listing-media-mobile-crop",
             "Mobile selected-file crop",
             "The same pre-upload crop controls on a phone.",
-            "/dashboard/listings?size=10&query=Bee-ba-tized",
+            "/dashboard/listings?size=10&query=Atlas%20Media%20Empty",
             false,
           ),
         ],
