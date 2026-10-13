@@ -55,54 +55,7 @@ if (disposableRequested) {
 }
 
 let disposableDatabase;
-if (
-  envName === "development" &&
-  useSeededDatabaseDefault &&
-  !explicitDatabaseUrl
-) {
-  const {
-    assertRealisticDataSeedFresh,
-    createDisposableRealisticDataSnapshot,
-    resolveRealisticDataOutputPath,
-  } = await import("./realistic-data-snapshot.mjs");
-  const manifest = assertRealisticDataSeedFresh({
-    manifestPath: path.join(appRoot, "local/realistic-data/personas.json"),
-    schemaPath: path.join(appRoot, "prisma/schema.prisma"),
-  });
-  const seededDatabasePath = resolveRealisticDataOutputPath({
-    appRoot,
-    configuredPath: manifest.databasePath,
-    cwd: appRoot,
-  });
-  if (!existsSync(seededDatabasePath)) {
-    throw new Error(
-      "The seeded development database is missing. Run `pnpm db:seed:prepare` first.",
-    );
-  }
-  if (disposableRequested) {
-    disposableDatabase = await createDisposableRealisticDataSnapshot({
-      sourcePath: seededDatabasePath,
-    });
-    console.log(
-      `Disposable realistic database: ${disposableDatabase.databasePath}`,
-    );
-    console.log("Local changes are removed when this server stops.");
-    console.log(
-      "After restart, use dashboard Refresh or a fresh browser context.",
-    );
-  } else {
-    console.log(`Persistent realistic database: ${seededDatabasePath}`);
-    console.log("Local changes remain after this server stops.");
-  }
-  process.env.DATABASE_URL = `file:${disposableDatabase?.databasePath ?? seededDatabasePath}`;
-  process.env.TURSO_DATABASE_AUTH_TOKEN = "";
-  process.env.TURSO_EMBEDDED_REPLICA_URL = "";
-  process.env.TURSO_EMBEDDED_REPLICA_SYNC_INTERVAL_SECONDS = "";
-  process.env.TURSO_EMBEDDED_REPLICA_SYNC_URL = "";
-}
-
-const ownsProcessGroup =
-  Boolean(disposableDatabase) && process.platform !== "win32";
+const ownsProcessGroup = disposableRequested && process.platform !== "win32";
 let child;
 let forwardedSignal;
 const signalChild = (signal) => {
@@ -116,7 +69,7 @@ const signalChild = (signal) => {
 };
 
 const signalHandlers = new Map();
-if (disposableDatabase) {
+if (disposableRequested) {
   for (const signal of ["SIGINT", "SIGTERM"]) {
     const handler = () => {
       forwardedSignal ??= signal;
@@ -146,24 +99,69 @@ async function stopOwnedProcessGroup() {
   }
 }
 
-let result;
+let result = { code: 0, signal: null };
 try {
-  child = spawn(args[0], args.slice(1), {
-    env: process.env,
-    stdio: "inherit",
-    detached: ownsProcessGroup,
-  });
-  result = await new Promise((resolve, reject) => {
-    child.once("error", reject);
-    child.once("exit", (code, signal) => resolve({ code, signal }));
-  });
+  if (
+    envName === "development" &&
+    useSeededDatabaseDefault &&
+    !explicitDatabaseUrl
+  ) {
+    const {
+      assertRealisticDataSeedFresh,
+      createDisposableRealisticDataSnapshot,
+      resolveRealisticDataOutputPath,
+    } = await import("./realistic-data-snapshot.mjs");
+    const manifest = assertRealisticDataSeedFresh({
+      manifestPath: path.join(appRoot, "local/realistic-data/personas.json"),
+      schemaPath: path.join(appRoot, "prisma/schema.prisma"),
+    });
+    const seededDatabasePath = resolveRealisticDataOutputPath({
+      appRoot,
+      configuredPath: manifest.databasePath,
+      cwd: appRoot,
+    });
+    if (!existsSync(seededDatabasePath)) {
+      throw new Error(
+        "The seeded development database is missing. Run `pnpm db:seed:prepare` first.",
+      );
+    }
+    if (disposableRequested) {
+      disposableDatabase = await createDisposableRealisticDataSnapshot({
+        sourcePath: seededDatabasePath,
+      });
+      console.log(
+        `Disposable realistic database: ${disposableDatabase.databasePath}`,
+      );
+      console.log("Local changes are removed when this server stops.");
+      console.log(
+        "After restart, use dashboard Refresh or a fresh browser context.",
+      );
+    } else {
+      console.log(`Persistent realistic database: ${seededDatabasePath}`);
+      console.log("Local changes remain after this server stops.");
+    }
+    process.env.DATABASE_URL = `file:${disposableDatabase?.databasePath ?? seededDatabasePath}`;
+    process.env.TURSO_DATABASE_AUTH_TOKEN = "";
+    process.env.TURSO_EMBEDDED_REPLICA_URL = "";
+    process.env.TURSO_EMBEDDED_REPLICA_SYNC_INTERVAL_SECONDS = "";
+    process.env.TURSO_EMBEDDED_REPLICA_SYNC_URL = "";
+  }
+
+  if (!forwardedSignal) {
+    child = spawn(args[0], args.slice(1), {
+      env: process.env,
+      stdio: "inherit",
+      detached: ownsProcessGroup,
+    });
+    result = await new Promise((resolve, reject) => {
+      child.once("error", reject);
+      child.once("exit", (code, signal) => resolve({ code, signal }));
+    });
+  }
 } finally {
   await stopOwnedProcessGroup();
   disposableDatabase?.cleanup();
-  if (disposableDatabase) {
-    for (const [signal, handler] of signalHandlers)
-      process.off(signal, handler);
-  }
+  for (const [signal, handler] of signalHandlers) process.off(signal, handler);
 }
 
 if (result.signal || forwardedSignal)

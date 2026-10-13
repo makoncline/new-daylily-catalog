@@ -194,6 +194,36 @@ test.each(["SIGINT", "SIGTERM"] as const)(
   },
 );
 
+test("an interruption during preparation finishes and removes the copy without starting the app", async () => {
+  const f = fixture();
+  const helper = path.join(f.appRoot, "scripts/realistic-data-snapshot.mjs");
+  writeFileSync(
+    helper,
+    readFileSync(helper, "utf8").replace(
+      "await backup(source, databasePath);",
+      `process.stdin.resume();
+     console.log("PREPARING " + databasePath);
+     await new Promise(resolve => process.once("SIGTERM", resolve));
+     process.stdin.pause();
+     await backup(source, databasePath);`,
+    ),
+  );
+  const before = fileHash(f.databasePath);
+  const run = launch(f, "console.log('APP STARTED')", { disposable: true });
+  await expect.poll(run.stdout).toContain("PREPARING ");
+  const preparingPath = /PREPARING (.+)/.exec(run.stdout())?.[1];
+  if (!preparingPath) throw new Error("Missing preparation path.");
+  expect(existsSync(path.dirname(preparingPath))).toBe(true);
+  run.child.kill("SIGTERM");
+  expect(await run.exited, run.stderr()).toEqual({
+    code: null,
+    signal: "SIGTERM",
+  });
+  expect(run.stdout()).not.toContain("APP STARTED");
+  expect(existsSync(path.dirname(preparingPath))).toBe(false);
+  expect(fileHash(f.databasePath)).toBe(before);
+});
+
 test("explicit database and non-seeded commands keep caller ownership without importing SQLite helpers", async () => {
   const f = fixture();
   rmSync(path.join(f.appRoot, "scripts/realistic-data-snapshot.mjs"));
