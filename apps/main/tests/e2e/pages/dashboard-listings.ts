@@ -185,7 +185,14 @@ export class DashboardListings {
   }
 
   private async clickRowActionTriggerAndWaitOpen() {
-    // Sonner pauses dismissal while the pointer is over a notification.
+    // A modal can interrupt Sonner's mouse-leave event. Re-enter the stack
+    // before moving away so its dismissal timer can resume.
+    const expandedToast = this.page
+      .locator('[data-sonner-toast][data-expanded="true"]')
+      .first();
+    if (await expandedToast.count()) {
+      await expandedToast.hover();
+    }
     await this.page
       .getByRole("heading", { name: "Listings", exact: true, level: 1 })
       .hover();
