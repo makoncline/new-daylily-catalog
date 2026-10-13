@@ -321,6 +321,39 @@ test.each([false, true])(
   12_000,
 );
 
+test("normal child exit retries transient owned-group signal denial before cleanup", async () => {
+  const f = fixture();
+  const helper = path.join(f.appRoot, "scripts/realistic-data-snapshot.mjs");
+  writeFileSync(
+    helper,
+    readFileSync(helper, "utf8") +
+      `
+    const originalKill = process.kill;
+    let denials = 2;
+    process.kill = function(pid, signal) {
+      if (pid < 0 && signal !== 0 && denials-- > 0) {
+        console.log('SEND EPERM');
+        throw Object.assign(new Error('Injected permission-denied signal'), {code:'EPERM'});
+      }
+      return originalKill.call(process, pid, signal);
+    };`,
+  );
+  const before = fileHash(f.databasePath);
+  const run = launch(f, edit, { disposable: true });
+  try {
+    expect(await run.exited, run.stderr()).toEqual({ code: 0, signal: null });
+    expect(run.stdout().match(/SEND EPERM/g)).toHaveLength(2);
+    expect(existsSync(run.databasePath()!)).toBe(false);
+    expect(fileHash(f.databasePath)).toBe(before);
+  } finally {
+    if (run.databasePath())
+      rmSync(path.dirname(run.databasePath()!), {
+        recursive: true,
+        force: true,
+      });
+  }
+});
+
 test("an interruption during preparation finishes and removes the copy without starting the app", async () => {
   const f = fixture();
   const helper = path.join(f.appRoot, "scripts/realistic-data-snapshot.mjs");

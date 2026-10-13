@@ -87,25 +87,27 @@ if (disposableRequested) {
 
 async function stopOwnedProcessGroup() {
   if (!ownsProcessGroup || !child?.pid) return;
-  signalChild(forwardedSignal ?? "SIGTERM");
   const deadline = Date.now() + 5_000;
+  let terminationSent = false;
   while (true) {
-    let permissionError;
     try {
+      if (!terminationSent) {
+        signalChild(forwardedSignal ?? "SIGTERM");
+        terminationSent = true;
+      }
       process.kill(-child.pid, 0);
+      if (Date.now() >= deadline) {
+        signalChild("SIGKILL");
+        return;
+      }
     } catch (error) {
       if (error.code === "ESRCH") return;
       if (error.code !== "EPERM") throw error;
-      permissionError = error;
-    }
-    if (Date.now() >= deadline) {
-      if (permissionError)
+      if (Date.now() >= deadline)
         throw new Error(
           "Cannot confirm owned process group termination; disposable database retained.",
-          { cause: permissionError },
+          { cause: error },
         );
-      signalChild("SIGKILL");
-      return;
     }
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
