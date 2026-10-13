@@ -4,6 +4,8 @@ import { randomUUID } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { APP_CONFIG } from "@/config/constants";
 import { withTempAppDb } from "@/lib/test-utils/app-test-db";
+import { memberOperationResultSchemas } from "@/lib/member-result-contract";
+import { memberMcpProfileResultSchema } from "@/server/mcp/member-mcp-result-contract";
 
 const auth = vi.hoisted(() => ({
   clientId: "non_pro_remote_test",
@@ -30,6 +32,7 @@ vi.mock("@/server/stripe/client", () => ({ getStripeClient }));
 vi.mock("@/lib/error-utils", () => ({ reportError: vi.fn() }));
 
 type Transport = "MCP" | "HTTP";
+type RemoteResponse = { ok: boolean; status: number; text: string };
 
 async function remoteCaller(transport: Transport) {
   const { handleMemberHttpRequest } = await import("@/server/api/member-http");
@@ -40,7 +43,7 @@ async function remoteCaller(transport: Transport) {
     mcpInput: Record<string, unknown>,
     apiInput = mcpInput,
     mutation = true,
-  ) => {
+  ): Promise<RemoteResponse> => {
     const headers = {
       Authorization: "Bearer local-test-token",
       "Content-Type": "application/json",
@@ -64,6 +67,7 @@ async function remoteCaller(transport: Transport) {
       };
       return {
         ok: response.ok && !!body.result && !body.result.isError && !body.error,
+        status: response.status,
         text: JSON.stringify(body),
       };
     }
@@ -78,8 +82,57 @@ async function remoteCaller(transport: Transport) {
       }),
       apiPath,
     );
-    return { ok: response.ok, text: await response.text() };
+    return {
+      ok: response.ok,
+      status: response.status,
+      text: await response.text(),
+    };
   };
+}
+
+function readVersion(
+  response: RemoteResponse,
+  transport: Transport,
+  entity: "listing" | "list" | "profile",
+  id: string,
+) {
+  expect(response.ok, response.text).toBe(true);
+  const body = JSON.parse(response.text) as {
+    result?: {
+      structuredContent?: Record<string, unknown>;
+      data?: { json?: unknown };
+    };
+  };
+  const schema =
+    transport === "MCP" && entity === "profile"
+      ? memberMcpProfileResultSchema
+      : memberOperationResultSchemas[`${entity}.get`];
+  const record = schema.parse(
+    transport === "MCP"
+      ? body.result?.structuredContent?.[entity]
+      : body.result?.data?.json,
+  );
+  expect(record?.id).toBe(id);
+  return record!.updatedAt;
+}
+
+function expectConflict(response: RemoteResponse, transport: Transport) {
+  expect(response.ok, response.text).toBe(false);
+  const body: unknown = JSON.parse(response.text);
+  if (transport === "MCP") {
+    expect(response.status).toBe(200);
+    expect(body).toMatchObject({
+      result: {
+        isError: true,
+        structuredContent: { error: { code: "CONFLICT" } },
+      },
+    });
+  } else {
+    expect(response.status).toBe(409);
+    expect(body).toMatchObject({
+      error: { json: { data: { code: "CONFLICT", httpStatus: 409 } } },
+    });
+  }
 }
 
 describe.each<Transport>(["MCP", "HTTP"])(
@@ -106,7 +159,7 @@ describe.each<Transport>(["MCP", "HTTP"])(
       vi.unstubAllEnvs();
     });
 
-    it("allows limited non-Pro management and keeps authorization and handoffs", async () => {
+    it("round-trips remote versions, rejects stale edits, and keeps non-Pro authorization and handoffs", async () => {
       await withTempAppDb(async ({ user }) => {
         const { db } = await import("@/server/db");
         await db.user.update({
@@ -153,7 +206,18 @@ describe.each<Transport>(["MCP", "HTTP"])(
           ).ok,
         ).toBe(true);
 
-        const expectedUpdatedAt = listing.updatedAt.toISOString();
+        const expectedUpdatedAt = readVersion(
+          await call(
+            "daylily.get_listing",
+            "listing.get",
+            { id: listing.id },
+            undefined,
+            false,
+          ),
+          transport,
+          "listing",
+          listing.id,
+        );
         const update = await call(
           "daylily.update_listing",
           "listing.update",
@@ -161,24 +225,77 @@ describe.each<Transport>(["MCP", "HTTP"])(
           { id: listing.id, expectedUpdatedAt, data: { price: 12 } },
         );
         expect(update.ok, update.text).toBe(true);
-        const currentList = await db.list.findUniqueOrThrow({
-          where: { id: list.id },
+        const savedListing = await db.listing.findUniqueOrThrow({
+          where: { id: listing.id },
         });
+        expect(savedListing.price).toBe(12);
+        expect(savedListing.updatedAt.toISOString()).not.toBe(
+          expectedUpdatedAt,
+        );
+        expectConflict(
+          await call(
+            "daylily.update_listing",
+            "listing.update",
+            { listingId: listing.id, expectedUpdatedAt, price: 99 },
+            { id: listing.id, expectedUpdatedAt, data: { price: 99 } },
+          ),
+          transport,
+        );
+        expect(
+          await db.listing.findUniqueOrThrow({ where: { id: listing.id } }),
+        ).toEqual(savedListing);
+
+        const listVersion = readVersion(
+          await call(
+            "daylily.get_list",
+            "list.get",
+            { id: list.id },
+            undefined,
+            false,
+          ),
+          transport,
+          "list",
+          list.id,
+        );
         const listUpdate = await call(
           "daylily.update_list",
           "list.update",
           {
             listId: list.id,
-            expectedUpdatedAt: currentList.updatedAt.toISOString(),
+            expectedUpdatedAt: listVersion,
             title: "Edited list",
           },
           {
             id: list.id,
-            expectedUpdatedAt: currentList.updatedAt.toISOString(),
+            expectedUpdatedAt: listVersion,
             data: { title: "Edited list" },
           },
         );
         expect(listUpdate.ok, listUpdate.text).toBe(true);
+        const savedList = await db.list.findUniqueOrThrow({
+          where: { id: list.id },
+        });
+        expect(savedList.updatedAt.toISOString()).not.toBe(listVersion);
+        expectConflict(
+          await call(
+            "daylily.update_list",
+            "list.update",
+            {
+              listId: list.id,
+              expectedUpdatedAt: listVersion,
+              title: "Stale list",
+            },
+            {
+              id: list.id,
+              expectedUpdatedAt: listVersion,
+              data: { title: "Stale list" },
+            },
+          ),
+          transport,
+        );
+        expect(
+          await db.list.findUniqueOrThrow({ where: { id: list.id } }),
+        ).toEqual(savedList);
         expect(
           await db.list.findUnique({
             where: { id: list.id },
@@ -200,6 +317,125 @@ describe.each<Transport>(["MCP", "HTTP"])(
           where: { userId: user.id },
         });
         expect(profile.description).toBe("Test grower");
+        const profileVersion = readVersion(
+          await call(
+            "daylily.get_profile",
+            "profile.get",
+            {},
+            undefined,
+            false,
+          ),
+          transport,
+          "profile",
+          profile.id,
+        );
+        const profileEdit = await call(
+          "daylily.update_profile",
+          "profile.update",
+          { expectedUpdatedAt: profileVersion, description: "Edited grower" },
+          {
+            expectedUpdatedAt: profileVersion,
+            data: { description: "Edited grower" },
+          },
+        );
+        expect(profileEdit.ok, profileEdit.text).toBe(true);
+        const savedProfile = await db.userProfile.findUniqueOrThrow({
+          where: { id: profile.id },
+        });
+        expect(savedProfile.description).toBe("Edited grower");
+        expect(savedProfile.updatedAt.toISOString()).not.toBe(profileVersion);
+        expectConflict(
+          await call(
+            "daylily.update_profile",
+            "profile.update",
+            { expectedUpdatedAt: profileVersion, description: "Stale grower" },
+            {
+              expectedUpdatedAt: profileVersion,
+              data: { description: "Stale grower" },
+            },
+          ),
+          transport,
+        );
+        expect(
+          await db.userProfile.findUniqueOrThrow({ where: { id: profile.id } }),
+        ).toEqual(savedProfile);
+
+        const beforeDashboardVersion = readVersion(
+          await call(
+            "daylily.get_profile",
+            "profile.get",
+            {},
+            undefined,
+            false,
+          ),
+          transport,
+          "profile",
+          profile.id,
+        );
+        const { createCaller } = await import("@/server/api/root");
+        const dashboard = createCaller({
+          db,
+          headers: new Headers(),
+          clerkUserId: auth.clerkUserId,
+        });
+        await dashboard.dashboardDb.userProfile.updateBasic({
+          expectedUpdatedAt: beforeDashboardVersion,
+          data: { location: "Dashboard garden" },
+        });
+        const dashboardProfile = await db.userProfile.findUniqueOrThrow({
+          where: { id: profile.id },
+        });
+        expect(dashboardProfile.location).toBe("Dashboard garden");
+        expectConflict(
+          await call(
+            "daylily.update_profile",
+            "profile.update",
+            {
+              expectedUpdatedAt: beforeDashboardVersion,
+              location: "Stale garden",
+            },
+            {
+              expectedUpdatedAt: beforeDashboardVersion,
+              data: { location: "Stale garden" },
+            },
+          ),
+          transport,
+        );
+        expect(
+          await db.userProfile.findUniqueOrThrow({ where: { id: profile.id } }),
+        ).toEqual(dashboardProfile);
+        const afterDashboardVersion = readVersion(
+          await call(
+            "daylily.get_profile",
+            "profile.get",
+            {},
+            undefined,
+            false,
+          ),
+          transport,
+          "profile",
+          profile.id,
+        );
+        expect(afterDashboardVersion).not.toBe(beforeDashboardVersion);
+        const afterDashboardEdit = await call(
+          "daylily.update_profile",
+          "profile.update",
+          {
+            expectedUpdatedAt: afterDashboardVersion,
+            location: "Remote garden",
+          },
+          {
+            expectedUpdatedAt: afterDashboardVersion,
+            data: { location: "Remote garden" },
+          },
+        );
+        expect(afterDashboardEdit.ok, afterDashboardEdit.text).toBe(true);
+        expect(
+          await db.userProfile.findUniqueOrThrow({ where: { id: profile.id } }),
+        ).toMatchObject({
+          description: "Edited grower",
+          location: "Remote garden",
+        });
         const first = await db.image.create({
           data: {
             userProfileId: profile.id,
