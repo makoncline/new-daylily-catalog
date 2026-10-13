@@ -183,3 +183,13 @@ check current code before applying them.
 - [2026-10-11] PR base freshness: GitHub returned the prior baseRefOid while it flagged a conflict with newly merged main. When checking PR integration, fetch origin/main and use its commit ID to verify the actual base.
 
 - [2026-10-11] Cultivar browser settled results: A filtered URL first renders the server browse batch, then replaces it with the browser search response. For Chromium pagination or capture checks, wait for the initial search response and the requested sort result before using the displayed count. The initial 24 shown status alone does not prove that refinement has completed.
+
+- [2026-10-12] Disposable dev shutdown: Turbo can exit before the env wrapper completes its owned process-group shutdown. When testing the root disposable dev command, wait for both its temp directory removal and port closure before starting another session.
+
+- [2026-10-12] Disposable dev browser state: A new local database on the same origin does not clear the dashboard IndexedDB cache. After restarting a disposable session, use dashboard Refresh or a fresh browser context before judging the new database state.
+
+- [2026-10-12] Hosted checkout currency: The CI runner region can select a different Stripe sandbox currency. When a checkout story asserts USD prices, select USD through the normal currency control before checking those prices.
+
+- [2026-10-13] Disposable shutdown deadline: A suspended Next CLI cannot exit on SIGTERM. Start the owned process-group fallback when the wrapper receives the first signal; do not wait for CLI exit before starting its deadline. Keep the first signal and wait for direct child exit before removing the owned database.
+
+- [2026-10-13] Darwin group probe transition: An owned process-group signal or signal-0 probe can briefly return EPERM after Next CLI exit. Keep it pending under the shutdown deadline; only ESRCH proves absence. If permission remains unresolved, report failure and retain the copy. Do not treat permission denial as successful cleanup.

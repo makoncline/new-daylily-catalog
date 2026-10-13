@@ -310,6 +310,20 @@ test.describe("dashboard setup journey @local", () => {
           name: "Subscribe to Daylily Catalog Pro",
         }),
       ).toBeVisible();
+      const usdCurrency = page.getByRole("button", {
+        name: "US USD",
+        exact: true,
+      });
+      await expect(
+        page
+          .getByText("$12.99", { exact: true })
+          .first()
+          .or(usdCurrency)
+          .first(),
+      ).toBeVisible();
+      if ((await usdCurrency.isVisible()) && (await usdCurrency.isEnabled())) {
+        await usdCurrency.click();
+      }
       await expect(
         page.getByText("$12.99", { exact: true }).first(),
       ).toBeVisible();
