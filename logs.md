@@ -189,3 +189,5 @@ check current code before applying them.
 - [2026-10-12] Disposable dev browser state: A new local database on the same origin does not clear the dashboard IndexedDB cache. After restarting a disposable session, use dashboard Refresh or a fresh browser context before judging the new database state.
 
 - [2026-10-12] Hosted checkout currency: The CI runner region can select a different Stripe sandbox currency. When a checkout story asserts USD prices, select USD through the normal currency control before checking those prices.
+
+- [2026-10-13] Disposable shutdown deadline: A suspended Next CLI cannot exit on SIGTERM. Start the owned process-group fallback when the wrapper receives the first signal; do not wait for CLI exit before starting its deadline. Keep the first signal and wait for direct child exit before removing the owned database.

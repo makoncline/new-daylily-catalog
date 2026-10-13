@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { spawn, type ChildProcess } from "node:child_process";
+import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   copyFileSync,
@@ -193,6 +193,62 @@ test.each(["SIGINT", "SIGTERM"] as const)(
     expect(() => process.kill(unrelated.pid!, 0)).not.toThrow();
   },
 );
+
+test("a suspended child is killed after the first shutdown signal before its database is removed", async () => {
+  const f = fixture();
+  const before = fileHash(f.databasePath);
+  const unrelated = spawn(
+    process.execPath,
+    ["-e", "setInterval(()=>{},1000)"],
+    {
+      stdio: "ignore",
+    },
+  );
+  children.push(unrelated);
+  const run = launch(
+    f,
+    "process.on('SIGTERM',()=>{console.log('STOPPING');process.kill(process.pid,'SIGSTOP')});console.log('PID '+process.pid);setInterval(()=>{},1000);",
+    {
+      disposable: true,
+    },
+  );
+  await expect.poll(run.stdout).toContain("PID ");
+  const pid = Number(/PID (\d+)/.exec(run.stdout())?.[1]);
+  const databasePath = run.databasePath()!;
+  try {
+    run.child.kill("SIGTERM");
+    await expect.poll(run.stdout).toContain("STOPPING");
+    await expect
+      .poll(() =>
+        execFileSync("ps", ["-o", "state=", "-p", String(pid)], {
+          encoding: "utf8",
+        }),
+      )
+      .toContain("T");
+    run.child.kill("SIGINT");
+    expect(existsSync(databasePath)).toBe(true);
+    await expect
+      .poll(() => run.child.signalCode, { timeout: 8_000 })
+      .toBe("SIGTERM");
+    expect(await run.exited, run.stderr()).toEqual({
+      code: null,
+      signal: "SIGTERM",
+    });
+    expect(() => process.kill(pid, 0)).toThrow();
+    expect(existsSync(databasePath)).toBe(false);
+    expect(fileHash(f.databasePath)).toBe(before);
+    expect(() => process.kill(unrelated.pid!, 0)).not.toThrow();
+  } finally {
+    try {
+      process.kill(-pid, "SIGKILL");
+    } catch (error) {
+      if (
+        !(error instanceof Error && "code" in error && error.code === "ESRCH")
+      )
+        throw error;
+    }
+  }
+}, 12_000);
 
 test("an interruption during preparation finishes and removes the copy without starting the app", async () => {
   const f = fixture();

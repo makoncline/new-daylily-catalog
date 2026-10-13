@@ -58,6 +58,7 @@ let disposableDatabase;
 const ownsProcessGroup = disposableRequested && process.platform !== "win32";
 let child;
 let forwardedSignal;
+let ownedShutdown;
 const signalChild = (signal) => {
   if (!child?.pid) return;
   try {
@@ -73,7 +74,9 @@ if (disposableRequested) {
   for (const signal of ["SIGINT", "SIGTERM"]) {
     const handler = () => {
       forwardedSignal ??= signal;
-      signalChild(signal);
+      if (ownsProcessGroup && child?.pid)
+        ownedShutdown ??= stopOwnedProcessGroup();
+      else signalChild(forwardedSignal);
     };
     signalHandlers.set(signal, handler);
     process.on(signal, handler);
@@ -159,7 +162,7 @@ try {
     });
   }
 } finally {
-  await stopOwnedProcessGroup();
+  await (ownedShutdown ??= stopOwnedProcessGroup());
   disposableDatabase?.cleanup();
   for (const [signal, handler] of signalHandlers) process.off(signal, handler);
 }
