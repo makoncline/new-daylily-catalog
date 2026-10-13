@@ -187,3 +187,5 @@ check current code before applying them.
 - [2026-10-12] Disposable dev shutdown: Turbo can exit before the env wrapper completes its owned process-group shutdown. When testing the root disposable dev command, wait for both its temp directory removal and port closure before starting another session.
 
 - [2026-10-12] Disposable dev browser state: A new local database on the same origin does not clear the dashboard IndexedDB cache. After restarting a disposable session, use dashboard Refresh or a fresh browser context before judging the new database state.
+
+- [2026-10-12] Hosted checkout currency: The CI runner region can select a different Stripe sandbox currency. When a checkout story asserts USD prices, select USD through the normal currency control before checking those prices.
