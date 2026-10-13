@@ -212,7 +212,7 @@ test("a suspended child is killed after the first shutdown signal before its dat
       disposable: true,
     },
   );
-  await expect.poll(run.stdout).toContain("PID ");
+  await expect.poll(run.stdout, { timeout: 5_000 }).toContain("PID ");
   const pid = Number(/PID (\d+)/.exec(run.stdout())?.[1]);
   const databasePath = run.databasePath()!;
   try {
@@ -249,6 +249,77 @@ test("a suspended child is killed after the first shutdown signal before its dat
     }
   }
 }, 12_000);
+
+test.each([false, true])(
+  "permission-denied probes stay bounded and retain the copy when unresolved (%s)",
+  async (persistent) => {
+    const f = fixture();
+    const helper = path.join(f.appRoot, "scripts/realistic-data-snapshot.mjs");
+    writeFileSync(
+      helper,
+      readFileSync(helper, "utf8") +
+        `
+      const originalKill = process.kill;
+      let denials = ${persistent ? "Infinity" : "2"};
+      process.kill = function(pid, signal) {
+        if (pid < 0 && signal === 0 && denials-- > 0) {
+          console.log('PROBE EPERM');
+          throw Object.assign(new Error('Injected permission-denied probe'), {code:'EPERM'});
+        }
+        return originalKill.call(process, pid, signal);
+      };`,
+    );
+    const before = fileHash(f.databasePath);
+    const run = launch(
+      f,
+      `${persistent ? "process.on('SIGTERM',()=>{});" : ""}console.log('PID '+process.pid);setInterval(()=>{},1000);`,
+      { disposable: true },
+    );
+    await expect.poll(run.stdout, { timeout: 5_000 }).toContain("PID ");
+    const pid = Number(/PID (\d+)/.exec(run.stdout())?.[1]);
+    const databasePath = run.databasePath()!;
+    try {
+      const started = Date.now();
+      run.child.kill("SIGTERM");
+      await expect.poll(run.stdout).toContain("PROBE EPERM");
+      if (persistent) {
+        expect(existsSync(databasePath)).toBe(true);
+        expect(() => process.kill(pid, 0)).not.toThrow();
+      }
+      await expect
+        .poll(
+          () => run.child.exitCode !== null || run.child.signalCode !== null,
+          { timeout: 8_000 },
+        )
+        .toBe(true);
+      if (persistent) {
+        expect(run.child.exitCode).toBe(1);
+        expect(Date.now() - started).toBeGreaterThanOrEqual(5_000);
+      } else
+        expect(await run.exited).toEqual({ code: null, signal: "SIGTERM" });
+      expect(existsSync(databasePath)).toBe(persistent);
+      if (persistent) {
+        expect(run.stderr()).toContain(
+          "Cannot confirm owned process group termination",
+        );
+        expect(() => process.kill(pid, 0)).not.toThrow();
+      }
+      expect(fileHash(f.databasePath)).toBe(before);
+    } finally {
+      try {
+        process.kill(-pid, "SIGKILL");
+      } catch (error) {
+        if (
+          !(error instanceof Error && "code" in error && error.code === "ESRCH")
+        )
+          throw error;
+      }
+      await run.exited;
+      rmSync(path.dirname(databasePath), { recursive: true, force: true });
+    }
+  },
+  12_000,
+);
 
 test("an interruption during preparation finishes and removes the copy without starting the app", async () => {
   const f = fixture();

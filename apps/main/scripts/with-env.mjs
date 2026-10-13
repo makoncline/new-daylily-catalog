@@ -57,6 +57,7 @@ if (disposableRequested) {
 let disposableDatabase;
 const ownsProcessGroup = disposableRequested && process.platform !== "win32";
 let child;
+let rejectChildExit;
 let forwardedSignal;
 let ownedShutdown;
 const signalChild = (signal) => {
@@ -74,9 +75,10 @@ if (disposableRequested) {
   for (const signal of ["SIGINT", "SIGTERM"]) {
     const handler = () => {
       forwardedSignal ??= signal;
-      if (ownsProcessGroup && child?.pid)
+      if (ownsProcessGroup && child?.pid) {
         ownedShutdown ??= stopOwnedProcessGroup();
-      else signalChild(forwardedSignal);
+        ownedShutdown.catch(rejectChildExit);
+      } else signalChild(forwardedSignal);
     };
     signalHandlers.set(signal, handler);
     process.on(signal, handler);
@@ -88,13 +90,20 @@ async function stopOwnedProcessGroup() {
   signalChild(forwardedSignal ?? "SIGTERM");
   const deadline = Date.now() + 5_000;
   while (true) {
+    let permissionError;
     try {
       process.kill(-child.pid, 0);
     } catch (error) {
       if (error.code === "ESRCH") return;
-      throw error;
+      if (error.code !== "EPERM") throw error;
+      permissionError = error;
     }
     if (Date.now() >= deadline) {
+      if (permissionError)
+        throw new Error(
+          "Cannot confirm owned process group termination; disposable database retained.",
+          { cause: permissionError },
+        );
       signalChild("SIGKILL");
       return;
     }
@@ -157,6 +166,7 @@ try {
       detached: ownsProcessGroup,
     });
     result = await new Promise((resolve, reject) => {
+      rejectChildExit = reject;
       child.once("error", reject);
       child.once("exit", (code, signal) => resolve({ code, signal }));
     });
