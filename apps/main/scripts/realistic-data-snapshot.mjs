@@ -50,7 +50,7 @@ export async function createDisposableRealisticDataSnapshot({
   sourcePath,
   directoryRoot = tmpdir(),
 }) {
-  const directory = mkdtempSync(path.join(directoryRoot, "daylily-atlas-"));
+  const directory = mkdtempSync(path.join(directoryRoot, "daylily-realistic-"));
   const databasePath = path.join(directory, "realistic-data.sqlite");
   const source = new DatabaseSync(sourcePath, { readOnly: true });
   try {

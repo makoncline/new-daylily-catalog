@@ -38,6 +38,15 @@ service configuration, including Clerk test credentials; they are separate from
 the full-app integration runner. Install Playwright Chromium for browser tests.
 Use free `INTEGRATION_PORT` and `E2E_PORT` values for local runs.
 
+For local app work, run `pnpm db:seed:prepare` once with the existing stage
+service configuration. Ordinary `pnpm dev` checks seed freshness and keeps
+local edits across restarts. For throwaway edits, use
+`pnpm dev -- --disposable --port <free-port> --hostname localhost`. It copies
+the full seed and removes its copy on shutdown. After restart, use dashboard
+Refresh or a fresh browser context. An explicit `DATABASE_URL` stays
+caller-owned and cannot use `--disposable`. Keep realistic-data browser proof
+private; the dataset retains private notes.
+
 Use [database migration steps](apps/main/docs/db-migration.md) for schema and
 data changes, [V2 AHS refresh](.codex/skills/v2-ahs-refresh/SKILL.md) for
 cultivar updates, and [image catch-up](apps/main/docs/generated-cultivar-image-catchup.md)

@@ -183,3 +183,7 @@ check current code before applying them.
 - [2026-10-11] PR base freshness: GitHub returned the prior baseRefOid while it flagged a conflict with newly merged main. When checking PR integration, fetch origin/main and use its commit ID to verify the actual base.
 
 - [2026-10-11] Cultivar browser settled results: A filtered URL first renders the server browse batch, then replaces it with the browser search response. For Chromium pagination or capture checks, wait for the initial search response and the requested sort result before using the displayed count. The initial 24 shown status alone does not prove that refinement has completed.
+
+- [2026-10-12] Disposable dev shutdown: Turbo can exit before the env wrapper completes its owned process-group shutdown. When testing the root disposable dev command, wait for both its temp directory removal and port closure before starting another session.
+
+- [2026-10-12] Disposable dev browser state: A new local database on the same origin does not clear the dashboard IndexedDB cache. After restarting a disposable session, use dashboard Refresh or a fresh browser context before judging the new database state.

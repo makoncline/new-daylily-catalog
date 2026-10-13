@@ -25,9 +25,7 @@ if (args[0] === "--seeded-database-default") {
   args.shift();
 }
 
-if (args[0] === "--") {
-  args.shift();
-}
+if (args[0] === "--") args.shift();
 
 const envName =
   explicitEnvName ??
@@ -38,49 +36,136 @@ for (const envPath of [
   path.join(repoRoot, envFile),
   path.join(appRoot, envFile),
 ]) {
-  if (existsSync(envPath)) {
-    dotenv.config({ path: envPath, quiet: true });
+  if (existsSync(envPath)) dotenv.config({ path: envPath, quiet: true });
+}
+
+if (args.length === 0) process.exit(0);
+
+const disposableIndex = useSeededDatabaseDefault
+  ? args.indexOf("--disposable")
+  : -1;
+const disposableRequested = disposableIndex !== -1;
+if (disposableRequested) {
+  args.splice(disposableIndex, 1);
+  if (explicitDatabaseUrl || envName !== "development") {
+    throw new Error(
+      "--disposable requires the default seeded development database. Unset DATABASE_URL.",
+    );
   }
 }
 
+let disposableDatabase;
 if (
   envName === "development" &&
   useSeededDatabaseDefault &&
   !explicitDatabaseUrl
 ) {
-  const seededDatabasePath = path.join(
+  const {
+    assertRealisticDataSeedFresh,
+    createDisposableRealisticDataSnapshot,
+    resolveRealisticDataOutputPath,
+  } = await import("./realistic-data-snapshot.mjs");
+  const manifest = assertRealisticDataSeedFresh({
+    manifestPath: path.join(appRoot, "local/realistic-data/personas.json"),
+    schemaPath: path.join(appRoot, "prisma/schema.prisma"),
+  });
+  const seededDatabasePath = resolveRealisticDataOutputPath({
     appRoot,
-    "local",
-    "realistic-data",
-    "realistic-data.sqlite",
-  );
+    configuredPath: manifest.databasePath,
+    cwd: appRoot,
+  });
   if (!existsSync(seededDatabasePath)) {
-    console.error(
+    throw new Error(
       "The seeded development database is missing. Run `pnpm db:seed:prepare` first.",
     );
-    process.exit(1);
   }
-  process.env.DATABASE_URL = `file:${seededDatabasePath}`;
+  if (disposableRequested) {
+    disposableDatabase = await createDisposableRealisticDataSnapshot({
+      sourcePath: seededDatabasePath,
+    });
+    console.log(
+      `Disposable realistic database: ${disposableDatabase.databasePath}`,
+    );
+    console.log("Local changes are removed when this server stops.");
+    console.log(
+      "After restart, use dashboard Refresh or a fresh browser context.",
+    );
+  } else {
+    console.log(`Persistent realistic database: ${seededDatabasePath}`);
+    console.log("Local changes remain after this server stops.");
+  }
+  process.env.DATABASE_URL = `file:${disposableDatabase?.databasePath ?? seededDatabasePath}`;
   process.env.TURSO_DATABASE_AUTH_TOKEN = "";
   process.env.TURSO_EMBEDDED_REPLICA_URL = "";
   process.env.TURSO_EMBEDDED_REPLICA_SYNC_INTERVAL_SECONDS = "";
   process.env.TURSO_EMBEDDED_REPLICA_SYNC_URL = "";
 }
 
-if (args.length === 0) {
-  process.exit(0);
+const ownsProcessGroup =
+  Boolean(disposableDatabase) && process.platform !== "win32";
+let child;
+let forwardedSignal;
+const signalChild = (signal) => {
+  if (!child?.pid) return;
+  try {
+    if (ownsProcessGroup) process.kill(-child.pid, signal);
+    else child.kill(signal);
+  } catch (error) {
+    if (error.code !== "ESRCH") throw error;
+  }
+};
+
+const signalHandlers = new Map();
+if (disposableDatabase) {
+  for (const signal of ["SIGINT", "SIGTERM"]) {
+    const handler = () => {
+      forwardedSignal ??= signal;
+      signalChild(signal);
+    };
+    signalHandlers.set(signal, handler);
+    process.on(signal, handler);
+  }
 }
 
-const child = spawn(args[0], args.slice(1), {
-  env: process.env,
-  stdio: "inherit",
-});
-
-child.on("exit", (code, signal) => {
-  if (signal) {
-    process.kill(process.pid, signal);
-    return;
+async function stopOwnedProcessGroup() {
+  if (!ownsProcessGroup || !child?.pid) return;
+  signalChild(forwardedSignal ?? "SIGTERM");
+  const deadline = Date.now() + 5_000;
+  while (true) {
+    try {
+      process.kill(-child.pid, 0);
+    } catch (error) {
+      if (error.code === "ESRCH") return;
+      throw error;
+    }
+    if (Date.now() >= deadline) {
+      signalChild("SIGKILL");
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
   }
+}
 
-  process.exit(code ?? 0);
-});
+let result;
+try {
+  child = spawn(args[0], args.slice(1), {
+    env: process.env,
+    stdio: "inherit",
+    detached: ownsProcessGroup,
+  });
+  result = await new Promise((resolve, reject) => {
+    child.once("error", reject);
+    child.once("exit", (code, signal) => resolve({ code, signal }));
+  });
+} finally {
+  await stopOwnedProcessGroup();
+  disposableDatabase?.cleanup();
+  if (disposableDatabase) {
+    for (const [signal, handler] of signalHandlers)
+      process.off(signal, handler);
+  }
+}
+
+if (result.signal || forwardedSignal)
+  process.kill(process.pid, forwardedSignal ?? result.signal);
+else process.exitCode = result.code ?? 0;
