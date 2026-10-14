@@ -144,6 +144,9 @@ export function ProfileUrlField({
                 }}
                 onChange={(event) => {
                   form.clearErrors("slug");
+                  const { selectionStart, selectionEnd } = event.target;
+                  event.target.value = event.target.value.toLowerCase();
+                  event.target.setSelectionRange(selectionStart, selectionEnd);
                   field.onChange(event.target.value);
                 }}
                 onBlur={(event) => {
@@ -167,8 +170,8 @@ export function ProfileUrlField({
             {isPro ? (
               <FieldDescription>
                 Choose a unique URL for your public profile (minimum 5
-                characters). Only letters, numbers, hyphens, and underscores are
-                allowed.{" "}
+                characters). Only lowercase letters, numbers, hyphens, and
+                underscores are allowed.{" "}
                 {!field.value && "If not set, your user ID will be used."}
               </FieldDescription>
             ) : (
