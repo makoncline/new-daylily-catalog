@@ -68,6 +68,9 @@ export function CreateListingSurface({
   );
   const [isSaving, setIsSaving] = useState(false);
   const backButtonRef = useRef<HTMLButtonElement | null>(null);
+  const createRequestRef = useRef<Parameters<typeof insertListing>[0] | null>(
+    null,
+  );
   const hasPendingChanges = () => Boolean(title.trim() || selectedResult);
   const { confirmDiscard } = useUnsavedChangesGuard(hasPendingChanges);
 
@@ -115,10 +118,20 @@ export function CreateListingSurface({
         return;
       }
 
-      const newListing = await insertListing({
-        title: finalTitle,
-        cultivarReferenceId: selectedResult?.cultivarReferenceId ?? null,
-      });
+      const cultivarReferenceId = selectedResult?.cultivarReferenceId ?? null;
+      let request = createRequestRef.current;
+      if (
+        request?.title !== finalTitle ||
+        request.cultivarReferenceId !== cultivarReferenceId
+      ) {
+        request = {
+          title: finalTitle,
+          cultivarReferenceId,
+          requestId: crypto.randomUUID(),
+        };
+        createRequestRef.current = request;
+      }
+      const newListing = await insertListing(request);
 
       toast.success("Listing created", {
         description: `${newListing.title} has been created.`,
@@ -126,8 +139,8 @@ export function CreateListingSurface({
 
       onCreated(newListing.id);
     } catch (error) {
-      toast.error("Failed to create listing", {
-        description: getErrorMessage(error),
+      toast.error("Could not confirm listing creation", {
+        description: `Your input is kept. You can retry. ${getErrorMessage(error)}`,
       });
       reportError({
         error: normalizeError(error),

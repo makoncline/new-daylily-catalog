@@ -195,3 +195,5 @@ check current code before applying them.
 - [2026-10-13] Darwin group probe transition: An owned process-group signal or signal-0 probe can briefly return EPERM after Next CLI exit. Keep it pending under the shutdown deadline; only ESRCH proves absence. If permission remains unresolved, report failure and retain the copy. Do not treat permission denial as successful cleanup.
 
 - [2026-10-14] Browser idle cleanup clock: Playwright 1.55 gives fake idle callbacks `didTimeout: false` and zero `timeRemaining`, so TanStack DB cleanup reschedules instead of running. For cache-lifecycle browser tests, retain native idle callbacks while advancing timer deadlines and wait for an idle callback before each dependent action.
+
+- [2026-10-14] Listing create response loss: The listing create procedure already has transactional requestId receipts. Keep the same requestId when retrying the same draft after confirmation is lost. A browser regression can send the real create with route.fetch, check its successful result and persisted row, then abort delivery to the browser. Use this path to test committed writes without a separate database service.

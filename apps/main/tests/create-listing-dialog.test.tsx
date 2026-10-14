@@ -166,6 +166,7 @@ describe("CreateListingSurface", () => {
       expect(mockInsertListing).toHaveBeenCalledWith({
         title: "Coffee Two",
         cultivarReferenceId: "cr-ahs-2",
+        requestId: expect.any(String),
       });
     });
   });

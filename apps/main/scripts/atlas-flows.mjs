@@ -1045,6 +1045,10 @@ export const ATLAS_FLOWS = [
           path: "src/app/dashboard/_components/dashboard-db-provider.tsx",
         },
         {
+          label: "Listing creation and retry identity",
+          path: "src/app/dashboard/listings/_components/create-listing-dialog.tsx",
+        },
+        {
           label: "Listing mutations",
           path: "src/server/api/routers/dashboard-db/listing.ts",
         },
@@ -1073,6 +1077,7 @@ export const ATLAS_FLOWS = [
         "Keep dashboard collections active while the provider is ready, including idle editors.",
         "Store member versions as integer milliseconds and preserve stale-write rejection.",
         "Classify editor save conflicts by the tRPC code; keep drafts and load the latest version only on explicit recovery.",
+        "Reuse the same create request ID for the same draft after lost create confirmation. Keep one saved listing after retry.",
         "Scope listing writes to the authenticated user on the server.",
         "Enforce the same non-Pro create cap for dashboard, member API, and MCP callers. Reuse the confirmed tier within each remote request.",
         "Validate before save and keep the form open when save fails.",

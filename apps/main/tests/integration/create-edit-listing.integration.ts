@@ -1,3 +1,4 @@
+import { withTempE2EDb } from "@/lib/test-utils/e2e-db";
 import { expect, test } from "./fixtures";
 
 test("seller creates, edits, and reloads a listing through the app", async ({
@@ -194,4 +195,73 @@ test("catalog keeps existing listings when an idle creation form is submitted", 
   await expect(
     dashboardListings.listingRow("Idle catalog bloom"),
   ).toBeVisible();
+});
+
+test("seller safely retries after a committed create response is lost in the browser", async ({
+  page,
+  dashboardListings,
+  createListingDialog,
+  editListingDialog,
+}) => {
+  await withTempE2EDb(
+    async (db) => {
+      const title = "Lost Confirmation Bloom";
+      const savedRows = () =>
+        db.listing.findMany({
+          where: { userId: "integration-user", title },
+          select: { id: true },
+        });
+      expect(await savedRows()).toHaveLength(0);
+      await dashboardListings.goto();
+      await dashboardListings.isReady();
+      await dashboardListings.createListingButton.click();
+      await createListingDialog.isReady();
+      await createListingDialog.searchAndSelectAhsListing(
+        "Integration Bloom",
+        "Integration Bloom",
+      );
+      await createListingDialog.changeTitle(title);
+
+      await page.route(
+        "**/api/trpc/dashboardDb.listing.create*",
+        async (route) => {
+          const response = await route.fetch({
+            headers: { ...route.request().headers(), "trpc-accept": "" },
+          });
+          expect(response.ok()).toBe(true);
+          const results: Array<{
+            result?: { data: { json: { id: string; title: string } } };
+          }> = await response.json();
+          expect(results[0]).not.toHaveProperty("error");
+          const created = results[0]?.result?.data.json;
+          expect(created).toMatchObject({ id: expect.any(String), title });
+          expect(await savedRows()).toEqual([{ id: created?.id }]);
+          await route.abort("connectionclosed");
+        },
+        { times: 1 },
+      );
+
+      await createListingDialog.createListing();
+      await expect(
+        page
+          .locator("[data-sonner-toast]")
+          .filter({ hasText: "Could not confirm listing creation" }),
+      ).toContainText("Your input is kept. You can retry.");
+      await expect(createListingDialog.titleInput).toHaveValue(title);
+      await expect(
+        createListingDialog.linkedListingHeading("Integration Bloom"),
+      ).toBeVisible();
+      await expect(createListingDialog.createButton).toBeEnabled();
+      expect(await savedRows()).toHaveLength(1);
+
+      await createListingDialog.createListing();
+      await editListingDialog.isReady();
+      expect(await savedRows()).toHaveLength(1);
+      await page.goto(`/dashboard/listings?query=${encodeURIComponent(title)}`);
+      await dashboardListings.isReady();
+      await expect(dashboardListings.listingRow(title)).toHaveCount(1);
+      expect(await savedRows()).toHaveLength(1);
+    },
+    { clearFirst: false },
+  );
 });
