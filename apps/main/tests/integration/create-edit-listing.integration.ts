@@ -120,7 +120,7 @@ test("catalog keeps existing listings when an idle creation form is submitted", 
   createListingDialog,
   editListingDialog,
 }) => {
-  await dashboardListings.goto();
+  await page.goto("/dashboard/listings?size=100");
   await dashboardListings.isReady();
   await expect(dashboardListings.listingRow("Existing Bloom")).toBeVisible();
   const initialCount = Number(

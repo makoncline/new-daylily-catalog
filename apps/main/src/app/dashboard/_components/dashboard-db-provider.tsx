@@ -193,7 +193,7 @@ function useDashboardDbProviderState() {
       listsCollection,
       imagesCollection,
       cultivarReferencesCollection,
-    ].map((collection) => collection.subscribeChanges(() => {}));
+    ].map((collection) => collection.subscribeChanges(() => undefined));
 
     return () => {
       subscriptions.forEach((subscription) => subscription.unsubscribe());
