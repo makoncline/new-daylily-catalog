@@ -43,7 +43,7 @@ async function initializeSentry(runtimeConfig: RuntimeConfig) {
     enableLogs: true,
     beforeSendLog: enrichSentryLog,
     tracesSampleRate: isProduction ? 0.1 : 1.0,
-    replaysSessionSampleRate: 0.1,
+    replaysSessionSampleRate: 0,
     replaysOnErrorSampleRate: 1.0,
     debug: false,
     ignoreErrors: [
