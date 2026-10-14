@@ -68,6 +68,7 @@ describe("posthog browser analytics", () => {
         disable_external_dependency_loading: true,
         opt_out_capturing_by_default: true,
         persistence: "memory",
+        bootstrap: { distinctID: "proxy-replay-test" },
       }),
     );
     fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
