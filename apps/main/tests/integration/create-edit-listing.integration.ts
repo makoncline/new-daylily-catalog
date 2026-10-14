@@ -113,3 +113,85 @@ test("listing deletion handoff requires approval and cancel keeps the listing", 
   await dashboardListings.isReady();
   await expect(dashboardListings.listingRow("Existing Bloom")).toBeVisible();
 });
+
+test("catalog keeps existing listings when an idle creation form is submitted", async ({
+  page,
+  dashboardListings,
+  createListingDialog,
+  editListingDialog,
+}) => {
+  await dashboardListings.goto();
+  await dashboardListings.isReady();
+  await expect(dashboardListings.listingRow("Existing Bloom")).toBeVisible();
+  const initialCount = Number(
+    (await dashboardListings.filteredCount().innerText()).match(/\d+/)?.[0],
+  );
+  expect(initialCount).toBeGreaterThanOrEqual(2);
+
+  // Playwright 1.55 gives idle callbacks no execution time. Keep native idle cleanup.
+  const idleCallbacks = await page.evaluateHandle(() => ({
+    requestIdleCallback: window.requestIdleCallback,
+    cancelIdleCallback: window.cancelIdleCallback,
+  }));
+  await page.clock.install();
+  await page.evaluate((native) => {
+    window.requestIdleCallback = native.requestIdleCallback;
+    window.cancelIdleCallback = native.cancelIdleCallback;
+  }, idleCallbacks);
+
+  await dashboardListings.createListingButton.click();
+  await createListingDialog.isReady();
+  await createListingDialog.changeTitle("Before idle bloom");
+  await createListingDialog.createListing();
+  await editListingDialog.isReady();
+  await editListingDialog.close();
+  await dashboardListings.createListingButton.click();
+  await createListingDialog.isReady();
+  await createListingDialog.changeTitle("Idle catalog bloom");
+  await page.clock.runFor(2);
+  await page.evaluate(
+    () => new Promise<void>((resolve) => requestIdleCallback(() => resolve())),
+  );
+  await page.clock.fastForward(106 * 60_000);
+  await page.clock.runFor(2);
+  await page.evaluate(
+    () => new Promise<void>((resolve) => requestIdleCallback(() => resolve())),
+  );
+  await createListingDialog.createListing();
+  await editListingDialog.isReady();
+  await editListingDialog.close();
+  const persisted = await page.request.get(
+    "/api/trpc/dashboardDb.bootstrap.roots",
+  );
+  expect(persisted.ok()).toBe(true);
+  const snapshot = (await persisted.json()).result.data.json;
+  expect(snapshot.listings).toHaveLength(initialCount + 2);
+  expect(snapshot.listings).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ title: "Existing Bloom" }),
+      expect.objectContaining({ title: "Before idle bloom" }),
+      expect.objectContaining({ title: "Idle catalog bloom" }),
+    ]),
+  );
+
+  await expect(dashboardListings.globalSearchInput).toHaveValue("");
+  await expect(dashboardListings.filteredCount()).toContainText(
+    `${initialCount + 2} result`,
+  );
+  await expect(dashboardListings.listingRow("Existing Bloom")).toBeVisible();
+  await expect(dashboardListings.listingRow("Before idle bloom")).toBeVisible();
+  await expect(
+    dashboardListings.listingRow("Idle catalog bloom"),
+  ).toBeVisible();
+
+  await page.reload();
+  await dashboardListings.isReady();
+  await expect(dashboardListings.filteredCount()).toContainText(
+    `${initialCount + 2} result`,
+  );
+  await expect(dashboardListings.listingRow("Existing Bloom")).toBeVisible();
+  await expect(dashboardListings.listingRow("Before idle bloom")).toBeVisible();
+  await expect(
+    dashboardListings.listingRow("Idle catalog bloom"),
+  ).toBeVisible();
+});
