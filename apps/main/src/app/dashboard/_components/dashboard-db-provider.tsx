@@ -10,10 +10,22 @@ import React, {
 import { useAuth } from "@clerk/nextjs";
 import { api } from "@/trpc/react";
 import { getQueryClient } from "@/trpc/query-client";
-import { cleanupImagesCollection } from "@/app/dashboard/_lib/dashboard-db/images-collection";
-import { cleanupListingsCollection } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
-import { cleanupListsCollection } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
-import { cleanupCultivarReferencesCollection } from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
+import {
+  cleanupImagesCollection,
+  imagesCollection,
+} from "@/app/dashboard/_lib/dashboard-db/images-collection";
+import {
+  cleanupListingsCollection,
+  listingsCollection,
+} from "@/app/dashboard/_lib/dashboard-db/listings-collection";
+import {
+  cleanupListsCollection,
+  listsCollection,
+} from "@/app/dashboard/_lib/dashboard-db/lists-collection";
+import {
+  cleanupCultivarReferencesCollection,
+  cultivarReferencesCollection,
+} from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
 import { setCurrentUserId } from "@/lib/utils/cursor";
 import {
   bootstrapDashboardDbFromReplica,
@@ -171,6 +183,22 @@ function useDashboardDbProviderState() {
       });
     });
   };
+
+  useEffect(() => {
+    if (state.status !== "ready") return;
+
+    // Editors hide the table and release its subscriptions. Keep the session data active.
+    const subscriptions = [
+      listingsCollection,
+      listsCollection,
+      imagesCollection,
+      cultivarReferencesCollection,
+    ].map((collection) => collection.subscribeChanges(() => undefined));
+
+    return () => {
+      subscriptions.forEach((subscription) => subscription.unsubscribe());
+    };
+  }, [state.status, state.userId]);
 
   useEffect(() => {
     sqlitePersistenceStartedAtRef.current = performance.now();

@@ -757,6 +757,7 @@ export const ATLAS_FLOWS = [
       e2e: [
         testRef("e2e", "tests/e2e/preview-sign-in.e2e.ts"),
         testRef("e2e", "tests/e2e/new-user-journey.e2e.ts"),
+        testRef("e2e", "tests/e2e/create-edit-listing-flow.e2e.ts"),
         testRef("e2e", "tests/e2e/catalog-importer-onboarding.e2e.ts"),
       ],
     },
@@ -1040,6 +1041,10 @@ export const ATLAS_FLOWS = [
     implementation: {
       entryPoints: [
         {
+          label: "Dashboard collection lifetime",
+          path: "src/app/dashboard/_components/dashboard-db-provider.tsx",
+        },
+        {
           label: "Listing creation and retry identity",
           path: "src/app/dashboard/listings/_components/create-listing-dialog.tsx",
         },
@@ -1069,6 +1074,7 @@ export const ATLAS_FLOWS = [
         },
       ],
       invariants: [
+        "Keep dashboard collections active while the provider is ready, including idle editors.",
         "Store member versions as integer milliseconds and preserve stale-write rejection.",
         "Classify editor save conflicts by the tRPC code; keep drafts and load the latest version only on explicit recovery.",
         "Reuse the same create request ID for the same draft after a lost database response. Keep one saved listing after retry.",

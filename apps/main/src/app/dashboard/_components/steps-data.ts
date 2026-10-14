@@ -34,7 +34,7 @@ export const catalogSteps: CatalogStep[] = [
     label: "Create 3 listings",
     description: "Add your first few daylilies to your catalog",
     icon: Package,
-    target: "/dashboard/listings/new",
+    target: "/dashboard/listings?creating=true",
     isComplete: (stats) => stats.totalListings >= 3,
   },
   {
