@@ -1,16 +1,33 @@
 import { spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { once } from "node:events";
 import fs from "node:fs";
 import http from "node:http";
+import net from "node:net";
 import path from "node:path";
 import { createClient } from "@libsql/client";
 
 // Forward real database traffic. Drop only the response to a completed COMMIT.
 export async function startIntegrationLibsql(databasePath, port) {
+  const probe = net.createServer();
+  probe.listen(port + 1, "127.0.0.1");
+  await once(probe, "listening");
+  await new Promise((resolve) => probe.close(resolve));
+
   const directory = `${databasePath}.sqld`;
   const namespace = path.join(directory, "dbs", "default");
   fs.mkdirSync(namespace, { recursive: true });
   fs.copyFileSync(databasePath, path.join(namespace, "data"));
+  const owner = randomUUID();
+  const fixture = createClient({ url: `file:${path.join(namespace, "data")}` });
+  try {
+    await fixture.execute({
+      sql: "INSERT INTO KeyValue (key, value, updatedAt) VALUES (?, ?, ?)",
+      args: ["integration:libsql-owner", owner, Date.now()],
+    });
+  } finally {
+    fixture.close();
+  }
   const log = fs.openSync(`${directory}/server.log`, "w");
   const child = spawn(
     process.env.SQLD_BINARY ?? "sqld",
@@ -88,13 +105,21 @@ export async function startIntegrationLibsql(databasePath, port) {
       if (startError) throw startError;
       if (child.exitCode !== null)
         throw new Error(fs.readFileSync(`${directory}/server.log`, "utf8"));
+      let result;
       try {
-        await client.execute("SELECT 1");
-        break;
+        result = await client.execute({
+          sql: "SELECT value FROM KeyValue WHERE key = ?",
+          args: ["integration:libsql-owner"],
+        });
       } catch (error) {
         if (Date.now() >= deadline) throw error;
         await new Promise((resolve) => setTimeout(resolve, 100));
+        continue;
       }
+      if (result.rows[0]?.value !== owner) {
+        throw new Error("The libSQL endpoint does not own this test database.");
+      }
+      break;
     }
     proxy.listen(port, "127.0.0.1");
     await once(proxy, "listening");

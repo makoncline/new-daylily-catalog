@@ -44,6 +44,16 @@ export function verificationCommands(args) {
       args: ["apps/main/scripts/run-integration-local.mjs"],
       display: "node apps/main/scripts/run-integration-local.mjs",
     });
+    commands.push({
+      command: process.execPath,
+      args: [
+        "apps/main/scripts/run-integration-local.mjs",
+        "--libsql",
+        "tests/integration/listing-save-recovery.integration.ts",
+      ],
+      display:
+        "node apps/main/scripts/run-integration-local.mjs --libsql tests/integration/listing-save-recovery.integration.ts",
+    });
   }
   return commands;
 }
