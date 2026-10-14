@@ -1040,6 +1040,10 @@ export const ATLAS_FLOWS = [
     implementation: {
       entryPoints: [
         {
+          label: "Listing creation and retry identity",
+          path: "src/app/dashboard/listings/_components/create-listing-dialog.tsx",
+        },
+        {
           label: "Listing mutations",
           path: "src/server/api/routers/dashboard-db/listing.ts",
         },
@@ -1067,6 +1071,7 @@ export const ATLAS_FLOWS = [
       invariants: [
         "Store member versions as integer milliseconds and preserve stale-write rejection.",
         "Classify editor save conflicts by the tRPC code; keep drafts and load the latest version only on explicit recovery.",
+        "Reuse the same create request ID for the same draft after a lost database response. Keep one saved listing after retry.",
         "Scope listing writes to the authenticated user on the server.",
         "Enforce the same non-Pro create cap for dashboard, member API, and MCP callers. Reuse the confirmed tier within each remote request.",
         "Validate before save and keep the form open when save fails.",
@@ -1100,6 +1105,12 @@ export const ATLAS_FLOWS = [
         ),
         testRef("integration", "tests/listing-form-side-mutation.test.tsx"),
         testRef("integration", "tests/edit-listing-dialog-url-sync.test.tsx"),
+        {
+          path: "tests/integration/listing-save-recovery.integration.ts",
+          runner: "libsql-integration",
+          command:
+            "node apps/main/scripts/run-integration-local.mjs --libsql tests/integration/listing-save-recovery.integration.ts",
+        },
         fullAppIntegrationRef(
           "tests/integration/create-edit-listing.integration.ts",
         ),
@@ -1919,6 +1930,9 @@ export function confidenceCommandsForFlow(flow) {
     fullAppIntegrationFiles.length
       ? `node apps/main/scripts/run-integration-local.mjs ${fullAppIntegrationFiles.join(" ")}`
       : null,
+    ...integrationReferences
+      .filter(({ runner }) => runner === "libsql-integration")
+      .map(({ command }) => command),
     e2eFiles.length
       ? `pnpm main exec playwright test --retries=0 ${e2eFiles.join(" ")}`
       : null,

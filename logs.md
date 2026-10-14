@@ -193,3 +193,5 @@ check current code before applying them.
 - [2026-10-13] Disposable shutdown deadline: A suspended Next CLI cannot exit on SIGTERM. Start the owned process-group fallback when the wrapper receives the first signal; do not wait for CLI exit before starting its deadline. Keep the first signal and wait for direct child exit before removing the owned database.
 
 - [2026-10-13] Darwin group probe transition: An owned process-group signal or signal-0 probe can briefly return EPERM after Next CLI exit. Keep it pending under the shutdown deadline; only ESRCH proves absence. If permission remains unresolved, report failure and retain the copy. Do not treat permission denial as successful cleanup.
+
+- [2026-10-14] Listing create response loss: The listing create procedure already has transactional requestId receipts. A libSQL COMMIT can succeed before its HTTP response socket closes. Keep the same requestId when retrying the same draft; use a new ID for different create data. Prove this with the isolated libSQL browser test, not a mocked API failure.

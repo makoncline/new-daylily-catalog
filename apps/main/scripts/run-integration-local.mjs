@@ -8,18 +8,20 @@ import {
   removeIntegrationDatabaseFiles,
   validateIntegrationRuntime,
 } from "./integration-network-guard.mjs";
+import { startIntegrationLibsql } from "./integration-libsql.mjs";
 import { startEvidence } from "./integration-evidence.mjs";
 
 const appRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
 );
-const args = process.argv.slice(2);
+const libsql = process.argv.includes("--libsql");
+const args = process.argv.slice(2).filter((arg) => arg !== "--libsql");
 const recording = args[0] === "--evidence";
 const specs = recording ? args.slice(1) : args;
 const port = Number(process.env.INTEGRATION_PORT ?? "3210");
-if (!Number.isInteger(port) || port < 1 || port >= 65535) {
-  throw new Error("INTEGRATION_PORT must be a port from 1 to 65534.");
+if (!Number.isInteger(port) || port < 1 || port + (libsql ? 3 : 1) > 65535) {
+  throw new Error("INTEGRATION_PORT must leave room for the local services.");
 }
 const appBaseUrl = `http://localhost:${port}`;
 const providerUrl = `http://127.0.0.1:${port + 1}`;
@@ -113,6 +115,7 @@ if (evidence) {
   delete integrationEnv.INTEGRATION_EVIDENCE_DIR;
 }
 
+let transport;
 let exitCode = 1;
 try {
   exitCode = await run(path.join(appRoot, "node_modules", ".bin", "prisma"), [
@@ -128,6 +131,12 @@ try {
   ]);
   if (exitCode !== 0) throw new Error("Failed to seed integration database.");
 
+  if (libsql) {
+    transport = await startIntegrationLibsql(databasePath, port + 2);
+    integrationEnv.DATABASE_URL = transport.url;
+    integrationEnv.SKIP_ENV_VALIDATION = "1";
+  }
+
   exitCode = await run(
     path.join(appRoot, "node_modules", ".bin", "playwright"),
     ["test", "--config", "playwright.integration.config.ts", ...specs],
@@ -136,6 +145,7 @@ try {
   exitCode = 1;
   console.error(error);
 } finally {
+  await transport?.close();
   removeIntegrationDatabaseFiles(databaseUrl);
   if (!process.env.RUNTIME_FEATURE_FLAGS_PATH)
     fs.rmSync(runtimeFlagsPath, { force: true });
