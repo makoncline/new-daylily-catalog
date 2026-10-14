@@ -48,6 +48,13 @@ test("profile URLs normalize uppercase before validation and saving", async ({
     page.getByText("This URL is already taken. Please choose another one."),
   ).toBeVisible();
 
+  await slugInput.fill("bookgarden");
+  await slugInput.evaluate((input) =>
+    (input as HTMLInputElement).setSelectionRange(4, 4),
+  );
+  await slugInput.pressSequentially("Horde");
+  await expect(slugInput).toHaveValue("bookhordegarden");
+
   await slugInput.fill("BOOKHORDEGARDEN");
   await page.getByRole("button", { name: "Save Changes" }).click();
   await expect(page.getByText("Changes saved", { exact: true })).toBeVisible();

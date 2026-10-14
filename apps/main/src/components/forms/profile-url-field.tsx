@@ -144,7 +144,10 @@ export function ProfileUrlField({
                 }}
                 onChange={(event) => {
                   form.clearErrors("slug");
-                  field.onChange(event.target.value.toLowerCase());
+                  const { selectionStart, selectionEnd } = event.target;
+                  event.target.value = event.target.value.toLowerCase();
+                  event.target.setSelectionRange(selectionStart, selectionEnd);
+                  field.onChange(event.target.value);
                 }}
                 onBlur={(event) => {
                   field.onBlur();
