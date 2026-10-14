@@ -15,24 +15,16 @@ import {
   resolveAuthenticatedClerkUserId,
 } from "@/server/api/trpc";
 
-/**
- * This wraps the `createTRPCContext` helper and provides the required context for the tRPC API when
- * handling a HTTP request (e.g. when you make requests from Client Components).
- */
-const createContext = async (req: NextRequest) => {
-  const clerkUserId = await resolveAuthenticatedClerkUserId();
-
-  return createTRPCContext({
-    headers: req.headers,
-    requestUrl: req.url,
-    clerkUserId,
-  });
-};
-
 const handler = async (req: NextRequest) => {
-  return withRequestLogging(req, async () => {
+  return withRequestLogging(req, async (logContext) => {
     try {
-      const context = await createContext(req);
+      const clerkUserId = await resolveAuthenticatedClerkUserId();
+      logContext.clerk_user_id = clerkUserId;
+      const context = await createTRPCContext({
+        headers: req.headers,
+        requestUrl: req.url,
+        clerkUserId,
+      });
       return await fetchRequestHandler({
         endpoint: "/api/trpc",
         req,

@@ -1,4 +1,5 @@
 import { render, waitFor } from "@testing-library/react";
+import * as Sentry from "@sentry/nextjs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PosthogUserIdentification } from "@/components/posthog-user-identification";
 
@@ -37,6 +38,7 @@ describe("PosthogUserIdentification", () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+    Sentry.setUser(null);
   });
 
   it("identifies the signed-in user", async () => {
@@ -61,6 +63,7 @@ describe("PosthogUserIdentification", () => {
       id: "user_123",
       email: "user@example.com",
     });
+    expect(Sentry.getIsolationScope().getUser()).toEqual({ id: "user_123" });
     expect(resetPosthogUserIfIdentifiedMock).not.toHaveBeenCalled();
   });
 
@@ -93,6 +96,7 @@ describe("PosthogUserIdentification", () => {
     await waitFor(() => {
       expect(resetPosthogUserIfIdentifiedMock).toHaveBeenCalledTimes(1);
     });
+    expect(Sentry.getIsolationScope().getUser()).toEqual({});
   });
 
   it("checks for an identified user on an initial signed-out load", async () => {

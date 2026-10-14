@@ -144,7 +144,10 @@ export function CreateListingSurface({
       });
       reportError({
         error: normalizeError(error),
-        context: { source: "CreateListingDialog" },
+        context: {
+          source: "CreateListingDialog",
+          create_request_id: createRequestRef.current?.requestId,
+        },
       });
     } finally {
       setIsSaving(false);

@@ -42,14 +42,14 @@ export function requestLogContext(request: Request): LogContext {
 /** Use for uncached API responses. Cached responses must not reuse request IDs. */
 export function withRequestLogging(
   request: Request,
-  callback: () => Promise<Response>,
+  callback: (context: LogContext) => Promise<Response>,
 ) {
   const context = requestLogContext(request);
   return withLogContext(context, async () => {
     const startedAt = performance.now();
     logEvent("info", "http_request_started");
     try {
-      const response = await callback();
+      const response = await callback(context);
       response.headers.set("x-correlation-id", context.correlation_id);
       logEvent("info", "http_response_created", {
         http_status: response.status,

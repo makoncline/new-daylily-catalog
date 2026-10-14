@@ -203,6 +203,12 @@ test("seller safely retries after a committed create response is lost in the bro
   createListingDialog,
   editListingDialog,
 }) => {
+  const clientErrors: Record<string, unknown>[] = [];
+  page.on("console", (message) => {
+    if (message.text().startsWith("{"))
+      clientErrors.push(JSON.parse(message.text()));
+  });
+  let createRequestId: string | undefined;
   await withTempE2EDb(
     async (db) => {
       const title = "Lost Confirmation Bloom";
@@ -225,6 +231,8 @@ test("seller safely retries after a committed create response is lost in the bro
       await page.route(
         "**/api/trpc/dashboardDb.listing.create*",
         async (route) => {
+          createRequestId = route.request().postDataJSON()[0].json.requestId;
+          expect(createRequestId).toBeTruthy();
           const response = await route.fetch({
             headers: { ...route.request().headers(), "trpc-accept": "" },
           });
@@ -247,6 +255,15 @@ test("seller safely retries after a committed create response is lost in the bro
           .locator("[data-sonner-toast]")
           .filter({ hasText: "Could not confirm listing creation" }),
       ).toContainText("Your input is kept. You can retry.");
+      await expect
+        .poll(() =>
+          clientErrors.find(
+            (record) =>
+              record.event === "application_error" &&
+              record.source === "CreateListingDialog",
+          ),
+        )
+        .toMatchObject({ create_request_id: createRequestId });
       await expect(createListingDialog.titleInput).toHaveValue(title);
       await expect(
         createListingDialog.linkedListingHeading("Integration Bloom"),

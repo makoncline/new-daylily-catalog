@@ -320,6 +320,9 @@ export function enrichSentryEvent<T extends Event>(
       ? { failure_kind: context.failure_kind }
       : {}),
   };
+  if (typeof context.clerk_user_id === "string") {
+    event.user = { id: context.clerk_user_id };
+  }
   event.contexts = {
     ...event.contexts,
     debugging: {
