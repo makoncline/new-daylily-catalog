@@ -68,7 +68,13 @@ for (const [device, viewport] of [
       await create
         .getByRole("button", { name: createLabel, exact: true })
         .click();
-      await expect(toast(`Failed to create ${noun}`)).toBeVisible();
+      await expect(
+        toast(
+          family === "lists"
+            ? "Failed to create list"
+            : "Could not confirm listing creation",
+        ),
+      ).toBeVisible();
       await expect(create.getByLabel(titleLabel, { exact: true })).toHaveValue(
         createdTitle,
       );
