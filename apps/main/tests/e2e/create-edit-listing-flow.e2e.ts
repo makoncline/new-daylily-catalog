@@ -9,10 +9,43 @@ import {
 test.describe("create/edit listing flow @local", () => {
   let seedMeta: CreateEditListingSeedMeta;
 
-  test.beforeAll(async () => {
+  test.beforeEach(async () => {
     await withTempE2EDb(async (db) => {
       seedMeta = await seedCreateEditListingData({ db });
     });
+  });
+
+  test("member can add and save the first listing from the dashboard", async ({
+    page,
+    dashboardHome,
+    dashboardListings,
+    createListingDialog,
+    editListingDialog,
+  }) => {
+    test.slow();
+
+    await signInTestUser(page);
+    await dashboardHome.isReady();
+    await page.waitForLoadState("load");
+    await page.getByRole("link", { name: "Add Your First Listing" }).click();
+    await expect(page).toHaveURL(/\/dashboard\/listings\?creating=true$/);
+    await createListingDialog.isReady();
+
+    const title = "First Dashboard Daylily";
+    await createListingDialog.changeTitle(title);
+    await createListingDialog.createListing();
+    await editListingDialog.isReady();
+    await expect(editListingDialog.titleInput).toHaveValue(title);
+    await editListingDialog.close();
+    await page.reload();
+    await dashboardListings.isReady();
+    await expect(dashboardListings.listingRow(title)).toBeVisible();
+
+    const listings = await withTempE2EDb(
+      (db) => db.listing.findMany({ select: { title: true } }),
+      { clearFirst: false },
+    );
+    expect(listings).toEqual([{ title }]);
   });
 
   test("user can complete full create and edit listing workflow", async ({
