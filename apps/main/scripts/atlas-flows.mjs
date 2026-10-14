@@ -1040,6 +1040,10 @@ export const ATLAS_FLOWS = [
     implementation: {
       entryPoints: [
         {
+          label: "Dashboard collection lifetime",
+          path: "src/app/dashboard/_components/dashboard-db-provider.tsx",
+        },
+        {
           label: "Listing mutations",
           path: "src/server/api/routers/dashboard-db/listing.ts",
         },
@@ -1065,6 +1069,7 @@ export const ATLAS_FLOWS = [
         },
       ],
       invariants: [
+        "Keep dashboard collections active while the provider is ready, including idle editors.",
         "Store member versions as integer milliseconds and preserve stale-write rejection.",
         "Classify editor save conflicts by the tRPC code; keep drafts and load the latest version only on explicit recovery.",
         "Scope listing writes to the authenticated user on the server.",
