@@ -80,20 +80,6 @@ jobs:
         run: pnpm main exec playwright install chromium
       - name: Run full-app integration tests
         run: node apps/main/scripts/run-integration-local.mjs --shard=${{ matrix.shard }}/3
-      - name: Install libSQL test server
-        if: matrix.shard == 1
-        run: |
-          asset=libsql-server-x86_64-unknown-linux-gnu.tar.xz
-          release=https://github.com/tursodatabase/libsql/releases/download/libsql-server-v0.24.32
-          curl -fsSL "$release/$asset" -o "/tmp/$asset"
-          curl -fsSL "$release/$asset.sha256" -o "/tmp/$asset.sha256"
-          cd /tmp
-          sha256sum --check "$asset.sha256"
-          tar -xJf "$asset"
-          echo "SQLD_BINARY=/tmp/libsql-server-x86_64-unknown-linux-gnu/sqld" >> "$GITHUB_ENV"
-      - name: Listing save transport recovery
-        if: matrix.shard == 1
-        run: node apps/main/scripts/run-integration-local.mjs --libsql tests/integration/listing-save-recovery.integration.ts
       - name: Upload Playwright artifacts
         if: failure()
         uses: actions/upload-artifact@v4

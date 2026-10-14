@@ -35,21 +35,8 @@ function requireLoopbackUrl(value, label) {
 
 /** @param {string | undefined} value @param {string} appRoot */
 function requireDisposableDatabase(value, appRoot) {
-  if (value?.startsWith("libsql://")) {
-    const url = new URL(value);
-    if (
-      url.hostname === "127.0.0.1" &&
-      url.port &&
-      url.search === "?tls=0" &&
-      !url.username &&
-      !url.password
-    )
-      return;
-  }
   if (!value?.startsWith("file:")) {
-    throw new Error(
-      "Integration mode requires disposable SQLite or loopback libSQL.",
-    );
+    throw new Error("Integration mode requires a local file: DATABASE_URL.");
   }
 
   const databasePath = value.slice("file:".length);

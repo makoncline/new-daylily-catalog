@@ -18,14 +18,9 @@ describe("local verification", () => {
       "pnpm typecheck",
       "pnpm main exec vitest run tests/verify-commands.test.ts",
     ]);
-    expect(
-      verificationCommands(["--full"])
-        .slice(-2)
-        .map(({ display }) => display),
-    ).toEqual([
+    expect(verificationCommands(["--full"]).at(-1)?.display).toBe(
       "node apps/main/scripts/run-integration-local.mjs",
-      "node apps/main/scripts/run-integration-local.mjs --libsql tests/integration/listing-save-recovery.integration.ts",
-    ]);
+    );
   });
 
   it("uses Atlas confidence commands for a selected flow", () => {

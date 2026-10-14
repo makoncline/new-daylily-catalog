@@ -194,7 +194,6 @@ check current code before applying them.
 
 - [2026-10-13] Darwin group probe transition: An owned process-group signal or signal-0 probe can briefly return EPERM after Next CLI exit. Keep it pending under the shutdown deadline; only ESRCH proves absence. If permission remains unresolved, report failure and retain the copy. Do not treat permission denial as successful cleanup.
 
-- [2026-10-14] Listing create response loss: The listing create procedure already has transactional requestId receipts. A libSQL COMMIT can succeed before its HTTP response socket closes. Keep the same requestId when retrying the same draft; use a new ID for different create data. Prove this with the isolated libSQL browser test, not a mocked API failure.
-
-- [2026-10-14] Local libSQL endpoint ownership: SELECT 1 can reach another local service while the spawned sqld exits. Reject occupied ports and verify a per-run marker from the runner-owned database before giving a transport endpoint to destructive tests.
 - [2026-10-14] Browser idle cleanup clock: Playwright 1.55 gives fake idle callbacks `didTimeout: false` and zero `timeRemaining`, so TanStack DB cleanup reschedules instead of running. For cache-lifecycle browser tests, retain native idle callbacks while advancing timer deadlines and wait for an idle callback before each dependent action.
+
+- [2026-10-14] Listing create response loss: The listing create procedure already has transactional requestId receipts. Keep the same requestId when retrying the same draft after confirmation is lost. A browser regression can send the real create with route.fetch, check its successful result and persisted row, then abort delivery to the browser. Use this path to test committed writes without a separate database service.

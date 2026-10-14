@@ -4,22 +4,15 @@ const baseURL = process.env.APP_BASE_URL ?? "http://localhost:3210";
 const port = new URL(baseURL).port;
 const providerURL =
   process.env.INTEGRATION_PROVIDER_URL ?? "http://127.0.0.1:3211";
-const libsql = process.env.DATABASE_URL?.startsWith("libsql://");
-const readyProcedure = libsql
-  ? "user.getCurrentUser"
-  : "public.getPublicProfiles";
-const appReadyURL = `${baseURL}/api/trpc/${readyProcedure}?batch=1&input=%7B%220%22%3A%7B%22json%22%3Anull%7D%7D`;
+const appReadyURL = `${baseURL}/api/trpc/public.getPublicProfiles?batch=1&input=%7B%220%22%3A%7B%22json%22%3Anull%7D%7D`;
 const evidenceDirectory = process.env.INTEGRATION_EVIDENCE_DIR;
 
 export default defineConfig({
   testDir: "./tests/integration",
-  testMatch: libsql
-    ? "**/listing-save-recovery.integration.ts"
-    : "**/*.integration.ts",
+  testMatch: "**/*.integration.ts",
   outputDir: evidenceDirectory
     ? `${evidenceDirectory}/private/results`
     : "./tests/.tmp/integration-results",
-  testIgnore: libsql ? undefined : "**/listing-save-recovery.integration.ts",
   fullyParallel: false,
   workers: 1,
   retries: 0,
