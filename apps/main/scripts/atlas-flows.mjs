@@ -897,6 +897,7 @@ export const ATLAS_FLOWS = [
         "Keep field and content drafts during refresh and failed navigation saves.",
         "Include child content and media changes in the parent commit.",
         "Ignore late URL validation results and keep drafts after rejected writes.",
+        "Convert uppercase profile URL input to lowercase before validation and saving.",
         "Reject member MCP requests before database reads when the token, scope, or client is not allowed.",
         "Allow confirmed non-Pro remote writes within dashboard limits; reject unconfirmed billing and keep destructive MCP actions in dashboard approval.",
         "Publish MCP endpoint resource metadata and complete tool-level OAuth challenges.",
