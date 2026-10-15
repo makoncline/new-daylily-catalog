@@ -470,6 +470,17 @@ async function invalidateDashboardCollectionQueries() {
   ]);
 }
 
+async function cancelDashboardCollectionSyncs() {
+  const queryClient = getQueryClient();
+  const queryKeys = queryClient
+    .getQueryCache()
+    .findAll({ queryKey: ["dashboard-db"] })
+    .filter((query) => query.state.fetchStatus !== "idle")
+    .map((query) => query.queryKey);
+  await queryClient.cancelQueries({ queryKey: ["dashboard-db"] });
+  return queryKeys;
+}
+
 export function resetDashboardRefreshLock() {
   dashboardDbRefreshGeneration += 1;
   dashboardDbRefreshQueue = Promise.resolve();
@@ -497,10 +508,28 @@ export function runWithDashboardRefreshLock<T>(
         throw new DashboardRefreshLockCancelledError();
       }
 
+      const canceledSyncs = await cancelDashboardCollectionSyncs();
+      if (
+        generation !== dashboardDbRefreshGeneration ||
+        (canRun && !canRun())
+      ) {
+        throw new DashboardRefreshLockCancelledError();
+      }
       try {
         return await work();
       } finally {
         dashboardDbLockedWorkRevision += 1;
+        // Focus can start another read while the mutation waits for its result.
+        canceledSyncs.push(...(await cancelDashboardCollectionSyncs()));
+        await Promise.all(
+          canceledSyncs.map((queryKey) =>
+            getQueryClient().invalidateQueries({
+              queryKey,
+              exact: true,
+              refetchType: "none",
+            }),
+          ),
+        );
       }
     })
     .finally(() => {

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { clearTestTrpcClient, setTestTrpcClient } from "@/trpc/client";
 import {
   fetchDashboardDbSnapshotFromServer,
@@ -133,6 +133,41 @@ describe("dashboard DB persistence bootstrap fetch", () => {
       300, 300, 300, 300, 300, 300, 201,
     ]);
     expect(maxActiveHeavyChunks).toBe(2);
+  });
+
+  it("does not run old-generation work after query cancellation yields", async () => {
+    const queryClient = getQueryClient();
+    const cancelEntered = deferred<void>();
+    const releaseCancel = deferred<void>();
+    const cancelQueries = queryClient.cancelQueries.bind(queryClient);
+    const cancel = vi
+      .spyOn(queryClient, "cancelQueries")
+      .mockImplementationOnce(async (...args) => {
+        await cancelQueries(...args);
+        cancelEntered.resolve();
+        await releaseCancel.promise;
+      });
+    const staleWork = vi.fn(async () => "stale");
+    const stale = runWithDashboardRefreshLock(staleWork).then(
+      () => null,
+      (error: unknown) => error,
+    );
+    try {
+      await cancelEntered.promise;
+      resetDashboardRefreshLock();
+      expect(await runWithDashboardRefreshLock(async () => "current")).toBe(
+        "current",
+      );
+      releaseCancel.resolve();
+      expect(await stale).toMatchObject({
+        name: "DashboardRefreshLockCancelledError",
+      });
+      expect(staleWork).not.toHaveBeenCalled();
+    } finally {
+      releaseCancel.resolve();
+      cancel.mockRestore();
+      resetDashboardRefreshLock();
+    }
   });
 
   it.each(["fetching", "queued"] as const)(
