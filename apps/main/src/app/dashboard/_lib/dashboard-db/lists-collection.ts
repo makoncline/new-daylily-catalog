@@ -79,7 +79,7 @@ function createListsCollection(
     staleTime: Infinity,
     retry: false,
     getKey: (row) => row.id,
-    queryFn: async ({ queryKey }) => {
+    queryFn: async ({ queryKey, signal }) => {
       const existing = getExistingListRows(queryKey);
 
       if (shouldSkipNextListsSync) {
@@ -95,6 +95,8 @@ function createListsCollection(
         fetchPage: (input) =>
           getTrpcClient().dashboardDb.list.sync.query(input),
       });
+
+      signal.throwIfAborted();
 
       const map = new Map(existing.map((i) => [i.id, i]));
       upserts.forEach((i) => map.set(i.id, i));

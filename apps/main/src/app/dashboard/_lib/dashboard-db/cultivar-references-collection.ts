@@ -76,7 +76,7 @@ function createCultivarReferencesCollection(
     staleTime: Infinity,
     retry: false,
     getKey: (row) => row.id,
-    queryFn: async ({ queryKey }) => {
+    queryFn: async ({ queryKey, signal }) => {
       const existing = getExistingCultivarReferenceRows(queryKey);
 
       if (shouldSkipNextCultivarReferencesSync) {
@@ -93,6 +93,8 @@ function createCultivarReferencesCollection(
         fetchPage: (input) =>
           getTrpcClient().dashboardDb.cultivarReference.sync.query(input),
       });
+
+      signal.throwIfAborted();
 
       const map = new Map(existing.map((row) => [row.id, row]));
       upserts.forEach((row) => map.set(row.id, row));

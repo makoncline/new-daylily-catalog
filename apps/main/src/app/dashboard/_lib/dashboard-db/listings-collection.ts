@@ -81,7 +81,7 @@ function createListingsCollection(
     staleTime: Infinity,
     retry: false,
     getKey: (row) => row.id,
-    queryFn: async ({ queryKey }) => {
+    queryFn: async ({ queryKey, signal }) => {
       const existing = getExistingListingRows(queryKey);
 
       if (shouldSkipNextListingsSync) {
@@ -98,6 +98,8 @@ function createListingsCollection(
         fetchPage: (input) =>
           getTrpcClient().dashboardDb.listing.sync.query(input),
       });
+
+      signal.throwIfAborted();
 
       const map = new Map(existing.map((i) => [i.id, i]));
       upserts.forEach((i) => map.set(i.id, i));

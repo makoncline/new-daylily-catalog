@@ -184,7 +184,470 @@ function ImagesViewer({
   );
 }
 
+function gate() {
+  let release!: () => void;
+  const promise = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  return { promise, release };
+}
+
+function holdSyncResults(paths: string[]) {
+  const held = gate();
+  const remaining = new Set(paths);
+  let pendingDeliveries = paths.length;
+  const completed: string[] = [];
+  const link: TRPCLink<AppRouter> =
+    () =>
+    ({ op, next }) =>
+      observable((emit) => {
+        let pending = Promise.resolve();
+        const sub = next(op).subscribe({
+          next(value) {
+            pending = pending.then(async () => {
+              if (remaining.delete(op.path)) {
+                await held.promise;
+                emit.next(value);
+                pendingDeliveries -= 1;
+              } else emit.next(value);
+            });
+          },
+          error: (error) => emit.error(error),
+          complete: () => {
+            void pending.then(() => {
+              emit.complete();
+              completed.push(op.path);
+            });
+          },
+        });
+        return () => sub.unsubscribe();
+      });
+  return {
+    link,
+    read: () =>
+      waitFor(() => expect(remaining.size).toBe(0), { timeout: 5_000 }),
+    delivered: () =>
+      waitFor(() => expect(pendingDeliveries).toBe(0), { timeout: 5_000 }),
+    completed,
+    release: held.release,
+  };
+}
+
+function holdMutationRequest(path: string) {
+  const held = gate();
+  let started = false;
+  const link: TRPCLink<AppRouter> =
+    () =>
+    ({ op, next }) =>
+      observable((emit) => {
+        let sub: ReturnType<ReturnType<typeof next>["subscribe"]> | undefined;
+        let stopped = false;
+        void (async () => {
+          if (op.path === path) {
+            started = true;
+            await held.promise;
+          }
+          if (!stopped) sub = next(op).subscribe(emit);
+        })();
+        return () => {
+          stopped = true;
+          sub?.unsubscribe();
+        };
+      });
+  return {
+    link,
+    started: () =>
+      waitFor(() => expect(started).toBe(true), { timeout: 5_000 }),
+    release: held.release,
+  };
+}
+
 describe("dashboardDb TanStack DB collections", () => {
+  it.each(["before", "during"])(
+    "focus sync started %s a save cannot replace the saved listing",
+    async (timing) => {
+      await withTempAppDb(async ({ user }) => {
+        const { db } = await import("@/server/db");
+        const seeded = await db.listing.create({
+          data: { userId: user.id, title: "Old title", slug: "old-title" },
+        });
+        if (timing === "before") {
+          await db.listing.createMany({
+            data: Array.from({ length: 100 }, (_, index) => ({
+              userId: user.id,
+              title: `Other bloom ${index}`,
+              slug: `other-bloom-${index}`,
+            })),
+          });
+        }
+        const { createCaller } = await import("@/server/api/root");
+        const caller = createCaller({
+          db,
+          replicaDb: db,
+          hasReplicaDb: true,
+          headers: new Headers(),
+          _authUser: { id: user.id } as TRPCInternalContext["_authUser"],
+          _confirmedActiveMembership: true,
+        });
+        const { bootstrapDashboardDbFromServer } = await import(
+          "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence"
+        );
+        await bootstrapDashboardDbFromServer(user.id);
+        const {
+          listingsCollection,
+          clearNextListingsCollectionSyncSuppression,
+          updateListing,
+        } = await import(
+          "@/app/dashboard/_lib/dashboard-db/listings-collection"
+        );
+        const subscription = listingsCollection.subscribeChanges(
+          () => undefined,
+        );
+        const sync = holdSyncResults(["dashboardDb.listing.sync"]);
+        const update = holdMutationRequest("dashboardDb.listing.update");
+        const { setTestTrpcClient } = await import("@/trpc/client");
+        setTestTrpcClient(
+          createTRPCProxyClient<AppRouter>({
+            links: [sync.link, update.link, callerLink(caller)],
+          }),
+        );
+        const { getQueryClient } = await import("@/trpc/query-client");
+        const { focusManager } = await import("@tanstack/react-query");
+        const queryClient = getQueryClient();
+        const queryKey = ["dashboard-db", "listings"];
+        const { getUserCursorKey } = await import("@/lib/utils/cursor");
+        const cursorKey = getUserCursorKey(
+          "dashboard-db:listings:maxUpdatedAt",
+        );
+        clearNextListingsCollectionSyncSuppression();
+        localStorage.removeItem(cursorKey);
+        queryClient.mount();
+        const save = () =>
+          updateListing({
+            id: seeded.id,
+            expectedUpdatedAt: seeded.updatedAt.toISOString(),
+            data: { title: "New title" },
+          });
+        let saving: ReturnType<typeof save> | undefined;
+        try {
+          if (timing === "during") {
+            saving = save();
+            await update.started();
+          }
+          await queryClient.invalidateQueries({
+            queryKey,
+            refetchType: "none",
+          });
+          focusManager.setFocused(false);
+          focusManager.setFocused(true);
+          await sync.read();
+          saving ??= save();
+          update.release();
+          const saved = await saving;
+          expect(saved.title).toBe("New title");
+          expect(listingsCollection.get(seeded.id)?.title).toBe("New title");
+          sync.release();
+          await sync.delivered();
+          await waitFor(() =>
+            expect(
+              sync.completed.filter(
+                (path) => path === "dashboardDb.listing.sync",
+              ),
+            ).toHaveLength(timing === "before" ? 2 : 1),
+          );
+          await waitFor(() =>
+            expect(queryClient.isFetching({ queryKey })).toBe(0),
+          );
+          expect(
+            (await db.listing.findUniqueOrThrow({ where: { id: seeded.id } }))
+              .title,
+          ).toBe("New title");
+          expect(listingsCollection.get(seeded.id)?.title).toBe("New title");
+          expect(localStorage.getItem(cursorKey)).toBeNull();
+          focusManager.setFocused(false);
+          focusManager.setFocused(true);
+          await waitFor(() =>
+            expect(queryClient.isFetching({ queryKey })).toBe(1),
+          );
+          await queryClient.getQueryCache().find({ queryKey })?.promise;
+          expect(localStorage.getItem(cursorKey)).toBe(
+            saved.updatedAt.toISOString(),
+          );
+          expect(listingsCollection.get(seeded.id)?.title).toBe("New title");
+        } finally {
+          sync.release();
+          update.release();
+          await saving;
+          queryClient.unmount();
+          focusManager.setFocused(undefined);
+          subscription.unsubscribe();
+          await listingsCollection.cleanup();
+        }
+      });
+    },
+  );
+
+  it("held focus sync cannot replace newer list, image, or cultivar-reference state", async () => {
+    await withTempAppDb(async ({ user }) => {
+      const { db } = await import("@/server/db");
+      const listing = await db.listing.create({
+        data: { userId: user.id, title: "Linked bloom", slug: "linked-bloom" },
+      });
+      const list = await db.list.create({
+        data: { userId: user.id, title: "Old list" },
+      });
+      const firstImage = await db.image.create({
+        data: { listingId: listing.id, url: "/first.jpg", order: 0 },
+      });
+      const secondImage = await db.image.create({
+        data: { listingId: listing.id, url: "/second.jpg", order: 1 },
+      });
+      const cultivar = await db.v2AhsCultivar.create({
+        data: {
+          id: "sync-cultivar",
+          post_title: "Linked cultivar",
+          link_normalized_name: "linked-cultivar",
+        },
+      });
+      const reference = await db.cultivarReference.create({
+        data: {
+          v2AhsCultivarId: cultivar.id,
+          normalizedName: "linked-cultivar",
+        },
+      });
+      const { bootstrapDashboardDbFromServer } = await import(
+        "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence"
+      );
+      await bootstrapDashboardDbFromServer(user.id);
+      const listings = await import(
+        "@/app/dashboard/_lib/dashboard-db/listings-collection"
+      );
+      const lists = await import(
+        "@/app/dashboard/_lib/dashboard-db/lists-collection"
+      );
+      const images = await import(
+        "@/app/dashboard/_lib/dashboard-db/images-collection"
+      );
+      const references = await import(
+        "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection"
+      );
+      const collections = [
+        listings.listingsCollection,
+        lists.listsCollection,
+        images.imagesCollection,
+        references.cultivarReferencesCollection,
+      ];
+      const subscriptions = collections.map((collection) =>
+        collection.subscribeChanges(() => undefined),
+      );
+      listings.clearNextListingsCollectionSyncSuppression();
+      lists.clearNextListsCollectionSyncSuppression();
+      images.clearNextImagesCollectionSyncSuppression();
+      references.clearNextCultivarReferencesCollectionSyncSuppression();
+      const sync = holdSyncResults([
+        "dashboardDb.listing.sync",
+        "dashboardDb.list.sync",
+        "dashboardDb.image.sync",
+        "dashboardDb.cultivarReference.sync",
+      ]);
+      const { createCaller } = await import("@/server/api/root");
+      const caller = createCaller({
+        db,
+        replicaDb: db,
+        hasReplicaDb: true,
+        headers: new Headers(),
+        _authUser: { id: user.id } as TRPCInternalContext["_authUser"],
+        _confirmedActiveMembership: true,
+      });
+      const { setTestTrpcClient } = await import("@/trpc/client");
+      setTestTrpcClient(
+        createTRPCProxyClient<AppRouter>({
+          links: [sync.link, callerLink(caller)],
+        }),
+      );
+      const { getQueryClient } = await import("@/trpc/query-client");
+      const { focusManager } = await import("@tanstack/react-query");
+      const queryClient = getQueryClient();
+      queryClient.mount();
+      try {
+        await queryClient.invalidateQueries({
+          queryKey: ["dashboard-db"],
+          refetchType: "none",
+        });
+        focusManager.setFocused(false);
+        focusManager.setFocused(true);
+        await sync.read();
+        const created = await listings.insertListing({
+          title: "Created bloom",
+        });
+        await lists.updateList({
+          id: list.id,
+          expectedUpdatedAt: list.updatedAt.toISOString(),
+          data: { title: "Saved list" },
+        });
+        await images.reorderImages({
+          type: "listing",
+          referenceId: listing.id,
+          images: [
+            { id: secondImage.id, order: 0 },
+            { id: firstImage.id, order: 1 },
+          ],
+        });
+        await listings.linkAhs({
+          id: listing.id,
+          cultivarReferenceId: reference.id,
+        });
+        sync.release();
+        await sync.delivered();
+        await waitFor(() =>
+          expect(queryClient.isFetching({ queryKey: ["dashboard-db"] })).toBe(
+            0,
+          ),
+        );
+        expect(listings.listingsCollection.get(created.id)?.title).toBe(
+          "Created bloom",
+        );
+        expect(lists.listsCollection.get(list.id)?.title).toBe("Saved list");
+        expect(images.imagesCollection.get(firstImage.id)?.order).toBe(1);
+        expect(images.imagesCollection.get(secondImage.id)?.order).toBe(0);
+        expect(
+          references.cultivarReferencesCollection.get(reference.id)?.ahsListing
+            ?.name,
+        ).toBe("Linked cultivar");
+        expect(
+          listings.listingsCollection.get(listing.id)?.cultivarReferenceId,
+        ).toBe(reference.id);
+        expect(
+          (await db.listing.findUniqueOrThrow({ where: { id: created.id } }))
+            .title,
+        ).toBe("Created bloom");
+        expect(
+          (await db.list.findUniqueOrThrow({ where: { id: list.id } })).title,
+        ).toBe("Saved list");
+        expect(
+          await db.image.findMany({
+            where: { listingId: listing.id },
+            orderBy: { order: "asc" },
+            select: { id: true, order: true },
+          }),
+        ).toEqual([
+          { id: secondImage.id, order: 0 },
+          { id: firstImage.id, order: 1 },
+        ]);
+        expect(
+          (await db.listing.findUniqueOrThrow({ where: { id: listing.id } }))
+            .cultivarReferenceId,
+        ).toBe(reference.id);
+      } finally {
+        sync.release();
+        queryClient.unmount();
+        focusManager.setFocused(undefined);
+        subscriptions.forEach((subscription) => subscription.unsubscribe());
+        await Promise.all(
+          collections.map((collection) => collection.cleanup()),
+        );
+      }
+    });
+  });
+
+  it("failed save rolls back and canceled focus sync recovers on the next focus", async () => {
+    await withTempAppDb(async ({ user }) => {
+      const { db } = await import("@/server/db");
+      const seeded = await db.listing.create({
+        data: {
+          userId: user.id,
+          title: "Original title",
+          slug: "original-title",
+        },
+      });
+      const { bootstrapDashboardDbFromServer } = await import(
+        "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence"
+      );
+      await bootstrapDashboardDbFromServer(user.id);
+      const {
+        listingsCollection,
+        clearNextListingsCollectionSyncSuppression,
+        updateListing,
+      } = await import("@/app/dashboard/_lib/dashboard-db/listings-collection");
+      const subscription = listingsCollection.subscribeChanges(() => undefined);
+      const current = await db.listing.update({
+        where: { id: seeded.id },
+        data: {
+          title: "Other saved title",
+          updatedAt: new Date(seeded.updatedAt.getTime() + 1000),
+        },
+      });
+      const { createCaller } = await import("@/server/api/root");
+      const caller = createCaller({
+        db,
+        replicaDb: db,
+        hasReplicaDb: true,
+        headers: new Headers(),
+        _authUser: { id: user.id } as TRPCInternalContext["_authUser"],
+        _confirmedActiveMembership: true,
+      });
+      const sync = holdSyncResults(["dashboardDb.listing.sync"]);
+      const update = holdMutationRequest("dashboardDb.listing.update");
+      const { setTestTrpcClient } = await import("@/trpc/client");
+      setTestTrpcClient(
+        createTRPCProxyClient<AppRouter>({
+          links: [sync.link, update.link, callerLink(caller)],
+        }),
+      );
+      const { getQueryClient } = await import("@/trpc/query-client");
+      const { focusManager } = await import("@tanstack/react-query");
+      const queryClient = getQueryClient();
+      const queryKey = ["dashboard-db", "listings"];
+      clearNextListingsCollectionSyncSuppression();
+      queryClient.mount();
+      const saving = updateListing({
+        id: seeded.id,
+        expectedUpdatedAt: seeded.updatedAt.toISOString(),
+        data: { title: "Rejected draft" },
+      }).then(
+        () => null,
+        (error: unknown) => error,
+      );
+      try {
+        await update.started();
+        expect(listingsCollection.get(seeded.id)?.title).toBe("Rejected draft");
+        await queryClient.invalidateQueries({ queryKey, refetchType: "none" });
+        focusManager.setFocused(false);
+        focusManager.setFocused(true);
+        await sync.read();
+        update.release();
+        expect(await saving).toMatchObject({
+          message:
+            "The listing changed. Load the latest version before saving.",
+        });
+        expect(listingsCollection.get(seeded.id)?.title).toBe("Original title");
+        sync.release();
+        await sync.delivered();
+        await waitFor(() =>
+          expect(queryClient.isFetching({ queryKey })).toBe(0),
+        );
+        expect(listingsCollection.get(seeded.id)?.title).toBe("Original title");
+        expect(
+          (await db.listing.findUniqueOrThrow({ where: { id: seeded.id } }))
+            .title,
+        ).toBe(current.title);
+        focusManager.setFocused(false);
+        focusManager.setFocused(true);
+        await waitFor(() =>
+          expect(listingsCollection.get(seeded.id)?.title).toBe(current.title),
+        );
+      } finally {
+        sync.release();
+        update.release();
+        await saving;
+        queryClient.unmount();
+        focusManager.setFocused(undefined);
+        subscription.unsubscribe();
+        await listingsCollection.cleanup();
+      }
+    });
+  });
+
   it("incremental sync does not limit rows to one page", async () => {
     const { fetchDashboardSyncPages } = await import(
       "@/app/dashboard/_lib/dashboard-db/collection-bootstrap"
@@ -1058,98 +1521,193 @@ describe("dashboardDb TanStack DB collections", () => {
     });
   });
 
-  it("images: create -> reorder -> delete renumbers", async () => {
-    await withTempAppDb(async ({ user }) => {
-      const { bootstrapDashboardDbFromServer } = await import(
-        "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence"
-      );
-      const { insertListing } = await import(
-        "@/app/dashboard/_lib/dashboard-db/listings-collection"
-      );
-      const { imagesCollection, createImage, reorderImages, deleteImage } =
-        await import("@/app/dashboard/_lib/dashboard-db/images-collection");
-
-      await act(async () => {
-        await bootstrapDashboardDbFromServer(user.id);
-      });
-
-      let listingId = "";
-      await act(async () => {
-        const listing = await insertListing({ title: "WithImages" });
-        listingId = listing.id;
-      });
-
-      await act(async () => {
-        render(
-          <ImagesViewer
-            imagesCollection={imagesCollection}
-            listingId={listingId}
-          />,
+  it.each(["entry", "during"])(
+    "images: create -> reorder survives focus at lock %s -> delete renumbers",
+    async (timing) => {
+      await withTempAppDb(async ({ user }) => {
+        const { bootstrapDashboardDbFromServer } = await import(
+          "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence"
         );
-      });
+        const { insertListing } = await import(
+          "@/app/dashboard/_lib/dashboard-db/listings-collection"
+        );
+        const { imagesCollection, createImage, reorderImages, deleteImage } =
+          await import("@/app/dashboard/_lib/dashboard-db/images-collection");
 
-      let u1Id = "";
-      let u2Id = "";
-      let url1 = "";
-      let url2 = "";
-      await act(async () => {
-        const key1 = `${user.id}/${listingId}/u1.jpg`;
-        const key2 = `${user.id}/${listingId}/u2.jpg`;
-        url1 = `https://daylily-catalog-images-test.s3.us-east-1.amazonaws.com/${key1}`;
-        url2 = `https://daylily-catalog-images-test.s3.us-east-1.amazonaws.com/${key2}`;
-        const u1 = await createImage({
-          type: "listing",
-          referenceId: listingId,
-          url: url1,
-          key: key1,
+        await act(async () => {
+          await bootstrapDashboardDbFromServer(user.id);
         });
-        const u2 = await createImage({
-          type: "listing",
-          referenceId: listingId,
-          url: url2,
-          key: key2,
+
+        let listingId = "";
+        await act(async () => {
+          const listing = await insertListing({ title: "WithImages" });
+          listingId = listing.id;
         });
-        u1Id = u1.id;
-        u2Id = u2.id;
-      });
 
-      await waitFor(() => {
-        expect(screen.getByTestId("count").textContent).toBe("2");
-        expect(screen.getByTestId("urls").textContent).toBe(`${url1},${url2}`);
-        expect(screen.getByTestId("orders").textContent).toBe("0,1");
-      });
+        await act(async () => {
+          render(
+            <ImagesViewer
+              imagesCollection={imagesCollection}
+              listingId={listingId}
+            />,
+          );
+        });
 
-      await act(async () => {
-        await reorderImages({
-          type: "listing",
-          referenceId: listingId,
-          images: [
-            { id: u2Id, order: 0 },
-            { id: u1Id, order: 1 },
-          ],
+        let u1Id = "";
+        let u2Id = "";
+        let url1 = "";
+        let url2 = "";
+        await act(async () => {
+          const key1 = `${user.id}/${listingId}/u1.jpg`;
+          const key2 = `${user.id}/${listingId}/u2.jpg`;
+          url1 = `https://daylily-catalog-images-test.s3.us-east-1.amazonaws.com/${key1}`;
+          url2 = `https://daylily-catalog-images-test.s3.us-east-1.amazonaws.com/${key2}`;
+          const u1 = await createImage({
+            type: "listing",
+            referenceId: listingId,
+            url: url1,
+            key: key1,
+          });
+          const u2 = await createImage({
+            type: "listing",
+            referenceId: listingId,
+            url: url2,
+            key: key2,
+          });
+          u1Id = u1.id;
+          u2Id = u2.id;
+        });
+
+        await waitFor(() => {
+          expect(screen.getByTestId("count").textContent).toBe("2");
+          expect(screen.getByTestId("urls").textContent).toBe(
+            `${url1},${url2}`,
+          );
+          expect(screen.getByTestId("orders").textContent).toBe("0,1");
+        });
+
+        const { db } = await import("@/server/db");
+        const { createCaller } = await import("@/server/api/root");
+        const caller = createCaller({
+          db,
+          replicaDb: db,
+          hasReplicaDb: true,
+          headers: new Headers(),
+          _authUser: { id: user.id } as TRPCInternalContext["_authUser"],
+          _confirmedActiveMembership: true,
+        });
+        const sync = holdSyncResults(["dashboardDb.image.sync"]);
+        const mutation = holdMutationRequest("dashboardDb.image.reorder");
+        const { setTestTrpcClient } = await import("@/trpc/client");
+        setTestTrpcClient(
+          createTRPCProxyClient<AppRouter>({
+            links: [sync.link, mutation.link, callerLink(caller)],
+          }),
+        );
+        const { clearNextImagesCollectionSyncSuppression } = await import(
+          "@/app/dashboard/_lib/dashboard-db/images-collection"
+        );
+        clearNextImagesCollectionSyncSuppression();
+        const { getQueryClient } = await import("@/trpc/query-client");
+        const { focusManager, isCancelledError } = await import(
+          "@tanstack/react-query"
+        );
+        const queryClient = getQueryClient();
+        const queryKey = ["dashboard-db", "images"];
+        await act(async () => {
+          queryClient.mount();
+          await queryClient.invalidateQueries({
+            queryKey,
+            refetchType: "none",
+          });
+          let saving: Promise<void> | undefined;
+          try {
+            saving = reorderImages({
+              type: "listing",
+              referenceId: listingId,
+              images: [
+                { id: u2Id, order: 0 },
+                { id: u1Id, order: 1 },
+              ],
+            });
+            if (timing === "entry") {
+              queueMicrotask(() => {
+                focusManager.setFocused(false);
+                focusManager.setFocused(true);
+              });
+            }
+            await mutation.started();
+            expect(imagesCollection.get(u1Id)?.order).toBe(1);
+            if (timing === "during") {
+              await queryClient.invalidateQueries({
+                queryKey,
+                refetchType: "none",
+              });
+              focusManager.setFocused(false);
+              focusManager.setFocused(true);
+            }
+            await sync.read();
+            sync.release();
+            await sync.delivered();
+            await queryClient
+              .getQueryCache()
+              .find({ queryKey })
+              ?.promise?.catch((error: unknown) => {
+                expect(isCancelledError(error)).toBe(true);
+              });
+            mutation.release();
+            await saving;
+            expect(
+              await db.image.findMany({
+                where: { listingId },
+                orderBy: { order: "asc" },
+                select: { id: true, order: true },
+              }),
+            ).toEqual([
+              { id: u2Id, order: 0 },
+              { id: u1Id, order: 1 },
+            ]);
+            expect(imagesCollection.get(u1Id)?.order).toBe(1);
+            expect(imagesCollection.get(u2Id)?.order).toBe(0);
+            focusManager.setFocused(false);
+            focusManager.setFocused(true);
+            await waitFor(() =>
+              expect(queryClient.isFetching({ queryKey })).toBe(1),
+            );
+            await queryClient.getQueryCache().find({ queryKey })?.promise;
+            expect(imagesCollection.get(u1Id)?.order).toBe(1);
+          } finally {
+            sync.release();
+            mutation.release();
+            await saving;
+            queryClient.unmount();
+            focusManager.setFocused(undefined);
+          }
+        });
+
+        await waitFor(() => {
+          expect(screen.getByTestId("urls").textContent).toBe(
+            `${url2},${url1}`,
+          );
+          expect(screen.getByTestId("orders").textContent).toBe("0,1");
+        });
+
+        await act(async () => {
+          await deleteImage({
+            type: "listing",
+            referenceId: listingId,
+            imageId: u2Id,
+          });
+        });
+
+        await waitFor(() => {
+          expect(screen.getByTestId("count").textContent).toBe("1");
+          expect(screen.getByTestId("urls").textContent).toBe(url1);
+          expect(screen.getByTestId("orders").textContent).toBe("0");
         });
       });
-
-      await waitFor(() => {
-        expect(screen.getByTestId("urls").textContent).toBe(`${url2},${url1}`);
-        expect(screen.getByTestId("orders").textContent).toBe("0,1");
-      });
-
-      await act(async () => {
-        await deleteImage({
-          type: "listing",
-          referenceId: listingId,
-          imageId: u2Id,
-        });
-      });
-
-      await waitFor(() => {
-        expect(screen.getByTestId("count").textContent).toBe("1");
-        expect(screen.getByTestId("urls").textContent).toBe(url1);
-        expect(screen.getByTestId("orders").textContent).toBe("0");
-      });
-    });
-  });
+    },
+  );
 
   it("cultivar refs: linking updates live joined AHS fields", async () => {
     await withTempAppDb(async ({ user }) => {

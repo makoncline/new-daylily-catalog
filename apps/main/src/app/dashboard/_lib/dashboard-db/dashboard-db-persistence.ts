@@ -1,5 +1,6 @@
 "use client";
 
+import type { QueryKey } from "@tanstack/react-query";
 import type { RouterOutputs } from "@/trpc/react";
 import { getQueryClient } from "@/trpc/query-client";
 import { getTrpcClient } from "@/trpc/client";
@@ -470,6 +471,17 @@ async function invalidateDashboardCollectionQueries() {
   ]);
 }
 
+async function cancelDashboardCollectionSyncs() {
+  const queryClient = getQueryClient();
+  const queryKeys = queryClient
+    .getQueryCache()
+    .findAll({ queryKey: ["dashboard-db"] })
+    .filter((query) => query.state.fetchStatus !== "idle")
+    .map((query) => query.queryKey);
+  await queryClient.cancelQueries({ queryKey: ["dashboard-db"] });
+  return queryKeys;
+}
+
 export function resetDashboardRefreshLock() {
   dashboardDbRefreshGeneration += 1;
   dashboardDbRefreshQueue = Promise.resolve();
@@ -497,10 +509,59 @@ export function runWithDashboardRefreshLock<T>(
         throw new DashboardRefreshLockCancelledError();
       }
 
+      const canceledSyncs = new Set<QueryKey>();
+      const queryClient = getQueryClient();
+      let active = true;
+      const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
+        if (
+          generation !== dashboardDbRefreshGeneration ||
+          event.type !== "updated" ||
+          event.action.type !== "fetch"
+        )
+          return;
+
+        const queryKey = event.query.queryKey as QueryKey;
+        if (queryKey[0] !== "dashboard-db") return;
+        canceledSyncs.add(queryKey);
+        // The fetch event precedes Query's retryer. Cancel after it is installed.
+        queueMicrotask(() => {
+          if (active && generation === dashboardDbRefreshGeneration) {
+            void queryClient.cancelQueries({ queryKey, exact: true });
+          }
+        });
+      });
       try {
-        return await work();
+        for (const queryKey of await cancelDashboardCollectionSyncs()) {
+          canceledSyncs.add(queryKey);
+        }
+        if (
+          generation !== dashboardDbRefreshGeneration ||
+          (canRun && !canRun())
+        ) {
+          throw new DashboardRefreshLockCancelledError();
+        }
+        try {
+          return await work();
+        } finally {
+          dashboardDbLockedWorkRevision += 1;
+        }
       } finally {
-        dashboardDbLockedWorkRevision += 1;
+        active = false;
+        unsubscribe();
+        if (generation === dashboardDbRefreshGeneration) {
+          for (const queryKey of await cancelDashboardCollectionSyncs()) {
+            canceledSyncs.add(queryKey);
+          }
+          await Promise.all(
+            [...canceledSyncs].map((queryKey) =>
+              queryClient.invalidateQueries({
+                queryKey,
+                exact: true,
+                refetchType: "none",
+              }),
+            ),
+          );
+        }
       }
     })
     .finally(() => {
