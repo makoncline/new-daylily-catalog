@@ -5,6 +5,238 @@ import { DashboardLists } from "../e2e/pages/dashboard-lists";
 import { ManageListPage } from "../e2e/pages/manage-list-page";
 import { expect, test } from "./fixtures";
 
+test("first-list dashboard action saves and reopens the list after reload", async ({
+  page,
+}) => {
+  await withTempE2EDb(
+    async (db) => {
+      const originalLists = await db.list.findMany();
+      await db.list.deleteMany();
+      try {
+        await page.goto("/dashboard");
+        const firstList = page.getByRole("link", {
+          name: "Create Your First List",
+        });
+        await firstList.click();
+        await expect(page).toHaveURL("/dashboard/lists?creating=true");
+        const lists = new DashboardLists(page);
+        const createSurface = lists.createSurface();
+        await expect(createSurface).toBeVisible();
+        await expect(
+          createSurface.getByRole("button", { name: "Back to lists" }),
+        ).toBeFocused();
+        const title = "First Dashboard List";
+        await createSurface.getByLabel("Title").fill(title);
+        await createSurface
+          .getByRole("button", { name: "Save", exact: true })
+          .click();
+        await expect(lists.editDialog()).toBeVisible();
+        const listId = new URL(page.url()).searchParams.get("editing");
+        expect(
+          await db.list.findMany({ select: { id: true, title: true } }),
+        ).toEqual([{ id: listId, title }]);
+        await lists.closeEditDialog();
+        await page.reload();
+        await lists.isReady();
+        await expect(lists.listRow(title)).toBeVisible();
+        await lists.openFirstVisibleRowActions();
+        await lists.chooseRowActionEdit();
+        await expect(lists.editTitleInput()).toHaveValue(title);
+        await lists.closeEditDialog();
+        await page.reload();
+        await expect(lists.listRow(title)).toBeVisible();
+      } finally {
+        await db.list.deleteMany();
+        await db.list.createMany({ data: originalLists });
+      }
+    },
+    { clearFirst: false },
+  );
+});
+
+for (const changedDraft of [false, true]) {
+  test(`list creation after lost confirmation uses ${changedDraft ? "a new identity for changed data" : "the same identity for unchanged data"}`, async ({
+    page,
+  }) => {
+    await withTempE2EDb(
+      async (db) => {
+        const title = `Lost List Confirmation ${changedDraft ? "changed" : "unchanged"}`;
+        const retryTitle = changedDraft ? `${title} revised` : title;
+        const requests: Array<{ title: string; requestId?: string }> = [];
+        page.on("request", (request) => {
+          if (request.url().includes("/api/trpc/dashboardDb.list.create")) {
+            requests.push(request.postDataJSON()[0].json);
+          }
+        });
+        const savedRows = () =>
+          db.list.findMany({
+            where: { userId: "integration-user", title: { startsWith: title } },
+            select: { id: true, title: true },
+            orderBy: { title: "asc" },
+          });
+        const lists = new DashboardLists(page);
+        await lists.goto();
+        await lists.isReady();
+        await lists.createListButton.click();
+        const surface = lists.createSurface();
+        await surface.getByLabel("Title").fill(title);
+        let committedId: string | undefined;
+        await page.route(
+          "**/api/trpc/dashboardDb.list.create*",
+          async (route) => {
+            const response = await route.fetch({
+              headers: { ...route.request().headers(), "trpc-accept": "" },
+            });
+            expect(response.ok()).toBe(true);
+            const results = await response.json();
+            expect(results[0]).not.toHaveProperty("error");
+            committedId = results[0]?.result?.data.json.id;
+            expect(await savedRows()).toEqual([{ id: committedId, title }]);
+            await route.abort("connectionclosed");
+          },
+          { times: 1 },
+        );
+        await surface
+          .getByRole("button", { name: "Save", exact: true })
+          .click();
+        await expect(
+          page
+            .locator("[data-sonner-toast]")
+            .filter({ hasText: "Failed to create list" }),
+        ).toBeVisible();
+        await expect(surface.getByLabel("Title")).toHaveValue(title);
+        const save = surface.getByRole("button", { name: "Save", exact: true });
+        await expect(save).toBeEnabled();
+        await surface
+          .getByLabel("Title")
+          .fill(changedDraft ? retryTitle : ` ${title} `);
+        await save.click();
+        await expect(lists.editDialog()).toBeVisible();
+        expect(requests).toHaveLength(2);
+        if (changedDraft) {
+          expect(requests[1]?.requestId).not.toBe(requests[0]?.requestId);
+          expect(await savedRows()).toEqual([
+            { id: committedId, title },
+            {
+              id: new URL(page.url()).searchParams.get("editing"),
+              title: retryTitle,
+            },
+          ]);
+        } else {
+          expect(await savedRows()).toEqual([{ id: committedId, title }]);
+          expect(requests[1]?.requestId).toBe(requests[0]?.requestId);
+        }
+        expect(requests[0]?.requestId).toBeTruthy();
+        await lists.closeEditDialog();
+        await page.reload();
+        await lists.isReady();
+        await lists.setGlobalSearch(title);
+        await expect(lists.rows()).toHaveCount(changedDraft ? 2 : 1);
+        await lists.setGlobalSearch(retryTitle);
+        await expect(lists.rows()).toHaveCount(1);
+        await lists.openFirstVisibleRowActions();
+        await lists.chooseRowActionEdit();
+        await expect(lists.editTitleInput()).toHaveValue(retryTitle);
+        if (!changedDraft) {
+          await lists.closeEditDialog();
+          await lists.createListButton.click();
+          await surface.getByLabel("Title").fill(title);
+          await surface
+            .getByRole("button", { name: "Create List", exact: true })
+            .click();
+          await expect(lists.editDialog()).toBeVisible();
+          expect(requests).toHaveLength(3);
+          expect(requests[2]?.requestId).toBeTruthy();
+          expect(requests[2]?.requestId).not.toBe(requests[0]?.requestId);
+          expect(await savedRows()).toHaveLength(2);
+        }
+      },
+      { clearFirst: false },
+    );
+  });
+}
+
+test("list picker retries a committed create without duplicating the list", async ({
+  page,
+  editListingDialog,
+}) => {
+  await withTempE2EDb(
+    async (db) => {
+      const title = "Picker Retry";
+      const requests: Array<{ requestId?: string }> = [];
+      page.on("request", (request) => {
+        if (request.url().includes("/api/trpc/dashboardDb.list.create")) {
+          requests.push(request.postDataJSON()[0].json);
+        }
+      });
+      await page.goto(
+        "/dashboard/listings?editing=integration-existing-listing",
+      );
+      await editListingDialog.isReady();
+      await editListingDialog.openListsPicker();
+      const picker = page.getByRole("dialog", { name: "Select Lists" });
+      await picker.getByPlaceholder("Search lists...").fill(title);
+      const create = picker.getByRole("option", {
+        name: `Create "${title}"`,
+        exact: true,
+      });
+      let committedId: string | undefined;
+      const savedRows = () =>
+        db.list.findMany({
+          where: { userId: "integration-user", title },
+          select: { id: true },
+        });
+      await page.route(
+        "**/api/trpc/dashboardDb.list.create*",
+        async (route) => {
+          const response = await route.fetch({
+            headers: { ...route.request().headers(), "trpc-accept": "" },
+          });
+          expect(response.ok()).toBe(true);
+          const results = await response.json();
+          expect(results[0]).not.toHaveProperty("error");
+          committedId = results[0]?.result?.data.json.id;
+          expect(await savedRows()).toEqual([{ id: committedId }]);
+          await route.abort("connectionclosed");
+        },
+        { times: 1 },
+      );
+      await create.click();
+      await expect(
+        page
+          .locator("[data-sonner-toast]")
+          .filter({ hasText: "Failed to create list" }),
+      ).toBeVisible();
+      await expect(picker.getByPlaceholder("Search lists...")).toHaveValue(
+        title,
+      );
+      await expect(create).toBeEnabled();
+      await create.click();
+      await expect(picker).toBeHidden();
+      expect(await savedRows()).toEqual([{ id: committedId }]);
+      expect(requests).toHaveLength(2);
+      expect(requests[0]?.requestId).toBeTruthy();
+      expect(requests[1]?.requestId).toBe(requests[0]?.requestId);
+      await expect(editListingDialog.listSelectButton).toContainText(title);
+      await editListingDialog.clickSaveChanges();
+      await expect(editListingDialog.dialog).toBeHidden();
+      const listing = await db.listing.findUniqueOrThrow({
+        where: { id: "integration-existing-listing" },
+        select: { lists: { select: { id: true } } },
+      });
+      expect(listing.lists).toContainEqual({ id: committedId });
+      await page.reload();
+      await page.goto(
+        "/dashboard/listings?editing=integration-existing-listing",
+      );
+      await editListingDialog.isReady();
+      await expect(editListingDialog.listSelectButton).toContainText(title);
+      expect(await savedRows()).toEqual([{ id: committedId }]);
+    },
+    { clearFirst: false },
+  );
+});
+
 for (const [device, viewport] of [
   ["desktop", { width: 1024, height: 768 }],
   ["mobile", { width: 402, height: 874 }],

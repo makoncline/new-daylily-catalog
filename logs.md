@@ -198,3 +198,5 @@ check current code before applying them.
 
 - [2026-10-14] Listing create response loss: The listing create procedure already has transactional requestId receipts. Keep the same requestId when retrying the same draft after confirmation is lost. A browser regression can send the real create with route.fetch, check its successful result and persisted row, then abort delivery to the browser. Use this path to test committed writes without a separate database service.
 - [2026-10-14] PostHog proxy UI links: A custom api_host also becomes the replay-link host unless ui_host is explicit. Keep ui_host on the project region when changing ingestion to a managed proxy. Test get_session_replay_url with the real SDK, local fake time, and capture disabled.
+
+- [2026-10-15] Pinned table browser actions: DataTable renders pinned titles and row actions in separate HTML tables. A title row cannot contain its action button. For a specific Lists row, filter to its title, check the result count, then use the existing visible row-action helper.
