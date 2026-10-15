@@ -1616,6 +1616,18 @@ export const ATLAS_FLOWS = [
     implementation: {
       entryPoints: [
         {
+          label: "First-list dashboard action",
+          path: "src/app/dashboard/_components/stats-card.tsx",
+        },
+        {
+          label: "List creation and retry identity",
+          path: "src/app/dashboard/lists/_components/create-list-dialog.tsx",
+        },
+        {
+          label: "List picker creation and retry identity",
+          path: "src/components/multi-list-select.tsx",
+        },
+        {
           label: "Lists overview",
           path: "src/app/dashboard/lists/_components/lists-table.tsx",
         },
@@ -1657,6 +1669,8 @@ export const ATLAS_FLOWS = [
         },
       ],
       invariants: [
+        "Open the first-list editor at /dashboard/lists?creating=true and preserve Save, reopen, and reload behavior.",
+        "Keep the same request identity when a list form or picker retries unchanged create data after lost confirmation. Use a new identity for changed create data or a new form operation.",
         "Store member versions as integer milliseconds and preserve stale-write rejection.",
         "Classify editor save conflicts by the tRPC code; keep drafts and load the latest version only on explicit recovery.",
         "Save list fields through the editor; write membership changes at once and mark the parent for commit.",

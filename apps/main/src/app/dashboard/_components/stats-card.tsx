@@ -112,7 +112,7 @@ export function TotalListsCard({ stats }: StatsCardProps) {
       </Muted>
       {stats.totalLists === 0 && (
         <Button variant="outline" size="sm" className="mt-4 w-full" asChild>
-          <Link href="/dashboard/lists/new">
+          <Link href="/dashboard/lists?creating=true">
             <Plus className="mr-2 size-4" />
             Create Your First List
           </Link>

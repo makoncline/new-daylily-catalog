@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Check, ChevronsUpDown, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -44,6 +44,9 @@ export function MultiListSelect({
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
   const [isCreating, setIsCreating] = useState(false);
+  const createRequestRef = useRef<Parameters<typeof insertList>[0] | null>(
+    null,
+  );
   const { data: lists = [] } = useLiveQuery((q) =>
     q.from({ list: listsCollection }).orderBy(({ list }) => list.title, "asc"),
   );
@@ -55,7 +58,10 @@ export function MultiListSelect({
 
   const handleOpenChange = (nextOpen: boolean) => {
     setOpen(nextOpen);
-    if (!nextOpen) setSearchValue("");
+    if (!nextOpen) {
+      setSearchValue("");
+      createRequestRef.current = null;
+    }
   };
   const handleToggleList = (listId: string) => {
     onSelect(
@@ -65,10 +71,16 @@ export function MultiListSelect({
     );
   };
   const handleCreateList = async () => {
-    if (!searchValue || isBusy) return;
+    const title = searchValue.trim();
+    if (!title || isBusy) return;
     setIsCreating(true);
     try {
-      const newList = await insertList({ title: searchValue });
+      let request = createRequestRef.current;
+      if (request?.title !== title) {
+        request = { title, requestId: crypto.randomUUID() };
+        createRequestRef.current = request;
+      }
+      const newList = await insertList(request);
       onSelect([...values, newList.id]);
       handleOpenChange(false);
     } catch {
