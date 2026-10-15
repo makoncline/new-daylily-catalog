@@ -1,5 +1,6 @@
 "use client";
 
+import type { QueryKey } from "@tanstack/react-query";
 import type { RouterOutputs } from "@/trpc/react";
 import { getQueryClient } from "@/trpc/query-client";
 import { getTrpcClient } from "@/trpc/client";
@@ -508,25 +509,19 @@ export function runWithDashboardRefreshLock<T>(
         throw new DashboardRefreshLockCancelledError();
       }
 
-      const canceledSyncs = new Set(await cancelDashboardCollectionSyncs());
-      if (
-        generation !== dashboardDbRefreshGeneration ||
-        (canRun && !canRun())
-      ) {
-        throw new DashboardRefreshLockCancelledError();
-      }
+      const canceledSyncs = new Set<QueryKey>();
       const queryClient = getQueryClient();
       let active = true;
       const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
         if (
           generation !== dashboardDbRefreshGeneration ||
           event.type !== "updated" ||
-          event.action.type !== "fetch" ||
-          event.query.queryKey[0] !== "dashboard-db"
+          event.action.type !== "fetch"
         )
           return;
 
-        const queryKey = event.query.queryKey;
+        const queryKey = event.query.queryKey as QueryKey;
+        if (queryKey[0] !== "dashboard-db") return;
         canceledSyncs.add(queryKey);
         // The fetch event precedes Query's retryer. Cancel after it is installed.
         queueMicrotask(() => {
@@ -536,9 +531,21 @@ export function runWithDashboardRefreshLock<T>(
         });
       });
       try {
-        return await work();
+        for (const queryKey of await cancelDashboardCollectionSyncs()) {
+          canceledSyncs.add(queryKey);
+        }
+        if (
+          generation !== dashboardDbRefreshGeneration ||
+          (canRun && !canRun())
+        ) {
+          throw new DashboardRefreshLockCancelledError();
+        }
+        try {
+          return await work();
+        } finally {
+          dashboardDbLockedWorkRevision += 1;
+        }
       } finally {
-        dashboardDbLockedWorkRevision += 1;
         active = false;
         unsubscribe();
         if (generation === dashboardDbRefreshGeneration) {
