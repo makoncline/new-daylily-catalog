@@ -116,6 +116,7 @@ async function initializePosthog() {
   posthog.init(runtimeConfig.posthog.key, {
     advanced_enable_surveys: true,
     api_host: runtimeConfig.posthog.host,
+    ui_host: "https://us.posthog.com",
     defaults: "2026-01-30",
     person_profiles: "identified_only",
   });
