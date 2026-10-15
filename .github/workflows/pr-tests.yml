@@ -85,7 +85,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: full-app-integration-artifacts-${{ matrix.shard }}-of-3
-          path: apps/main/tests/.tmp/integration-results
+          path: |
+            apps/main/tests/.tmp/integration-results
+            apps/main/tests/.tmp/integration-server.log
 
   e2e:
     name: Connected E2E tests (group ${{ matrix.group }}/3)
