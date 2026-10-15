@@ -297,7 +297,9 @@ describe("dashboardDb TanStack DB collections", () => {
         } = await import(
           "@/app/dashboard/_lib/dashboard-db/listings-collection"
         );
-        const subscription = listingsCollection.subscribeChanges(() => {});
+        const subscription = listingsCollection.subscribeChanges(
+          () => undefined,
+        );
         const sync = holdSyncResults(["dashboardDb.listing.sync"]);
         const update = holdUpdateRequest();
         const { setTestTrpcClient } = await import("@/trpc/client");
@@ -362,9 +364,11 @@ describe("dashboardDb TanStack DB collections", () => {
           focusManager.setFocused(false);
           focusManager.setFocused(true);
           await waitFor(() =>
-            expect(localStorage.getItem(cursorKey)).toBe(
-              saved.updatedAt.toISOString(),
-            ),
+            expect(queryClient.isFetching({ queryKey })).toBe(1),
+          );
+          await queryClient.getQueryCache().find({ queryKey })?.promise;
+          expect(localStorage.getItem(cursorKey)).toBe(
+            saved.updatedAt.toISOString(),
           );
           expect(listingsCollection.get(seeded.id)?.title).toBe("New title");
         } finally {
@@ -431,7 +435,7 @@ describe("dashboardDb TanStack DB collections", () => {
         references.cultivarReferencesCollection,
       ];
       const subscriptions = collections.map((collection) =>
-        collection.subscribeChanges(() => {}),
+        collection.subscribeChanges(() => undefined),
       );
       listings.clearNextListingsCollectionSyncSuppression();
       lists.clearNextListsCollectionSyncSuppression();
@@ -562,7 +566,7 @@ describe("dashboardDb TanStack DB collections", () => {
         clearNextListingsCollectionSyncSuppression,
         updateListing,
       } = await import("@/app/dashboard/_lib/dashboard-db/listings-collection");
-      const subscription = listingsCollection.subscribeChanges(() => {});
+      const subscription = listingsCollection.subscribeChanges(() => undefined);
       const current = await db.listing.update({
         where: { id: seeded.id },
         data: {
