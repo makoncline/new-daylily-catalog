@@ -200,3 +200,5 @@ check current code before applying them.
 - [2026-10-14] PostHog proxy UI links: A custom api_host also becomes the replay-link host unless ui_host is explicit. Keep ui_host on the project region when changing ingestion to a managed proxy. Test get_session_replay_url with the real SDK, local fake time, and capture disabled.
 
 - [2026-10-15] Collection query cancellation: TanStack Query cancellation discards the query result but does not stop side effects in an unfinished query function. For dashboard collection sync, check the Query signal before merge and cursor writes. Keep canceled reads stale so focus can retry them.
+
+- [2026-10-15] Query fetch event timing: Query 5.100.10 emits its fetch event before it creates the retryer. When a write owner cancels reads from that event, defer cancellation by one microtask and check the owner lifetime and generation. Test immediate results and callbacks queued across reset or teardown.

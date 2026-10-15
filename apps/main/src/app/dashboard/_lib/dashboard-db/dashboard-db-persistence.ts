@@ -508,28 +508,53 @@ export function runWithDashboardRefreshLock<T>(
         throw new DashboardRefreshLockCancelledError();
       }
 
-      const canceledSyncs = await cancelDashboardCollectionSyncs();
+      const canceledSyncs = new Set(await cancelDashboardCollectionSyncs());
       if (
         generation !== dashboardDbRefreshGeneration ||
         (canRun && !canRun())
       ) {
         throw new DashboardRefreshLockCancelledError();
       }
+      const queryClient = getQueryClient();
+      let active = true;
+      const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
+        if (
+          generation !== dashboardDbRefreshGeneration ||
+          event.type !== "updated" ||
+          event.action.type !== "fetch" ||
+          event.query.queryKey[0] !== "dashboard-db"
+        )
+          return;
+
+        const queryKey = event.query.queryKey;
+        canceledSyncs.add(queryKey);
+        // The fetch event precedes Query's retryer. Cancel after it is installed.
+        queueMicrotask(() => {
+          if (active && generation === dashboardDbRefreshGeneration) {
+            void queryClient.cancelQueries({ queryKey, exact: true });
+          }
+        });
+      });
       try {
         return await work();
       } finally {
         dashboardDbLockedWorkRevision += 1;
-        // Focus can start another read while the mutation waits for its result.
-        canceledSyncs.push(...(await cancelDashboardCollectionSyncs()));
-        await Promise.all(
-          canceledSyncs.map((queryKey) =>
-            getQueryClient().invalidateQueries({
-              queryKey,
-              exact: true,
-              refetchType: "none",
-            }),
-          ),
-        );
+        active = false;
+        unsubscribe();
+        if (generation === dashboardDbRefreshGeneration) {
+          for (const queryKey of await cancelDashboardCollectionSyncs()) {
+            canceledSyncs.add(queryKey);
+          }
+          await Promise.all(
+            [...canceledSyncs].map((queryKey) =>
+              queryClient.invalidateQueries({
+                queryKey,
+                exact: true,
+                refetchType: "none",
+              }),
+            ),
+          );
+        }
       }
     })
     .finally(() => {

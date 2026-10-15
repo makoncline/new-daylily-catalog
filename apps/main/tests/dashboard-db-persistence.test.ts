@@ -135,6 +135,63 @@ describe("dashboard DB persistence bootstrap fetch", () => {
     expect(maxActiveHeavyChunks).toBe(2);
   });
 
+  it("cancels a collection read even when its query function resolves at once", async () => {
+    const queryClient = getQueryClient();
+    const queryKey = ["dashboard-db", "images"];
+    queryClient.setQueryData(queryKey, ["New row"]);
+    await runWithDashboardRefreshLock(async () => {
+      await queryClient.fetchQuery({
+        queryKey,
+        queryFn: async () => ["Old row"],
+        staleTime: 0,
+      });
+      expect(queryClient.getQueryData(queryKey)).toEqual(["New row"]);
+    });
+    expect(queryClient.getQueryData(queryKey)).toEqual(["New row"]);
+    expect(queryClient.getQueryState(queryKey)?.isInvalidated).toBe(true);
+  });
+
+  it.each(["reset", "teardown"])(
+    "queued cancellation cannot cancel a replacement read after %s",
+    async (phase) => {
+      const queryClient = getQueryClient();
+      const queryKey = ["dashboard-db", "images"];
+      const queued: VoidFunction[] = [];
+      const microtask = vi
+        .spyOn(globalThis, "queueMicrotask")
+        .mockImplementation((callback) => {
+          queued.push(callback);
+        });
+      const replacement = deferred<string[]>();
+      queryClient.setQueryData(queryKey, ["Existing row"]);
+      try {
+        await runWithDashboardRefreshLock(async () => {
+          await queryClient.fetchQuery({
+            queryKey,
+            queryFn: async () => ["Finished row"],
+            staleTime: 0,
+          });
+          if (phase === "reset") resetDashboardRefreshLock();
+        });
+        expect(queued.length).toBeGreaterThan(0);
+        const reading = queryClient.fetchQuery({
+          queryKey,
+          queryFn: () => replacement.promise,
+          staleTime: 0,
+        });
+        queued.forEach((callback) => callback());
+        expect(queryClient.isFetching({ queryKey })).toBe(1);
+        replacement.resolve(["Replacement row"]);
+        expect(await reading).toEqual(["Replacement row"]);
+        expect(queryClient.getQueryData(queryKey)).toEqual(["Replacement row"]);
+      } finally {
+        replacement.resolve([]);
+        microtask.mockRestore();
+        resetDashboardRefreshLock();
+      }
+    },
+  );
+
   it("does not run old-generation work after query cancellation yields", async () => {
     const queryClient = getQueryClient();
     const cancelEntered = deferred<void>();
