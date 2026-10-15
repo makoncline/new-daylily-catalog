@@ -22,7 +22,10 @@ const anonymousAuthResult = {
 };
 
 function authResultForCookie(value: string | undefined) {
-  return value === "anonymous" ? anonymousAuthResult : authResult;
+  if (value === "anonymous") return anonymousAuthResult;
+  return value === "other-member"
+    ? { ...authResult, userId: "user_integration_other" }
+    : authResult;
 }
 
 export async function auth() {

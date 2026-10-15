@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { withTempE2EDb } from "@/lib/test-utils/e2e-db";
 import type { Response } from "@playwright/test";
 import { DashboardLists } from "../e2e/pages/dashboard-lists";
 import { ManageListPage } from "../e2e/pages/manage-list-page";
@@ -350,4 +351,78 @@ test("cancelled removal review stays closed after selection and filter changes",
   for (const title of titles) {
     await expect(manageList.listingRow(title)).toBeVisible();
   }
+});
+
+test("failed member lookups retain isolated authenticated request identities", async ({
+  request,
+}) => {
+  await withTempE2EDb(
+    async (db) => {
+      await db.$executeRaw`ALTER TABLE "User" RENAME COLUMN "clerkUserId" TO "unavailableClerkUserId"`;
+      try {
+        const requests = [
+          {
+            cookie: "",
+            userId: "user_integration_seller",
+            code: "INTERNAL_SERVER_ERROR",
+          },
+          {
+            cookie: "integration-auth=other-member",
+            userId: "user_integration_other",
+            code: "INTERNAL_SERVER_ERROR",
+          },
+          {
+            cookie: "integration-auth=anonymous",
+            userId: null,
+            code: "UNAUTHORIZED",
+          },
+        ].map((item) => ({ ...item, correlationId: crypto.randomUUID() }));
+        await Promise.all(
+          requests.map(async (item) => {
+            const response = await request.get(
+              "/api/trpc/dashboardDb.bootstrap.roots",
+              {
+                headers: {
+                  cookie: item.cookie,
+                  "x-correlation-id": item.correlationId,
+                  "x-clerk-user-id": "untrusted-browser-identity",
+                },
+              },
+            );
+            expect((await response.json()).error.json.data.code).toBe(
+              item.code,
+            );
+          }),
+        );
+        const records = readFileSync(
+          "tests/.tmp/integration-server.log",
+          "utf8",
+        )
+          .split("\n")
+          .filter((line) => line.startsWith("{"))
+          .map((line) => JSON.parse(line) as Record<string, unknown>);
+        for (const item of requests) {
+          const failure = records.find(
+            (record) =>
+              record.correlation_id === item.correlationId &&
+              (record.event === "application_error" ||
+                record.event === "trpc_procedure_rejected"),
+          );
+          expect(failure).toMatchObject({
+            clerk_user_id: item.userId,
+            error_code: item.code,
+          });
+          expect(
+            records
+              .filter((record) => record.correlation_id === item.correlationId)
+              .filter((record) => record.clerk_user_id !== undefined)
+              .every((record) => record.clerk_user_id === item.userId),
+          ).toBe(true);
+        }
+      } finally {
+        await db.$executeRaw`ALTER TABLE "User" RENAME COLUMN "unavailableClerkUserId" TO "clerkUserId"`;
+      }
+    },
+    { clearFirst: false },
+  );
 });

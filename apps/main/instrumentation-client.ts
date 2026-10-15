@@ -1,4 +1,5 @@
 import type * as SentryTypes from "@sentry/nextjs";
+import posthog from "posthog-js";
 import {
   enrichSentryEvent,
   enrichSentryLog,
@@ -57,9 +58,24 @@ async function initializeSentry(runtimeConfig: RuntimeConfig) {
       );
       const original = hint?.originalException as { name?: string } | undefined;
       const hasAbortName = original?.name === "AbortError";
-      return hasAbortType || hasAbortName
-        ? null
-        : enrichSentryEvent(event, hint);
+      if (hasAbortType || hasAbortName) return null;
+      const enriched = enrichSentryEvent(event, hint);
+      const sessionId = posthog.get_session_id();
+      if (sessionId) {
+        enriched.tags = { ...enriched.tags, posthog_session_id: sessionId };
+        // This URL comes from the SDK. Keep its timestamp after general URL redaction.
+        enriched.contexts = {
+          ...enriched.contexts,
+          posthog: {
+            session_id: sessionId,
+            replay_url: posthog.get_session_replay_url({
+              withTimestamp: true,
+              timestampLookBack: 30,
+            }),
+          },
+        };
+      }
+      return enriched;
     },
   });
   return true;

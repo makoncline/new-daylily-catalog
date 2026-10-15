@@ -22,11 +22,7 @@ export function captureMessage(
 /**
  * Set user information for better error tracking
  */
-export function setUser(user: {
-  id: string;
-  email?: string;
-  username?: string;
-}): void {
+export function setUser(user: { id: string }): void {
   Sentry.setUser(user);
 }
 

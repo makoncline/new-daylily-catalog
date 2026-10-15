@@ -1,8 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { configureTraceContext, installConsoleLogging } from "@/lib/telemetry";
+import {
+  configureTraceContext,
+  enrichSentryEvent,
+  installConsoleLogging,
+  setErrorContext,
+} from "@/lib/telemetry";
 import type { MockInstance } from "vitest";
+import type { BrowserOptions, ErrorEvent } from "@sentry/nextjs";
 
 const initMock = vi.hoisted(() => vi.fn());
+const getSessionIdMock = vi.hoisted(() => vi.fn(() => ""));
+const replayUrlMock = vi.hoisted(() => vi.fn());
+vi.mock("posthog-js", () => ({
+  default: {
+    get_session_id: getSessionIdMock,
+    get_session_replay_url: replayUrlMock,
+  },
+}));
 const mutableEnv = process.env as Record<string, string | undefined>;
 
 vi.mock("@sentry/nextjs", () => ({
@@ -18,6 +32,8 @@ describe("instrumentation-client", () => {
 
   beforeEach(() => {
     initMock.mockClear();
+    getSessionIdMock.mockReturnValue("");
+    replayUrlMock.mockClear();
     previousNodeEnv = process.env.NODE_ENV;
     mutableEnv.NODE_ENV = "production";
     vi.resetModules();
@@ -54,7 +70,7 @@ describe("instrumentation-client", () => {
     expect(initMock).not.toHaveBeenCalled();
   });
 
-  it("initializes browser Sentry with the runtime release", async () => {
+  it("links browser errors to the current replay without exposing request data", async () => {
     fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -84,5 +100,45 @@ describe("instrumentation-client", () => {
         }),
       );
     });
+    const options = initMock.mock.calls[0]![0] as BrowserOptions;
+    const capture = (event: ErrorEvent) => options.beforeSend!(event, {});
+    const sessionId = "01900000-1111-7000-8000-000000000001";
+    const replayUrl = `https://us.posthog.com/project/test/replay/${sessionId}?t=30`;
+    getSessionIdMock.mockReturnValue(sessionId);
+    replayUrlMock.mockReturnValue(replayUrl);
+    const event = await capture({
+      type: undefined,
+      extra: { correlation_id: "request-12345678" },
+      request: {
+        url: "https://example.test/dashboard?private=draft",
+        cookies: { session: "private" },
+        data: "private input",
+      },
+    });
+    expect(event).toMatchObject({
+      tags: {
+        correlation_id: "request-12345678",
+        posthog_session_id: sessionId,
+      },
+      contexts: { posthog: { session_id: sessionId, replay_url: replayUrl } },
+      request: { url: "https://example.test/dashboard" },
+    });
+    expect(JSON.stringify(event)).not.toContain("private");
+    expect(replayUrlMock).toHaveBeenCalledWith({
+      withTimestamp: true,
+      timestampLookBack: 30,
+    });
+    const lookupError = new Error("Member lookup failed");
+    setErrorContext(lookupError, {
+      correlation_id: "request-12345678",
+      clerk_user_id: "user_example",
+    });
+    expect(
+      enrichSentryEvent({}, { originalException: lookupError }).user,
+    ).toEqual({ id: "user_example" });
+    getSessionIdMock.mockReturnValue("");
+    expect((await capture({ type: undefined }))?.contexts).not.toHaveProperty(
+      "posthog",
+    );
   });
 });
