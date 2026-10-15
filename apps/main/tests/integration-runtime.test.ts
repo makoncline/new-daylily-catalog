@@ -125,6 +125,10 @@ describe("offline integration runtime", () => {
         url: "https://example.com/fetch",
       },
       {
+        code: 'await fetch(new Request("https://example.com/request"))',
+        url: "https://example.com/request",
+      },
+      {
         code: 'import https from "node:https"; https.get("https://example.com/https")',
         url: "https://example.com/https",
       },
@@ -145,6 +149,90 @@ describe("offline integration runtime", () => {
         `Blocked outbound integration request: ${attempt.url}`,
       );
     }
+  });
+
+  it("stops native fetch redirects before dispatch and preserves manual responses", () => {
+    const result = runWithGuard(`
+      import assert from "node:assert/strict";
+      const destinations = [];
+      const bodies = [];
+      const dispatcher = {
+        dispatch(options, handler) {
+          destinations.push(String(options.origin) + options.path);
+          queueMicrotask(async () => {
+            let body = "";
+            for await (const chunk of options.body ?? []) body += Buffer.from(chunk);
+            bodies.push(body);
+            handler.onConnect(() => {});
+            const redirect = options.path.startsWith("/redirect");
+            const location = options.path === "/redirect-local"
+              ? "http://127.0.0.1:3211/arrived"
+              : "https://off-box.invalid/arrived";
+            handler.onHeaders(
+              redirect ? 302 : 200,
+              redirect ? [Buffer.from("location"), Buffer.from(location)] : [],
+              () => {},
+              redirect ? "Found" : "OK",
+            );
+            if (!redirect) handler.onData(Buffer.from("loopback response"));
+            handler.onComplete([]);
+          });
+          return true;
+        },
+      };
+      const url = "http://localhost:3211/redirect";
+      for (const [input, init] of [
+        [url],
+        [new URL(url), { redirect: "follow" }],
+        [new Request(url, { redirect: "follow" })],
+        [new Request(url, { redirect: "manual" }), { redirect: "follow" }],
+        [url, { redirect: { toString: () => "follow" } }],
+        [url, { redirect: "error" }],
+        [new Request(url, { redirect: "error" })],
+        ["http://localhost:3211/redirect-local"],
+      ]) {
+        destinations.length = 0;
+        await assert.rejects(fetch(input, { ...init, dispatcher }), (error) =>
+          error instanceof TypeError && error.cause?.message === "unexpected redirect",
+        );
+        assert.deepEqual(destinations, [String(input instanceof Request ? input.url : input)]);
+      }
+
+      destinations.length = 0;
+      const response = await fetch("http://localhost:3211/direct", { dispatcher });
+      assert.equal(response.status, 200);
+      assert.equal(await response.text(), "loopback response");
+      assert.deepEqual(destinations, ["http://localhost:3211/direct"]);
+
+      for (const [input, init] of [
+        [url, { redirect: "manual" }],
+        [new Request(url, { redirect: "manual" })],
+        [new Request(url, { redirect: "error" }), { redirect: "manual" }],
+        [new Request(url, { redirect: "manual", method: "POST", body: "request body" })],
+      ]) {
+        destinations.length = 0;
+        const response = await fetch(input, { ...init, dispatcher });
+        assert.equal(response.status, 302);
+        assert.equal(response.headers.get("location"), "https://off-box.invalid/arrived");
+        await response.text();
+        assert.deepEqual(destinations, [url]);
+      }
+      assert.equal(bodies.at(-1), "request body");
+
+      destinations.length = 0;
+      const manual = await fetch(new Request(url), Object.create({ redirect: "manual", dispatcher }));
+      assert.equal(manual.status, 302);
+      await manual.text();
+      assert.deepEqual(destinations, [url]);
+
+      for (const redirect of [null, "invalid"]) {
+        destinations.length = 0;
+        await assert.rejects(fetch(url, { dispatcher, redirect }), TypeError);
+        assert.deepEqual(destinations, []);
+      }
+    `);
+
+    expect(result.status, result.stderr).toBe(0);
   });
 
   it("does not inherit real-service credentials in guard subprocesses", () => {
