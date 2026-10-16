@@ -153,6 +153,7 @@ jobs:
           context: .
           file: apps/main/Dockerfile
           push: ${{ steps.meta.outputs.should_push == 'true' }}
+          load: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
@@ -164,6 +165,9 @@ jobs:
           # PRs consume the last main cache without paying to export throwaway app layers.
           # Main refreshes the complete cache after merge for future builds.
           cache-to: ${{ steps.meta.outputs.cache_to }}
+
+      - name: Check MCP after an idle proxy connection
+        run: node apps/main/scripts/smoke-mcp-keepalive-local.mjs '${{ steps.meta.outputs.image_repo }}:${{ steps.meta.outputs.immutable_tag }}'
 
       - name: Summarize image tags
         run: |
