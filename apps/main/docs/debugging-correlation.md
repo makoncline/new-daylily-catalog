@@ -112,7 +112,8 @@ client labels are not trusted. `caddy_cloudflare_header` means proxy-reported;
 can change the address. Controlled network peers remain trusted. Verify the
 deployed chain before you use that address for attribution.
 
-Search/IP details stay out of Sentry and PostHog. Private journal fields have
+These API/MCP usage records keep search/IP details out of Sentry and PostHog.
+Existing browser search analytics keep their own contract. Private journal fields have
 200-character scalar limits and no private notes, story content or full bodies.
 PostHog gets only identity IDs, operation, outcome, count, duration and release.
 Its capture deadline is two seconds, with 16 in-flight usage sends per process.
