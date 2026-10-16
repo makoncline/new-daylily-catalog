@@ -28,6 +28,7 @@ export async function captureServerPosthogEvent({
   try {
     const response = await fetch(`${config.host}/capture/`, {
       method: "POST",
+      signal: AbortSignal.timeout(2000),
       headers: {
         "Content-Type": "application/json",
       },
@@ -45,10 +46,10 @@ export async function captureServerPosthogEvent({
         http_status: response.status,
       });
     }
-  } catch (error) {
+  } catch {
     logEvent("error", "posthog_capture_failed", {
       analytics_event: event,
-      error,
+      reason: "network_or_timeout",
     });
   }
 }

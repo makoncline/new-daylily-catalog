@@ -1,3 +1,4 @@
+import { updateLogContext } from "@/server/observability/log-context";
 import { getClerk } from "@/server/clerk/client";
 
 export async function getScopedOAuthClient(
@@ -25,8 +26,14 @@ export async function getScopedOAuthClient(
       ? authObject.clientId
       : null;
   if (!clerkUserId || !clientId) {
+    updateLogContext({ identity_source: "unauthenticated" });
     return { status: "unauthenticated" } as const;
   }
+  updateLogContext({
+    clerk_user_id: clerkUserId,
+    oauth_client_id: clientId,
+    identity_source: "clerk_oauth",
+  });
   if (!Array.isArray(scopes) || !scopes.includes(requiredScope)) {
     return { status: "insufficient_scope", clerkUserId, clientId } as const;
   }

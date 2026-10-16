@@ -1,3 +1,4 @@
+import { recordUsageInput } from "@/server/observability/api-usage";
 import "server-only";
 
 import { Prisma } from "@prisma/client";
@@ -29,6 +30,7 @@ export async function pageOwnedMemberLists(args: {
   limit: number;
   listingId?: string;
 }) {
+  recordUsageInput(args);
   if (args.listingId) {
     const ids = await args.database.$queryRaw<Array<{ id: string }>>(
       Prisma.sql`

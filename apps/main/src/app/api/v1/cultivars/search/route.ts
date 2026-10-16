@@ -1,8 +1,5 @@
 import { getLogContext } from "@/lib/telemetry";
-import {
-  requestLogContext,
-  withLogContext,
-} from "@/server/observability/log-context";
+import { withUsageRequest } from "@/server/observability/api-usage";
 import { NextResponse } from "next/server";
 import { getTrustedBaseUrl } from "@/lib/agent-readiness";
 import { reportError } from "@/lib/error-utils";
@@ -62,9 +59,7 @@ function getSummaryLimit(params: URLSearchParams) {
 }
 
 export async function GET(request: Request) {
-  return withLogContext(requestLogContext(request), () =>
-    handleSearch(request),
-  );
+  return withUsageRequest(request, "public_api", () => handleSearch(request));
 }
 
 async function handleSearch(request: Request) {

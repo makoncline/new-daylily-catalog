@@ -116,7 +116,13 @@ describe("public cultivar search route", () => {
     );
     expect(response.headers.get("X-Cultivar-Search-Duration-Ms")).toBeNull();
 
-    const rawLog: unknown = infoMock.mock.calls.at(-1)?.[0];
+    const rawLog: unknown = infoMock.mock.calls
+      .filter(
+        ([line]) =>
+          typeof line === "string" &&
+          line.includes('"event":"public_cultivar_search_request"'),
+      )
+      .at(-1)?.[0];
     expect(JSON.parse(String(rawLog))).toMatchObject({
       active_filters:
         "award|flower_show|has_cultivar_photo|hybridizer|sculpted_type",
@@ -168,7 +174,15 @@ describe("public cultivar search route", () => {
       }),
     );
     const filteredApiLog = JSON.parse(
-      String(infoMock.mock.calls.at(-1)?.[0]),
+      String(
+        infoMock.mock.calls
+          .filter(
+            ([line]) =>
+              typeof line === "string" &&
+              line.includes('"event":"public_cultivar_search_request"'),
+          )
+          .at(-1)?.[0],
+      ),
     ) as Record<string, unknown>;
     expect(filteredApiLog).toMatchObject({
       active_filters:
@@ -189,7 +203,17 @@ describe("public cultivar search route", () => {
       new Request("https://daylilycatalog.com/api/v1/cultivars/search"),
     );
     expect(
-      JSON.parse(String(infoMock.mock.calls.at(-1)?.[0])),
+      JSON.parse(
+        String(
+          infoMock.mock.calls
+            .filter(
+              ([line]) =>
+                typeof line === "string" &&
+                line.includes('"event":"public_cultivar_search_request"'),
+            )
+            .at(-1)?.[0],
+        ),
+      ),
     ).not.toHaveProperty("photos_first");
   });
 

@@ -198,3 +198,6 @@ check current code before applying them.
 
 - [2026-10-14] Listing create response loss: The listing create procedure already has transactional requestId receipts. Keep the same requestId when retrying the same draft after confirmation is lost. A browser regression can send the real create with route.fetch, check its successful result and persisted row, then abort delivery to the browser. Use this path to test committed writes without a separate database service.
 - [2026-10-14] PostHog proxy UI links: A custom api_host also becomes the replay-link host unless ui_host is explicit. Keep ui_host on the project region when changing ingestion to a managed proxy. Test get_session_replay_url with the real SDK, local fake time, and capture disabled.
+
+- [2026-10-16] Private usage exports: Sentry error and log hooks export shared log context and console breadcrumbs. Keep raw usage search/IP fields in the private usage record, not shared context. Filter serialized usage breadcrumbs at the Sentry export boundary.
+- [2026-10-16] App log copies: Journald forwards app records to rsyslog on the VPS. The journal has 14-day/1-GiB ceilings, but private syslog files rotate weekly with four archives. Check both stores before making retention or deletion claims.

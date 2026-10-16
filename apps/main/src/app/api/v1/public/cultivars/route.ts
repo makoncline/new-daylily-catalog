@@ -1,3 +1,4 @@
+import { withUsageRequest } from "@/server/observability/api-usage";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { getTrustedBaseUrl } from "@/lib/agent-readiness";
@@ -22,7 +23,7 @@ const inputSchema = z
       1,
   );
 
-export async function GET(request: Request) {
+async function read(request: Request) {
   const params = new URL(request.url).searchParams;
   const entries = [...params];
   if (new Set(entries.map(([key]) => key)).size !== entries.length) {
@@ -46,4 +47,8 @@ export async function GET(request: Request) {
       ),
     };
   });
+}
+
+export async function GET(...args: Parameters<typeof read>) {
+  return withUsageRequest(args[0], "public_api", () => read(...args));
 }

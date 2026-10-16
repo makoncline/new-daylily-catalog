@@ -1,3 +1,4 @@
+import { withUsageRequest } from "@/server/observability/api-usage";
 import { publicJson, publicReadResponse } from "@/server/api/public-http";
 import { getPublicListingDetail } from "@/server/db/public-listing-read-model";
 import {
@@ -7,7 +8,7 @@ import {
 
 export const runtime = "nodejs";
 
-export async function GET(
+async function read(
   _request: Request,
   context: {
     params: Promise<{ slugOrId: string; listingSlugOrId: string }>;
@@ -28,4 +29,8 @@ export async function GET(
     const listingId = await getListingIdFromSlugOrId(listingSlugOrId, userId);
     return getPublicListingDetail(listingId);
   });
+}
+
+export async function GET(...args: Parameters<typeof read>) {
+  return withUsageRequest(args[0], "public_api", () => read(...args));
 }
