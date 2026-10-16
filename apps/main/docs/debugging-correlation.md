@@ -109,8 +109,8 @@ accepts one valid address only with that exact-true switch. No host app/Caddy
 ports are allowed. Other deployments leave it off. Raw CF/XFF/X-Real-IP and
 client labels are not trusted. `caddy_cloudflare_header` means proxy-reported;
 [Worker and pseudo-IPv4 cases](https://developers.cloudflare.com/fundamentals/reference/http-headers/)
-can change the address. Controlled network peers remain trusted. The live
-spoofed-header probe returned 403; live overwrite was not verified.
+can change the address. Controlled network peers remain trusted. Verify the
+deployed chain before you use that address for attribution.
 
 Search/IP details stay out of Sentry and PostHog. Private journal fields have
 200-character scalar limits and no private notes, story content or full bodies.
@@ -125,7 +125,7 @@ with 5 GiB free reserved. Rsyslog also copies app logs to private syslog files
 (mode 0640, syslog:adm), rotated weekly with four archives. This can retain data
 longer than the journal. Proxy logs are root-owned 0600 with 20 MiB/file,
 64 archive and 168 hour ceilings. These are capacity limits, not gap-free time
-coverage. Sentry query credentials and edge/cache coverage remain unavailable.
+coverage. Query edge records separately for requests that do not reach the origin.
 
 Public calls retain verified Clerk/client IDs without a primary account read.
 Use the Clerk ID to include public and member calls. An app User ID selects
