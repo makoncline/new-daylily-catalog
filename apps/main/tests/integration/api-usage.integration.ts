@@ -86,6 +86,19 @@ test("query authenticated API/MCP use and saved values without trusting spoofed 
       ),
     ).toEqual([saved.id]);
 
+    const memberDetail = await request.get("/api/v1/member/listing.get", {
+      headers,
+      params: { input: JSON.stringify({ json: { id: saved.id } }) },
+    });
+    expect(memberDetail.status()).toBe(200);
+    expect((await memberDetail.json()).result.data.json.id).toBe(saved.id);
+    const publicDetail = await request.get(
+      "/api/v1/public/listings/integration-existing-listing",
+      { headers },
+    );
+    expect(publicDetail.status()).toBe(200);
+    expect((await publicDetail.json()).id).toBe("integration-existing-listing");
+
     const publicTool = await request.post("/api/mcp/server", {
       headers,
       data: {
@@ -124,7 +137,7 @@ test("query authenticated API/MCP use and saved values without trusting spoofed 
     const serverLogPath = process.env.INTEGRATION_EVIDENCE_DIR
       ? path.join(process.env.INTEGRATION_EVIDENCE_DIR, "private/server.log")
       : path.resolve("tests/.tmp/integration-server.log");
-    const report = (actor = "integration-user") =>
+    const report = (actor = "user_integration_seller") =>
       JSON.parse(
         execFileSync(
           "jq",
@@ -147,10 +160,10 @@ test("query authenticated API/MCP use and saved values without trusting spoofed 
           { input: readFileSync(serverLogPath, "utf8"), encoding: "utf8" },
         ),
       );
-    await expect.poll(() => report().operations).toBe(5);
+    await expect.poll(() => report().operations).toBe(7);
     const result = report();
-    expect(result.http_requests).toBe(5);
-    expect(result.summed_returned_rows).toBe(5);
+    expect(result.http_requests).toBe(7);
+    expect(result.summed_returned_rows).toBe(7);
     const operations = result.records.filter(
       (record: { event: string }) => record.event === "api_usage_operation",
     );
@@ -160,6 +173,14 @@ test("query authenticated API/MCP use and saved values without trusting spoofed 
           operation: "daylily.list_listings",
           request_q: marker,
           request_limit: 1,
+          results_returned: 1,
+        }),
+        expect.objectContaining({
+          operation: "listing.get",
+          results_returned: 1,
+        }),
+        expect.objectContaining({
+          operation: "public-listing-api",
           results_returned: 1,
         }),
         expect.objectContaining({
@@ -185,6 +206,13 @@ test("query authenticated API/MCP use and saved values without trusting spoofed 
       expect(operation.event_id).toBeTruthy();
       expect(operation.usage_operation_id).toBeTruthy();
     }
+    expect(
+      operations.find(
+        (record: { operation: string }) =>
+          record.operation === "daylily.search_public_listings",
+      ),
+    ).not.toHaveProperty("app_user_id");
+    expect(report("integration-user").operations).toBe(4);
     const audit = result.records.find(
       (record: { event: string }) => record.event === "user_mutation",
     );
@@ -218,7 +246,7 @@ test("query authenticated API/MCP use and saved values without trusting spoofed 
     const accountSql = instructions.match(/```sql\n([\s\S]*?)\n```/)![1]!;
     const current = await db.$queryRawUnsafe<
       Array<{ id: string; membershipStatus: string; email: string }>
-    >(accountSql, "integration-user");
+    >(accountSql, "user_integration_seller");
     expect(current).toEqual([
       expect.objectContaining({
         id: "integration-user",

@@ -70,6 +70,7 @@ export function usageResultSummary(result: unknown) {
       ? { error_code: typeof code === "string" ? code.slice(0, 80) : code }
       : {};
   }
+  if (Reflect.get(result, "id")) return { results_returned: 1 };
   for (const key of ["items", "results", "images"]) {
     const items: unknown = Reflect.get(result, key);
     if (Array.isArray(items))
@@ -78,7 +79,7 @@ export function usageResultSummary(result: unknown) {
         has_more: Boolean(Reflect.get(result, "nextCursor")),
       };
   }
-  for (const key of ["listing", "list", "profile", "cultivar", "image", "id"]) {
+  for (const key of ["listing", "list", "profile", "cultivar", "image"]) {
     if (Reflect.get(result, key)) return { results_returned: 1 };
   }
   return {};
@@ -292,16 +293,10 @@ export async function attributePublicUsage(request: Request) {
         const client = await getScopedOAuthClient(request, "catalog:read");
         if (client.status === "unauthenticated")
           return { identity_source: "unauthenticated" };
-        const { db } = await import("@/server/db");
-        const user = await db.user.findUnique({
-          where: { clerkUserId: client.clerkUserId },
-          select: { id: true },
-        });
         return {
           identity_source: "clerk_oauth",
           clerk_user_id: client.clerkUserId,
           oauth_client_id: client.clientId,
-          app_user_id: user?.id,
         };
       }).finally(() => {
         pendingAttributions--;

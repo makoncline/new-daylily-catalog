@@ -68,7 +68,7 @@ Use the private operator connection. Export an explicit UTC interval with
 `sudo -n journalctl CONTAINER_NAME=daylilycatalog-app-1 --since '<UTC>' --until
 '<UTC>' -o cat --no-pager`. Do not publish raw IPs, search text or account data.
 Run the jq program below with `jq -Rn --arg since '<ISO UTC>' --arg until
-'<ISO UTC>' --arg actor '<app User ID or empty>' --arg ip '<verified IP or empty>'
+'<ISO UTC>' --arg actor '<Clerk ID or empty>' --arg ip '<verified IP or empty>'
 -f <private-query-file> <private-log-file>`. The window is [since, until).
 Use a bounded export; jq holds it in memory. The integration test uses this query.
 
@@ -76,7 +76,7 @@ Use a bounded export; jq holds it in memory. The integration test uses this quer
 [inputs | fromjson? | select(type == "object" and .timestamp != null)] as $all
 | [$all[] | select(.timestamp >= $since and .timestamp < $until)] as $window
 | [$window[] | select(.usage_transport != null)
-    | select(($actor == "" or .app_user_id == $actor) and ($ip == "" or .connecting_ip == $ip))
+    | select(($actor == "" or .app_user_id == $actor or .clerk_user_id == $actor) and ($ip == "" or .connecting_ip == $ip))
     | .usage_request_id] | unique as $requests
 | [$window[] | select(.usage_request_id as $id | $requests | index($id))
     | select(.event == "api_usage_operation" or .event == "api_usage_request" or .event == "user_mutation" or .event == "api_usage_capture_dropped" or .event == "posthog_capture_failed")] as $usage
@@ -127,8 +127,11 @@ longer than the journal. Proxy logs are root-owned 0600 with 20 MiB/file,
 64 archive and 168 hour ceilings. These are capacity limits, not gap-free time
 coverage. Sentry query credentials and edge/cache coverage remain unavailable.
 
-For current membership, run this parameterized SELECT through the existing
-read-only primary connection. Bind the app User ID to `?`. This does not create
+Public calls retain verified Clerk/client IDs without a primary account read.
+Use the Clerk ID to include public and member calls. An app User ID selects
+only member calls that already mapped that account. For current membership,
+run this SELECT through the existing read-only primary connection. Bind either
+account ID to `?1`. This does not create
 a profile or sync Clerk/Stripe. Missing caches mean unresolved. State query time
 and cache timestamps; current status is not historical tier evidence.
 
@@ -139,7 +142,7 @@ SELECT u.id, u.clerkUserId, p.title,
 FROM User u LEFT JOIN UserProfile p ON p.userId = u.id
 LEFT JOIN KeyValue c ON c.key = 'clerk:user:' || u.clerkUserId
 LEFT JOIN KeyValue k ON k.key = 'stripe:customer:' || u.stripeCustomerId
-WHERE u.id = ?;
+WHERE u.id = ?1 OR u.clerkUserId = ?1;
 ```
 
 Check sustained rates, broad queries, sequential pages, repeats and denials
