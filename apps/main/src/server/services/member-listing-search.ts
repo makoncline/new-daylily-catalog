@@ -1,3 +1,4 @@
+import { recordUsageInput } from "@/server/observability/api-usage";
 import "server-only";
 
 import { Prisma } from "@prisma/client";
@@ -233,6 +234,7 @@ export async function searchOwnedMemberListings(args: {
   input: MemberListingSearchInput;
   userId: string;
 }) {
+  recordUsageInput(args.input);
   if (
     !args.input.listId &&
     args.input.cursor &&

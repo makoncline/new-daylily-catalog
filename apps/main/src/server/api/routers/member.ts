@@ -1,3 +1,4 @@
+import { recordUsageInput } from "@/server/observability/api-usage";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
@@ -161,7 +162,10 @@ export const memberRouter = createTRPCRouter({
   cultivar: createTRPCRouter({
     search: protectedProcedure
       .input(z.strictObject({ query: z.string().min(1).max(200) }))
-      .query(({ input }) => searchCultivarReferences(publicDb, input.query)),
+      .query(({ input }) => {
+        recordUsageInput(input);
+        return searchCultivarReferences(publicDb, input.query);
+      }),
     get: protectedProcedure
       .input(z.strictObject({ id: recordId }))
       .query(({ input }) => getCultivarReference(publicDb, input.id)),

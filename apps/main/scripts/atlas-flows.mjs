@@ -858,6 +858,10 @@ export const ATLAS_FLOWS = [
     implementation: {
       entryPoints: [
         {
+          label: "API/MCP usage evidence",
+          path: "src/server/observability/api-usage.ts",
+        },
+        {
           label: "Managed disposable media fixtures",
           path: "scripts/atlas-media-fixtures.mjs",
         },
@@ -913,6 +917,7 @@ export const ATLAS_FLOWS = [
         "Ignore late URL validation results and keep drafts after rejected writes.",
         "Convert uppercase profile URL input to lowercase before validation and saving.",
         "Reject member MCP requests before database reads when the token, scope, or client is not allowed.",
+        "Record bounded API/MCP use with verified account provenance, logical call counts and persisted mutation results. Treat proxy and retention gaps as limits.",
         "Allow confirmed non-Pro remote writes within dashboard limits; reject unconfirmed billing and keep destructive MCP actions in dashboard approval.",
         "Publish MCP endpoint resource metadata and complete tool-level OAuth challenges.",
         "Keep the app idle timeout above Caddy's 120 seconds. Verify real MCP requests through Caddy in Docker image CI.",
@@ -928,6 +933,7 @@ export const ATLAS_FLOWS = [
         testRef("integration", "tests/atlas-browser-diagnostics.test.ts"),
         testRef("integration", "tests/oauth-metadata.test.ts"),
         testRef("integration", "tests/mcp-read-only.test.ts"),
+        fullAppIntegrationRef("tests/integration/api-usage.integration.ts"),
         testRef(
           "integration",
           "tests/member-version-storage.integration.test.ts",

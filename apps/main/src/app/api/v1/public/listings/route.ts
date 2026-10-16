@@ -1,3 +1,4 @@
+import { withUsageRequest } from "@/server/observability/api-usage";
 import { publicDb } from "@/server/db";
 import { publicJson, publicReadResponse } from "@/server/api/public-http";
 import {
@@ -27,10 +28,14 @@ function parseQuery(params: URLSearchParams) {
   return parsed.success ? parsed.data : null;
 }
 
-export async function GET(request: Request) {
+async function read(request: Request) {
   const input = parseQuery(new URL(request.url).searchParams);
   if (!input) return publicJson({ error: "invalid_query" }, 400);
   return publicReadResponse("public-listings-api", () =>
     searchPublicListings({ database: publicDb, input }),
   );
+}
+
+export async function GET(...args: Parameters<typeof read>) {
+  return withUsageRequest(args[0], "public_api", () => read(...args));
 }

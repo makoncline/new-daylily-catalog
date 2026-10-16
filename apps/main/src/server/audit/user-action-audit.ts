@@ -1,3 +1,4 @@
+import { usageScalar } from "@/server/observability/api-usage";
 import { logEvent, safeUrl } from "@/lib/telemetry";
 
 type AuditValue = boolean | null | number | string | undefined;
@@ -11,6 +12,7 @@ interface LogUserMutationInput {
   path: string;
   user: AuditUser;
   rawInput: unknown;
+  persistedResult?: unknown;
   requestUrl?: string;
   oauthClientId?: string;
   oauthScope?: string;
@@ -31,20 +33,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function asAuditValue(value: unknown): AuditValue {
-  if (
-    typeof value === "string" ||
-    typeof value === "number" ||
-    typeof value === "boolean" ||
-    value === null ||
-    typeof value === "undefined"
-  ) {
-    return value;
-  }
-
-  return undefined;
-}
-
 function pickInputIdentifiers(input: unknown): Record<string, AuditValue> {
   if (!isRecord(input)) {
     return {};
@@ -62,13 +50,14 @@ function pickInputIdentifiers(input: unknown): Record<string, AuditValue> {
   ];
 
   for (const key of idKeys) {
-    const value = asAuditValue(input[key]);
+    const value = usageScalar(input[key]);
     if (typeof value !== "undefined") {
       summary[key] = value;
     }
   }
 
-  for (const [key, value] of Object.entries(input)) {
+  for (const key of ["ids", "listingIds", "imageIds", "images", "rows"]) {
+    const value = input[key];
     if (Array.isArray(value)) {
       summary[`${key}Count`] = value.length;
     }
@@ -81,6 +70,7 @@ export function logUserMutation({
   path,
   user,
   rawInput,
+  persistedResult,
   requestUrl,
   oauthClientId,
   oauthScope,
@@ -90,6 +80,7 @@ export function logUserMutation({
   errorCode,
 }: LogUserMutationInput) {
   logEvent("info", "user_mutation", {
+    event_id: crypto.randomUUID(),
     status,
     procedure: path,
     appUserId: user.id ?? undefined,
@@ -100,11 +91,32 @@ export function logUserMutation({
     mcpToolName,
     clientRequestId:
       isRecord(rawInput) && typeof rawInput.requestId === "string"
-        ? rawInput.requestId
+        ? rawInput.requestId.slice(0, 200)
         : undefined,
     duration_ms: durationMs,
     error_code: errorCode,
     ...pickInputIdentifiers(rawInput),
+    ...(status === "success" && isRecord(persistedResult)
+      ? {
+          saved: Object.fromEntries(
+            [
+              "id",
+              "title",
+              "price",
+              "status",
+              "cultivarReferenceId",
+              "updatedAt",
+              "listId",
+              "listingId",
+              "count",
+            ].flatMap((key) => {
+              const value = usageScalar(persistedResult[key]);
+              return value === undefined ? [] : [[key, value]];
+            }),
+          ),
+          saved_evidence: "persisted_result",
+        }
+      : {}),
   });
 }
 

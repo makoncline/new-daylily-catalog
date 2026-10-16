@@ -1,3 +1,7 @@
+import {
+  logUsageOperation,
+  recordCultivarSearchUsage,
+} from "@/server/observability/api-usage";
 import { logEvent } from "@/lib/telemetry";
 import { getCultivarSearchTelemetryProperties } from "@/lib/analytics/cultivar-search-telemetry";
 
@@ -35,6 +39,14 @@ export function logSearchRequest({
   searchParams: URLSearchParams;
   status: SearchRequestStatus;
 }) {
+  recordCultivarSearchUsage(getCultivarSearchTelemetryProperties(searchParams));
+  logUsageOperation({
+    operation: "cultivar.search",
+    operation_kind: "read",
+    outcome: status,
+    duration_ms: durationMs,
+    results_returned: resultsReturned,
+  });
   logEvent(
     status === "success"
       ? "info"

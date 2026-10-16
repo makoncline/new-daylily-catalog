@@ -61,3 +61,88 @@ The other error groups were [NEW-DAYLILY-CATALOG-60](https://makon-dev.sentry.io
 - The browser flow in `tests/integration/list-management.integration.ts` creates and edits a list, adds a listing, reloads it, and tries to delete the populated list. It compares the real request IDs, response headers, browser error, and server logs. The rejected deletion comes from the database-backed application rules. The test also checks that the description is absent from the logs.
 - The local browser runner uses the real Next app, tRPC handlers, and disposable SQLite database. Its existing external-service substitutes include Clerk. External traffic is blocked, and Sentry delivery is not tested. App logs are saved in `tests/.tmp/integration-server.log`.
 - Production behavior after deployment has not been verified. Proxy configuration and server deployments were not changed.
+
+## Query API and MCP use
+
+Use the private operator connection. Export an explicit UTC interval with
+`sudo -n journalctl CONTAINER_NAME=daylilycatalog-app-1 --since '<UTC>' --until
+'<UTC>' -o cat --no-pager`. Do not publish raw IPs, search text or account data.
+Run the jq program below with `jq -Rn --arg since '<ISO UTC>' --arg until
+'<ISO UTC>' --arg actor '<app User ID or empty>' --arg ip '<verified IP or empty>'
+-f <private-query-file> <private-log-file>`. The window is [since, until).
+Use a bounded export; jq holds it in memory. The integration test uses this query.
+
+```jq
+[inputs | fromjson? | select(type == "object" and .timestamp != null)] as $all
+| [$all[] | select(.timestamp >= $since and .timestamp < $until)] as $window
+| [$window[] | select(.usage_transport != null)
+    | select(($actor == "" or .app_user_id == $actor) and ($ip == "" or .connecting_ip == $ip))
+    | .usage_request_id] | unique as $requests
+| [$window[] | select(.usage_request_id as $id | $requests | index($id))
+    | select(.event == "api_usage_operation" or .event == "api_usage_request" or .event == "user_mutation" or .event == "api_usage_capture_dropped" or .event == "posthog_capture_failed")] as $usage
+| [$usage[] | select(.event == "api_usage_operation")] as $operations
+| {
+    requested_window: {since: $since, until: $until},
+    retained_observed: {first: ($all | map(.timestamp) | min), last: ($all | map(.timestamp) | max)},
+    selectors: {actor: $actor, ip: $ip},
+    http_requests: ([$usage[] | select(.event == "api_usage_request")] | length),
+    operations: ($operations | length),
+    summed_returned_rows: ([$operations[].results_returned // 0] | add // 0),
+    delivery_failures: ([$window[] | select(.event == "api_usage_capture_dropped" or .event == "posthog_capture_failed")] | length),
+    records: $usage[:1000],
+    records_omitted: ([($usage | length) - 1000, 0] | max),
+    coverage_limits: ["Origin records only; CDN hits and edge blocks require separate edge evidence.", "Observed first/last timestamps do not prove gap-free retention.", "Best-effort journal and analytics delivery; absence is not proof of no activity.", "Returned rows include repeat reads; they are not distinct records or delivered bytes.", "Current membership must be read from primary data; it is not historical membership."]
+  }
+```
+
+Count `api_usage_request` as origin HTTP requests and `api_usage_operation` as
+logical calls. Join audit rows by the server `usage_operation_id`; join transport
+rows by `usage_request_id`. Do not sum nested record types. Returned rows count
+top-level results, including repeats. Bytes exist only when Content-Length is
+already available; response creation does not prove delivery. Create retries
+share `request_requestId`/`clientRequestId` but remain separate calls. Saved
+fields are a bounded persisted-result snapshot, not a before/after diff.
+
+Only the tunnel-only VPS compose enables `DAYLILY_TRUST_PROXY_IP=true`. Its
+Caddy route overwrites `X-Daylily-Connecting-IP` from `CF-Connecting-IP`. The app
+accepts one valid address only with that exact-true switch. No host app/Caddy
+ports are allowed. Other deployments leave it off. Raw CF/XFF/X-Real-IP and
+client labels are not trusted. `caddy_cloudflare_header` means proxy-reported;
+[Worker and pseudo-IPv4 cases](https://developers.cloudflare.com/fundamentals/reference/http-headers/)
+can change the address. Controlled network peers remain trusted. The live
+spoofed-header probe returned 403; live overwrite was not verified.
+
+Search/IP details stay out of Sentry and PostHog. Private journal fields have
+200-character scalar limits and no private notes, story content or full bodies.
+PostHog gets only identity IDs, operation, outcome, count, duration and release.
+Its capture deadline is two seconds, with 16 in-flight usage sends per process.
+Drops/failures are recorded; shutdown can lose pending work. Optional public
+OAuth attribution waits at most 250 ms with 16 in-flight verifications. A timeout
+or provider failure leaves identity unresolved and does not deny the read.
+
+Recheck each source's actual retained window. Journal ceilings are 14 days/1 GiB,
+with 5 GiB free reserved. Rsyslog also copies app logs to private syslog files
+(mode 0640, syslog:adm), rotated weekly with four archives. This can retain data
+longer than the journal. Proxy logs are root-owned 0600 with 20 MiB/file,
+64 archive and 168 hour ceilings. These are capacity limits, not gap-free time
+coverage. Sentry query credentials and edge/cache coverage remain unavailable.
+
+For current membership, run this parameterized SELECT through the existing
+read-only primary connection. Bind the app User ID to `?`. This does not create
+a profile or sync Clerk/Stripe. Missing caches mean unresolved. State query time
+and cache timestamps; current status is not historical tier evidence.
+
+```sql
+SELECT u.id, u.clerkUserId, p.title,
+  json_extract(c.value, '$.email') AS email, c.updatedAt AS identityCachedAt,
+  CASE WHEN u.stripeCustomerId IS NULL THEN 'none' ELSE json_extract(k.value, '$.status') END AS membershipStatus, k.updatedAt AS membershipCachedAt
+FROM User u LEFT JOIN UserProfile p ON p.userId = u.id
+LEFT JOIN KeyValue c ON c.key = 'clerk:user:' || u.clerkUserId
+LEFT JOIN KeyValue k ON k.key = 'stripe:customer:' || u.stripeCustomerId
+WHERE u.id = ?;
+```
+
+Check sustained rates, broad queries, sequential pages, repeats and denials
+before describing likely bulk extraction. Volume alone does not prove a person,
+malicious intent or a policy violation. Confirm known smoke traffic with its
+operator record and server IDs. Caller-supplied labels stay unclassified.

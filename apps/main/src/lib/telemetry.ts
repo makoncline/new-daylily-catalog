@@ -278,6 +278,40 @@ export function installConsoleLogging() {
   return state.restoreConsole;
 }
 
+function sentryTelemetry(value: unknown): unknown {
+  const serialized = JSON.stringify(
+    sanitizeTelemetry(value),
+    (key, item: unknown) => {
+      if (/^request_|^connecting_ip|^declared_|^saved$/.test(key))
+        return undefined;
+      if (
+        typeof item === "string" &&
+        /"usage_transport"\s*:|"event"\s*:\s*"(?:api_usage_|user_mutation|public_cultivar_search_request)/.test(
+          item,
+        )
+      )
+        return "Private usage record";
+      if (
+        item &&
+        typeof item === "object" &&
+        "event" in item &&
+        typeof item.event === "string" &&
+        /^(api_usage_|user_mutation$|public_cultivar_search_request$)/.test(
+          item.event,
+        )
+      ) {
+        return {
+          event: item.event,
+          correlation_id:
+            "correlation_id" in item ? item.correlation_id : undefined,
+        };
+      }
+      return item;
+    },
+  );
+  return serialized === undefined ? undefined : JSON.parse(serialized);
+}
+
 export function enrichSentryEvent<T extends Event>(
   event: T,
   hint?: EventHint,
@@ -354,14 +388,15 @@ export function enrichSentryEvent<T extends Event>(
       query_string: undefined,
     };
   }
-  event.contexts = sanitizeTelemetry(event.contexts) as Event["contexts"];
-  event.tags = sanitizeTelemetry(event.tags) as Event["tags"];
-  event.extra = sanitizeTelemetry(event.extra) as Event["extra"];
-  event.breadcrumbs = sanitizeTelemetry(
+  if (event.message) event.message = String(sentryTelemetry(event.message));
+  event.contexts = sentryTelemetry(event.contexts) as Event["contexts"];
+  event.tags = sentryTelemetry(event.tags) as Event["tags"];
+  event.extra = sentryTelemetry(event.extra) as Event["extra"];
+  event.breadcrumbs = sentryTelemetry(
     event.breadcrumbs,
   ) as Event["breadcrumbs"];
   for (const span of event.spans ?? []) {
-    span.data = sanitizeTelemetry(span.data) as typeof span.data;
+    span.data = sentryTelemetry(span.data) as typeof span.data;
   }
   return event;
 }
@@ -370,7 +405,8 @@ export function enrichSentryLog(log: Log): Log {
   const context = getLogContext();
   return {
     ...log,
-    attributes: sanitizeTelemetry({
+    message: String(sentryTelemetry(log.message)),
+    attributes: sentryTelemetry({
       ...context,
       ...log.attributes,
       correlation_id:

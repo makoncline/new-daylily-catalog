@@ -1,10 +1,10 @@
-import { withRequestLogging } from "@/server/observability/log-context";
+import { withUsageRequest } from "@/server/observability/api-usage";
 import { handleMcpRequest } from "@/server/mcp/read-only-mcp";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  return withRequestLogging(request, () => handleMcpRequest(request));
+  return withUsageRequest(request, "mcp", () => handleMcpRequest(request));
 }
 
 export function GET() {
