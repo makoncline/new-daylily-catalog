@@ -39,28 +39,6 @@ try {
     "NEXT_PUBLIC_POSTHOG_KEY=",
     image,
   );
-  docker(
-    "exec",
-    app,
-    "node",
-    "--input-type=module",
-    "-e",
-    `
-    for (let attempt = 0; ; attempt++) {
-      try {
-        const response = await fetch('http://localhost:3000/api/mcp/server', {
-          method: 'POST', headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({jsonrpc: '2.0', id: 0, method: 'ping'}),
-        });
-        if (response.status !== 200) throw new Error('MCP did not start');
-        break;
-      } catch (error) {
-        if (attempt === 49) throw error;
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-    }
-  `,
-  );
   // Delay real TCP traffic so an idle close can cross the next POST in flight.
   docker(
     "exec",
@@ -98,6 +76,28 @@ try {
     "-v",
     `${directory}/Caddyfile:/etc/caddy/Caddyfile:ro`,
     "caddy:2.11.2",
+  );
+  docker(
+    "exec",
+    app,
+    "node",
+    "--input-type=module",
+    "-e",
+    `
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const response = await fetch('http://proxy/api/mcp/server', {
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({jsonrpc: '2.0', id: 0, method: 'ping'}),
+        });
+        if (response.status !== 200) throw new Error('MCP did not start');
+        break;
+      } catch (error) {
+        if (attempt === 49) throw error;
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+  `,
   );
   console.log(
     docker(
