@@ -93,10 +93,19 @@ export const ATLAS_FLOWS = [
           label: "Published listing reads",
           path: "src/server/db/public-listing-read-model.ts",
         },
+        {
+          label: "Public profile count links",
+          path: "src/app/(public)/[userSlugOrId]/_components/profile-section.tsx",
+        },
+        {
+          label: "Public catalog section links",
+          path: "src/app/(public)/[userSlugOrId]/_components/catalog-nav.tsx",
+        },
       ],
       invariants: [
         "Read public data through the replica and apply published-listing filters.",
         "Keep profile data and listing cards in the first HTML response.",
+        "Link profile counts to their sections. Both Lists links must return to the first catalog page, where list summaries are available.",
       ],
     },
     tests: {

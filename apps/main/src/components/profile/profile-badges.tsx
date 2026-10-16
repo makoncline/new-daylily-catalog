@@ -29,45 +29,14 @@ export function ListingCountBadge({ count }: { count: number }) {
   );
 }
 
-export function ListCountBadge({
-  count,
-  lists,
-}: {
-  count: number;
-  lists?: { id: string; title: string; listingCount: number }[];
-}) {
-  const badge = (
+export function ListCountBadge({ count }: { count: number }) {
+  return (
     <Badge variant="secondary" className="flex items-center gap-1 text-xs">
       <ListChecks className="size-3" />
-      <span>{count} lists</span>
+      <span>
+        {count} {count === 1 ? "list" : "lists"}
+      </span>
     </Badge>
-  );
-
-  if (!lists?.length) return badge;
-
-  return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger>
-          <div className="cursor-pointer">{badge}</div>
-        </TooltipTrigger>
-        <TooltipContent side="top" align="start" className="p-0">
-          <div className="flex max-w-[300px] flex-col gap-2 p-2">
-            {lists.map((list) => (
-              <div
-                key={list.id}
-                className="flex items-center justify-between gap-4"
-              >
-                <span className="font-medium">{list.title}</span>
-                <Badge variant="secondary" className="text-xs">
-                  {list.listingCount} listings
-                </Badge>
-              </div>
-            ))}
-          </div>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
   );
 }
 
