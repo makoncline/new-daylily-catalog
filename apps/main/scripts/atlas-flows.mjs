@@ -877,6 +877,10 @@ export const ATLAS_FLOWS = [
           path: "src/server/mcp/read-only-mcp.ts",
         },
         {
+          label: "Production MCP proxy smoke test",
+          path: "scripts/smoke-mcp-keepalive-local.mjs",
+        },
+        {
           label: "Member API authentication and account tier",
           path: "src/server/api/member-http.ts",
         },
@@ -902,6 +906,7 @@ export const ATLAS_FLOWS = [
         "Reject member MCP requests before database reads when the token, scope, or client is not allowed.",
         "Allow confirmed non-Pro remote writes within dashboard limits; reject unconfirmed billing and keep destructive MCP actions in dashboard approval.",
         "Publish MCP endpoint resource metadata and complete tool-level OAuth challenges.",
+        "Keep the app idle timeout above Caddy's 120 seconds. Verify real MCP requests through Caddy in Docker image CI.",
         "Build the complete plugin with a reviewer video URL kept outside public source. Reuse sample records on repeated review runs.",
         "Store member versions as integer milliseconds and preserve stale-write rejection.",
         "Classify editor save conflicts by the tRPC code; keep drafts and load the latest version only on explicit recovery.",
