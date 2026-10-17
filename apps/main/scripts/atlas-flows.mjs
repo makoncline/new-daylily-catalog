@@ -699,12 +699,36 @@ export const ATLAS_FLOWS = [
     title: "Create a catalog and start membership",
     description:
       "Understand the grower offer, transform an existing catalog, and continue to Stripe-hosted membership checkout.",
+    implementation: {
+      entryPoints: [
+        {
+          label: "Importer finish membership offer",
+          path: "src/app/(public)/catalog-importer/_components/catalog-importer-publish-actions.tsx",
+        },
+        {
+          label: "Optional Pro feedback",
+          path: "src/components/pro-membership-feedback.tsx",
+        },
+        {
+          label: "Pro survey contract",
+          path: "src/lib/analytics/pro-membership-feedback.ts",
+        },
+      ],
+      invariants: [
+        "Offer feedback at the importer finish step, after the prepared catalog. Open it only on an explicit click. Keep downloads and checkout independent of the answer.",
+        "Use the active PostHog API survey and existing SDK identity. Keep support available when feedback is unavailable.",
+      ],
+    },
     tests: {
       unit: [
         testRef("unit", "tests/catalog-importer-draft.test.ts"),
         testRef("unit", "tests/catalog-importer-file.test.ts"),
       ],
       integration: [
+        testRef("integration", "tests/pro-membership-feedback.test.tsx"),
+        fullAppIntegrationRef(
+          "tests/integration/pro-membership-feedback.integration.ts",
+        ),
         testRef("integration", "tests/catalog-importer-workbench.test.tsx"),
         testRef(
           "integration",
@@ -772,10 +796,29 @@ export const ATLAS_FLOWS = [
     title: "Choose the next catalog action",
     description:
       "Orient on the dashboard across setup, membership, billing, and established Pro states without multiplying partial-state permutations.",
+    implementation: {
+      entryPoints: [
+        {
+          label: "Membership action",
+          path: "src/components/pro-membership-action.tsx",
+        },
+        {
+          label: "Optional Pro feedback",
+          path: "src/components/pro-membership-feedback.tsx",
+        },
+      ],
+      invariants: [
+        "Offer feedback beside checkout. Omit it during loading, for active Pro members, and for billing recovery.",
+      ],
+    },
     tests: {
       unit: [testRef("unit", "tests/build-dashboard-stats.test.ts")],
       integration: [
         testRef("integration", "tests/pro-membership-card.test.tsx"),
+        testRef("integration", "tests/pro-membership-feedback.test.tsx"),
+        fullAppIntegrationRef(
+          "tests/integration/pro-membership-feedback.integration.ts",
+        ),
         testRef("integration", "tests/persisted-subscription-query.test.ts"),
       ],
       e2e: [

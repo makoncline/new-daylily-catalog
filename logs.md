@@ -203,3 +203,5 @@ check current code before applying them.
 - [2026-10-16] App log copies: Journald forwards app records to rsyslog on the VPS. The journal has 14-day/1-GiB ceilings, but private syslog files rotate weekly with four archives. Check both stores before making retention or deletion claims.
 
 - [2026-10-16] Warm social renderer: Next 16.3 disables Sharp SVG loading when its image optimizer starts. When changing social rendering, warm `/_next/image` in the built container before testing PNG generation. Do not change Sharp's process-wide loader permissions to bypass this restriction.
+
+- [2026-10-17] PostHog survey capture: posthog-js 1.438.10 adds survey response person properties to the captured event `$set`. It does not expose them through `get_property`. The return value confirms local capture, not delivery. Browser automation can pass `is_capturing()` and still return no capture because of bot filtering. For API survey tests, check the event contract and identity. Change bot filtering only in private fixtures.
