@@ -13,7 +13,6 @@ import { IMAGES } from "@/lib/constants/images";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import { serializeJsonLd } from "@/lib/utils/json-ld";
 import { UsedByWave } from "@/components/used-by-wave";
-import { ProMembershipFeedback } from "@/components/pro-membership-feedback";
 import { LaurelRatingBadge } from "@/components/laurel-rating-badge";
 import {
   MarketingHero,
@@ -228,10 +227,6 @@ function StartMembershipHero() {
           <p className="mt-3 max-w-lg text-lg leading-7 text-[#dfe9dc]">
             {SUBSCRIPTION_CONFIG.COPY.MARKETING.VALUE_PANEL}
           </p>
-
-          <div className="bg-background text-foreground mt-4 w-fit rounded-md">
-            <ProMembershipFeedback />
-          </div>
 
           <div className="mt-6 grid gap-4 border-t border-white/22 pt-5">
             {PRO_FEATURES.slice(0, 3).map((feature) => {

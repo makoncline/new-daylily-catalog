@@ -702,8 +702,8 @@ export const ATLAS_FLOWS = [
     implementation: {
       entryPoints: [
         {
-          label: "Public membership offer",
-          path: "src/app/start-membership/page.tsx",
+          label: "Importer finish membership offer",
+          path: "src/app/(public)/catalog-importer/_components/catalog-importer-publish-actions.tsx",
         },
         {
           label: "Optional Pro feedback",
@@ -715,7 +715,7 @@ export const ATLAS_FLOWS = [
         },
       ],
       invariants: [
-        "Open feedback only on an explicit click. Keep setup and checkout independent of the answer.",
+        "Offer feedback at the importer finish step, after the prepared catalog. Open it only on an explicit click. Keep downloads and checkout independent of the answer.",
         "Use the active PostHog API survey and existing SDK identity. Keep support available when feedback is unavailable.",
       ],
     },
