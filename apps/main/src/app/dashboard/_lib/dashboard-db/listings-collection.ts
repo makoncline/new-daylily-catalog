@@ -184,7 +184,7 @@ export async function updateListing(draft: UpdateDraft) {
   return runWithDashboardRefreshLock(async () => {
     const previous = listingsCollection.get(draft.id);
 
-    listingsCollection.utils.writeUpdate({
+    await listingsCollection.utils.writeUpdate({
       id: draft.id,
       ...omitUndefined(draft.data),
     });
@@ -192,10 +192,10 @@ export async function updateListing(draft: UpdateDraft) {
     try {
       const updated =
         await getTrpcClient().dashboardDb.listing.update.mutate(draft);
-      listingsCollection.utils.writeUpdate(updated);
+      await listingsCollection.utils.writeUpdate(updated);
       return updated;
     } catch (error) {
-      if (previous) listingsCollection.utils.writeUpdate(previous);
+      if (previous) await listingsCollection.utils.writeUpdate(previous);
       throw error;
     }
   });
@@ -205,12 +205,12 @@ export async function deleteListing({ id }: { id: string }) {
   await runWithDashboardRefreshLock(async () => {
     const previous = listingsCollection.get(id);
     DELETED_IDS.add(id);
-    listingsCollection.utils.writeDelete(id);
+    await listingsCollection.utils.writeDelete(id);
 
     try {
       await getTrpcClient().dashboardDb.listing.delete.mutate({ id });
     } catch (error) {
-      if (previous) listingsCollection.utils.writeInsert(previous);
+      if (previous) await listingsCollection.utils.writeInsert(previous);
       DELETED_IDS.delete(id);
       throw error;
     }
@@ -224,9 +224,9 @@ export async function loadMissingListing(id: string) {
       await ensureCultivarReferencesCached([listing.cultivarReferenceId]);
     }
     if (listingsCollection.get(id)) {
-      listingsCollection.utils.writeUpdate(listing);
+      await listingsCollection.utils.writeUpdate(listing);
     } else {
-      listingsCollection.utils.writeInsert(listing);
+      await listingsCollection.utils.writeInsert(listing);
     }
   });
 }
@@ -241,12 +241,12 @@ export async function loadListingsByIds(ids: string[]) {
         listing.cultivarReferenceId ? [listing.cultivarReferenceId] : [],
       ),
     );
-    listingsCollection.utils.writeBatch(() => {
+    await listingsCollection.utils.writeBatch(() => {
       for (const listing of listings) {
         if (listingsCollection.get(listing.id)) {
-          listingsCollection.utils.writeUpdate(listing);
+          void listingsCollection.utils.writeUpdate(listing);
         } else {
-          listingsCollection.utils.writeInsert(listing);
+          void listingsCollection.utils.writeInsert(listing);
         }
       }
     });
@@ -267,7 +267,7 @@ export async function linkAhs(draft: LinkAhsDraft) {
       }
     }
 
-    listingsCollection.utils.writeUpdate(updated);
+    await listingsCollection.utils.writeUpdate(updated);
     return updated;
   });
 }
@@ -277,7 +277,7 @@ export async function unlinkAhs(draft: UnlinkAhsDraft) {
   return runWithDashboardRefreshLock(async () => {
     const updated =
       await getTrpcClient().dashboardDb.listing.unlinkAhs.mutate(draft);
-    listingsCollection.utils.writeUpdate(updated);
+    await listingsCollection.utils.writeUpdate(updated);
     return updated;
   });
 }
@@ -287,7 +287,7 @@ export async function syncAhsName(draft: SyncAhsNameDraft) {
   return runWithDashboardRefreshLock(async () => {
     const updated =
       await getTrpcClient().dashboardDb.listing.syncAhsName.mutate(draft);
-    listingsCollection.utils.writeUpdate(updated);
+    await listingsCollection.utils.writeUpdate(updated);
     return updated;
   });
 }

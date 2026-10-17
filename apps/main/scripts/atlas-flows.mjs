@@ -1080,6 +1080,14 @@ export const ATLAS_FLOWS = [
           path: "src/app/dashboard/_components/dashboard-db-provider.tsx",
         },
         {
+          label: "TanStack catalog experiment (DASHBOARD_DATA_LAYER=tanstack)",
+          path: "src/app/dashboard/_lib/dashboard-db-tanstack/provider.tsx",
+        },
+        {
+          label: "Native catalog collections and confirmed writes",
+          path: "src/app/dashboard/_lib/dashboard-db-tanstack/collections.ts",
+        },
+        {
           label: "Listing creation and retry identity",
           path: "src/app/dashboard/listings/_components/create-listing-dialog.tsx",
         },
@@ -1110,6 +1118,7 @@ export const ATLAS_FLOWS = [
       ],
       invariants: [
         "Keep dashboard collections active while the provider is ready, including idle editors.",
+        "The TanStack experiment renders the member's saved catalog before refresh completes. Old refreshes must not replace confirmed writes; successful refreshes reconcile additions and deletions.",
         "Store member versions as integer milliseconds and preserve stale-write rejection.",
         "Classify editor save conflicts by the tRPC code; keep drafts and load the latest version only on explicit recovery.",
         "Reuse the same create request ID for the same draft after lost create confirmation. Keep one saved listing after retry and include that ID in the failure report.",
@@ -1148,6 +1157,9 @@ export const ATLAS_FLOWS = [
         testRef("integration", "tests/edit-listing-dialog-url-sync.test.tsx"),
         fullAppIntegrationRef(
           "tests/integration/create-edit-listing.integration.ts",
+        ),
+        fullAppIntegrationRef(
+          "tests/integration/dashboard-cache.integration.ts",
         ),
         fullAppIntegrationRef("tests/integration/editor-save.integration.ts"),
         fullAppIntegrationRef(

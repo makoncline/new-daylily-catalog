@@ -26,7 +26,7 @@ import {
   useEditListing,
 } from "../listings/_components/edit-listing-dialog";
 
-import { useDashboardDb } from "./dashboard-db-provider";
+import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
 import { useEditorHistory } from "../_hooks/use-editor-history";
 
 type Editor =

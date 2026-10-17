@@ -10,14 +10,13 @@ import { DASHBOARD_DB_QUERY_KEYS } from "@/app/dashboard/_lib/dashboard-db/dashb
 import { getQueryClient } from "@/trpc/query-client";
 
 export function useProfileImageManagerState(profileId: string) {
-  const { data: liveImages = [], isReady } = useLiveQuery(
-    (q) =>
+  const { data: liveImages = [], isReady } = useLiveQuery({
+    query: (q) =>
       q
         .from({ img: imagesCollection })
         .where(({ img }) => eq(img.userProfileId, profileId))
         .orderBy(({ img }) => img.order, "asc"),
-    [profileId],
-  );
+  });
 
   const seededImages =
     getQueryClient().getQueryData<ImageCollectionItem[]>(

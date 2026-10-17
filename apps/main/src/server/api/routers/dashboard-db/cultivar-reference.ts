@@ -149,7 +149,7 @@ function mapRawV2CultivarReferenceRow(
   };
 }
 
-async function getCultivarReferencesByIdsRaw(
+export async function getCultivarReferencesByIdsRaw(
   db: PrismaClient,
   ids: string[],
 ): Promise<DashboardCultivarReference[]> {

@@ -719,14 +719,15 @@ export const dashboardDbListingRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       // Deleting a listing clears join rows, but does not automatically bump List.updatedAt.
       // We touch affected lists so incremental `list.sync({ since })` can't retain dead listing ids.
-      await ctx.db.$transaction(async (tx) => {
-        await tx.$executeRaw`
+      return ctx.db.$transaction(async (tx) => {
+        const affectedLists = await tx.$queryRaw<Array<{ id: string }>>`
           UPDATE "List"
           SET "updatedAt" = MAX("updatedAt" + 1, ${Date.now()})
           WHERE "userId" = ${ctx.user.id}
             AND "id" IN (
               SELECT "A" FROM "_ListToListing" WHERE "B" = ${input.id}
             )
+          RETURNING "id"
         `;
         const deleted = await tx.listing.deleteMany({
           where: { id: input.id, userId: ctx.user.id },
@@ -737,8 +738,14 @@ export const dashboardDbListingRouter = createTRPCRouter({
             message: "Listing not found",
           });
         }
+        const lists = await tx.list.findMany({
+          where: {
+            id: { in: affectedLists.map((list) => list.id) },
+            userId: ctx.user.id,
+          },
+          include: { listings: { select: { id: true } } },
+        });
+        return { id: input.id, lists };
       });
-
-      return { id: input.id } as const;
     }),
 });

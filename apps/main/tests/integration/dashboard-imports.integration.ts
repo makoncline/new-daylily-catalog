@@ -309,7 +309,7 @@ for (const [device, viewport] of [
     let rejectRefresh = false;
     const successfulWrite: { request?: { url: string; body: string } } = {};
     await page.route(
-      "**/api/trpc/dashboardDb.bootstrap.roots**",
+      /\/api\/trpc\/dashboardDb\.bootstrap\.(roots|catalog)/,
       async (route) => {
         if (!rejectRefresh) {
           await route.continue();

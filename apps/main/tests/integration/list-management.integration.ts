@@ -181,7 +181,9 @@ for (const [device, viewport] of [
 
     const observedResponses = responses.slice();
     for (const procedure of [
-      "dashboardDb.bootstrap.roots",
+      process.env.DASHBOARD_DATA_LAYER === "tanstack"
+        ? "dashboardDb.bootstrap.catalog"
+        : "dashboardDb.bootstrap.roots",
       "dashboardDb.list.create",
     ]) {
       const response = observedResponses.find((response) =>

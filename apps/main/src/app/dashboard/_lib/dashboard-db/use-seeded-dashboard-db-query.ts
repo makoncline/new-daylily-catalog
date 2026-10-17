@@ -13,7 +13,6 @@ import { logDashboardTiming } from "@/app/dashboard/_lib/dashboard-timing";
 
 interface UseSeededDashboardDbQueryArgs<TContext extends Context = Context> {
   debugLabel?: string;
-  deps?: readonly unknown[];
   query: (q: InitialQueryBuilder) => QueryBuilder<TContext>;
   queryKey: QueryKey;
 }
@@ -21,21 +20,12 @@ interface UseSeededDashboardDbQueryArgs<TContext extends Context = Context> {
 export function useSeededDashboardDbQuery<
   TItem extends object,
   TContext extends Context = Context,
->({
-  debugLabel,
-  deps,
-  query,
-  queryKey,
-}: UseSeededDashboardDbQueryArgs<TContext>) {
+>({ debugLabel, query, queryKey }: UseSeededDashboardDbQueryArgs<TContext>) {
   const [liveQueryEnabled, setLiveQueryEnabled] = useState(false);
   const readyLoggedRef = useRef(false);
-  const liveQueryDeps = deps
-    ? ([liveQueryEnabled, ...deps] as unknown[])
-    : ([liveQueryEnabled] as unknown[]);
-  const { data: liveData = [], isReady } = useLiveQuery(
-    (q) => (liveQueryEnabled ? query(q) : undefined),
-    liveQueryDeps,
-  );
+  const { data: liveData = [], isReady } = useLiveQuery({
+    query: (q) => (liveQueryEnabled ? query(q) : undefined),
+  });
   const seededData = getQueryClient().getQueryData<TItem[]>(queryKey) ?? [];
   const hasLiveData = liveQueryEnabled && isReady;
 

@@ -44,9 +44,12 @@ export function MultiListSelect({
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
   const [isCreating, setIsCreating] = useState(false);
-  const { data: lists = [] } = useLiveQuery((q) =>
-    q.from({ list: listsCollection }).orderBy(({ list }) => list.title, "asc"),
-  );
+  const { data: lists = [] } = useLiveQuery({
+    query: (q) =>
+      q
+        .from({ list: listsCollection })
+        .orderBy(({ list }) => list.title, "asc"),
+  });
   const filteredLists = lists.filter((list) =>
     list.title.toLowerCase().includes(searchValue.toLowerCase()),
   );

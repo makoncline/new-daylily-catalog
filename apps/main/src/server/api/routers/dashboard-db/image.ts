@@ -458,6 +458,42 @@ async function resolveDashboardImageRows(args: {
   });
 }
 
+export async function getDashboardImagesForUser(
+  database: DbClient,
+  userId: string,
+) {
+  const rows = await database.$queryRaw<ImageRow[]>(Prisma.sql`
+      SELECT
+        i."id",
+        i."url",
+        i."order",
+        i."listingId",
+        i."userProfileId",
+        i."createdAt",
+        i."updatedAt",
+        i."status"
+      FROM "Listing" l
+      INNER JOIN "Image" i ON i."listingId" = l."id"
+      WHERE l."userId" = ${userId}
+      UNION
+      SELECT
+        i."id",
+        i."url",
+        i."order",
+        i."listingId",
+        i."userProfileId",
+        i."createdAt",
+        i."updatedAt",
+        i."status"
+      FROM "UserProfile" up
+      INNER JOIN "Image" i ON i."userProfileId" = up."id"
+      WHERE up."userId" = ${userId}
+    `);
+
+  const mappedRows = rows.map(mapImageRow).sort(sortImagesForDashboard);
+  return resolveDashboardImageRows({ db: database, rows: mappedRows });
+}
+
 export const dashboardDbImageRouter = createTRPCRouter({
   get: protectedProcedure
     .input(
@@ -634,38 +670,9 @@ export const dashboardDbImageRouter = createTRPCRouter({
       } as const;
     }),
 
-  list: protectedProcedure.query(async ({ ctx }) => {
-    const rows = await ctx.db.$queryRaw<ImageRow[]>(Prisma.sql`
-      SELECT
-        i."id",
-        i."url",
-        i."order",
-        i."listingId",
-        i."userProfileId",
-        i."createdAt",
-        i."updatedAt",
-        i."status"
-      FROM "Listing" l
-      INNER JOIN "Image" i ON i."listingId" = l."id"
-      WHERE l."userId" = ${ctx.user.id}
-      UNION
-      SELECT
-        i."id",
-        i."url",
-        i."order",
-        i."listingId",
-        i."userProfileId",
-        i."createdAt",
-        i."updatedAt",
-        i."status"
-      FROM "UserProfile" up
-      INNER JOIN "Image" i ON i."userProfileId" = up."id"
-      WHERE up."userId" = ${ctx.user.id}
-    `);
-
-    const mappedRows = rows.map(mapImageRow).sort(sortImagesForDashboard);
-    return resolveDashboardImageRows({ db: ctx.db, rows: mappedRows });
-  }),
+  list: protectedProcedure.query(({ ctx }) =>
+    getDashboardImagesForUser(ctx.db, ctx.user.id),
+  ),
 
   listByListingIds: protectedProcedure
     .input(

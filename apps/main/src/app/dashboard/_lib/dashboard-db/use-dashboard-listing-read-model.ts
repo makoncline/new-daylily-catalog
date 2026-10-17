@@ -2,15 +2,15 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import type { RouterOutputs } from "@/trpc/react";
-import { listingsCollection } from "./listings-collection";
-import { listsCollection } from "./lists-collection";
+import { listingsCollection } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
+import { listsCollection } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
 import {
   imagesCollection,
   type ImageCollectionItem,
-} from "./images-collection";
-import { cultivarReferencesCollection } from "./cultivar-references-collection";
+} from "@/app/dashboard/_lib/dashboard-db/images-collection";
+import { cultivarReferencesCollection } from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
 import { DASHBOARD_DB_QUERY_KEYS } from "./dashboard-db-keys";
-import { useSeededDashboardDbQuery } from "./use-seeded-dashboard-db-query";
+import { useSeededDashboardDbQuery } from "@/app/dashboard/_lib/dashboard-db/use-seeded-dashboard-db-query";
 import type { ListingData } from "@/app/dashboard/listings/_components/columns";
 import { logDashboardTiming } from "@/app/dashboard/_lib/dashboard-timing";
 

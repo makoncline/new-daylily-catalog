@@ -85,7 +85,7 @@ async function advanceListVersion(
   `;
   return tx.list.findFirstOrThrow({
     where: { id: listId, userId },
-    select: listBaseSelect,
+    select: listSelect,
   });
 }
 
@@ -122,7 +122,7 @@ export const dashboardDbListRouter = createTRPCRouter({
           if (!fresh) {
             const existing = await tx.list.findUnique({
               where: { id },
-              select: listBaseSelect,
+              select: listSelect,
             });
             if (existing?.userId === ctx.user.id) return existing;
             throw new TRPCError({
@@ -156,7 +156,7 @@ export const dashboardDbListRouter = createTRPCRouter({
           title: input.title,
           description: input.description ?? null,
         };
-        return tx.list.create({ data, select: listBaseSelect });
+        return tx.list.create({ data, select: listSelect });
       });
     }),
 
@@ -242,7 +242,7 @@ export const dashboardDbListRouter = createTRPCRouter({
 
       const list = await ctx.db.list.findFirstOrThrow({
         where: { id: input.id, userId: ctx.user.id },
-        select: listBaseSelect,
+        select: listSelect,
       });
 
       return list;

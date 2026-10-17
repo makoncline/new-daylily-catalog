@@ -143,10 +143,7 @@ export async function insertList(draft: InsertDraft) {
         updatedAt: new Date(),
         listings: [],
       }),
-      serverInsert: async (d) => ({
-        ...(await getTrpcClient().dashboardDb.list.create.mutate(d)),
-        listings: [],
-      }),
+      serverInsert: (d) => getTrpcClient().dashboardDb.list.create.mutate(d),
     });
 
     const created = await run(draft);
@@ -158,7 +155,7 @@ type UpdateDraft = RouterInputs["dashboardDb"]["list"]["update"];
 export async function updateList(draft: UpdateDraft) {
   return runWithDashboardRefreshLock(async () => {
     const previous = listsCollection.get(draft.id);
-    listsCollection.utils.writeUpdate({
+    await listsCollection.utils.writeUpdate({
       id: draft.id,
       ...omitUndefined(draft.data),
     });
@@ -166,10 +163,10 @@ export async function updateList(draft: UpdateDraft) {
     try {
       const updated =
         await getTrpcClient().dashboardDb.list.update.mutate(draft);
-      if (updated) listsCollection.utils.writeUpdate(updated);
+      if (updated) await listsCollection.utils.writeUpdate(updated);
       return updated;
     } catch (error) {
-      if (previous) listsCollection.utils.writeUpdate(previous);
+      if (previous) await listsCollection.utils.writeUpdate(previous);
       throw error;
     }
   });
@@ -179,12 +176,12 @@ export async function deleteList({ id }: { id: string }) {
   await runWithDashboardRefreshLock(async () => {
     const previous = listsCollection.get(id);
     DELETED_IDS.add(id);
-    listsCollection.utils.writeDelete(id);
+    await listsCollection.utils.writeDelete(id);
 
     try {
       await getTrpcClient().dashboardDb.list.delete.mutate({ id });
     } catch (error) {
-      if (previous) listsCollection.utils.writeInsert(previous);
+      if (previous) await listsCollection.utils.writeInsert(previous);
       DELETED_IDS.delete(id);
       throw error;
     }
@@ -195,9 +192,9 @@ export async function loadMissingList(id: string) {
   await runWithDashboardRefreshLock(async () => {
     const list = await getTrpcClient().dashboardDb.list.get.query({ id });
     if (listsCollection.get(id)) {
-      listsCollection.utils.writeUpdate(list);
+      await listsCollection.utils.writeUpdate(list);
     } else {
-      listsCollection.utils.writeInsert(list);
+      await listsCollection.utils.writeInsert(list);
     }
   });
 }
@@ -209,7 +206,7 @@ export async function addListingToList(args: {
   await runWithDashboardRefreshLock(async () => {
     const previous = listsCollection.get(args.listId);
     const prevListings = previous?.listings ?? [];
-    listsCollection.utils.writeUpdate({
+    await listsCollection.utils.writeUpdate({
       id: args.listId,
       listings: [...prevListings, { id: args.listingId }].filter(
         (v, i, a) => a.findIndex((x) => x.id === v.id) === i,
@@ -219,9 +216,9 @@ export async function addListingToList(args: {
     try {
       const updated =
         await getTrpcClient().dashboardDb.list.addListingToList.mutate(args);
-      listsCollection.utils.writeUpdate(updated);
+      await listsCollection.utils.writeUpdate(updated);
     } catch (error) {
-      if (previous) listsCollection.utils.writeUpdate(previous);
+      if (previous) await listsCollection.utils.writeUpdate(previous);
       throw error;
     }
   });
@@ -234,7 +231,7 @@ export async function removeListingFromList(args: {
   await runWithDashboardRefreshLock(async () => {
     const previous = listsCollection.get(args.listId);
     const prevListings = previous?.listings ?? [];
-    listsCollection.utils.writeUpdate({
+    await listsCollection.utils.writeUpdate({
       id: args.listId,
       listings: prevListings.filter((x) => x.id !== args.listingId),
     });
@@ -244,9 +241,9 @@ export async function removeListingFromList(args: {
         await getTrpcClient().dashboardDb.list.removeListingFromList.mutate(
           args,
         );
-      listsCollection.utils.writeUpdate(updated);
+      await listsCollection.utils.writeUpdate(updated);
     } catch (error) {
-      if (previous) listsCollection.utils.writeUpdate(previous);
+      if (previous) await listsCollection.utils.writeUpdate(previous);
       throw error;
     }
   });
@@ -260,7 +257,7 @@ export async function removeListingsFromList(args: {
     const previous = listsCollection.get(args.listId);
     if (previous) {
       const removed = new Set(args.listingIds);
-      listsCollection.utils.writeUpdate({
+      await listsCollection.utils.writeUpdate({
         id: args.listId,
         listings: previous.listings.filter((item) => !removed.has(item.id)),
       });
@@ -270,9 +267,9 @@ export async function removeListingsFromList(args: {
         await getTrpcClient().dashboardDb.list.removeListingsFromList.mutate(
           args,
         );
-      listsCollection.utils.writeUpdate(updated);
+      await listsCollection.utils.writeUpdate(updated);
     } catch (error) {
-      if (previous) listsCollection.utils.writeUpdate(previous);
+      if (previous) await listsCollection.utils.writeUpdate(previous);
       throw error;
     }
   });

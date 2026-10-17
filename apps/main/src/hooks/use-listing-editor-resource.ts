@@ -31,34 +31,36 @@ export interface ListingEditorResource {
 export function useListingEditorResource(
   listingId: string,
 ): ListingEditorResource {
-  const { data: listings = [], isReady: isListingReady } = useLiveQuery(
-    (q) =>
+  const { data: listings = [], isReady: isListingReady } = useLiveQuery({
+    query: (q) =>
       q
         .from({ listing: listingsCollection })
         .where(({ listing }) => eq(listing.id, listingId)),
-    [listingId],
-  );
+  });
   const listing = listings[0] ?? null;
 
   const { data: cultivarReferences = [], isReady: isCultivarReferencesReady } =
-    useLiveQuery((q) =>
-      q
-        .from({ ref: cultivarReferencesCollection })
-        .orderBy(({ ref }) => ref.updatedAt, "asc"),
-    );
+    useLiveQuery({
+      query: (q) =>
+        q
+          .from({ ref: cultivarReferencesCollection })
+          .orderBy(({ ref }) => ref.updatedAt, "asc"),
+    });
 
-  const { data: images = [], isReady: isImagesReady } = useLiveQuery(
-    (q) =>
+  const { data: images = [], isReady: isImagesReady } = useLiveQuery({
+    query: (q) =>
       q
         .from({ img: imagesCollection })
         .where(({ img }) => eq(img.listingId, listingId))
         .orderBy(({ img }) => img.order, "asc"),
-    [listingId],
-  );
+  });
 
-  const { data: lists = [], isReady: isListsReady } = useLiveQuery((q) =>
-    q.from({ list: listsCollection }).orderBy(({ list }) => list.title, "asc"),
-  );
+  const { data: lists = [], isReady: isListsReady } = useLiveQuery({
+    query: (q) =>
+      q
+        .from({ list: listsCollection })
+        .orderBy(({ list }) => list.title, "asc"),
+  });
 
   const selectedListIds = lists
     .filter((list) => list.listings.some(({ id }) => id === listingId))

@@ -16,7 +16,6 @@ export interface UseListResourceResult {
 export function useListResource(listId: string): UseListResourceResult {
   const { data: lists = [], isReady } =
     useSeededDashboardDbQuery<ListCollectionItem>({
-      deps: [listId],
       query: (q) =>
         q
           .from({ list: listsCollection })

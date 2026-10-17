@@ -10,6 +10,27 @@ import { validateIntegrationRuntime } from "./scripts/integration-network-guard.
 
 const appDir = path.dirname(fileURLToPath(import.meta.url));
 const integrationMode = process.env.INTEGRATION_MODE === "1";
+const tanstackDashboard = process.env.DASHBOARD_DATA_LAYER === "tanstack";
+const dashboardAliases = tanstackDashboard
+  ? {
+      ...Object.fromEntries(
+        [
+          "listings-collection",
+          "lists-collection",
+          "images-collection",
+          "cultivar-references-collection",
+          "dashboard-db-persistence",
+        ].map((name) => [
+          `@/app/dashboard/_lib/dashboard-db/${name}`,
+          "./src/app/dashboard/_lib/dashboard-db-tanstack/collections.ts",
+        ]),
+      ),
+      "@/app/dashboard/_components/dashboard-db-provider":
+        "./src/app/dashboard/_lib/dashboard-db-tanstack/provider.tsx",
+      "@/app/dashboard/_lib/dashboard-db/use-seeded-dashboard-db-query":
+        "./src/app/dashboard/_lib/dashboard-db-tanstack/use-query.ts",
+    }
+  : {};
 
 if (integrationMode) {
   validateIntegrationRuntime({
@@ -47,13 +68,30 @@ const config = {
     position: "bottom-right",
   },
 
-  ...(integrationMode
-    ? {
-        turbopack: {
-          resolveAlias: {
+  turbopack: {
+    resolveAlias: {
+      ...dashboardAliases,
+      ...(integrationMode
+        ? {
             "@clerk/nextjs": "./tests/integration/clerk-client.tsx",
             "@clerk/nextjs/server": "./tests/integration/clerk-server.ts",
-          },
+          }
+        : {}),
+    },
+  },
+  ...(tanstackDashboard
+    ? {
+        webpack(config) {
+          Object.assign(
+            config.resolve.alias,
+            Object.fromEntries(
+              Object.entries(dashboardAliases).map(([name, target]) => [
+                name + "$",
+                path.resolve(appDir, target),
+              ]),
+            ),
+          );
+          return config;
         },
       }
     : {}),

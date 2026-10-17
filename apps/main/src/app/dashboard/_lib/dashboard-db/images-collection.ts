@@ -71,9 +71,9 @@ export async function loadImageFromPrimary(args: {
   await runWithDashboardRefreshLock(async () => {
     const image = await getTrpcClient().dashboardDb.image.get.query(args);
     if (imagesCollection.get(image.id)) {
-      imagesCollection.utils.writeUpdate(image);
+      await imagesCollection.utils.writeUpdate(image);
     } else {
-      imagesCollection.utils.writeInsert(image);
+      await imagesCollection.utils.writeInsert(image);
     }
   });
 }
@@ -183,7 +183,7 @@ export async function createImage(draft: CreateDraft) {
       status: null,
     };
 
-    imagesCollection.utils.writeInsert(temp);
+    await imagesCollection.utils.writeInsert(temp);
 
     try {
       const created =
@@ -191,15 +191,15 @@ export async function createImage(draft: CreateDraft) {
       const tempExists = !!imagesCollection.get(temp.id);
       const realExists = !!imagesCollection.get(created.id);
 
-      imagesCollection.utils.writeBatch(() => {
-        if (tempExists) imagesCollection.utils.writeDelete(temp.id);
-        if (!realExists) imagesCollection.utils.writeInsert(created);
+      await imagesCollection.utils.writeBatch(() => {
+        if (tempExists) void imagesCollection.utils.writeDelete(temp.id);
+        if (!realExists) void imagesCollection.utils.writeInsert(created);
       });
 
       return created;
     } catch (error) {
       try {
-        imagesCollection.utils.writeDelete(temp.id);
+        await imagesCollection.utils.writeDelete(temp.id);
       } catch {
         // ignore rollback errors
       }
@@ -217,18 +217,18 @@ export async function reorderImages(draft: ReorderDraft) {
       if (row) previous.push({ id: row.id, order: row.order });
     });
 
-    imagesCollection.utils.writeBatch(() => {
+    await imagesCollection.utils.writeBatch(() => {
       draft.images.forEach((img) => {
-        imagesCollection.utils.writeUpdate({ id: img.id, order: img.order });
+        void imagesCollection.utils.writeUpdate({ id: img.id, order: img.order });
       });
     });
 
     try {
       await getTrpcClient().dashboardDb.image.reorder.mutate(draft);
     } catch (error) {
-      imagesCollection.utils.writeBatch(() => {
+      await imagesCollection.utils.writeBatch(() => {
         previous.forEach((img) => {
-          imagesCollection.utils.writeUpdate({ id: img.id, order: img.order });
+          void imagesCollection.utils.writeUpdate({ id: img.id, order: img.order });
         });
       });
       throw error;
@@ -257,23 +257,23 @@ export async function deleteImage(draft: DeleteDraft) {
       .sort((a, b) => a.order - b.order)
       .map((i) => ({ id: i.id, order: i.order }));
 
-    imagesCollection.utils.writeDelete(draft.imageId);
+    await imagesCollection.utils.writeDelete(draft.imageId);
 
     const remaining = before.filter((i) => i.id !== draft.imageId);
-    imagesCollection.utils.writeBatch(() => {
+    await imagesCollection.utils.writeBatch(() => {
       remaining.forEach((img, index) => {
-        imagesCollection.utils.writeUpdate({ id: img.id, order: index });
+        void imagesCollection.utils.writeUpdate({ id: img.id, order: index });
       });
     });
 
     try {
       await getTrpcClient().dashboardDb.image.delete.mutate(draft);
     } catch (error) {
-      if (previous) imagesCollection.utils.writeInsert(previous);
+      if (previous) await imagesCollection.utils.writeInsert(previous);
       DELETED_IDS.delete(draft.imageId);
-      imagesCollection.utils.writeBatch(() => {
+      await imagesCollection.utils.writeBatch(() => {
         before.forEach((img) => {
-          imagesCollection.utils.writeUpdate({ id: img.id, order: img.order });
+          void imagesCollection.utils.writeUpdate({ id: img.id, order: img.order });
         });
       });
       throw error;

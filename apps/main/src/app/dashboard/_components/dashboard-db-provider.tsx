@@ -189,11 +189,11 @@ function useDashboardDbProviderState() {
 
     // Editors hide the table and release its subscriptions. Keep the session data active.
     const subscriptions = [
-      listingsCollection,
-      listsCollection,
-      imagesCollection,
-      cultivarReferencesCollection,
-    ].map((collection) => collection.subscribeChanges(() => undefined));
+      listingsCollection.subscribeChanges(() => undefined),
+      listsCollection.subscribeChanges(() => undefined),
+      imagesCollection.subscribeChanges(() => undefined),
+      cultivarReferencesCollection.subscribeChanges(() => undefined),
+    ];
 
     return () => {
       subscriptions.forEach((subscription) => subscription.unsubscribe());

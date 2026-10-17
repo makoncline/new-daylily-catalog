@@ -42,6 +42,10 @@ export function DashboardRefreshButton() {
       }
 
       toast.success("Dashboard refreshed");
+    } catch {
+      toast.error("Could not refresh your dashboard.", {
+        id: "dashboard-refresh-error",
+      });
     } finally {
       setIsManualRefresh(false);
     }

@@ -50,12 +50,15 @@ jobs:
         run: pnpm main exec vitest run --shard=${{ matrix.shard }}/2
 
   full-app-integration:
-    name: Full-app integration tests (shard ${{ matrix.shard }}/3)
+    name: Full-app integration tests (${{ matrix.data-layer }}, shard ${{ matrix.shard }}/3)
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         shard: [1, 2, 3]
+        data-layer: [current, tanstack]
+    env:
+      DASHBOARD_DATA_LAYER: ${{ matrix.data-layer }}
     steps:
       - name: Enable corepack
         run: corepack enable
@@ -84,7 +87,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: full-app-integration-artifacts-${{ matrix.shard }}-of-3
+          name: full-app-integration-artifacts-${{ matrix.data-layer }}-${{ matrix.shard }}-of-3
           path: |
             apps/main/tests/.tmp/integration-results
             apps/main/tests/.tmp/integration-server.log

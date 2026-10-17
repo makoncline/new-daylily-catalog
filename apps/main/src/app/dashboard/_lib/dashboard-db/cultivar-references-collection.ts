@@ -144,12 +144,12 @@ export async function ensureCultivarReferencesCached(ids: string[]) {
     });
 
   if (rows.length) {
-    cultivarReferencesCollection.utils.writeBatch(() => {
+    await cultivarReferencesCollection.utils.writeBatch(() => {
       rows.forEach((row) => {
         if (cultivarReferencesCollection.get(row.id)) {
-          cultivarReferencesCollection.utils.writeUpdate(row);
+          void cultivarReferencesCollection.utils.writeUpdate(row);
         } else {
-          cultivarReferencesCollection.utils.writeInsert(row);
+          void cultivarReferencesCollection.utils.writeInsert(row);
         }
       });
     });

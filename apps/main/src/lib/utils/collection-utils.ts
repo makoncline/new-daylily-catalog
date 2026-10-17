@@ -3,9 +3,9 @@ type Id = string;
 export type MinimalCollection<R extends { id: string }> = {
   get: (id: Id) => { id: Id } | undefined;
   utils: {
-    writeInsert: (data: R | R[]) => void;
-    writeDelete: (keyOrPredicate: Id | Id[]) => void;
-    writeBatch: (fn: () => void) => void;
+    writeInsert: (data: R | R[]) => Promise<void>;
+    writeDelete: (keyOrPredicate: Id | Id[]) => Promise<void>;
+    writeBatch: (fn: () => void) => Promise<void>;
   };
 };
 
@@ -25,7 +25,7 @@ export function makeInsertWithSwap<D, R extends { id: string }>(args: {
 
   return async (draft: D) => {
     const temp = makeTemp(draft);
-    collection.utils.writeInsert(temp);
+    await collection.utils.writeInsert(temp);
 
     try {
       const created = await serverInsert(draft);
@@ -33,15 +33,15 @@ export function makeInsertWithSwap<D, R extends { id: string }>(args: {
       const tempStillPresent = !!collection.get(temp.id);
       const realAlreadyPresent = !!collection.get(created.id);
 
-      collection.utils.writeBatch(() => {
-        if (tempStillPresent) collection.utils.writeDelete(temp.id);
-        if (!realAlreadyPresent) collection.utils.writeInsert(created);
+      await collection.utils.writeBatch(() => {
+        if (tempStillPresent) void collection.utils.writeDelete(temp.id);
+        if (!realAlreadyPresent) void collection.utils.writeInsert(created);
       });
 
       return created;
     } catch (error) {
       try {
-        collection.utils.writeDelete(temp.id);
+        await collection.utils.writeDelete(temp.id);
       } catch {
         // ignore rollback errors
       }

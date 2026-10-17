@@ -2,7 +2,7 @@
 
 import { AuthHandler } from "@/components/auth-handler";
 import { type ReactNode, useEffect } from "react";
-import { DashboardDbProvider } from "./dashboard-db-provider";
+import { DashboardDbProvider } from "@/app/dashboard/_components/dashboard-db-provider";
 import { logDashboardTiming } from "@/app/dashboard/_lib/dashboard-timing";
 import { DashboardSubscriptionRefreshHandler } from "@/app/dashboard/_components/dashboard-subscription-refresh-handler";
 
