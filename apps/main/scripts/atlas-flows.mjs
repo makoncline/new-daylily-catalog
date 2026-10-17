@@ -101,11 +101,26 @@ export const ATLAS_FLOWS = [
           label: "Public catalog section links",
           path: "src/app/(public)/[userSlugOrId]/_components/catalog-nav.tsx",
         },
+        {
+          label: "Social image rendering",
+          path: "src/app/api/og/[kind]/[id]/route.tsx",
+        },
+        {
+          label: "Social image font and emoji assets",
+          path: "src/server/social-card-assets.ts",
+        },
+        {
+          label: "Production social image smoke test",
+          path: "scripts/smoke-social-images-local.mjs",
+          command:
+            "pnpm main exec node scripts/smoke-social-images-local.mjs <image>",
+        },
       ],
       invariants: [
         "Read public data through the replica and apply published-listing filters.",
         "Keep profile data and listing cards in the first HTML response.",
         "Link profile counts to their sections. Both Lists links must return to the first catalog page, where list summaries are available.",
+        "Keep public page navigation responsive during social image generation. Check the built container with a warm Next image optimizer.",
       ],
     },
     tests: {
