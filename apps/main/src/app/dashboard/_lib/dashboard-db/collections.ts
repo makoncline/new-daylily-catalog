@@ -46,7 +46,6 @@ function createSession(userId: string) {
       queries: {
         staleTime: 60_000,
         gcTime: Infinity,
-        retry: false,
       },
     },
   });
@@ -426,11 +425,8 @@ export function deleteImage(draft: Input["image"]["delete"]) {
   );
 }
 
-export async function refreshDashboardDbFromServer(userId: string) {
+export async function refreshDashboardCatalog(userId: string) {
   if (session.userId !== userId) return false;
   await session.refresh();
   return true;
-}
-export async function revalidateDashboardDbInBackground(userId: string) {
-  await refreshDashboardDbFromServer(userId);
 }

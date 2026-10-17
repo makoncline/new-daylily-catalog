@@ -24,7 +24,7 @@ import {
   reportError,
 } from "@/lib/error-utils";
 import { APP_CONFIG } from "@/config/constants";
-import { insertListing } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
+import { insertListing } from "@/app/dashboard/_lib/dashboard-db/collections";
 import { Spinner } from "@/components/ui/spinner";
 import { ArrowLeft } from "lucide-react";
 import { PageHeader } from "@/components/page-header";

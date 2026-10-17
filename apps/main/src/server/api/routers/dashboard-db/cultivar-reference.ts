@@ -1,25 +1,20 @@
 import { z } from "zod";
-import { Prisma } from "@prisma/client";
+import { Prisma, type PrismaClient } from "@prisma/client";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { publicDb } from "@/server/db";
-import type { PrismaClient } from "@prisma/client";
+
 import {
   mapV2AhsCultivarToDisplayAhsListing,
   v2AhsCultivarDisplaySelect,
+  type AhsDisplayListing,
+  type V2AhsCultivarDisplaySource,
 } from "@/lib/utils/ahs-display";
-import type {
-  AhsDisplayListing,
-  V2AhsCultivarDisplaySource,
-} from "@/lib/utils/ahs-display";
+
 import {
   type CultivarReferenceImageView,
   resolveCultivarReferenceImage,
 } from "@/server/services/cultivar-reference-image-read-model";
 import { imageAssetUrlSelect } from "@/server/services/image-asset-read-model";
-import {
-  dashboardSyncInputSchema,
-  parseDashboardSyncSince,
-} from "./dashboard-db-router-helpers";
 
 const v2CultivarReferenceSelect = {
   id: true,
@@ -187,10 +182,7 @@ export async function getCultivarReferencesByIdsRaw(
     ORDER BY cr."id"
   `);
 
-  return addCultivarReferenceImages(
-    db,
-    rows.map(mapRawV2CultivarReferenceRow),
-  );
+  return addCultivarReferenceImages(db, rows.map(mapRawV2CultivarReferenceRow));
 }
 
 async function getCultivarReferenceImageAssets(
@@ -233,10 +225,11 @@ async function addCultivarReferenceImages(
   db: PrismaClient,
   rows: Array<Omit<DashboardCultivarReference, "cultivarReferenceImage">>,
 ): Promise<DashboardCultivarReference[]> {
-  const imageAssetsByCultivarReferenceId = await getCultivarReferenceImageAssets(
-    db,
-    rows.map((row) => row.id),
-  );
+  const imageAssetsByCultivarReferenceId =
+    await getCultivarReferenceImageAssets(
+      db,
+      rows.map((row) => row.id),
+    );
 
   return rows.map((row) => {
     const imageAsset = imageAssetsByCultivarReferenceId.get(row.id);
@@ -252,117 +245,13 @@ async function addCultivarReferenceImages(
   });
 }
 
-async function getCultivarReferencesForUserListings(
-  userId: string,
-  db: PrismaClient,
-  options: {
-    since?: Date;
-    direction: "asc" | "desc";
-    cursor?: {
-      id: string;
-    };
-    limit?: number;
-  },
-) {
-  const orderDirection =
-    options.direction === "asc" ? Prisma.sql`ASC` : Prisma.sql`DESC`;
-  const ownerWhere = Prisma.sql`
-    cr."id" IN (
-      SELECT l."cultivarReferenceId"
-      FROM "Listing" l
-      WHERE l."userId" = ${userId}
-        AND l."cultivarReferenceId" IS NOT NULL
-    )
-  `;
-  const cursorWhere = options.cursor
-    ? Prisma.sql`AND cr."id" > ${options.cursor.id}`
-    : Prisma.empty;
-  const sinceWhere = options.since
-    ? Prisma.sql`AND cr."updatedAt" >= ${options.since}`
-    : Prisma.empty;
-  const limitClause = options.limit
-    ? Prisma.sql`LIMIT ${options.limit}`
-    : Prisma.empty;
-
-  const rows = await db.$queryRaw<RawV2CultivarReferenceRow[]>(Prisma.sql`
-    SELECT
-      cr."id",
-      cr."normalizedName",
-      cr."updatedAt",
-      v2."id" AS "v2_id",
-      v2."post_title" AS "v2_post_title",
-      v2."introduction_date" AS "v2_introduction_date",
-      v2."primary_hybridizer_name" AS "v2_primary_hybridizer_name",
-      v2."hybridizer_code_legacy" AS "v2_hybridizer_code_legacy",
-      v2."additional_hybridizers_names" AS "v2_additional_hybridizers_names",
-      v2."bloom_season_names" AS "v2_bloom_season_names",
-      v2."fragrance_names" AS "v2_fragrance_names",
-      v2."bloom_habit_names" AS "v2_bloom_habit_names",
-      v2."foliage_names" AS "v2_foliage_names",
-      v2."ploidy_names" AS "v2_ploidy_names",
-      v2."scape_height_in" AS "v2_scape_height_in",
-      v2."bloom_size_in" AS "v2_bloom_size_in",
-      v2."bud_count" AS "v2_bud_count",
-      v2."branches" AS "v2_branches",
-      v2."color" AS "v2_color",
-      v2."flower_form_names" AS "v2_flower_form_names",
-      v2."unusual_forms_names" AS "v2_unusual_forms_names",
-      v2."sculpted_type_names" AS "v2_sculpted_type_names",
-      v2."parentage" AS "v2_parentage",
-      v2."image_url" AS "v2_image_url"
-    FROM "CultivarReference" cr
-    LEFT JOIN "V2AhsCultivar" v2 ON v2."id" = cr."v2AhsCultivarId"
-    WHERE ${ownerWhere}
-      ${sinceWhere}
-      ${cursorWhere}
-    ORDER BY cr."id" ${orderDirection}
-    ${limitClause}
-  `);
-
-  return addCultivarReferenceImages(
-    db,
-    rows.map(mapRawV2CultivarReferenceRow),
-  );
-}
-
 export const dashboardDbCultivarReferenceRouter = createTRPCRouter({
-  listForUserListings: protectedProcedure.query(async ({ ctx }) => {
-    const rows = await getCultivarReferencesForUserListings(
-      ctx.user.id,
-      ctx.db,
-      { direction: "desc" },
-    );
-
-    return rows;
-  }),
-
-  sync: protectedProcedure
-    .input(dashboardSyncInputSchema)
-    .query(async ({ ctx, input }) => {
-      const since = parseDashboardSyncSince(input.since);
-      const rows = await getCultivarReferencesForUserListings(
-        ctx.user.id,
-        ctx.db,
-        {
-          since,
-          direction: "asc",
-          cursor: input.cursor
-            ? {
-                id: input.cursor.id,
-              }
-            : undefined,
-          limit: input.limit,
-        },
-      );
-
-      return rows;
-    }),
-
   getByIds: protectedProcedure
     .input(z.object({ ids: z.array(z.string().trim().min(1)).min(1).max(200) }))
     .query(async ({ ctx, input }) => {
       const unique = Array.from(new Set(input.ids));
-      const readDb = ctx.hasReplicaDb && ctx.replicaDb ? ctx.replicaDb : publicDb;
+      const readDb =
+        ctx.hasReplicaDb && ctx.replicaDb ? ctx.replicaDb : publicDb;
       const rows = await readDb.cultivarReference.findMany({
         where: { id: { in: unique } },
         select: v2CultivarReferenceSelect,
@@ -372,27 +261,5 @@ export const dashboardDbCultivarReferenceRouter = createTRPCRouter({
         readDb,
         rows.map(mapV2CultivarReferenceRow),
       );
-    }),
-
-  getByIdsBatch: protectedProcedure
-    .input(z.object({ ids: z.array(z.string().trim().min(1)).min(1).max(500) }))
-    .mutation(async ({ ctx, input }) => {
-      const unique = Array.from(new Set(input.ids));
-      const readDb = ctx.hasReplicaDb && ctx.replicaDb ? ctx.replicaDb : publicDb;
-      const rows = await getCultivarReferencesByIdsRaw(readDb, unique);
-
-      return rows;
-    }),
-
-  getByIdsBatchReplica: protectedProcedure
-    .input(z.object({ ids: z.array(z.string().trim().min(1)).min(1).max(500) }))
-    .mutation(async ({ ctx, input }) => {
-      const unique = Array.from(new Set(input.ids));
-      const rows = await getCultivarReferencesByIdsRaw(
-        ctx.hasReplicaDb && ctx.replicaDb ? ctx.replicaDb : publicDb,
-        unique,
-      );
-
-      return rows;
     }),
 });

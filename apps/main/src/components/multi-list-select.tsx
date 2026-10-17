@@ -27,7 +27,7 @@ import { useLiveQuery } from "@tanstack/react-db";
 import {
   insertList,
   listsCollection,
-} from "@/app/dashboard/_lib/dashboard-db/lists-collection";
+} from "@/app/dashboard/_lib/dashboard-db/collections";
 import { toast } from "sonner";
 
 interface MultiListSelectProps {

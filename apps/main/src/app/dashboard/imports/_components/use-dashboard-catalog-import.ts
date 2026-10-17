@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useCatalogImporterSession } from "@/hooks/use-catalog-importer-session";
 import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
-import { refreshDashboardDbFromServer } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence";
+import { refreshDashboardCatalog } from "@/app/dashboard/_lib/dashboard-db/collections";
 import {
   getCatalogImportRowDisposition,
   prepareCatalogImportListing,
@@ -219,7 +219,7 @@ export function useDashboardCatalogImport(
     setRefreshWarning(false);
     try {
       if (dashboardUserId) {
-        const applied = await refreshDashboardDbFromServer(dashboardUserId);
+        const applied = await refreshDashboardCatalog(dashboardUserId);
         setRefreshWarning(!applied);
       }
     } catch {

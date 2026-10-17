@@ -181,9 +181,7 @@ for (const [device, viewport] of [
 
     const observedResponses = responses.slice();
     for (const procedure of [
-      process.env.DASHBOARD_DATA_LAYER === "tanstack"
-        ? "dashboardDb.bootstrap.catalog"
-        : "dashboardDb.bootstrap.roots",
+      "dashboardDb.bootstrap.catalog",
       "dashboardDb.list.create",
     ]) {
       const response = observedResponses.find((response) =>
@@ -382,7 +380,7 @@ test("failed member lookups retain isolated authenticated request identities", a
         await Promise.all(
           requests.map(async (item) => {
             const response = await request.get(
-              "/api/trpc/dashboardDb.bootstrap.roots",
+              "/api/trpc/dashboardDb.bootstrap.catalog",
               {
                 headers: {
                   cookie: item.cookie,

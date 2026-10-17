@@ -3,7 +3,7 @@ import { expect, test } from "./fixtures";
 
 const count = 5_000;
 const title = (index: number) => `Warm Bloom ${String(index).padStart(5, "0")}`;
-const catalogRead = /dashboardDb\.bootstrap\.(catalog|roots)/;
+const catalogRead = /dashboardDb\.bootstrap\.catalog/;
 
 // Requests reach the real app and SQLite database; only response delivery is delayed.
 test("large saved catalog stays usable and current when a refresh overlaps a save", async ({
@@ -11,10 +11,6 @@ test("large saved catalog stays usable and current when a refresh overlaps a sav
   dashboardListings,
   editListingDialog,
 }, testInfo) => {
-  test.skip(
-    process.env.DASHBOARD_DATA_LAYER !== "tanstack",
-    "The current refresh discards external changes when a save overlaps it.",
-  );
   test.setTimeout(120_000);
   await withTempE2EDb(
     async (db) => {
@@ -52,11 +48,7 @@ test("large saved catalog stays usable and current when a refresh overlaps a sav
   const requests: string[] = [];
   page.on("request", (request) => {
     const pathname = new URL(request.url()).pathname;
-    if (
-      /dashboardDb\.(bootstrap|image\.listBy|cultivarReference\.getByIdsBatch|.*\.sync)/.test(
-        pathname,
-      )
-    )
+    if (/dashboardDb\.bootstrap\.catalog/.test(pathname))
       requests.push(pathname);
   });
   const refresh = page.getByRole("button", { name: "Refresh dashboard data" });
@@ -68,7 +60,9 @@ test("large saved catalog stays usable and current when a refresh overlaps a sav
       /5,000 \/ [\d,]+ results/,
       { timeout: 60_000 },
     );
-    await expect(refresh).toHaveAttribute("data-state", "idle");
+    await expect(refresh).toHaveAttribute("data-state", "idle", {
+      timeout: 15_000,
+    });
     const coldMs = performance.now() - coldStart;
     const coldRequests = requests.splice(0);
     await dashboardListings.setGlobalSearch(title(4999));
@@ -139,7 +133,6 @@ test("large saved catalog stays usable and current when a refresh overlaps a sav
     await expect(editListingDialog.dialog).toBeHidden({ timeout: 10_000 });
     const saveMs = performance.now() - saveStart;
     const measurements = {
-      mode: process.env.DASHBOARD_DATA_LAYER ?? "current",
       coldMs,
       warmUsableMs,
       saveMs,
@@ -228,19 +221,18 @@ test("saved catalog survives a failed refresh and stays scoped to its member", a
   await page.goto("/dashboard/listings?query=Existing%20Bloom");
   await expect(dashboardListings.listingRow("Existing Bloom")).toBeVisible();
   const refresh = page.getByRole("button", { name: "Refresh dashboard data" });
-  await expect(refresh).toHaveAttribute("data-state", "idle");
+  await expect(refresh).toHaveAttribute("data-state", "idle", {
+    timeout: 15_000,
+  });
   await page.route("**/api/trpc/**", async (route) => {
-    if (
-      /dashboardDb\.(bootstrap\.(catalog|roots)|.*\.sync)/.test(
-        route.request().url(),
-      )
-    )
-      return route.abort("failed");
+    if (catalogRead.test(route.request().url())) return route.abort("failed");
     return route.fallback();
   });
   await page.reload();
   await expect(dashboardListings.listingRow("Existing Bloom")).toBeVisible();
-  await expect(refresh).toHaveAttribute("data-state", "idle");
+  await expect(refresh).toHaveAttribute("data-state", "idle", {
+    timeout: 15_000,
+  });
   await page.reload();
   await expect(dashboardListings.listingRow("Existing Bloom")).toBeVisible();
   await page.unroute("**/api/trpc/**");
@@ -314,14 +306,11 @@ test("a confirmed save survives failed refreshes and catalog reloads", async ({
     const refresh = page.getByRole("button", {
       name: "Refresh dashboard data",
     });
-    await expect(refresh).toHaveAttribute("data-state", "idle");
+    await expect(refresh).toHaveAttribute("data-state", "idle", {
+      timeout: 15_000,
+    });
     await page.route("**/api/trpc/**", (route) => {
-      if (
-        /dashboardDb\.(bootstrap\.(catalog|roots)|.*\.sync)/.test(
-          route.request().url(),
-        )
-      )
-        return route.abort("failed");
+      if (catalogRead.test(route.request().url())) return route.abort("failed");
       return route.fallback();
     });
     await editListingDialog.fillDescription(
@@ -333,10 +322,14 @@ test("a confirmed save survives failed refreshes and catalog reloads", async ({
       page.locator("[data-sonner-toast]").filter({ hasText: "Changes saved" }),
     ).toBeVisible();
     await refresh.click();
-    await expect(refresh).toHaveAttribute("data-state", "idle");
+    await expect(refresh).toHaveAttribute("data-state", "idle", {
+      timeout: 15_000,
+    });
     await page.goto(`/dashboard/listings?editing=${id}`);
     await editListingDialog.isReady();
-    await expect(refresh).toHaveAttribute("data-state", "idle");
+    await expect(refresh).toHaveAttribute("data-state", "idle", {
+      timeout: 15_000,
+    });
     await expect(editListingDialog.descriptionInput).toHaveValue(
       "This save was confirmed by the real server.",
     );

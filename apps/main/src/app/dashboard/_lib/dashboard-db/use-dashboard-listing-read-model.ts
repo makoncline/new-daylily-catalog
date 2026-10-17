@@ -1,26 +1,24 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 import type { RouterOutputs } from "@/trpc/react";
-import { listingsCollection } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
-import { listsCollection } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
 import {
+  listingsCollection,
+  listsCollection,
   imagesCollection,
   type ImageCollectionItem,
-} from "@/app/dashboard/_lib/dashboard-db/images-collection";
-import { cultivarReferencesCollection } from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
-import { DASHBOARD_DB_QUERY_KEYS } from "./dashboard-db-keys";
-import { useSeededDashboardDbQuery } from "@/app/dashboard/_lib/dashboard-db/use-seeded-dashboard-db-query";
+  cultivarReferencesCollection,
+} from "@/app/dashboard/_lib/dashboard-db/collections";
+
+import { useLiveSuspenseQuery } from "@tanstack/react-db";
 import type { ListingData } from "@/app/dashboard/listings/_components/columns";
-import { logDashboardTiming } from "@/app/dashboard/_lib/dashboard-timing";
 
 type List = RouterOutputs["dashboardDb"]["list"]["list"][number];
 type Listing = RouterOutputs["dashboardDb"]["listing"]["list"][number];
 type CultivarReference =
-  RouterOutputs["dashboardDb"]["cultivarReference"]["listForUserListings"][number];
+  RouterOutputs["dashboardDb"]["bootstrap"]["catalog"]["cultivarReferences"][number];
 
 export interface DashboardListingReadModel {
-  isReady: boolean;
   images: ImageCollectionItem[];
   lists: List[];
   listingRows: ListingData[];
@@ -92,38 +90,29 @@ function buildListingRows({
 }
 
 export function useDashboardListingReadModel(): DashboardListingReadModel {
-  const firstRowsLoggedRef = useRef(false);
-  const listingsQuery = useSeededDashboardDbQuery<Listing>({
-    debugLabel: "dashboard.listings",
+  const listingsQuery = useLiveSuspenseQuery({
     query: (q) =>
       q
         .from({ listing: listingsCollection })
         .orderBy(({ listing }) => listing.createdAt, "desc"),
-    queryKey: DASHBOARD_DB_QUERY_KEYS.listings,
   });
-  const listsQuery = useSeededDashboardDbQuery<List>({
-    debugLabel: "dashboard.lists",
+  const listsQuery = useLiveSuspenseQuery({
     query: (q) =>
       q
         .from({ list: listsCollection })
         .orderBy(({ list }) => list.createdAt, "desc"),
-    queryKey: DASHBOARD_DB_QUERY_KEYS.lists,
   });
-  const imagesQuery = useSeededDashboardDbQuery<ImageCollectionItem>({
-    debugLabel: "dashboard.images",
+  const imagesQuery = useLiveSuspenseQuery({
     query: (q) =>
       q
         .from({ img: imagesCollection })
         .orderBy(({ img }) => img.updatedAt, "asc"),
-    queryKey: DASHBOARD_DB_QUERY_KEYS.images,
   });
-  const cultivarReferencesQuery = useSeededDashboardDbQuery<CultivarReference>({
-    debugLabel: "dashboard.cultivarReferences",
+  const cultivarReferencesQuery = useLiveSuspenseQuery({
     query: (q) =>
       q
         .from({ ref: cultivarReferencesCollection })
         .orderBy(({ ref }) => ref.updatedAt, "asc"),
-    queryKey: DASHBOARD_DB_QUERY_KEYS.cultivarReferences,
   });
   const { data: listings = [] } = listingsQuery;
   const { data: lists = [] } = listsQuery;
@@ -154,35 +143,7 @@ export function useDashboardListingReadModel(): DashboardListingReadModel {
     [listingRows],
   );
 
-  useEffect(() => {
-    if (firstRowsLoggedRef.current || listingRows.length === 0) return;
-
-    firstRowsLoggedRef.current = true;
-    logDashboardTiming("listing-read-model.first-rows", {
-      listings: listings.length,
-      lists: lists.length,
-      images: images.length,
-      cultivarReferences: cultivarReferences.length,
-      listingRows: listingRows.length,
-      listingsReady: listingsQuery.isReady,
-      listsReady: listsQuery.isReady,
-      imagesReady: imagesQuery.isReady,
-      cultivarReferencesReady: cultivarReferencesQuery.isReady,
-    });
-  }, [
-    cultivarReferences.length,
-    cultivarReferencesQuery.isReady,
-    images.length,
-    imagesQuery.isReady,
-    listingRows.length,
-    listings.length,
-    listingsQuery.isReady,
-    lists.length,
-    listsQuery.isReady,
-  ]);
-
   return {
-    isReady: listingsQuery.isReady,
     images,
     lists,
     listingRows,

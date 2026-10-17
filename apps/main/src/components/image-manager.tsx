@@ -38,7 +38,7 @@ import {
   loadImageFromPrimary,
   type ImageCollectionItem,
   reorderImages,
-} from "@/app/dashboard/_lib/dashboard-db/images-collection";
+} from "@/app/dashboard/_lib/dashboard-db/collections";
 
 interface ImageManagerProps {
   images: ImageCollectionItem[];

@@ -16,26 +16,6 @@ import {
 } from "@/lib/telemetry";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 
-const UNBATCHED_DASHBOARD_PATHS = new Set([
-  "dashboardDb.bootstrap.roots",
-  "dashboardDb.bootstrap.replicaRoots",
-  "dashboardDb.listing.sync",
-  "dashboardDb.list.sync",
-  "dashboardDb.image.sync",
-  "dashboardDb.image.listByListingIds",
-  "dashboardDb.image.listByListingIdsReplica",
-  "dashboardDb.cultivarReference.sync",
-  "dashboardDb.cultivarReference.getByIdsBatch",
-  "dashboardDb.cultivarReference.getByIdsBatchReplica",
-]);
-
-export function shouldUnbatchDashboardOperation(op: {
-  type: string;
-  path: string;
-}) {
-  return UNBATCHED_DASHBOARD_PATHS.has(op.path);
-}
-
 export function createClientLinks() {
   const url = getBaseUrl() + "/api/trpc";
   const headers = () => {
@@ -79,7 +59,7 @@ export function createClientLinks() {
         (op.direction === "down" && op.result instanceof Error),
     }),
     splitLink({
-      condition: shouldUnbatchDashboardOperation,
+      condition: (op) => op.path === "dashboardDb.bootstrap.catalog",
       true: httpLink({
         fetch: correlatedFetch,
         transformer: SuperJSON,

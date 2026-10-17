@@ -262,13 +262,6 @@ async function resolveAuthenticatedUser(requestClerkUserId?: string | null) {
   return getOrCreateUser(clerkUserId);
 }
 
-const READ_ONLY_MUTATION_PATHS = new Set([
-  "dashboardDb.cultivarReference.getByIdsBatch",
-  "dashboardDb.cultivarReference.getByIdsBatchReplica",
-  "dashboardDb.image.listByListingIds",
-  "dashboardDb.image.listByListingIdsReplica",
-]);
-
 const REDACTED_MUTATION_PATHS = new Set(["dashboardDb.listing.importRows"]);
 
 function getMutationAuditInput(path: string, input: unknown) {
@@ -301,8 +294,7 @@ const isAuthenticated = t.middleware(async (opts) => {
     });
   }
 
-  const shouldAuditMutation =
-    opts.type === "mutation" && !READ_ONLY_MUTATION_PATHS.has(opts.path);
+  const shouldAuditMutation = opts.type === "mutation";
   const rawInput = shouldAuditMutation
     ? getMutationAuditInput(opts.path, await opts.getRawInput())
     : undefined;

@@ -15,7 +15,7 @@ import { getErrorMessage } from "@/lib/error-utils";
 import { type RouterOutputs } from "@/trpc/react";
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
 import Link from "next/link";
-import { deleteList } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
+import { deleteList } from "@/app/dashboard/_lib/dashboard-db/collections";
 import { useConfirmableAsyncAction } from "@/hooks/use-confirmable-async-action";
 
 type List = RouterOutputs["dashboardDb"]["list"]["list"][number];

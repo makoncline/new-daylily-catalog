@@ -1,13 +1,11 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { Prisma } from "@prisma/client";
-import type { PrismaClient } from "@prisma/client";
+import { Prisma, type PrismaClient } from "@prisma/client";
+
 import { protectedProcedure, createTRPCRouter } from "@/server/api/trpc";
 import {
   assertOwnedList,
   assertOwnedListing,
-  dashboardSyncInputSchema,
-  parseDashboardSyncSince,
 } from "./dashboard-db-router-helpers";
 import { APP_CONFIG } from "@/config/constants";
 import { getStripeSubscriptionResult } from "@/server/stripe/sync-subscription";
@@ -182,24 +180,6 @@ export const dashboardDbListRouter = createTRPCRouter({
 
     return attachListListingIds(ctx.db, lists);
   }),
-
-  sync: protectedProcedure
-    .input(dashboardSyncInputSchema)
-    .query(async ({ ctx, input }) => {
-      const since = parseDashboardSyncSince(input.since);
-      const lists = await ctx.db.list.findMany({
-        where: {
-          userId: ctx.user.id,
-          ...(since ? { updatedAt: { gte: since } } : {}),
-          ...(input.cursor ? { id: { gt: input.cursor.id } } : {}),
-        },
-        select: listBaseSelect,
-        orderBy: { id: "asc" },
-        ...(input.limit ? { take: input.limit } : {}),
-      });
-
-      return attachListListingIds(ctx.db, lists);
-    }),
 
   update: protectedProcedure
     .input(

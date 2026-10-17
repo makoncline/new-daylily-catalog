@@ -11,7 +11,7 @@ import {
   normalizeError,
   reportError,
 } from "@/lib/error-utils";
-import { createImage } from "@/app/dashboard/_lib/dashboard-db/images-collection";
+import { createImage } from "@/app/dashboard/_lib/dashboard-db/collections";
 
 interface UseImageUploadOptions {
   type: ImageType;

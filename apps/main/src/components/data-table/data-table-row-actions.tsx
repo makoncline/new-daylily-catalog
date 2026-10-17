@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { useState } from "react";
 import { Copy, Pencil, Trash2 } from "lucide-react";
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
-import { deleteListing as deleteListingFromDb } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
+import { deleteListing as deleteListingFromDb } from "@/app/dashboard/_lib/dashboard-db/collections";
 import { useConfirmableAsyncAction } from "@/hooks/use-confirmable-async-action";
 import { capturePosthogEvent } from "@/lib/analytics/posthog";
 

@@ -69,9 +69,6 @@ importers:
       '@hookform/resolvers':
         specifier: ^5.2.2
         version: 5.2.2(react-hook-form@7.62.0(react@19.2.8))
-      '@journeyapps/wa-sqlite':
-        specifier: ^1.7.0
-        version: 1.7.0
       '@libsql/client':
         specifier: ^0.17.3
         version: 0.17.3
@@ -183,9 +180,6 @@ importers:
       '@tailwindcss/line-clamp':
         specifier: ^0.4.4
         version: 0.4.4(tailwindcss@4.1.13)
-      '@tanstack/browser-db-sqlite-persistence':
-        specifier: ^0.2.35
-        version: 0.2.35(@journeyapps/wa-sqlite@1.7.0)(typescript@5.9.2)
       '@tanstack/match-sorter-utils':
         specifier: ^8.19.4
         version: 8.19.4
@@ -1411,9 +1405,6 @@ packages:
   '@isaacs/fs-minipass@4.0.1':
     resolution: {integrity: sha512-wgm9Ehl2jpeqP3zw/7mo3kRHFp5MEDhqAdwy1fTGkHAwnkGOVsgpvQhL8B5n1qlb01jV3n/bI0ZfZp5lWA1k4w==}
     engines: {node: '>=18.0.0'}
-
-  '@journeyapps/wa-sqlite@1.7.0':
-    resolution: {integrity: sha512-xQZ670aKDo4FWxIFpLqY0AGDpURr09aYIO08UkLdWvFw8C018nCiqY0ILJudGRhRdXORhv7K2xD2OXZ2QxU39w==}
 
   '@jridgewell/gen-mapping@0.3.13':
     resolution: {integrity: sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==}
@@ -3412,19 +3403,8 @@ packages:
   '@tailwindcss/postcss@4.1.13':
     resolution: {integrity: sha512-HLgx6YSFKJT7rJqh9oJs/TkBFhxuMOfUKSBEPYwV+t78POOBsdQ7crhZLzwcH3T0UyUuOzU/GK5pk5eKr3wCiQ==}
 
-  '@tanstack/browser-db-sqlite-persistence@0.2.35':
-    resolution: {integrity: sha512-FK/Ic34Un29rLaeAsxHEY2myPKVGW5IhKGLngeUJTnWx271ok1kN/V6rBJ7PZ6VanWS3yk8z2FuGSG7cmdlNlQ==}
-    peerDependencies:
-      '@journeyapps/wa-sqlite': ^1.4.1
-      typescript: '>=4.7'
-
   '@tanstack/db-ivm@0.2.0':
     resolution: {integrity: sha512-AuMuGzVdWR5qzJPRYajmrUp95vMo0duvMZ0zBjMOvaI9rkh2GHZWCsJ/p7s81UN4Lep6HHJjahnYUF+XVL0+AQ==}
-    peerDependencies:
-      typescript: '>=4.7'
-
-  '@tanstack/db-sqlite-persistence-core@0.4.10':
-    resolution: {integrity: sha512-Z1xMKJLjLg290aGLsO4fEsK9j4TODlQyhSTVqmm+9oR2qsc6NGq8x7A0DpWyt6srpCzqMfOGduQCGFJmhBShUw==}
     peerDependencies:
       typescript: '>=4.7'
 
@@ -8632,8 +8612,6 @@ snapshots:
     dependencies:
       minipass: 7.1.3
 
-  '@journeyapps/wa-sqlite@1.7.0': {}
-
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.5
@@ -10656,21 +10634,9 @@ snapshots:
       postcss: 8.5.6
       tailwindcss: 4.1.13
 
-  '@tanstack/browser-db-sqlite-persistence@0.2.35(@journeyapps/wa-sqlite@1.7.0)(typescript@5.9.2)':
-    dependencies:
-      '@journeyapps/wa-sqlite': 1.7.0
-      '@tanstack/db-sqlite-persistence-core': 0.4.10(typescript@5.9.2)
-      typescript: 5.9.2
-
   '@tanstack/db-ivm@0.2.0(typescript@5.9.2)':
     dependencies:
       fractional-indexing: 3.2.0
-      typescript: 5.9.2
-
-  '@tanstack/db-sqlite-persistence-core@0.4.10(typescript@5.9.2)':
-    dependencies:
-      '@standard-schema/spec': 1.1.0
-      '@tanstack/db': 0.15.0(typescript@5.9.2)
       typescript: 5.9.2
 
   '@tanstack/db@0.15.0(typescript@5.9.2)':

@@ -33,7 +33,7 @@ vi.mock("@/trpc/react", () => ({
   },
 }));
 
-vi.mock("@/app/dashboard/_lib/dashboard-db/images-collection", () => ({
+vi.mock("@/app/dashboard/_lib/dashboard-db/collections", () => ({
   createImage: createImageMock,
 }));
 

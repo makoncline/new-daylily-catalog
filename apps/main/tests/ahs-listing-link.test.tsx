@@ -9,7 +9,7 @@ const mockSyncAhsName = vi.hoisted(() => vi.fn());
 const mockToastSuccess = vi.hoisted(() => vi.fn());
 const mockToastError = vi.hoisted(() => vi.fn());
 
-vi.mock("@/app/dashboard/_lib/dashboard-db/listings-collection", () => ({
+vi.mock("@/app/dashboard/_lib/dashboard-db/collections", () => ({
   linkAhs: mockLinkAhs,
   unlinkAhs: mockUnlinkAhs,
   syncAhsName: mockSyncAhsName,
@@ -49,7 +49,7 @@ vi.mock("@/components/ahs-listing-select", () => ({
 
 type Listing = RouterOutputs["dashboardDb"]["listing"]["list"][number];
 type CultivarReferenceAhsListing = NonNullable<
-  RouterOutputs["dashboardDb"]["cultivarReference"]["listForUserListings"][number]["ahsListing"]
+  RouterOutputs["dashboardDb"]["bootstrap"]["catalog"]["cultivarReferences"][number]["ahsListing"]
 >;
 
 function createLinkedAhs(

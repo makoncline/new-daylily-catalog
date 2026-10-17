@@ -72,7 +72,7 @@ describe("member mutation versions", () => {
     });
   }, 30_000);
 
-  it("keeps list sync monotonic when deleting a listing", async () => {
+  it("keeps list versions monotonic when deleting a listing", async () => {
     await withTempAppDb(async ({ user }) => {
       const { caller, db } = await createCaller(user.id);
       const listing = await db.listing.create({
@@ -97,16 +97,13 @@ describe("member mutation versions", () => {
         added.updatedAt.getTime(),
       );
       expect(
-        (
-          await caller.dashboardDb.list.sync({
-            since: added.updatedAt.toISOString(),
-          })
-        ).find((row) => row.id === list.id)?.listings,
+        (await caller.dashboardDb.list.list()).find((row) => row.id === list.id)
+          ?.listings,
       ).toEqual([]);
     });
   }, 30_000);
 
-  it("syncs an older list after each membership change", async () => {
+  it("returns current memberships after each change", async () => {
     await withTempAppDb(async ({ user }) => {
       const { caller, db } = await createCaller(user.id);
       const older = await db.list.create({
@@ -135,11 +132,9 @@ describe("member mutation versions", () => {
         newer.updatedAt.getTime(),
       );
       expect(
-        (
-          await caller.dashboardDb.list.sync({
-            since: newer.updatedAt.toISOString(),
-          })
-        ).find((list) => list.id === older.id)?.listings,
+        (await caller.dashboardDb.list.list()).find(
+          (list) => list.id === older.id,
+        )?.listings,
       ).toEqual([{ id: listing.id }]);
 
       const removed = await caller.dashboardDb.list.removeListingFromList({
@@ -150,11 +145,9 @@ describe("member mutation versions", () => {
         added.updatedAt.getTime(),
       );
       expect(
-        (
-          await caller.dashboardDb.list.sync({
-            since: added.updatedAt.toISOString(),
-          })
-        ).find((list) => list.id === older.id)?.listings,
+        (await caller.dashboardDb.list.list()).find(
+          (list) => list.id === older.id,
+        )?.listings,
       ).toEqual([]);
 
       const addedAgain = await caller.dashboardDb.list.addListingToList({
@@ -171,11 +164,9 @@ describe("member mutation versions", () => {
         addedAgain.updatedAt.getTime(),
       );
       expect(
-        (
-          await caller.dashboardDb.list.sync({
-            since: addedAgain.updatedAt.toISOString(),
-          })
-        ).find((list) => list.id === older.id)?.listings,
+        (await caller.dashboardDb.list.list()).find(
+          (list) => list.id === older.id,
+        )?.listings,
       ).toEqual([]);
     });
   }, 30_000);

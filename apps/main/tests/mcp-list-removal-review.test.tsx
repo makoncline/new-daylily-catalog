@@ -54,13 +54,12 @@ vi.mock(
     }),
   }),
 );
-vi.mock("@/app/dashboard/_lib/dashboard-db/lists-collection", () => ({
+vi.mock("@/app/dashboard/_lib/dashboard-db/collections", () => ({
   removeListingsFromList,
   loadMissingList,
-}));
-vi.mock("@/app/dashboard/_lib/dashboard-db/listings-collection", () => ({
   loadListingsByIds,
 }));
+
 vi.mock("@/app/dashboard/lists/[listId]/_components/columns", () => ({
   getColumns: () => [],
 }));

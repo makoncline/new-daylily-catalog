@@ -55,13 +55,10 @@ vi.mock("@/trpc/query-client", () => ({
   getQueryClient: () => mocks.queryClient,
 }));
 
-vi.mock("@/app/dashboard/_lib/dashboard-db/listings-collection", () => ({
+vi.mock("@/app/dashboard/_lib/dashboard-db/collections", () => ({
   insertListing: mocks.insertListing,
   updateListing: mocks.updateListing,
   linkAhs: mocks.linkAhs,
-}));
-
-vi.mock("@/app/dashboard/_lib/dashboard-db/lists-collection", () => ({
   addListingToList: mocks.addListingToList,
   insertList: mocks.insertList,
 }));

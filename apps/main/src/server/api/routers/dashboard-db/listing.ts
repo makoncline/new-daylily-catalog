@@ -6,10 +6,6 @@ import {
   getDisplayAhsListing,
   v2AhsCultivarDisplaySelect,
 } from "@/lib/utils/ahs-display";
-import {
-  dashboardSyncInputSchema,
-  parseDashboardSyncSince,
-} from "./dashboard-db-router-helpers";
 import { APP_CONFIG } from "@/config/constants";
 import { getStripeSubscriptionResult } from "@/server/stripe/sync-subscription";
 import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
@@ -427,22 +423,6 @@ export const dashboardDbListingRouter = createTRPCRouter({
     });
   }),
 
-  sync: protectedProcedure
-    .input(dashboardSyncInputSchema)
-    .query(async ({ ctx, input }) => {
-      const since = parseDashboardSyncSince(input.since);
-      return ctx.db.listing.findMany({
-        where: {
-          userId: ctx.user.id,
-          ...(since ? { updatedAt: { gte: since } } : {}),
-          ...(input.cursor ? { id: { gt: input.cursor.id } } : {}),
-        },
-        select: listingSelect,
-        orderBy: { id: "asc" },
-        ...(input.limit ? { take: input.limit } : {}),
-      });
-    }),
-
   linkAhs: protectedProcedure
     .input(
       z.object({
@@ -717,8 +697,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      // Deleting a listing clears join rows, but does not automatically bump List.updatedAt.
-      // We touch affected lists so incremental `list.sync({ since })` can't retain dead listing ids.
+      // Advance affected list versions so an open editor detects this change.
       return ctx.db.$transaction(async (tx) => {
         const affectedLists = await tx.$queryRaw<Array<{ id: string }>>`
           UPDATE "List"

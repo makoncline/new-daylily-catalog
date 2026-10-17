@@ -12,7 +12,7 @@ import {
   listsCollection,
   updateList,
   type ListCollectionItem,
-} from "@/app/dashboard/_lib/dashboard-db/lists-collection";
+} from "@/app/dashboard/_lib/dashboard-db/collections";
 import { Controller, useWatch } from "react-hook-form";
 import {
   Field,
@@ -423,9 +423,8 @@ function ListFormLive({
 }: ListFormProps) {
   const [unavailableId, setUnavailableId] = useState<string | null>(null);
   const [freshReviewId, setFreshReviewId] = useState<string | null>(null);
-  const { isReady, list } = useListResource(listId);
-  const needsPrimaryFetch =
-    isReady && (openDeleteOnMount === true || list === null);
+  const { list } = useListResource(listId);
+  const needsPrimaryFetch = openDeleteOnMount === true || list === null;
 
   useEffect(() => {
     if (!needsPrimaryFetch) return;
@@ -443,7 +442,6 @@ function ListFormLive({
   }, [needsPrimaryFetch, listId]);
 
   if (
-    !isReady ||
     (openDeleteOnMount &&
       freshReviewId !== listId &&
       unavailableId !== listId) ||

@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { PageHeader } from "@/components/page-header";
 import { normalizeError, reportError } from "@/lib/error-utils";
-import { insertList } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
+import { insertList } from "@/app/dashboard/_lib/dashboard-db/collections";
 import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
 import { ListingSurfaceSaveBar } from "../../listings/_components/listing-surface-save-bar";
 

@@ -5,13 +5,12 @@ import { type Image } from "@prisma/client";
 import {
   type ListingCollectionItem,
   listingsCollection,
-} from "@/app/dashboard/_lib/dashboard-db/listings-collection";
-import {
   cultivarReferencesCollection,
   type CultivarReferenceCollectionItem,
-} from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
-import { imagesCollection } from "@/app/dashboard/_lib/dashboard-db/images-collection";
-import { listsCollection } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
+  imagesCollection,
+  listsCollection,
+} from "@/app/dashboard/_lib/dashboard-db/collections";
+
 import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
 
 type LinkedAhsListing = CultivarReferenceCollectionItem["ahsListing"];

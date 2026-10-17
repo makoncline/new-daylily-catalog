@@ -1080,16 +1080,8 @@ export const ATLAS_FLOWS = [
           path: "src/app/dashboard/_components/dashboard-db-provider.tsx",
         },
         {
-          label: "Current catalog snapshot publication",
-          path: "src/app/dashboard/_lib/dashboard-db/dashboard-db-persistence.ts",
-        },
-        {
-          label: "TanStack catalog experiment (DASHBOARD_DATA_LAYER=tanstack)",
-          path: "src/app/dashboard/_lib/dashboard-db-tanstack/provider.tsx",
-        },
-        {
           label: "Native catalog collections and confirmed writes",
-          path: "src/app/dashboard/_lib/dashboard-db-tanstack/collections.ts",
+          path: "src/app/dashboard/_lib/dashboard-db/collections.ts",
         },
         {
           label: "Listing creation and retry identity",
@@ -1732,16 +1724,11 @@ export const ATLAS_FLOWS = [
           "integration",
           "tests/member-non-pro-access.integration.test.ts",
         ),
-        testRef(
-          "integration",
-          "tests/dashboard-db-list-membership-sync.test.tsx",
-        ),
         testRef("integration", "tests/list-form-boundary-save.test.tsx"),
         testRef(
           "integration",
           "tests/manage-list-page-membership-commit.test.tsx",
         ),
-        testRef("integration", "tests/use-list-resource.test.tsx"),
         fullAppIntegrationRef(
           "tests/integration/list-management.integration.ts",
         ),
