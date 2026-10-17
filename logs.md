@@ -201,3 +201,5 @@ check current code before applying them.
 
 - [2026-10-16] Private usage exports: Sentry error and log hooks export shared log context and console breadcrumbs. Keep raw usage search/IP fields in the private usage record, not shared context. Filter serialized usage breadcrumbs at the Sentry export boundary.
 - [2026-10-16] App log copies: Journald forwards app records to rsyslog on the VPS. The journal has 14-day/1-GiB ceilings, but private syslog files rotate weekly with four archives. Check both stores before making retention or deletion claims.
+
+- [2026-10-16] Warm social renderer: Next 16.3 disables Sharp SVG loading when its image optimizer starts. When changing social rendering, warm `/_next/image` in the built container before testing PNG generation. Do not change Sharp's process-wide loader permissions to bypass this restriction.
