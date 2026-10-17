@@ -18,6 +18,7 @@ import {
 } from "@/components/pro-upgrade";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { ProMembershipFeedback } from "@/components/pro-membership-feedback";
 import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 import {
   createCatalogImporterCheckoutSource,
@@ -169,6 +170,7 @@ function CatalogImporterMembershipPrompt({
           <p className="text-muted-foreground text-center text-xs">
             Choose monthly or yearly securely in Stripe.
           </p>
+          {placement === "finish" ? <ProMembershipFeedback /> : null}
           {placement === "preview" ? (
             <Link
               href="/start-membership"
