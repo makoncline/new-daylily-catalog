@@ -1080,6 +1080,10 @@ export const ATLAS_FLOWS = [
           path: "src/app/dashboard/_components/dashboard-db-provider.tsx",
         },
         {
+          label: "Current catalog snapshot publication",
+          path: "src/app/dashboard/_lib/dashboard-db/dashboard-db-persistence.ts",
+        },
+        {
           label: "TanStack catalog experiment (DASHBOARD_DATA_LAYER=tanstack)",
           path: "src/app/dashboard/_lib/dashboard-db-tanstack/provider.tsx",
         },

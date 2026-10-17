@@ -1,5 +1,7 @@
 "use client";
 
+import type { Collection } from "@tanstack/react-db";
+import type { QueryCollectionUtils } from "@tanstack/query-db-collection";
 import type { RouterOutputs } from "@/trpc/react";
 import { getQueryClient } from "@/trpc/query-client";
 import { getTrpcClient } from "@/trpc/client";
@@ -251,6 +253,26 @@ function sortSnapshotLists(rows: readonly ListRow[]) {
   );
 }
 
+async function applySnapshotRows<T extends { id: string }>(
+  collection: Collection<T, string, QueryCollectionUtils<T>>,
+  queryKey: readonly string[],
+  rows: T[],
+) {
+  if (collection.status !== "ready") {
+    getQueryClient().setQueryData(queryKey, rows);
+    return;
+  }
+
+  // After direct writes, publish through the collection rather than editing
+  // its Query cache. The collection also updates that cache atomically.
+  const ids = new Set(rows.map((row) => row.id));
+  const removed = Array.from(collection.keys()).filter((id) => !ids.has(id));
+  await collection.utils.writeBatch(() => {
+    if (removed.length) void collection.utils.writeDelete(removed);
+    if (rows.length) void collection.utils.writeUpsert(rows);
+  });
+}
+
 async function applyDashboardDbSnapshot(
   userId: string,
   snapshot: DashboardDbServerSnapshot,
@@ -261,16 +283,22 @@ async function applyDashboardDbSnapshot(
   } = {},
 ) {
   const startedAt = performance.now();
-  const queryClient = getQueryClient();
 
   const queryDataStartedAt = performance.now();
-  queryClient.setQueryData(LISTINGS_QUERY_KEY, snapshot.listings);
-  queryClient.setQueryData(LISTS_QUERY_KEY, snapshot.lists);
-  queryClient.setQueryData(IMAGES_QUERY_KEY, snapshot.images);
-  queryClient.setQueryData(
-    CULTIVAR_REFS_QUERY_KEY,
-    snapshot.cultivarReferences,
-  );
+  await Promise.all([
+    applySnapshotRows(
+      listingsCollection,
+      LISTINGS_QUERY_KEY,
+      snapshot.listings,
+    ),
+    applySnapshotRows(listsCollection, LISTS_QUERY_KEY, snapshot.lists),
+    applySnapshotRows(imagesCollection, IMAGES_QUERY_KEY, snapshot.images),
+    applySnapshotRows(
+      cultivarReferencesCollection,
+      CULTIVAR_REFS_QUERY_KEY,
+      snapshot.cultivarReferences,
+    ),
+  ]);
   const queryDataDurationMs = performance.now() - queryDataStartedAt;
 
   const cursorStartedAt = performance.now();

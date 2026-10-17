@@ -340,16 +340,24 @@ test("a confirmed save survives failed refreshes and catalog reloads", async ({
     await expect(editListingDialog.descriptionInput).toHaveValue(
       "This save was confirmed by the real server.",
     );
+    await editListingDialog.fillDescription("Saved after the refresh failed.");
+    await editListingDialog.clickSaveChanges();
+    await expect(editListingDialog.dialog).toBeHidden();
+    await page.goto(`/dashboard/listings?editing=${id}`);
+    await editListingDialog.isReady();
+    await expect(editListingDialog.descriptionInput).toHaveValue(
+      "Saved after the refresh failed.",
+    );
     await page.reload();
     await editListingDialog.isReady();
     await expect(editListingDialog.descriptionInput).toHaveValue(
-      "This save was confirmed by the real server.",
+      "Saved after the refresh failed.",
     );
     await withTempE2EDb(
       async (db) => {
         expect(
           (await db.listing.findUniqueOrThrow({ where: { id } })).description,
-        ).toBe("This save was confirmed by the real server.");
+        ).toBe("Saved after the refresh failed.");
       },
       { clearFirst: false },
     );

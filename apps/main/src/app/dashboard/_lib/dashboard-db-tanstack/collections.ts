@@ -55,16 +55,22 @@ function createSession(userId: string) {
     queryClient,
     maxAge: Infinity,
     buster: "1",
+    dehydrateOptions: {
+      shouldDehydrateQuery: (query) => query.state.data !== undefined,
+    },
     persister: {
       restoreClient: () =>
         get<PersistedClient>(storageKey).catch(() => undefined),
-      // Keep the last successful catalog when a refresh fails.
-      persistClient: (client) =>
-        client.clientState.queries.length
-          ? set(storageKey, client).catch(() => {
-              console.warn("Dashboard browser cache could not be saved");
-            })
-          : Promise.resolve(),
+      persistClient: async (client) => {
+        if (!client.clientState.queries.length) return;
+        // Persist confirmed data, including writes after a failed refresh.
+        // A prior request error must not prevent loading that saved data.
+        for (const query of client.clientState.queries)
+          query.state = { ...query.state, status: "success", error: null };
+        await set(storageKey, client).catch(() => {
+          console.warn("Dashboard browser cache could not be saved");
+        });
+      },
       removeClient: () => del(storageKey).catch(() => undefined),
     },
   });
