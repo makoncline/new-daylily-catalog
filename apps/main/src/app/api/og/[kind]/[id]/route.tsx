@@ -18,6 +18,7 @@ import { getPublicCultivarSocialCardData } from "@/server/db/public-cultivar-soc
 import { getErrorCode } from "@/lib/utils";
 import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 import { getPublicSocialCardData } from "@/server/db/public-social-card-read-model";
+import { loadSocialCardAsset } from "@/server/social-card-assets";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -65,6 +66,7 @@ async function renderSocialCard(
   const svg = await satori(element, {
     ...SOCIAL_CARD_SIZE,
     fonts,
+    loadAdditionalAsset: loadSocialCardAsset,
   });
   const image = await renderAsync(svg, { font: { loadSystemFonts: false } });
   const png = await sharp(image.pixels, {

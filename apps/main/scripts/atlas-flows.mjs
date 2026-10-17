@@ -106,6 +106,10 @@ export const ATLAS_FLOWS = [
           path: "src/app/api/og/[kind]/[id]/route.tsx",
         },
         {
+          label: "Social image font and emoji assets",
+          path: "src/server/social-card-assets.ts",
+        },
+        {
           label: "Production social image smoke test",
           path: "scripts/smoke-social-images-local.mjs",
           command:

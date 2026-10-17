@@ -37,11 +37,12 @@ try {
     ),
   });
   try {
-    for (let index = 0; index < 16; index++) {
+    const titles = ["Spring 🌸", "Spring 花", "Spring \u{10ffff}"];
+    for (let index = 0; index < 19; index++) {
       await db.v2AhsCultivar.create({
         data: {
           id: `social-${index}`,
-          post_title: `Social Bloom ${index}`,
+          post_title: titles[index - 16] ?? `Social Bloom ${index}`,
           primary_hybridizer_name: "Test Garden",
           introduction_date: "2026",
           scape_height_in: 26,
@@ -71,7 +72,8 @@ try {
   }
   chmodSync(directory, 0o777);
   chmodSync(`${directory}/test.sqlite`, 0o666);
-  docker("network", "create", "--internal", name);
+  // The app fetches real public font and emoji assets for the glyph checks.
+  docker("network", "create", name);
   docker(
     "run",
     "-d",
@@ -253,6 +255,24 @@ try {
     const response = await fetch(`${baseUrl}/api/og/${route}`);
     assert.equal(response.status, 404);
     assert.equal(response.headers.has("cloudflare-cdn-cache-control"), false);
+  }
+  const titlePixels = [];
+  for (const index of [16, 17, 18]) {
+    const body = await png(`cultivar/social-bloom-${index}`, 43200);
+    writeFileSync(`${directory}/glyph-${index}.png`, body);
+    titlePixels.push(
+      await sharp(body)
+        .extract({ left: 50, top: 40, width: 500, height: 65 })
+        .raw()
+        .toBuffer(),
+    );
+  }
+  for (const [index, label] of ["Emoji", "CJK"].entries()) {
+    assert.notDeepEqual(
+      titlePixels[index],
+      titlePixels[2],
+      `${label} must render its glyph, not the missing-character box.`,
+    );
   }
   writeFileSync(`${directory}/share.png`, share);
   writeFileSync(`${directory}/print.png`, print);
