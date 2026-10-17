@@ -1,4 +1,5 @@
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+import { publicDb } from "@/server/db";
 import { getDashboardImagesForUser } from "./image";
 import { getCultivarReferencesByIdsRaw } from "./cultivar-reference";
 
@@ -59,7 +60,7 @@ export const dashboardDbBootstrapRouter = createTRPCRouter({
     for (let offset = 0; offset < ids.length; offset += 500) {
       cultivarReferences.push(
         ...(await getCultivarReferencesByIdsRaw(
-          ctx.replicaDb ?? ctx.db,
+          ctx.hasReplicaDb && ctx.replicaDb ? ctx.replicaDb : publicDb,
           ids.slice(offset, offset + 500),
         )),
       );
