@@ -207,3 +207,5 @@ check current code before applying them.
 - [2026-10-17] TanStack hidden views: React Activity releases live-query subscriptions while an editor hides its table. A query can restart with empty data and remove the focus-return button. For an eager catalog that is already loaded, use the native useLiveSuspenseQuery hook to wait for cached rows. Test editor Back/Forward, idle creation, and refresh/save overlap in the browser.
 
 [2026-10-17] Query collection snapshot writes: Query collection 1.4.5 ignores setQueryData snapshots after direct collection writes. Seed before startup, then publish complete snapshots with awaited writeBatch and delete omitted rows. Check a real save followed by refresh when upgrading.
+
+- [2026-10-17] Old dashboard tabs: A deployed client cannot add UI to JavaScript already loaded in an open tab. The old listing editor displays server error messages and keeps a rejected draft. For an incompatible dashboard API change, reject old browser mutations before writing and test an unchanged Chrome tab across two production-built containers.

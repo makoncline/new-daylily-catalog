@@ -1114,7 +1114,8 @@ export const ATLAS_FLOWS = [
       ],
       invariants: [
         "Keep dashboard collections active while the provider is ready, including idle editors.",
-        "The TanStack experiment renders the member's saved catalog before refresh completes. Old refreshes must not replace confirmed writes; successful refreshes reconcile additions and deletions.",
+        "The dashboard renders the member's saved catalog before refresh completes. Old refreshes must not replace confirmed writes; successful refreshes reconcile additions and deletions.",
+        "Reject saves from the old dashboard protocol before writing data. Show reload instructions and keep the unsaved form open.",
         "Store member versions as integer milliseconds and preserve stale-write rejection.",
         "Classify editor save conflicts by the tRPC code; keep drafts and load the latest version only on explicit recovery.",
         "Reuse the same create request ID for the same draft after lost create confirmation. Keep one saved listing after retry and include that ID in the failure report.",

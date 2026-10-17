@@ -5,6 +5,77 @@ const count = 5_000;
 const title = (index: number) => `Warm Bloom ${String(index).padStart(5, "0")}`;
 const catalogRead = /dashboardDb\.bootstrap\.catalog/;
 
+test("an outdated dashboard keeps its draft and explains how to reload", async ({
+  page,
+  editListingDialog,
+}) => {
+  const id = "outdated-dashboard-listing";
+  const draft = "My unsaved garden note";
+  await withTempE2EDb(
+    (db) =>
+      db.listing.create({
+        data: {
+          id,
+          userId: "integration-user",
+          title: "Deployment Test Bloom",
+          slug: id,
+          description: "Previously saved note",
+        },
+      }),
+    { clearFirst: false },
+  );
+  try {
+    await page.goto(`/dashboard/listings?editing=${id}`);
+    await editListingDialog.isReady();
+    // Send the old browser protocol to the real server. Do not mock a response.
+    await page.route("**/api/trpc/**", async (route) => {
+      const headers = await route.request().allHeaders();
+      delete headers["x-dashboard-data-version"];
+      await route.continue({ headers });
+    });
+    await editListingDialog.fillDescription(draft);
+    await editListingDialog.clickSaveChanges();
+    await expect(
+      page.getByText(
+        "This dashboard is out of date. Your changes were not saved. Copy any unsaved changes, then reload this page.",
+        { exact: true },
+      ),
+    ).toBeVisible();
+    await expect(editListingDialog.descriptionInput).toHaveValue(draft);
+    await withTempE2EDb(
+      async (db) => {
+        expect(
+          (await db.listing.findUniqueOrThrow({ where: { id } })).description,
+        ).toBe("Previously saved note");
+      },
+      { clearFirst: false },
+    );
+    await page.unroute("**/api/trpc/**");
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.reload();
+    await editListingDialog.isReady();
+    await expect(editListingDialog.descriptionInput).toHaveValue(
+      "Previously saved note",
+    );
+    await editListingDialog.fillDescription(draft);
+    await editListingDialog.clickSaveChanges();
+    await expect(editListingDialog.dialog).toBeHidden();
+    await withTempE2EDb(
+      async (db) => {
+        expect(
+          (await db.listing.findUniqueOrThrow({ where: { id } })).description,
+        ).toBe(draft);
+      },
+      { clearFirst: false },
+    );
+  } finally {
+    await page.unroute("**/api/trpc/**");
+    await withTempE2EDb((db) => db.listing.deleteMany({ where: { id } }), {
+      clearFirst: false,
+    });
+  }
+});
+
 // Requests reach the real app and SQLite database; only response delivery is delayed.
 test("large saved catalog stays usable and current when a refresh overlaps a save", async ({
   page,

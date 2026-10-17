@@ -21,6 +21,7 @@ export function createClientLinks() {
   const headers = () => {
     const nextHeaders = new Headers();
     nextHeaders.set("x-trpc-source", "nextjs-react");
+    nextHeaders.set("x-dashboard-data-version", "2");
     return nextHeaders;
   };
 
