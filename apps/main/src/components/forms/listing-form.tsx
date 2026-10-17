@@ -20,7 +20,7 @@ import {
   type ListingFormProps,
 } from "@/components/forms/use-listing-form";
 import { useListingEditorResource } from "@/hooks/use-listing-editor-resource";
-import { loadMissingListing } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
+import { loadMissingListing } from "@/app/dashboard/_lib/dashboard-db/collections";
 
 type ListingEditorProps = ListingFormProps & {
   resource: ReturnType<typeof useListingEditorResource> & {

@@ -1,6 +1,6 @@
 import { type FilterFn } from "@tanstack/react-table";
 import { type RouterOutputs } from "@/trpc/react";
-import type { ImageCollectionItem } from "@/app/dashboard/_lib/dashboard-db/images-collection";
+import type { ImageCollectionItem } from "@/app/dashboard/_lib/dashboard-db/collections";
 import {
   matchesExactValue,
   matchesFormFacetValue,
@@ -15,7 +15,7 @@ interface ListingListRef {
 
 type ListingBase = RouterOutputs["dashboardDb"]["listing"]["list"][number];
 type CultivarReference =
-  RouterOutputs["dashboardDb"]["cultivarReference"]["listForUserListings"][number];
+  RouterOutputs["dashboardDb"]["bootstrap"]["catalog"]["cultivarReferences"][number];
 type CultivarReferenceAhsListing = CultivarReference["ahsListing"];
 type CultivarReferenceImage = CultivarReference["cultivarReferenceImage"];
 

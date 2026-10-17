@@ -309,7 +309,7 @@ for (const [device, viewport] of [
     let rejectRefresh = false;
     const successfulWrite: { request?: { url: string; body: string } } = {};
     await page.route(
-      "**/api/trpc/dashboardDb.bootstrap.roots**",
+      /\/api\/trpc\/dashboardDb\.bootstrap\.catalog/,
       async (route) => {
         if (!rejectRefresh) {
           await route.continue();
@@ -410,7 +410,7 @@ for (const [device, viewport] of [
       page.getByText("Listings were saved. Dashboard refresh did not finish.", {
         exact: true,
       }),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 15_000 });
     await capture(page, `${device}-refresh-failed-after-write`);
     await expect(
       page.getByText("Import did not finish", { exact: true }),

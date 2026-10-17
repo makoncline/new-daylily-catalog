@@ -21,7 +21,7 @@ const toastSuccessMock = vi.hoisted(() => vi.fn());
 const toastErrorMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@tanstack/react-db", () => ({
-  useLiveQuery: () => ({
+  useLiveSuspenseQuery: () => ({
     data: missingListState.missing
       ? []
       : [
@@ -41,7 +41,7 @@ vi.mock("@tanstack/react-db", () => ({
   eq: vi.fn(),
 }));
 
-vi.mock("@/app/dashboard/_lib/dashboard-db/lists-collection", () => ({
+vi.mock("@/app/dashboard/_lib/dashboard-db/collections", () => ({
   listsCollection: {},
   updateList: updateListMock,
   deleteList: deleteListMock,

@@ -3,10 +3,7 @@
 import * as React from "react";
 import { useSearchParams } from "next/navigation";
 import { DataTable } from "@/components/data-table/data-table";
-import {
-  DataTableLayout,
-  DataTableLayoutSkeleton,
-} from "@/components/data-table/data-table-layout";
+import { DataTableLayout } from "@/components/data-table/data-table-layout";
 import { DataTablePagination } from "@/components/data-table/data-table-pagination";
 import {
   Empty,
@@ -15,10 +12,10 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { FolderOpen } from "lucide-react";
-import { getColumns } from "./columns";
+import { FolderOpen, Trash2 } from "lucide-react";
+import { getColumns, type ListingData } from "./columns";
 import { Button } from "@/components/ui/button";
-import { Trash2 } from "lucide-react";
+
 import { toast } from "sonner";
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
 import { H2, Muted } from "@/components/typography";
@@ -26,7 +23,7 @@ import { type Table } from "@tanstack/react-table";
 import { DataTableGlobalFilter } from "@/components/data-table/data-table-global-filter";
 import { DataTableFilterReset } from "@/components/data-table/data-table-filter-reset";
 import { DataTableViewOptions } from "@/components/data-table/data-table-view-options";
-import { type ListingData } from "./columns";
+
 import { useDataTable } from "@/hooks/use-data-table";
 import { useConfirmableAsyncAction } from "@/hooks/use-confirmable-async-action";
 import { DataTableDownload } from "@/components/data-table";
@@ -35,8 +32,9 @@ import { DataTableFilteredCount } from "@/components/data-table/data-table-filte
 import {
   loadMissingList,
   removeListingsFromList,
-} from "@/app/dashboard/_lib/dashboard-db/lists-collection";
-import { loadListingsByIds } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
+  loadListingsByIds,
+} from "@/app/dashboard/_lib/dashboard-db/collections";
+
 import { useDashboardListingReadModel } from "@/app/dashboard/_lib/dashboard-db/use-dashboard-listing-read-model";
 import { getErrorMessage } from "@/lib/error-utils";
 
@@ -209,11 +207,7 @@ export function ListListingsTable({
       cancelled = true;
     };
   }, [listId, requestedIds, requestedRemoval]);
-  const {
-    listingRows: listings,
-    lists,
-    isReady,
-  } = useDashboardListingReadModel();
+  const { listingRows: listings, lists } = useDashboardListingReadModel();
   const list = lists.find((row) => row.id === listId) ?? null;
 
   const listingIdsInList = React.useMemo(() => {
@@ -265,14 +259,6 @@ export function ListListingsTable({
       Object.fromEntries(requestedIds.map((id) => [id, true])),
     );
   }, [validRemoval, requestedIds, requestedRemoval, table]);
-
-  if (!isReady) {
-    return (
-      <div role="status" aria-label="Loading list listings">
-        <DataTableLayoutSkeleton />
-      </div>
-    );
-  }
 
   if (!listingsInList.length) {
     return (

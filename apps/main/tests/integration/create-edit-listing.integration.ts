@@ -162,7 +162,7 @@ test("catalog keeps existing listings when an idle creation form is submitted", 
   await editListingDialog.isReady();
   await editListingDialog.close();
   const persisted = await page.request.get(
-    "/api/trpc/dashboardDb.bootstrap.roots",
+    "/api/trpc/dashboardDb.bootstrap.catalog",
   );
   expect(persisted.ok()).toBe(true);
   const snapshot = (await persisted.json()).result.data.json;

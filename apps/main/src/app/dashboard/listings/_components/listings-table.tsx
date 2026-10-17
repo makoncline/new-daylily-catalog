@@ -13,7 +13,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Flower2 } from "lucide-react";
-import { DataTableLayoutSkeleton } from "@/components/data-table/data-table-layout";
+
 import { CreateListingButton } from "./create-listing-button";
 import { useDataTable } from "@/hooks/use-data-table";
 import {
@@ -21,8 +21,8 @@ import {
   DataTableViewOptions,
 } from "@/components/data-table";
 import { createDashboardListingsCsv } from "@/app/dashboard/listings/_lib/dashboard-listings-export";
-import { APP_CONFIG } from "@/config/constants";
-import { LISTING_TABLE_COLUMN_NAMES } from "@/config/constants";
+import { APP_CONFIG, LISTING_TABLE_COLUMN_NAMES } from "@/config/constants";
+
 import { getColumns } from "./columns";
 import { useDashboardListingReadModel } from "@/app/dashboard/_lib/dashboard-db/use-dashboard-listing-read-model";
 import { PublicCatalogSearchAdvancedPanel } from "@/components/public-catalog-search/public-catalog-search-advanced-panel";
@@ -45,11 +45,7 @@ export function ListingsTable({
   onCreate: () => void;
 }) {
   const firstRowsPaintedRef = React.useRef(false);
-  const {
-    listingRows: listings,
-    lists,
-    isReady,
-  } = useDashboardListingReadModel();
+  const { listingRows: listings, lists } = useDashboardListingReadModel();
   const { data: profile = null } = api.dashboardDb.userProfile.get.useQuery(
     undefined,
     {
@@ -155,13 +151,6 @@ export function ListingsTable({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [setSearchCollapsed]);
-
-  if (!isReady && !listings.length)
-    return (
-      <div role="status" aria-label="Loading listings">
-        <DataTableLayoutSkeleton />
-      </div>
-    );
 
   if (!listings.length) {
     return (

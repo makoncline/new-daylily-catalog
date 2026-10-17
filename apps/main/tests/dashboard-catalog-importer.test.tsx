@@ -19,8 +19,8 @@ vi.mock("@/app/dashboard/_components/dashboard-db-provider", () => ({
   useDashboardDb: () => ({ userId: "user-1" }),
 }));
 
-vi.mock("@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence", () => ({
-  refreshDashboardDbFromServer: mocks.revalidate,
+vi.mock("@/app/dashboard/_lib/dashboard-db/collections", () => ({
+  refreshDashboardCatalog: mocks.revalidate,
 }));
 
 vi.mock("@/trpc/react", () => ({

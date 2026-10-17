@@ -2,8 +2,8 @@
 
 import * as React from "react";
 import { DataTable } from "@/components/data-table/data-table";
-import { DataTableLayoutSkeleton } from "@/components/data-table/data-table-layout";
 import { DataTableLayout } from "@/components/data-table/data-table-layout";
+
 import { DataTablePagination } from "@/components/data-table/data-table-pagination";
 import {
   Empty,
@@ -25,9 +25,8 @@ import { APP_CONFIG, LIST_TABLE_COLUMN_NAMES } from "@/config/constants";
 import {
   listsCollection,
   type ListCollectionItem,
-} from "@/app/dashboard/_lib/dashboard-db/lists-collection";
-import { DASHBOARD_DB_QUERY_KEYS } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-keys";
-import { useSeededDashboardDbQuery } from "@/app/dashboard/_lib/dashboard-db/use-seeded-dashboard-db-query";
+} from "@/app/dashboard/_lib/dashboard-db/collections";
+import { useLiveSuspenseQuery } from "@tanstack/react-db";
 
 type List = ListCollectionItem;
 
@@ -84,12 +83,11 @@ export function ListsTable({
   onCreate: () => void;
 }) {
   const columns = React.useMemo(() => getColumns(onEdit), [onEdit]);
-  const { data: lists = [], isReady } = useSeededDashboardDbQuery<List>({
+  const { data: lists } = useLiveSuspenseQuery({
     query: (q) =>
       q
         .from({ list: listsCollection })
         .orderBy(({ list }) => list.createdAt, "desc"),
-    queryKey: DASHBOARD_DB_QUERY_KEYS.lists,
   });
 
   const table = useDataTable({
@@ -102,13 +100,6 @@ export function ListsTable({
     },
     columnNames: LIST_TABLE_COLUMN_NAMES,
   });
-
-  if (!isReady && !lists.length)
-    return (
-      <div role="status" aria-label="Loading lists">
-        <DataTableLayoutSkeleton />
-      </div>
-    );
 
   if (!lists.length) {
     return <NoResults onCreate={onCreate} />;

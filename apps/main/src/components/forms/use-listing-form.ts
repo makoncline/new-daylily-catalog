@@ -30,11 +30,10 @@ import {
   loadMissingListing,
   listingsCollection,
   updateListing,
-} from "@/app/dashboard/_lib/dashboard-db/listings-collection";
-import {
   addListingToList,
   removeListingFromList,
-} from "@/app/dashboard/_lib/dashboard-db/lists-collection";
+} from "@/app/dashboard/_lib/dashboard-db/collections";
+
 import { rebaseFormValues } from "@/lib/rebase-form-values";
 import { isConflictError } from "@/trpc/is-conflict-error";
 

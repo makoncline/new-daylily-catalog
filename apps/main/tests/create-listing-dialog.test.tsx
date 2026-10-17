@@ -23,7 +23,7 @@ vi.mock("@/trpc/react", () => ({
   },
 }));
 
-vi.mock("@/app/dashboard/_lib/dashboard-db/listings-collection", () => ({
+vi.mock("@/app/dashboard/_lib/dashboard-db/collections", () => ({
   insertListing: async (input: {
     title: string;
     cultivarReferenceId: string | null;

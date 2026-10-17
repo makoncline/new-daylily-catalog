@@ -44,16 +44,15 @@ vi.mock("@/hooks/use-listing-editor-resource", () => ({
     selectedListIds: [],
   }),
 }));
-vi.mock("@/app/dashboard/_lib/dashboard-db/listings-collection", () => ({
+vi.mock("@/app/dashboard/_lib/dashboard-db/collections", () => ({
   deleteListing: vi.fn(),
   loadMissingListing: vi.fn(),
   listingsCollection: { get: () => state.updated },
   updateListing,
-}));
-vi.mock("@/app/dashboard/_lib/dashboard-db/lists-collection", () => ({
   addListingToList: vi.fn(),
   removeListingFromList: vi.fn(),
 }));
+
 vi.mock("@/components/forms/listing-form-sections", () => ({
   ListingMediaSection: () => null,
   ListingListsSection: () => null,

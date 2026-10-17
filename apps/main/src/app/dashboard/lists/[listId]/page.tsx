@@ -12,7 +12,7 @@ import { ListForm, type ListFormHandle } from "@/components/forms/list-form";
 import { AddListingsSection } from "./_components/add-listings-section";
 import { useSaveBeforeNavigate } from "@/hooks/use-save-before-navigate";
 import { useListResource } from "@/app/dashboard/_lib/dashboard-db/use-list-resource";
-import { loadMissingList } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
+import { loadMissingList } from "@/app/dashboard/_lib/dashboard-db/collections";
 
 interface ListPageProps {
   params: Promise<{
@@ -33,10 +33,10 @@ export function ManageListPageLive({ listId }: { listId: string }) {
     formRef.current?.markNeedsCommit();
   }, []);
 
-  const { isReady, list } = useListResource(listId);
+  const { list } = useListResource(listId);
   const [unavailableId, setUnavailableId] = React.useState<string | null>(null);
   React.useEffect(() => {
-    if (!isReady || list || unavailableId === listId) return;
+    if (list || unavailableId === listId) return;
     let active = true;
     void loadMissingList(listId).catch(() => {
       if (active) setUnavailableId(listId);
@@ -44,9 +44,9 @@ export function ManageListPageLive({ listId }: { listId: string }) {
     return () => {
       active = false;
     };
-  }, [isReady, list, listId, unavailableId]);
+  }, [list, listId, unavailableId]);
 
-  if (!isReady || (!list && unavailableId !== listId)) {
+  if (!list && unavailableId !== listId) {
     return <ListFormSkeleton />;
   }
   if (!list) {

@@ -43,7 +43,7 @@ vi.mock("@/app/dashboard/listings/_components/edit-listing-dialog", () => ({
   useEditListing: () => ({ closeEditListing: vi.fn() }),
   EditListingSurface: () => null,
 }));
-vi.mock("@/app/dashboard/_lib/dashboard-db/lists-collection", () => ({
+vi.mock("@/app/dashboard/_lib/dashboard-db/collections", () => ({
   insertList,
 }));
 

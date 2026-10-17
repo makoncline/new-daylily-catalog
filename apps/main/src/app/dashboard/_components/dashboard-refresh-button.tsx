@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { api } from "@/trpc/react";
 import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
-import { revalidateDashboardDbInBackground } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence";
+import { refreshDashboardCatalog } from "@/app/dashboard/_lib/dashboard-db/collections";
 import { writeCachedSubscription } from "@/hooks/use-persisted-subscription-query";
 
 export function DashboardRefreshButton() {
@@ -28,7 +28,7 @@ export function DashboardRefreshButton() {
     setIsManualRefresh(true);
     try {
       await Promise.all([
-        revalidateDashboardDbInBackground(userId),
+        refreshDashboardCatalog(userId),
         utils.dashboardDb.userProfile.get.invalidate(),
         utils.stripe.getSubscription.invalidate(),
       ]);
@@ -42,6 +42,10 @@ export function DashboardRefreshButton() {
       }
 
       toast.success("Dashboard refreshed");
+    } catch {
+      toast.error("Could not refresh your dashboard.", {
+        id: "dashboard-refresh-error",
+      });
     } finally {
       setIsManualRefresh(false);
     }

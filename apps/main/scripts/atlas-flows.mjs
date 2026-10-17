@@ -1123,6 +1123,10 @@ export const ATLAS_FLOWS = [
           path: "src/app/dashboard/_components/dashboard-db-provider.tsx",
         },
         {
+          label: "Native catalog collections and confirmed writes",
+          path: "src/app/dashboard/_lib/dashboard-db/collections.ts",
+        },
+        {
           label: "Listing creation and retry identity",
           path: "src/app/dashboard/listings/_components/create-listing-dialog.tsx",
         },
@@ -1153,6 +1157,8 @@ export const ATLAS_FLOWS = [
       ],
       invariants: [
         "Keep dashboard collections active while the provider is ready, including idle editors.",
+        "The dashboard renders the member's saved catalog before refresh completes. Old refreshes must not replace confirmed writes; successful refreshes reconcile additions and deletions.",
+        "Reject saves from the old dashboard protocol before writing data. Show reload instructions and keep the unsaved form open.",
         "Store member versions as integer milliseconds and preserve stale-write rejection.",
         "Classify editor save conflicts by the tRPC code; keep drafts and load the latest version only on explicit recovery.",
         "Reuse the same create request ID for the same draft after lost create confirmation. Keep one saved listing after retry and include that ID in the failure report.",
@@ -1191,6 +1197,9 @@ export const ATLAS_FLOWS = [
         testRef("integration", "tests/edit-listing-dialog-url-sync.test.tsx"),
         fullAppIntegrationRef(
           "tests/integration/create-edit-listing.integration.ts",
+        ),
+        fullAppIntegrationRef(
+          "tests/integration/dashboard-cache.integration.ts",
         ),
         fullAppIntegrationRef("tests/integration/editor-save.integration.ts"),
         fullAppIntegrationRef(
@@ -1759,16 +1768,11 @@ export const ATLAS_FLOWS = [
           "integration",
           "tests/member-non-pro-access.integration.test.ts",
         ),
-        testRef(
-          "integration",
-          "tests/dashboard-db-list-membership-sync.test.tsx",
-        ),
         testRef("integration", "tests/list-form-boundary-save.test.tsx"),
         testRef(
           "integration",
           "tests/manage-list-page-membership-commit.test.tsx",
         ),
-        testRef("integration", "tests/use-list-resource.test.tsx"),
         fullAppIntegrationRef(
           "tests/integration/list-management.integration.ts",
         ),

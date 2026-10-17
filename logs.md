@@ -204,4 +204,10 @@ check current code before applying them.
 
 - [2026-10-16] Warm social renderer: Next 16.3 disables Sharp SVG loading when its image optimizer starts. When changing social rendering, warm `/_next/image` in the built container before testing PNG generation. Do not change Sharp's process-wide loader permissions to bypass this restriction.
 
+- [2026-10-17] TanStack hidden views: React Activity releases live-query subscriptions while an editor hides its table. A query can restart with empty data and remove the focus-return button. For an eager catalog that is already loaded, use the native useLiveSuspenseQuery hook to wait for cached rows. Test editor Back/Forward, idle creation, and refresh/save overlap in the browser.
+
+[2026-10-17] Query collection snapshot writes: Query collection 1.4.5 ignores setQueryData snapshots after direct collection writes. Seed before startup, then publish complete snapshots with awaited writeBatch and delete omitted rows. Check a real save followed by refresh when upgrading.
+
+- [2026-10-17] Old dashboard tabs: A deployed client cannot add UI to JavaScript already loaded in an open tab. The old listing editor displays server error messages and keeps a rejected draft. For an incompatible dashboard API change, reject old browser mutations before writing and test an unchanged Chrome tab across two production-built containers.
+
 - [2026-10-17] PostHog survey capture: posthog-js 1.438.10 adds survey response person properties to the captured event `$set`. It does not expose them through `get_property`. The return value confirms local capture, not delivery. Browser automation can pass `is_capturing()` and still return no capture because of bot filtering. For API survey tests, check the event contract and identity. Change bot filtering only in private fixtures.

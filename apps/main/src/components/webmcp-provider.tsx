@@ -9,11 +9,10 @@ import {
   insertListing,
   updateListing,
   linkAhs,
-} from "@/app/dashboard/_lib/dashboard-db/listings-collection";
-import {
   addListingToList,
   insertList,
-} from "@/app/dashboard/_lib/dashboard-db/lists-collection";
+} from "@/app/dashboard/_lib/dashboard-db/collections";
+
 import { registerWebMcpTools, toolResult, type WebMcpTool } from "@/lib/webmcp";
 
 function asString(value: unknown) {

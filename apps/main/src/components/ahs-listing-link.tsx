@@ -12,10 +12,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { AhsListingSelect } from "./ahs-listing-select";
+import { AhsListingSelect, type AhsSearchResult } from "./ahs-listing-select";
 import { AhsListingDisplay } from "./ahs-listing-display";
 
-import type { AhsSearchResult } from "./ahs-listing-select";
 import {
   getErrorMessage,
   normalizeError,
@@ -28,10 +27,10 @@ import {
   syncAhsName,
   unlinkAhs,
   type ListingCollectionItem,
-} from "@/app/dashboard/_lib/dashboard-db/listings-collection";
+} from "@/app/dashboard/_lib/dashboard-db/collections";
 
 type CultivarReferenceAhsListing =
-  RouterOutputs["dashboardDb"]["cultivarReference"]["listForUserListings"][number]["ahsListing"];
+  RouterOutputs["dashboardDb"]["bootstrap"]["catalog"]["cultivarReferences"][number]["ahsListing"];
 
 interface AhsListingLinkProps {
   listing: RouterOutputs["dashboardDb"]["listing"]["list"][number];
