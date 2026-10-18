@@ -24,7 +24,7 @@ export default function ProfilePage() {
     isLoading,
     error,
     refetch,
-  } = api.dashboardDb.userProfile.get.useQuery();
+  } = api.dashboardV2.userProfile.get.useQuery();
 
   if (error && !profile)
     return (

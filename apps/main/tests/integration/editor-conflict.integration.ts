@@ -89,7 +89,7 @@ for (const [device, viewport] of [
                 : `Discard this draft and load the latest ${family}`,
             exact: true,
           });
-          const request = `**/api/trpc/dashboardDb.${family === "profile" ? "userProfile" : family}.update?*`;
+          const request = `**/api/trpc/dashboardV2.${family === "profile" ? "userProfile" : family}.update?*`;
           await expect(field).toHaveValue(`Initial ${family}`);
           await field.fill(`Retained ${family} draft`);
           await setTitle(`Latest ${family}`);

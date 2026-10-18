@@ -375,10 +375,10 @@ describe.each<Transport>(["MCP", "HTTP"])(
         const { createCaller } = await import("@/server/api/root");
         const dashboard = createCaller({
           db,
-          headers: new Headers(),
+          headers: new Headers({ "x-dashboard-member-id": user.id }),
           clerkUserId: auth.clerkUserId,
         });
-        await dashboard.dashboardDb.userProfile.updateBasic({
+        await dashboard.dashboardV2.userProfile.updateBasic({
           expectedUpdatedAt: beforeDashboardVersion,
           data: { location: "Dashboard garden" },
         });

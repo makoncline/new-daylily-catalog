@@ -18,7 +18,7 @@ import { useWatch } from "react-hook-form";
 import { rebaseFormValues } from "@/lib/rebase-form-values";
 import { isConflictError } from "@/trpc/is-conflict-error";
 
-export type UserProfile = RouterOutputs["dashboardDb"]["userProfile"]["get"];
+export type UserProfile = RouterOutputs["dashboardV2"]["userProfile"]["get"];
 type SaveReason = "manual" | "navigate";
 export interface ProfileFormHandle {
   saveChanges: (reason: SaveReason) => Promise<boolean>;
@@ -79,7 +79,7 @@ export function useProfileForm(
     schema: profileFormSchema,
     defaultValues: toFormValues(profile),
   });
-  const update = api.dashboardDb.userProfile.update.useMutation();
+  const update = api.dashboardV2.userProfile.update.useMutation();
   useWatch({ control: form.control });
   const hasPendingChanges = useCallback(
     () =>
@@ -123,8 +123,8 @@ export function useProfileForm(
       syncedProfileTimestampRef.current = profileTimestamp(saved);
       setProfile(saved);
       setHasRemoteChange(!rebased);
-      utils.dashboardDb.userProfile.get.setData(undefined, saved);
-      void utils.dashboardDb.userProfile.get.invalidate();
+      utils.dashboardV2.userProfile.get.setData(undefined, saved);
+      void utils.dashboardV2.userProfile.get.invalidate();
       markChildMutation();
     },
     [form, markChildMutation, utils],
@@ -133,7 +133,7 @@ export function useProfileForm(
   const discardFieldsAndLoadLatest = useCallback(async () => {
     setIsSaving(true);
     try {
-      const latest = await utils.dashboardDb.userProfile.get.fetch(undefined, {
+      const latest = await utils.dashboardV2.userProfile.get.fetch(undefined, {
         staleTime: 0,
       });
       committedProfileRef.current = latest;
@@ -223,11 +223,11 @@ export function useProfileForm(
         }
         if (childMutationVersionRef.current === childMutationVersion)
           resetNeedsParentCommit();
-        utils.dashboardDb.userProfile.get.setData(
+        utils.dashboardV2.userProfile.get.setData(
           undefined,
           committedProfileRef.current,
         );
-        void utils.dashboardDb.userProfile.get.invalidate();
+        void utils.dashboardV2.userProfile.get.invalidate();
         if (
           changedDuringSave ||
           childMutationVersionRef.current !== childMutationVersion ||

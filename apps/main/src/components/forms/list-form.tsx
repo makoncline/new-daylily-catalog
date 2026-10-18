@@ -1,18 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { flushSync } from "react-dom";
 import { useManagedFormSave } from "@/hooks/use-managed-form-save";
 import { useParentCommitFlag } from "@/hooks/use-parent-commit-flag";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { listFormSchema, type ListFormData } from "@/types/schemas/list";
-import {
-  deleteList,
-  loadMissingList,
-  listsCollection,
-  updateList,
-  type ListCollectionItem,
-} from "@/app/dashboard/_lib/dashboard-db/lists-collection";
+import { type ListCollectionItem } from "@/app/dashboard/_lib/dashboard-db/collections";
 import { Controller, useWatch } from "react-hook-form";
 import {
   Field,
@@ -33,6 +26,7 @@ import { ListMissingState } from "@/components/list-missing-state";
 import { useConfirmableAsyncAction } from "@/hooks/use-confirmable-async-action";
 import { getErrorMessage } from "@/lib/error-utils";
 import { isConflictError } from "@/trpc/is-conflict-error";
+import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
 
 interface ListFormProps {
   listId: string;
@@ -81,6 +75,8 @@ function ListFormInner({
   onPendingChangesChange?: (hasPendingChanges: boolean) => void;
   formRef?: React.RefObject<ListFormHandle | null>;
 }) {
+  const { deleteList, updateList, loadMissingList, listsCollection } =
+    useDashboardDb();
   const fieldId = useId();
   const [isSaving, setIsSaving] = useState(false);
   const [hasRemoteChange, setHasRemoteChange] = useState(false);
@@ -112,8 +108,8 @@ function ListFormInner({
     setIsDialogOpen: setIsDeleteDialogOpen,
   } = useConfirmableAsyncAction({
     action: async () => {
-      flushSync(() => onDelete?.());
       await deleteList({ id: listId });
+      onDelete?.();
     },
     onSuccess: () => {
       toast.success("List deleted", {
@@ -421,11 +417,11 @@ function ListFormLive({
   onPendingChangesChange,
   formRef,
 }: ListFormProps) {
+  const { loadMissingList } = useDashboardDb();
   const [unavailableId, setUnavailableId] = useState<string | null>(null);
   const [freshReviewId, setFreshReviewId] = useState<string | null>(null);
-  const { isReady, list } = useListResource(listId);
-  const needsPrimaryFetch =
-    isReady && (openDeleteOnMount === true || list === null);
+  const { list } = useListResource(listId);
+  const needsPrimaryFetch = openDeleteOnMount === true || list === null;
 
   useEffect(() => {
     if (!needsPrimaryFetch) return;
@@ -440,10 +436,9 @@ function ListFormLive({
     return () => {
       active = false;
     };
-  }, [needsPrimaryFetch, listId]);
+  }, [loadMissingList, needsPrimaryFetch, listId]);
 
   if (
-    !isReady ||
     (openDeleteOnMount &&
       freshReviewId !== listId &&
       unavailableId !== listId) ||

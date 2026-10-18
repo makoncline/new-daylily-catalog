@@ -3,10 +3,10 @@ import type { RouterOutputs } from "@/trpc/react";
 import type { DashboardStats } from "@/types/dashboard-stats-types";
 import { hasProfileContent } from "@/lib/profile-content";
 
-type Listing = RouterOutputs["dashboardDb"]["listing"]["list"][number];
-type List = RouterOutputs["dashboardDb"]["list"]["list"][number];
-type Image = RouterOutputs["dashboardDb"]["image"]["list"][number];
-type UserProfile = RouterOutputs["dashboardDb"]["userProfile"]["get"];
+type Listing = RouterOutputs["dashboardV2"]["listing"]["list"][number];
+type List = RouterOutputs["dashboardV2"]["list"]["list"][number];
+type Image = RouterOutputs["dashboardV2"]["image"]["list"][number];
+type UserProfile = RouterOutputs["dashboardV2"]["userProfile"]["get"];
 
 interface BuildDashboardStatsArgs {
   listings: Listing[];

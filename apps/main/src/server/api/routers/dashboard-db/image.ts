@@ -50,8 +50,6 @@ import { after } from "next/server";
 import {
   assertOwnedListing,
   assertOwnedProfile,
-  dashboardSyncInputSchema,
-  parseDashboardSyncSince,
 } from "./dashboard-db-router-helpers";
 
 type DbClient = typeof db;
@@ -406,37 +404,8 @@ export async function getOwnedDashboardImage(args: {
   return resolved ?? image;
 }
 
-async function getDashboardImagesByListingIds(args: {
-  db: DbClient;
-  userId: string;
-  listingIds: string[];
-}) {
-  const uniqueListingIds = Array.from(new Set(args.listingIds));
-  if (!uniqueListingIds.length) return [];
-
-  const rows = await args.db.$queryRaw<ImageRow[]>(Prisma.sql`
-    SELECT
-      i."id",
-      i."url",
-      i."order",
-      i."listingId",
-      i."userProfileId",
-      i."createdAt",
-      i."updatedAt",
-      i."status"
-    FROM "Image" i
-    INNER JOIN "Listing" l ON l."id" = i."listingId"
-    WHERE
-      i."listingId" IN (${Prisma.join(uniqueListingIds)})
-      AND l."userId" = ${args.userId}
-  `);
-
-  const mappedRows = rows.map(mapImageRow).sort(sortImagesForDashboard);
-  return resolveDashboardImageRows({ db: args.db, rows: mappedRows });
-}
-
 async function resolveDashboardImageRows(args: {
-  db: DbClient;
+  db: Pick<Prisma.TransactionClient, "imageAsset">;
   rows: DashboardImageRow[];
 }) {
   if (args.rows.length === 0) {
@@ -456,6 +425,42 @@ async function resolveDashboardImageRows(args: {
     imageAssets: assets,
     variant: "thumb",
   });
+}
+
+export async function getDashboardImagesForUser(
+  database: DbClient,
+  userId: string,
+) {
+  const rows = await database.$queryRaw<ImageRow[]>(Prisma.sql`
+      SELECT
+        i."id",
+        i."url",
+        i."order",
+        i."listingId",
+        i."userProfileId",
+        i."createdAt",
+        i."updatedAt",
+        i."status"
+      FROM "Listing" l
+      INNER JOIN "Image" i ON i."listingId" = l."id"
+      WHERE l."userId" = ${userId}
+      UNION
+      SELECT
+        i."id",
+        i."url",
+        i."order",
+        i."listingId",
+        i."userProfileId",
+        i."createdAt",
+        i."updatedAt",
+        i."status"
+      FROM "UserProfile" up
+      INNER JOIN "Image" i ON i."userProfileId" = up."id"
+      WHERE up."userId" = ${userId}
+    `);
+
+  const mappedRows = rows.map(mapImageRow).sort(sortImagesForDashboard);
+  return resolveDashboardImageRows({ db: database, rows: mappedRows });
 }
 
 export const dashboardDbImageRouter = createTRPCRouter({
@@ -634,112 +639,9 @@ export const dashboardDbImageRouter = createTRPCRouter({
       } as const;
     }),
 
-  list: protectedProcedure.query(async ({ ctx }) => {
-    const rows = await ctx.db.$queryRaw<ImageRow[]>(Prisma.sql`
-      SELECT
-        i."id",
-        i."url",
-        i."order",
-        i."listingId",
-        i."userProfileId",
-        i."createdAt",
-        i."updatedAt",
-        i."status"
-      FROM "Listing" l
-      INNER JOIN "Image" i ON i."listingId" = l."id"
-      WHERE l."userId" = ${ctx.user.id}
-      UNION
-      SELECT
-        i."id",
-        i."url",
-        i."order",
-        i."listingId",
-        i."userProfileId",
-        i."createdAt",
-        i."updatedAt",
-        i."status"
-      FROM "UserProfile" up
-      INNER JOIN "Image" i ON i."userProfileId" = up."id"
-      WHERE up."userId" = ${ctx.user.id}
-    `);
-
-    const mappedRows = rows.map(mapImageRow).sort(sortImagesForDashboard);
-    return resolveDashboardImageRows({ db: ctx.db, rows: mappedRows });
-  }),
-
-  listByListingIds: protectedProcedure
-    .input(
-      z.object({
-        listingIds: z.array(z.string().trim().min(1)).max(1000),
-      }),
-    )
-    .mutation(async ({ ctx, input }) => {
-      return getDashboardImagesByListingIds({
-        db: ctx.db,
-        userId: ctx.user.id,
-        listingIds: input.listingIds,
-      });
-    }),
-
-  listByListingIdsReplica: protectedProcedure
-    .input(
-      z.object({
-        listingIds: z.array(z.string().trim().min(1)).max(1000),
-      }),
-    )
-    .mutation(async ({ ctx, input }) => {
-      return getDashboardImagesByListingIds({
-        db: ctx.replicaDb ?? ctx.db,
-        userId: ctx.user.id,
-        listingIds: input.listingIds,
-      });
-    }),
-
-  sync: protectedProcedure
-    .input(dashboardSyncInputSchema)
-    .query(async ({ ctx, input }) => {
-      const since = parseDashboardSyncSince(input.since);
-      const rows = await ctx.db.$queryRaw<ImageRow[]>(Prisma.sql`
-        SELECT
-          i."id",
-          i."url",
-          i."order",
-          i."listingId",
-          i."userProfileId",
-          i."createdAt",
-          i."updatedAt",
-          i."status"
-        FROM "Image" i
-        WHERE
-          (
-            EXISTS (
-              SELECT 1
-              FROM "Listing" l
-              WHERE l."id" = i."listingId"
-                AND l."userId" = ${ctx.user.id}
-            )
-            OR EXISTS (
-              SELECT 1
-              FROM "UserProfile" up
-              WHERE up."id" = i."userProfileId"
-                AND up."userId" = ${ctx.user.id}
-            )
-          )
-          ${since ? Prisma.sql`AND i."updatedAt" >= ${since}` : Prisma.empty}
-          ${
-            input.cursor
-              ? Prisma.sql`AND i."id" > ${input.cursor.id}`
-              : Prisma.empty
-          }
-        ORDER BY i."id" ASC
-        ${input.limit ? Prisma.sql`LIMIT ${input.limit}` : Prisma.empty}
-      `);
-
-      return resolveDashboardImageRows({
-        db: ctx.db,
-        rows: rows.map(mapImageRow),
-      });
-    }),
+  list: protectedProcedure.query(({ ctx }) =>
+    getDashboardImagesForUser(ctx.db, ctx.user.id),
+  ),
 
   create: protectedProcedure
     .input(
@@ -999,20 +901,27 @@ export const dashboardDbImageRouter = createTRPCRouter({
           })),
       ];
 
-      await ctx.db.$transaction(
-        mergedOrder.flatMap((img, index) => [
-          ctx.db.image.update({
-            where: { id: img.id, ...whereClause },
-            data: { order: index },
-          }),
-          ctx.db.imageAsset.updateMany({
-            where: { legacyImageId: img.id },
-            data: { order: index },
-          }),
-        ]),
-      );
+      const images = await ctx.db.$transaction(async (tx) => {
+        await Promise.all(
+          mergedOrder.flatMap((img, index) => [
+            tx.image.update({
+              where: { id: img.id, ...whereClause },
+              data: { order: index },
+            }),
+            tx.imageAsset.updateMany({
+              where: { legacyImageId: img.id },
+              data: { order: index },
+            }),
+          ]),
+        );
+        const rows = await tx.image.findMany({
+          where: whereClause,
+          orderBy: [{ order: "asc" }, { id: "asc" }],
+        });
+        return resolveDashboardImageRows({ db: tx, rows });
+      });
 
-      return { success: true } as const;
+      return { success: true, images } as const;
     }),
 
   delete: protectedProcedure
@@ -1056,34 +965,6 @@ export const dashboardDbImageRouter = createTRPCRouter({
         await tx.imageAsset.deleteMany({
           where: { legacyImageId: input.imageId },
         });
-
-        const target =
-          input.type === "listing"
-            ? Prisma.sql`"listingId" = ${input.referenceId}`
-            : Prisma.sql`"userProfileId" = ${input.referenceId}`;
-        const assetTarget =
-          input.type === "listing"
-            ? Prisma.sql`image."listingId" = ${input.referenceId}`
-            : Prisma.sql`image."userProfileId" = ${input.referenceId}`;
-        const updatedAt = new Date();
-        await tx.$executeRaw(Prisma.sql`
-          WITH ranked AS MATERIALIZED (
-            SELECT id, ROW_NUMBER() OVER (ORDER BY "order", id) - 1 AS nextOrder
-            FROM "Image"
-            WHERE ${target}
-          )
-          UPDATE "Image"
-          SET "order" = ranked.nextOrder, "updatedAt" = ${updatedAt}
-          FROM ranked
-          WHERE "Image".id = ranked.id
-        `);
-        await tx.$executeRaw(Prisma.sql`
-          UPDATE "ImageAsset"
-          SET "order" = image."order", "updatedAt" = ${updatedAt}
-          FROM "Image" AS image
-          WHERE "ImageAsset"."legacyImageId" = image.id
-            AND ${assetTarget}
-        `);
       });
 
       return { success: true } as const;

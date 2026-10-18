@@ -23,13 +23,31 @@ interface UserSnapshot {
   user: typeof clerkUser | null | undefined;
 }
 
-function isAnonymous() {
+function cookieAccount() {
   return document.cookie
     .split(";")
-    .some((cookie) => cookie.trim() === "integration-auth=anonymous");
+    .map((cookie) => cookie.trim())
+    .find((cookie) => cookie.startsWith("integration-auth="))
+    ?.split("=")[1];
 }
 
-const subscribe = () => () => undefined;
+let loaded = false;
+let currentAccount: string | undefined;
+function account() {
+  if (!loaded) {
+    currentAccount = cookieAccount();
+    loaded = true;
+  }
+  return currentAccount;
+}
+const subscribe = (listener: () => void) => {
+  const changed = () => {
+    currentAccount = cookieAccount();
+    listener();
+  };
+  window.addEventListener("integration-auth-change", changed);
+  return () => window.removeEventListener("integration-auth-change", changed);
+};
 const unloadedAuth: AuthSnapshot = {
   isLoaded: false,
   isSignedIn: undefined,
@@ -51,6 +69,11 @@ const signedInAuth: AuthSnapshot = {
   sessionId: "session_integration_seller",
   getToken: async () => null,
 };
+const otherAuth: AuthSnapshot = {
+  ...signedInAuth,
+  userId: "user_integration_other",
+  sessionId: "session_integration_other",
+};
 const unloadedUser: UserSnapshot = {
   isLoaded: false,
   isSignedIn: undefined,
@@ -67,6 +90,11 @@ const signedInUser: UserSnapshot = {
   user: clerkUser,
 };
 
+const otherUser: UserSnapshot = {
+  ...signedInUser,
+  user: { ...clerkUser, id: "user_integration_other" },
+};
+
 export function ClerkProvider({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
@@ -74,7 +102,12 @@ export function ClerkProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   return useSyncExternalStore<AuthSnapshot>(
     subscribe,
-    () => (isAnonymous() ? anonymousAuth : signedInAuth),
+    () =>
+      account() === "anonymous"
+        ? anonymousAuth
+        : account() === "other-member"
+          ? otherAuth
+          : signedInAuth,
     () => unloadedAuth,
   );
 }
@@ -82,7 +115,12 @@ export function useAuth() {
 export function useUser() {
   return useSyncExternalStore<UserSnapshot>(
     subscribe,
-    () => (isAnonymous() ? anonymousUser : signedInUser),
+    () =>
+      account() === "anonymous"
+        ? anonymousUser
+        : account() === "other-member"
+          ? otherUser
+          : signedInUser,
     () => unloadedUser,
   );
 }

@@ -37,7 +37,10 @@ describe("user action audit logging", () => {
     const caller = createCaller(async () => {
       return {
         db: db as unknown as TRPCInternalContext["db"],
-        headers: new Headers([["x-request-id", "request-1"]]),
+        headers: new Headers([
+          ["x-request-id", "request-1"],
+          ["x-dashboard-member-id", "user-1"],
+        ]),
         requestUrl: "https://daylilycatalog.com/api/trpc",
         oauthClientId: "client-1",
         oauthScope: "catalog:write",
@@ -50,7 +53,7 @@ describe("user action audit logging", () => {
       } satisfies TRPCInternalContext;
     });
 
-    await caller.dashboardDb.userProfile.updateContent({
+    await caller.dashboardV2.userProfile.updateContent({
       content: "private profile draft",
       expectedUpdatedAt: "2026-01-02T00:00:00.000Z",
     });
@@ -62,7 +65,7 @@ describe("user action audit logging", () => {
     expect(payload).toMatchObject({
       event: "user_mutation",
       status: "success",
-      procedure: "dashboardDb.userProfile.updateContent",
+      procedure: "dashboardV2.userProfile.updateContent",
       appUserId: "user-1",
       clerkUserId: "clerk-1",
       requestUrl: "https://daylilycatalog.com/api/trpc",

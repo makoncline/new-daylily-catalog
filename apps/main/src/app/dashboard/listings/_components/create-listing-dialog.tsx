@@ -24,13 +24,14 @@ import {
   reportError,
 } from "@/lib/error-utils";
 import { APP_CONFIG } from "@/config/constants";
-import { insertListing } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
+
 import { Spinner } from "@/components/ui/spinner";
 import { ArrowLeft } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { useQueryParamDialogState } from "@/hooks/use-dialog-search-param";
 import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
 import { ListingSurfaceSaveBar } from "./listing-surface-save-bar";
+import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
 
 export function useCreateListing() {
   const { setValue, value } = useQueryParamDialogState({
@@ -62,6 +63,7 @@ export function CreateListingSurface({
   onClose: () => void;
   onCreated: (listingId: string) => void;
 }) {
+  const { insertListing } = useDashboardDb();
   const [title, setTitle] = useState("");
   const [selectedResult, setSelectedResult] = useState<AhsSearchResult | null>(
     null,
@@ -78,7 +80,7 @@ export function CreateListingSurface({
     backButtonRef.current?.focus({ preventScroll: true });
   }, []);
 
-  const { data: detailedAhsListing } = api.dashboardDb.ahs.get.useQuery(
+  const { data: detailedAhsListing } = api.dashboardV2.ahs.get.useQuery(
     {
       id: selectedResult?.id ?? "",
     },

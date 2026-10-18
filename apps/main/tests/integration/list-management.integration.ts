@@ -5,6 +5,338 @@ import { DashboardLists } from "../e2e/pages/dashboard-lists";
 import { ManageListPage } from "../e2e/pages/manage-list-page";
 import { expect, test } from "./fixtures";
 
+test("a delayed targeted read cannot replace a later list title save", async ({
+  page,
+}) => {
+  const id = "integration-targeted-read-list";
+  const manageList = new ManageListPage(page);
+  let release = () => {};
+  const delivery = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let responseHeld = () => {};
+  const held = new Promise<void>((resolve) => {
+    responseHeld = resolve;
+  });
+  const requests: string[] = [];
+  page.on("request", (request) => {
+    const pathname = new URL(request.url()).pathname;
+    if (/^\/api\/trpc\/dashboardV2\.list\.(get|update)$/.test(pathname))
+      requests.push(pathname);
+  });
+  await withTempE2EDb(
+    (db) =>
+      db.list.create({
+        data: {
+          id,
+          userId: "integration-user",
+          title: "Before targeted read",
+          listings: { connect: { id: "integration-existing-listing" } },
+        },
+      }),
+    { clearFirst: false },
+  );
+  try {
+    await page.route("**/api/trpc/dashboardV2.list.get?*", async (route) => {
+      const response = await route.fetch();
+      responseHeld();
+      await delivery;
+      await route.fulfill({ response });
+    });
+    // A removal review loads the current list and its selected listings.
+    await page.goto(
+      `/dashboard/lists/${id}?remove=integration-existing-listing`,
+    );
+    await manageList.isReady();
+    await held;
+    await manageList.fillTitle("Saved after targeted read");
+    await manageList.saveChanges();
+    await expect(manageList.saveChangesButton).toBeDisabled();
+    expect(requests.some((url) => url.includes("list.update"))).toBe(false);
+    release();
+    await page
+      .getByRole("alertdialog")
+      .getByRole("button", { name: "Cancel", exact: true })
+      .click();
+    await expect(
+      page.getByRole("heading", {
+        name: "Manage List: Saved after targeted read",
+      }),
+    ).toBeVisible();
+    await withTempE2EDb(
+      async (db) => {
+        expect((await db.list.findUniqueOrThrow({ where: { id } })).title).toBe(
+          "Saved after targeted read",
+        );
+      },
+      { clearFirst: false },
+    );
+    expect(requests).toEqual([
+      "/api/trpc/dashboardV2.list.get",
+      "/api/trpc/dashboardV2.list.update",
+    ]);
+    await page.route("**/api/trpc/*dashboardV2.bootstrap.catalog*", (route) =>
+      route.abort("failed"),
+    );
+    await page.goto(`/dashboard/lists/${id}`);
+    await manageList.isReady();
+    await expect(manageList.titleInput).toHaveValue(
+      "Saved after targeted read",
+    );
+  } finally {
+    release();
+    await page.unrouteAll({ behavior: "wait" });
+    await withTempE2EDb((db) => db.list.deleteMany({ where: { id } }), {
+      clearFirst: false,
+    });
+  }
+});
+
+test("an account change cannot redirect queued list commands", async ({
+  page,
+  context,
+  baseURL,
+  createListingDialog,
+  dashboardListings,
+}) => {
+  const id = "integration-account-queue-list";
+  const manageList = new ManageListPage(page);
+  let release = () => {};
+  const delivery = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let responseHeld = () => {};
+  const held = new Promise<void>((resolve) => {
+    responseHeld = resolve;
+  });
+  const removed: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().includes("dashboardV2.list.removeListingsFromList"))
+      removed.push(request.headers()["x-dashboard-member-id"] ?? "missing");
+  });
+  await withTempE2EDb(
+    async (db) => {
+      await db.user.create({
+        data: {
+          id: "queue-other-member",
+          clerkUserId: "user_integration_other",
+        },
+      });
+      await db.list.create({
+        data: {
+          id,
+          userId: "integration-user",
+          title: "Account queue list",
+          listings: { connect: { id: "integration-existing-listing" } },
+        },
+      });
+    },
+    { clearFirst: false },
+  );
+  try {
+    await manageList.goto(id);
+    await manageList.isReady();
+    await page.route(
+      "**/api/trpc/*dashboardV2.list.addListingToList*",
+      async (route) => {
+        const response = await route.fetch();
+        responseHeld();
+        await delivery;
+        await route.fulfill({ response });
+      },
+    );
+    await manageList.openAddListingsDialog();
+    await manageList.searchAddListings("Integration Media Listing");
+    await manageList.selectListingToAdd("Integration Media Listing");
+    await held;
+    await manageList
+      .listingRow("Existing Bloom")
+      .getByRole("checkbox", { name: "Select row" })
+      .click();
+    await manageList.clickRemoveSelected();
+    await manageList.confirmRemoveSelected();
+    expect(removed).toEqual([]);
+    // The first request is committed. The next command is still queued.
+    await context.addCookies([
+      { name: "integration-auth", value: "other-member", url: baseURL! },
+    ]);
+    release();
+    await expect(
+      page
+        .locator("[data-sonner-toast]")
+        .filter({
+          hasText:
+            "Your account changed. Your changes were not saved. Copy any unsaved changes, then reload this page.",
+        }),
+    ).toBeVisible();
+    expect(removed).toEqual(["integration-user"]);
+    await withTempE2EDb(
+      async (db) => {
+        const list = await db.list.findUniqueOrThrow({
+          where: { id },
+          include: { listings: true },
+        });
+        expect(list.listings.map((listing) => listing.id).sort()).toEqual([
+          "integration-existing-listing",
+          "integration-media-listing",
+        ]);
+        expect(
+          await db.list.count({ where: { userId: "queue-other-member" } }),
+        ).toBe(0);
+        expect(
+          await db.listing.count({ where: { userId: "queue-other-member" } }),
+        ).toBe(0);
+      },
+      { clearFirst: false },
+    );
+    await page.goto("/dashboard/listings?creating=true");
+    await createListingDialog.isReady();
+    await createListingDialog.titleInput.fill("Other member first bloom");
+    await createListingDialog.dialog
+      .getByRole("button", { name: "Save", exact: true })
+      .click();
+    await expect(createListingDialog.dialog).toBeHidden();
+    await withTempE2EDb(
+      async (db) => {
+        expect(
+          await db.listing.count({
+            where: {
+              userId: "queue-other-member",
+              title: "Other member first bloom",
+            },
+          }),
+        ).toBe(1);
+      },
+      { clearFirst: false },
+    );
+    await page.goto("/dashboard/listings");
+    await expect(
+      dashboardListings.listingRow("Other member first bloom"),
+    ).toBeVisible();
+    await expect(dashboardListings.listingRow("Existing Bloom")).toHaveCount(0);
+  } finally {
+    release();
+    await context.clearCookies();
+    await page.unrouteAll({ behavior: "wait" });
+    await withTempE2EDb(
+      async (db) => {
+        await db.list.deleteMany({ where: { id } });
+        await db.listing.deleteMany({
+          where: { userId: "queue-other-member" },
+        });
+        await db.user.deleteMany({ where: { id: "queue-other-member" } });
+      },
+      { clearFirst: false },
+    );
+  }
+});
+
+test("overlapping list changes retain the latest membership after reload", async ({
+  page,
+}) => {
+  const id = "integration-overlapping-list";
+  const manageList = new ManageListPage(page);
+  let release = () => {};
+  const delivery = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let responseHeld = () => {};
+  const held = new Promise<void>((resolve) => {
+    responseHeld = resolve;
+  });
+  await withTempE2EDb(
+    (db) =>
+      db.list.create({
+        data: {
+          id,
+          title: "Overlapping changes",
+          userId: "integration-user",
+          listings: { connect: { id: "integration-existing-listing" } },
+        },
+      }),
+    { clearFirst: false },
+  );
+  try {
+    await manageList.goto(id);
+    await manageList.isReady();
+    // Keep the real server result, but deliver it after a later command.
+    await page.route(
+      "**/api/trpc/*dashboardV2.list.addListingToList*",
+      async (route) => {
+        const response = await route.fetch();
+        responseHeld();
+        await delivery;
+        await route.fulfill({ response });
+      },
+    );
+    await manageList.openAddListingsDialog();
+    await manageList.searchAddListings("Integration Media Listing");
+    await manageList.selectListingToAdd("Integration Media Listing");
+    await held;
+    await manageList
+      .listingRow("Existing Bloom")
+      .getByRole("checkbox", { name: "Select row" })
+      .click();
+    await manageList.clickRemoveSelected();
+    const removal = page.waitForResponse((response) =>
+      response.url().includes("dashboardV2.list.removeListingsFromList"),
+    );
+    await manageList.confirmRemoveSelected();
+    // Let a concurrent command finish first. A queued command can wait for
+    // the held reply instead; the test must permit either correct approach.
+    await Promise.race([
+      removal.then((response) => response.finished()),
+      new Promise((resolve) => setTimeout(resolve, 1_000)),
+    ]);
+    release();
+    await removal;
+    await expect(
+      page
+        .locator("[data-sonner-toast]")
+        .filter({ hasText: "Listing added to list" }),
+    ).toBeVisible();
+    await expect(
+      page
+        .locator("[data-sonner-toast]")
+        .filter({ hasText: "Listings removed from list" }),
+    ).toBeVisible();
+    await withTempE2EDb(
+      async (db) => {
+        const list = await db.list.findUniqueOrThrow({
+          where: { id },
+          include: { listings: true },
+        });
+        expect(list.listings.map((listing) => listing.id)).toEqual([
+          "integration-media-listing",
+        ]);
+      },
+      { clearFirst: false },
+    );
+    await expect(
+      manageList.listingRow("Integration Media Listing"),
+    ).toBeVisible();
+    await expect(manageList.listingRow("Existing Bloom")).toHaveCount(0);
+    // A fresh server result must not hide a stale persisted browser catalog.
+    await page.route("**/api/trpc/*dashboardV2.bootstrap.catalog*", (route) =>
+      route.abort("failed"),
+    );
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.reload();
+    await manageList.isReady();
+    await expect(
+      manageList.listingRow("Integration Media Listing"),
+    ).toBeVisible();
+    await expect(manageList.listingRow("Existing Bloom")).toHaveCount(0);
+  } finally {
+    release();
+    await page.unroute("**/api/trpc/*dashboardV2.list.addListingToList*");
+    await page.unroute("**/api/trpc/*dashboardV2.bootstrap.catalog*");
+    await withTempE2EDb((db) => db.list.deleteMany({ where: { id } }), {
+      clearFirst: false,
+    });
+  }
+});
+
 for (const [device, viewport] of [
   ["desktop", { width: 1024, height: 768 }],
   ["mobile", { width: 402, height: 874 }],
@@ -58,7 +390,7 @@ for (const [device, viewport] of [
     ).toBeVisible();
     await lists.editTitleInput().fill(editedTitle);
     await lists.editDescriptionInput().fill(description);
-    await page.route("**/api/trpc/*dashboardDb.list.update*", (route) =>
+    await page.route("**/api/trpc/*dashboardV2.list.update*", (route) =>
       route.abort("failed"),
     );
     await lists.surfaceSaveButton().click();
@@ -66,7 +398,7 @@ for (const [device, viewport] of [
     await expect(lists.editTitleInput()).toHaveValue(editedTitle);
     await expect(lists.editDescriptionInput()).toHaveValue(description);
     await expect(lists.surfaceSaveButton()).toBeEnabled();
-    await page.unroute("**/api/trpc/*dashboardDb.list.update*");
+    await page.unroute("**/api/trpc/*dashboardV2.list.update*");
     await lists.surfaceSaveButton().click();
     await expect(toast("List updated")).toBeVisible();
     await expect(lists.editDialog()).toBeHidden();
@@ -150,7 +482,7 @@ for (const [device, viewport] of [
     await lists.openFirstVisibleRowActions();
     await lists.chooseRowActionDelete();
     const rejectedResponse = page.waitForResponse((response) =>
-      response.url().includes("dashboardDb.list.delete"),
+      response.url().includes("dashboardV2.list.delete"),
     );
     await lists.confirmDelete();
     await expect(toast("Failed to delete list")).toContainText(
@@ -167,7 +499,7 @@ for (const [device, viewport] of [
         ),
       )
       .toMatchObject({
-        procedure: "dashboardDb.list.delete",
+        procedure: "dashboardV2.list.delete",
         http_status: 412,
         error_code: "PRECONDITION_FAILED",
       });
@@ -181,8 +513,8 @@ for (const [device, viewport] of [
 
     const observedResponses = responses.slice();
     for (const procedure of [
-      "dashboardDb.bootstrap.roots",
-      "dashboardDb.list.create",
+      "dashboardV2.bootstrap.catalog",
+      "dashboardV2.list.create",
     ]) {
       const response = observedResponses.find((response) =>
         response.url().includes(procedure),
@@ -221,7 +553,7 @@ for (const [device, viewport] of [
     expect(records).toContainEqual(
       expect.objectContaining({
         event: "trpc_procedure_rejected",
-        procedure: "dashboardDb.list.delete",
+        procedure: "dashboardV2.list.delete",
         error_code: "PRECONDITION_FAILED",
         correlation_id: rejectedId,
         level: "warn",
@@ -263,7 +595,7 @@ for (const [device, viewport] of [
     await lists.openFirstVisibleRowActions();
     await lists.chooseRowActionDelete();
     const deletion = page.waitForResponse((response) =>
-      response.url().includes("dashboardDb.list.delete"),
+      response.url().includes("dashboardV2.list.delete"),
     );
     await lists.confirmDelete();
     await deletion;
@@ -380,7 +712,7 @@ test("failed member lookups retain isolated authenticated request identities", a
         await Promise.all(
           requests.map(async (item) => {
             const response = await request.get(
-              "/api/trpc/dashboardDb.bootstrap.roots",
+              "/api/trpc/dashboardV2.bootstrap.catalog",
               {
                 headers: {
                   cookie: item.cookie,

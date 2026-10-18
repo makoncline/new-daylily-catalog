@@ -12,10 +12,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { AhsListingSelect } from "./ahs-listing-select";
+import { AhsListingSelect, type AhsSearchResult } from "./ahs-listing-select";
 import { AhsListingDisplay } from "./ahs-listing-display";
 
-import type { AhsSearchResult } from "./ahs-listing-select";
 import {
   getErrorMessage,
   normalizeError,
@@ -23,18 +22,14 @@ import {
 } from "@/lib/error-utils";
 import type { RouterOutputs } from "@/trpc/react";
 import type { OptimizedImageSource } from "@/components/optimized-image";
-import {
-  linkAhs,
-  syncAhsName,
-  unlinkAhs,
-  type ListingCollectionItem,
-} from "@/app/dashboard/_lib/dashboard-db/listings-collection";
+import { type ListingCollectionItem } from "@/app/dashboard/_lib/dashboard-db/collections";
+import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
 
 type CultivarReferenceAhsListing =
-  RouterOutputs["dashboardDb"]["cultivarReference"]["listForUserListings"][number]["ahsListing"];
+  RouterOutputs["dashboardV2"]["bootstrap"]["catalog"]["cultivarReferences"][number]["ahsListing"];
 
 interface AhsListingLinkProps {
-  listing: RouterOutputs["dashboardDb"]["listing"]["list"][number];
+  listing: RouterOutputs["dashboardV2"]["listing"]["list"][number];
   linkedAhs: CultivarReferenceAhsListing | null;
   cultivarHref?: string | null;
   cultivarReferenceImage?: OptimizedImageSource | null;
@@ -50,6 +45,7 @@ export function AhsListingLink({
   onNameChange,
   onMutationSuccess,
 }: AhsListingLinkProps) {
+  const { linkAhs, unlinkAhs, syncAhsName } = useDashboardDb();
   const [isSaving, setIsSaving] = useState(false);
 
   async function updateAhsListing(selected: AhsSearchResult | null) {

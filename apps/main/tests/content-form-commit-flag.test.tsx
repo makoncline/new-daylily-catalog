@@ -21,18 +21,20 @@ const getProfileMock = vi.hoisted(() => vi.fn());
 const setProfileDataMock = vi.hoisted(() => vi.fn());
 const editorState = vi.hoisted(() => ({ text: "Updated content" }));
 
-vi.mock("@/trpc/client", () => ({
-  getTrpcClient: () => ({
-    dashboardDb: { userProfile: { get: { query: getProfileMock } } },
+vi.mock("@/app/dashboard/_components/dashboard-db-provider", () => ({
+  useDashboardDb: () => ({
+    client: {
+      dashboardV2: { userProfile: { get: { query: getProfileMock } } },
+    },
   }),
 }));
 
 vi.mock("@/trpc/react", () => ({
   api: {
     useUtils: () => ({
-      dashboardDb: { userProfile: { get: { setData: setProfileDataMock } } },
+      dashboardV2: { userProfile: { get: { setData: setProfileDataMock } } },
     }),
-    dashboardDb: {
+    dashboardV2: {
       userProfile: {
         updateContent: {
           useMutation: () => ({

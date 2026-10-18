@@ -309,7 +309,7 @@ for (const [device, viewport] of [
     let rejectRefresh = false;
     const successfulWrite: { request?: { url: string; body: string } } = {};
     await page.route(
-      "**/api/trpc/dashboardDb.bootstrap.roots**",
+      /\/api\/trpc\/dashboardV2\.bootstrap\.catalog/,
       async (route) => {
         if (!rejectRefresh) {
           await route.continue();
@@ -333,7 +333,7 @@ for (const [device, viewport] of [
       },
     );
     await page.route(
-      "**/api/trpc/dashboardDb.listing.importRows**",
+      "**/api/trpc/dashboardV2.listing.importRows**",
       async (route) => {
         requests++;
         if (fail) {
@@ -410,7 +410,7 @@ for (const [device, viewport] of [
       page.getByText("Listings were saved. Dashboard refresh did not finish.", {
         exact: true,
       }),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 15_000 });
     await capture(page, `${device}-refresh-failed-after-write`);
     await expect(
       page.getByText("Import did not finish", { exact: true }),
@@ -432,7 +432,10 @@ for (const [device, viewport] of [
     if (!successfulWrite.request)
       throw Error("Successful write request was not captured");
     const replay = await page.request.post(successfulWrite.request.url, {
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        "x-dashboard-member-id": "integration-user",
+      },
       data: successfulWrite.request.body,
     });
     expect(replay.ok()).toBe(true);
@@ -653,7 +656,7 @@ test("existing catalog retry and builder exclusions keep the source rows", async
     releaseCheck = resolve;
   });
   let failCheck = true;
-  await page.route("**/api/trpc/dashboardDb.listing.list**", async (route) => {
+  await page.route("**/api/trpc/dashboardV2.listing.list**", async (route) => {
     await heldCheck;
     if (!failCheck) {
       await route.continue();

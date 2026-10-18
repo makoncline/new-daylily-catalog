@@ -116,9 +116,15 @@ export const createTRPCContext = async (opts: {
  */
 const t = initTRPC.context<TRPCInternalContext>().create({
   transformer: superjson,
-  errorFormatter({ shape, error }) {
+  errorFormatter({ shape, error, path }) {
     return {
       ...shape,
+      ...(error.code === "NOT_FOUND" && path?.startsWith("dashboardDb.")
+        ? {
+            message:
+              "This dashboard is out of date. Your changes were not saved. Copy any unsaved changes, then reload this page.",
+          }
+        : {}),
       data: {
         ...shape.data,
         correlationId: (getErrorContext(error) ?? getLogContext())
@@ -262,14 +268,7 @@ async function resolveAuthenticatedUser(requestClerkUserId?: string | null) {
   return getOrCreateUser(clerkUserId);
 }
 
-const READ_ONLY_MUTATION_PATHS = new Set([
-  "dashboardDb.cultivarReference.getByIdsBatch",
-  "dashboardDb.cultivarReference.getByIdsBatchReplica",
-  "dashboardDb.image.listByListingIds",
-  "dashboardDb.image.listByListingIdsReplica",
-]);
-
-const REDACTED_MUTATION_PATHS = new Set(["dashboardDb.listing.importRows"]);
+const REDACTED_MUTATION_PATHS = new Set(["dashboardV2.listing.importRows"]);
 
 function getMutationAuditInput(path: string, input: unknown) {
   if (!REDACTED_MUTATION_PATHS.has(path)) {
@@ -301,8 +300,18 @@ const isAuthenticated = t.middleware(async (opts) => {
     });
   }
 
-  const shouldAuditMutation =
-    opts.type === "mutation" && !READ_ONLY_MUTATION_PATHS.has(opts.path);
+  if (
+    opts.path.startsWith("dashboardV2.") &&
+    opts.ctx.headers.get("x-dashboard-member-id") !== user.id
+  ) {
+    throw new TRPCError({
+      code: "PRECONDITION_FAILED",
+      message:
+        "Your account changed. Your changes were not saved. Copy any unsaved changes, then reload this page.",
+    });
+  }
+
+  const shouldAuditMutation = opts.type === "mutation";
   const rawInput = shouldAuditMutation
     ? getMutationAuditInput(opts.path, await opts.getRawInput())
     : undefined;

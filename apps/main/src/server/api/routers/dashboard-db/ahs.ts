@@ -49,7 +49,7 @@ export async function searchCultivarReferences(
         ),
         level: "warning",
         context: {
-          source: "dashboardDb.ahs.search",
+          source: "dashboardV2.ahs.search",
           cultivarReferenceId: row.id,
           normalizedName: row.normalizedName,
         },
@@ -61,7 +61,7 @@ export async function searchCultivarReferences(
         "AHS display name and normalized name are both missing for cultivar reference search result",
       ),
       context: {
-        source: "dashboardDb.ahs.search",
+        source: "dashboardV2.ahs.search",
         cultivarReferenceId: row.id,
       },
     });

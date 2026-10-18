@@ -11,7 +11,7 @@ export function DashboardBreadcrumbs() {
     data: list,
     error,
     isPending,
-  } = api.dashboardDb.list.get.useQuery(
+  } = api.dashboardV2.list.get.useQuery(
     { id: listId! },
     { enabled: pathname.startsWith("/dashboard/lists/") && !!listId },
   );

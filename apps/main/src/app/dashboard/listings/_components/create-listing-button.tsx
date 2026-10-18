@@ -7,36 +7,32 @@ import { usePro } from "@/hooks/use-pro";
 import { CheckoutButton } from "@/components/checkout-button";
 import { TierLimitedCreateAction } from "@/app/dashboard/_components/tier-limited-create-action";
 import { logDashboardTiming } from "@/app/dashboard/_lib/dashboard-timing";
-import { listingsCollection } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
-import { DASHBOARD_DB_QUERY_KEYS } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-keys";
-import { useSeededDashboardDbQuery } from "@/app/dashboard/_lib/dashboard-db/use-seeded-dashboard-db-query";
-import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
-import type { RouterOutputs } from "@/trpc/react";
 
-type Listing = RouterOutputs["dashboardDb"]["listing"]["list"][number];
+import { useLiveSuspenseQuery } from "@tanstack/react-db";
+import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
+import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
 
 export function CreateListingButton({ onCreate }: { onCreate: () => void }) {
+  const { listingsCollection } = useDashboardDb();
   const { isPro, isLoading: isSubscriptionLoading } = usePro();
-  const listingsQuery = useSeededDashboardDbQuery<Listing>({
+  const listingsQuery = useLiveSuspenseQuery({
     query: (q) => q.from({ listing: listingsCollection }),
-    queryKey: DASHBOARD_DB_QUERY_KEYS.listings,
   });
   const listingCount = listingsQuery.data.length;
 
   useEffect(() => {
     logDashboardTiming("create-listing-button.count-state", {
       listingCount,
-      listingsReady: listingsQuery.isReady,
       isPro,
     });
-  }, [isPro, listingCount, listingsQuery.isReady]);
+  }, [isPro, listingCount]);
 
   return (
     <TierLimitedCreateAction
       buttonLabel="Create Listing"
       buttonTestId="create-listing-button"
       currentCount={listingCount}
-      disabled={isSubscriptionLoading || !listingsQuery.isReady}
+      disabled={isSubscriptionLoading}
       freeTierLimit={APP_CONFIG.LISTING.FREE_TIER_MAX_LISTINGS}
       isPro={isPro}
       onCreate={onCreate}

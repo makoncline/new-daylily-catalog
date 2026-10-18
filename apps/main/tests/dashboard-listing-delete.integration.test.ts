@@ -81,8 +81,9 @@ describe("dashboard listing deletion with SQLite", () => {
           .updatedAt,
       ).toEqual(oldTime);
 
-      await expect(caller.delete({ id: owned.id })).resolves.toEqual({
+      await expect(caller.delete({ id: owned.id })).resolves.toMatchObject({
         id: owned.id,
+        lists: [{ id: ownedList.id, listings: [] }],
       });
       expect(
         await db.listing.findUnique({ where: { id: owned.id } }),

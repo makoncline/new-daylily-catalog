@@ -1123,6 +1123,10 @@ export const ATLAS_FLOWS = [
           path: "src/app/dashboard/_components/dashboard-db-provider.tsx",
         },
         {
+          label: "Native catalog collections and confirmed writes",
+          path: "src/app/dashboard/_lib/dashboard-db/collections.ts",
+        },
+        {
           label: "Listing creation and retry identity",
           path: "src/app/dashboard/listings/_components/create-listing-dialog.tsx",
         },
@@ -1153,6 +1157,10 @@ export const ATLAS_FLOWS = [
       ],
       invariants: [
         "Keep dashboard collections active while the provider is ready, including idle editors.",
+        "The dashboard renders the member's saved catalog before refresh completes. Old refreshes must not replace confirmed writes; successful refreshes reconcile additions and deletions.",
+        "Copied listing links use the listing owner ID until the profile URL loads. Loading the profile must not close an open row menu.",
+        "Reject old dashboard API routes before writing data. Show reload instructions and keep the unsaved form open.",
+        "Bind dashboard requests to the member that opened the session. Reject a changed or missing member identity before reads or writes.",
         "Store member versions as integer milliseconds and preserve stale-write rejection.",
         "Classify editor save conflicts by the tRPC code; keep drafts and load the latest version only on explicit recovery.",
         "Reuse the same create request ID for the same draft after lost create confirmation. Keep one saved listing after retry and include that ID in the failure report.",
@@ -1191,6 +1199,9 @@ export const ATLAS_FLOWS = [
         testRef("integration", "tests/edit-listing-dialog-url-sync.test.tsx"),
         fullAppIntegrationRef(
           "tests/integration/create-edit-listing.integration.ts",
+        ),
+        fullAppIntegrationRef(
+          "tests/integration/dashboard-cache.integration.ts",
         ),
         fullAppIntegrationRef("tests/integration/editor-save.integration.ts"),
         fullAppIntegrationRef(
@@ -1584,6 +1595,7 @@ export const ATLAS_FLOWS = [
         "Use two reserved synthetic listings with nine local images and zero images. Keep the surrounding realistic catalog.",
         "Create media fixtures only in a runner-owned disposable snapshot. Refuse BASE_URL, DATABASE_URL, and ATLAS_DATABASE_URL overrides before any write.",
         "Keep populated, empty, preview, crop, reorder, and delete-confirmation assertions. Do not send an upload.",
+        "Delete only the selected image. Keep survivor order values; apply the full canonical image set after a reorder, including images absent from the browser.",
       ],
     },
     tests: {
@@ -1738,6 +1750,9 @@ export const ATLAS_FLOWS = [
         "Store member versions as integer milliseconds and preserve stale-write rejection.",
         "Classify editor save conflicts by the tRPC code; keep drafts and load the latest version only on explicit recovery.",
         "Save list fields through the editor; write membership changes at once and mark the parent for commit.",
+        "Keep confirmed list membership current when commands overlap, including after a reload with catalog reads unavailable.",
+        "Order targeted reads with writes so a delayed response cannot replace a later confirmed edit.",
+        "Keep queued commands bound to their original member and reject them if authentication changes before dispatch.",
         "Enforce the same non-Pro list cap for dashboard, member API, and MCP callers, including safe create retries.",
         "Keep drafts after rejected saves and canceled browser history changes.",
         "Keep title and actions pinned in the overview; keep selection and title pinned in Manage List.",
@@ -1759,16 +1774,11 @@ export const ATLAS_FLOWS = [
           "integration",
           "tests/member-non-pro-access.integration.test.ts",
         ),
-        testRef(
-          "integration",
-          "tests/dashboard-db-list-membership-sync.test.tsx",
-        ),
         testRef("integration", "tests/list-form-boundary-save.test.tsx"),
         testRef(
           "integration",
           "tests/manage-list-page-membership-commit.test.tsx",
         ),
-        testRef("integration", "tests/use-list-resource.test.tsx"),
         fullAppIntegrationRef(
           "tests/integration/list-management.integration.ts",
         ),
