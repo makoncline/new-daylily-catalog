@@ -332,6 +332,7 @@ test("seller reviews all selected listings and adds them to a list without repla
     animations: "disabled",
   });
   await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(dialog).toBeHidden();
   await withTempE2EDb(
     async (db) => {
       expect(
@@ -468,6 +469,7 @@ test("seller creates a first list from bulk selection before confirming its memb
     await confirmation
       .getByRole("button", { name: "Cancel", exact: true })
       .click();
+    await expect(confirmation).toBeHidden();
     await withTempE2EDb(
       async (db) => {
         const lists = await db.list.findMany({
