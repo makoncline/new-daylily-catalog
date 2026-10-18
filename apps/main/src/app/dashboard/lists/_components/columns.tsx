@@ -8,7 +8,7 @@ import { DataTableColumnHeader } from "@/components/data-table/data-table-column
 import { LIST_TABLE_COLUMN_NAMES } from "@/config/constants";
 import { P } from "@/components/typography";
 
-export type List = RouterOutputs["dashboardDb"]["list"]["list"][number];
+export type List = RouterOutputs["dashboardV2"]["list"]["list"][number];
 
 const LIST_DATE_FORMATTER = new Intl.DateTimeFormat();
 

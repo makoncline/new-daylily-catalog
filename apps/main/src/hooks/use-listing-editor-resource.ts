@@ -4,15 +4,11 @@ import { eq, useLiveQuery } from "@tanstack/react-db";
 import { type Image } from "@prisma/client";
 import {
   type ListingCollectionItem,
-  listingsCollection,
-} from "@/app/dashboard/_lib/dashboard-db/listings-collection";
-import {
-  cultivarReferencesCollection,
   type CultivarReferenceCollectionItem,
-} from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
-import { imagesCollection } from "@/app/dashboard/_lib/dashboard-db/images-collection";
-import { listsCollection } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
+} from "@/app/dashboard/_lib/dashboard-db/collections";
+
 import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
+import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
 
 type LinkedAhsListing = CultivarReferenceCollectionItem["ahsListing"];
 type LinkedCultivarReferenceImage =
@@ -31,34 +27,42 @@ export interface ListingEditorResource {
 export function useListingEditorResource(
   listingId: string,
 ): ListingEditorResource {
-  const { data: listings = [], isReady: isListingReady } = useLiveQuery(
-    (q) =>
+  const {
+    listingsCollection,
+    cultivarReferencesCollection,
+    imagesCollection,
+    listsCollection,
+  } = useDashboardDb();
+  const { data: listings = [], isReady: isListingReady } = useLiveQuery({
+    query: (q) =>
       q
         .from({ listing: listingsCollection })
         .where(({ listing }) => eq(listing.id, listingId)),
-    [listingId],
-  );
+  });
   const listing = listings[0] ?? null;
 
   const { data: cultivarReferences = [], isReady: isCultivarReferencesReady } =
-    useLiveQuery((q) =>
-      q
-        .from({ ref: cultivarReferencesCollection })
-        .orderBy(({ ref }) => ref.updatedAt, "asc"),
-    );
+    useLiveQuery({
+      query: (q) =>
+        q
+          .from({ ref: cultivarReferencesCollection })
+          .orderBy(({ ref }) => ref.updatedAt, "asc"),
+    });
 
-  const { data: images = [], isReady: isImagesReady } = useLiveQuery(
-    (q) =>
+  const { data: images = [], isReady: isImagesReady } = useLiveQuery({
+    query: (q) =>
       q
         .from({ img: imagesCollection })
         .where(({ img }) => eq(img.listingId, listingId))
         .orderBy(({ img }) => img.order, "asc"),
-    [listingId],
-  );
+  });
 
-  const { data: lists = [], isReady: isListsReady } = useLiveQuery((q) =>
-    q.from({ list: listsCollection }).orderBy(({ list }) => list.title, "asc"),
-  );
+  const { data: lists = [], isReady: isListsReady } = useLiveQuery({
+    query: (q) =>
+      q
+        .from({ list: listsCollection })
+        .orderBy(({ list }) => list.title, "asc"),
+  });
 
   const selectedListIds = lists
     .filter((list) => list.listings.some(({ id }) => id === listingId))

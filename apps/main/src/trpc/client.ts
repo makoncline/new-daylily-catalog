@@ -7,6 +7,10 @@ import { createClientLinks } from "./client-links";
 let trpcClientSingleton: TRPCClient<AppRouter> | undefined;
 let testOverrideClient: TRPCClient<AppRouter> | undefined;
 
+export function createMemberClient(memberId: string) {
+  return createTRPCClient<AppRouter>({ links: createClientLinks(memberId) });
+}
+
 export function setTestTrpcClient(clientLike: TRPCClient<AppRouter>) {
   testOverrideClient = clientLike;
 }

@@ -1,3 +1,4 @@
+import { recordUsageInput } from "@/server/observability/api-usage";
 import { z } from "zod";
 import type { db } from "@/server/db";
 import { getProUserIds } from "@/server/db/getProUserIds";
@@ -15,6 +16,7 @@ export async function pagePublicProfiles(args: {
   database: typeof db;
   input: PublicProfilePageInput;
 }) {
+  recordUsageInput(args.input);
   const activeUserIds = await getProUserIds(args.database);
   if (activeUserIds.length === 0) {
     return { items: [], nextCursor: null };

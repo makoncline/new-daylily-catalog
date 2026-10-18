@@ -20,6 +20,11 @@ export function withLogContext<T>(context: LogContext, callback: () => T): T {
   return storage.run(context, callback);
 }
 
+export function updateLogContext(attributes: Record<string, unknown>) {
+  const context = storage.getStore();
+  if (context) Object.assign(context, attributes);
+}
+
 export function requestLogContext(request: Request): LogContext {
   const current = getLogContext();
   const correlationId =

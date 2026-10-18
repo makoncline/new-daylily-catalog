@@ -15,7 +15,7 @@ export const appRouter = createTRPCRouter({
   stripe: stripeRouter,
   user: userRouter,
   public: publicRouter,
-  dashboardDb: dashboardDbRouter,
+  dashboardV2: dashboardDbRouter,
 });
 
 // export type definition of API

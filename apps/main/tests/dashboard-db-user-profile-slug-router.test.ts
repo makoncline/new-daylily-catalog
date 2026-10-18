@@ -50,7 +50,7 @@ function createCaller(db: MockDb) {
   });
 }
 
-describe("dashboardDb.userProfile slug namespace", () => {
+describe("dashboardV2.userProfile slug namespace", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });

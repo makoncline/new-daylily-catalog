@@ -7,7 +7,7 @@ test("profile URLs normalize uppercase before validation and saving", async ({
   page.on("request", (request) => {
     if (
       decodeURIComponent(request.url()).includes(
-        "dashboardDb.userProfile.checkSlug",
+        "dashboardV2.userProfile.checkSlug",
       )
     ) {
       availabilityRequests.push(request.url());

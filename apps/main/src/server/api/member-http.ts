@@ -21,6 +21,8 @@ import {
 import { MAX_MEMBER_PROFILE_CONTENT_CHARS } from "@/server/security/member-profile-content";
 import { consumeMemberRequestBudget } from "@/server/security/member-request-budget";
 
+import { updateLogContext } from "@/server/observability/log-context";
+
 const READ_PATHS = new Set<string>(
   MEMBER_READ_OPERATIONS.map(([name]) => name),
 );
@@ -230,6 +232,8 @@ export async function handleMemberHttpRequest(request: Request, path: string) {
     return denied(403, "Member account not found.");
   }
 
+  updateLogContext({ app_user_id: user.id });
+
   let confirmedActiveMembership: boolean | undefined;
   if (isMutationPath(path)) {
     const subscription = await getStripeSubscriptionResult(
@@ -244,6 +248,7 @@ export async function handleMemberHttpRequest(request: Request, path: string) {
     confirmedActiveMembership = hasActiveSubscription(
       subscription.subscription.status,
     );
+    updateLogContext({ membership_active_at_event: confirmedActiveMembership });
     if (path === "profile.updateWithUrl" && !confirmedActiveMembership) {
       return denied(403, "Upgrade to Pro to customize your profile URL.");
     }

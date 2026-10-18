@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -48,6 +48,13 @@ const integrationEnv = {
   INTEGRATION_PROVIDER_URL: providerUrl,
   DATABASE_URL: databaseUrl,
   RUNTIME_FEATURE_FLAGS_PATH: runtimeFlagsPath,
+  DAYLILY_TRUST_PROXY_IP: "false",
+  DAYLILY_MCP_OAUTH_CLIENT_ID: "integration-oauth-client",
+  DAYLILY_MEMBER_API_OAUTH_CLIENT_IDS: "integration-oauth-client",
+  SENTRY_RELEASE: execFileSync("git", ["rev-parse", "HEAD"], {
+    cwd: appRoot,
+    encoding: "utf8",
+  }).trim(),
   CLERK_SECRET_KEY: "sk_test_integration",
   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_integration",
   STRIPE_SECRET_KEY: "sk_test_integration",

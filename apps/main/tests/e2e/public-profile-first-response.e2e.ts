@@ -27,6 +27,10 @@ test.describe("public profile first-response content @local", () => {
         },
       });
 
+      await db.list.create({
+        data: { userId: user.id, title: "Spring collection" },
+      });
+
       for (let i = 1; i <= LISTING_COUNT_FOR_TWO_PAGES; i++) {
         const suffix = pad(i);
         await db.listing.create({
@@ -43,6 +47,49 @@ test.describe("public profile first-response content @local", () => {
         });
       }
     });
+  });
+
+  test("profile counts and Lists navigation open their sections from a later page", async ({
+    page,
+  }) => {
+    await page.goto(`/${PROFILE_SLUG}/page/2`);
+    await page
+      .locator("#profile")
+      .getByRole("link", { name: "1 list", exact: true })
+      .click();
+    await expect(page).toHaveURL(`/${PROFILE_SLUG}#lists`);
+    await expect(
+      page.locator("#lists").getByText("Spring collection", { exact: true }),
+    ).toBeInViewport();
+
+    await page
+      .locator("#profile")
+      .getByRole("link", {
+        name: `${LISTING_COUNT_FOR_TWO_PAGES} listings`,
+        exact: true,
+      })
+      .click();
+    await expect(
+      page
+        .locator("#listings")
+        .getByRole("heading", { name: "Listings", exact: true }),
+    ).toBeInViewport();
+    await expect(
+      page.locator("#listings").getByRole("heading", {
+        name: `${LISTING_TITLE_PREFIX} 001`,
+        exact: true,
+      }),
+    ).toBeVisible();
+
+    await page.goto(`/${PROFILE_SLUG}/page/2`);
+    await page
+      .getByRole("navigation", { name: "Catalog sections" })
+      .getByRole("link", { name: "Lists", exact: true })
+      .click();
+    await expect(page).toHaveURL(`/${PROFILE_SLUG}#lists`);
+    await expect(
+      page.locator("#lists").getByText("Spring collection", { exact: true }),
+    ).toBeInViewport();
   });
 
   const assertFirstDocumentContent = async (

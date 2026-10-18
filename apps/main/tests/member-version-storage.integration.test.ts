@@ -18,7 +18,7 @@ describe("member version storage correction", () => {
       const { createCaller } = await import("@/server/api/root");
       const caller = createCaller({
         db,
-        headers: new Headers(),
+        headers: new Headers({ "x-dashboard-member-id": user.id }),
         _authUser: { id: user.id } as TRPCInternalContext["_authUser"],
       });
       const profile = await db.userProfile.create({
@@ -48,7 +48,7 @@ describe("member version storage correction", () => {
         data: { description: "Garden" },
       };
       await expect(
-        caller.dashboardDb.userProfile.updateBasic(input),
+        caller.dashboardV2.userProfile.updateBasic(input),
       ).rejects.toMatchObject({ code: "CONFLICT" });
 
       const client = createClient({ url: process.env.DATABASE_URL! });
@@ -70,30 +70,30 @@ describe("member version storage correction", () => {
           ),
         ).toEqual([{ updatedAt: new Date(isoDate), storageType: "integer" }]);
       }
-      const saved = await caller.dashboardDb.userProfile.updateBasic(input);
+      const saved = await caller.dashboardV2.userProfile.updateBasic(input);
       expect(saved.description).toBe("Garden");
-      await caller.dashboardDb.listing.update({
+      await caller.dashboardV2.listing.update({
         id: listing.id,
         expectedUpdatedAt: version,
         data: { price: 19 },
       });
-      await caller.dashboardDb.list.update({
+      await caller.dashboardV2.list.update({
         id: list.id,
         expectedUpdatedAt: version,
         data: { description: "Collection description" },
       });
       await expect(
-        caller.dashboardDb.userProfile.updateBasic(input),
+        caller.dashboardV2.userProfile.updateBasic(input),
       ).rejects.toMatchObject({ code: "CONFLICT" });
       await expect(
-        caller.dashboardDb.listing.update({
+        caller.dashboardV2.listing.update({
           id: listing.id,
           expectedUpdatedAt: version,
           data: { price: 20 },
         }),
       ).rejects.toMatchObject({ code: "CONFLICT" });
       await expect(
-        caller.dashboardDb.list.update({
+        caller.dashboardV2.list.update({
           id: list.id,
           expectedUpdatedAt: version,
           data: { description: "Stale description" },

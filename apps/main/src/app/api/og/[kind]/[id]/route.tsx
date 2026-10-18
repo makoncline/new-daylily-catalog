@@ -1,28 +1,35 @@
-import { ImageResponse } from "next/og";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { renderAsync } from "@resvg/resvg-js";
+import { Mutex } from "async-mutex";
+import type { ReactElement } from "react";
+import satori, { type Font } from "satori";
 import sharp from "sharp";
 import { PublicSocialCard } from "@/components/public-social-card";
 import { CultivarSocialCard } from "@/components/cultivar-social-card";
 import { reportError } from "@/lib/error-utils";
-import { isSocialCardKind, SOCIAL_CARD_SIZE } from "@/lib/social-card";
+import {
+  isSocialCardKind,
+  SOCIAL_CARD_SIZE,
+  type SocialCardKind,
+} from "@/lib/social-card";
 import { getPublicCloudflareCacheHeaders } from "@/lib/public-cache-policy";
 import { getPublicCultivarSocialCardData } from "@/server/db/public-cultivar-social-card-read-model";
 import { getErrorCode } from "@/lib/utils";
 import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 import { getPublicSocialCardData } from "@/server/db/public-social-card-read-model";
+import { loadSocialCardAsset } from "@/server/social-card-assets";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MAX_SOURCE_IMAGE_BYTES = 10 * 1024 * 1024;
+const imageGeneration = new Mutex();
 
-let cultivarFontPromise: Promise<
-  Array<{ name: string; data: ArrayBuffer; weight: 400 | 700; style: "normal" }>
-> | null = null;
+let fontPromise: Promise<Font[]> | null = null;
 
-function getCultivarFonts() {
-  cultivarFontPromise ??= (async () => {
+function getFonts() {
+  fontPromise ??= (async () => {
     const appDir = process.cwd().endsWith("apps/main")
       ? process.cwd()
       : join(process.cwd(), "apps/main");
@@ -35,26 +42,43 @@ function getCultivarFonts() {
     return [
       {
         name: "Geist",
-        data: regular.buffer.slice(
-          regular.byteOffset,
-          regular.byteOffset + regular.byteLength,
-        ),
+        data: regular,
         weight: 400 as const,
         style: "normal" as const,
       },
       {
         name: "Geist",
-        data: bold.buffer.slice(
-          bold.byteOffset,
-          bold.byteOffset + bold.byteLength,
-        ),
+        data: bold,
         weight: 700 as const,
         style: "normal" as const,
       },
     ];
   })();
 
-  return cultivarFontPromise;
+  return fontPromise;
+}
+
+async function renderSocialCard(
+  element: ReactElement,
+  headers: HeadersInit,
+  fonts: Font[],
+) {
+  const svg = await satori(element, {
+    ...SOCIAL_CARD_SIZE,
+    fonts,
+    loadAdditionalAsset: loadSocialCardAsset,
+  });
+  const image = await renderAsync(svg, { font: { loadSystemFonts: false } });
+  const png = await sharp(image.pixels, {
+    raw: { width: image.width, height: image.height, channels: 4 },
+  })
+    .png()
+    .toBuffer();
+  const responseHeaders = new Headers(headers);
+  responseHeaders.set("Content-Type", "image/png");
+  return new Response(new Uint8Array(png), {
+    headers: responseHeaders,
+  });
 }
 
 async function prepareImageForSatori(source: string, requestUrl: string) {
@@ -132,6 +156,16 @@ export async function GET(
     return errorResponse(404, "Social image not found");
   }
 
+  return imageGeneration.runExclusive(() =>
+    generateSocialCard(request, kind, id),
+  );
+}
+
+async function generateSocialCard(
+  request: Request,
+  kind: SocialCardKind,
+  id: string,
+) {
   try {
     if (kind === "cultivar") {
       const cultivar = await getPublicCultivarSocialCardData(id);
@@ -141,29 +175,23 @@ export async function GET(
         cultivar.imageUrls,
         request.url,
       );
-      const fonts = await getCultivarFonts();
       const variant =
         new URL(request.url).searchParams.get("variant") === "print"
           ? "print"
           : "share";
 
-      return new ImageResponse(
-        (
-          <CultivarSocialCard
-            title={cultivar.title}
-            ahsListing={cultivar.ahsListing}
-            extraDetails={cultivar.extraDetails}
-            imageUrl={imageUrl}
-            variant={variant}
-          />
-        ),
-        {
-          ...SOCIAL_CARD_SIZE,
-          fonts,
-          headers: getPublicCloudflareCacheHeaders({
-            "Cache-Control": "public, max-age=300",
-          }),
-        },
+      return await renderSocialCard(
+        <CultivarSocialCard
+          title={cultivar.title}
+          ahsListing={cultivar.ahsListing}
+          extraDetails={cultivar.extraDetails}
+          imageUrl={imageUrl}
+          variant={variant}
+        />,
+        getPublicCloudflareCacheHeaders({
+          "Cache-Control": "public, max-age=300",
+        }),
+        await getFonts(),
       );
     }
 
@@ -174,14 +202,15 @@ export async function GET(
     );
     const data = { ...publicData, imageUrls };
 
-    return new ImageResponse(<PublicSocialCard data={data} />, {
-      ...SOCIAL_CARD_SIZE,
-      headers: {
+    return await renderSocialCard(
+      <PublicSocialCard data={data} />,
+      {
         "Cache-Control": "public, max-age=300",
         "Cloudflare-CDN-Cache-Control":
           "public, max-age=900, stale-while-revalidate=86400, stale-if-error=86400",
       },
-    });
+      (await getFonts()).filter((font) => font.weight === 400),
+    );
   } catch (error) {
     if (getErrorCode(error) === "NOT_FOUND") {
       return errorResponse(404, "Social image not found");

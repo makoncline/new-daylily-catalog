@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { createCaller } from "@/server/api/root";
+import { createCallerFactory } from "@/server/api/trpc";
+import { dashboardDbRouter } from "@/server/api/routers/dashboard-db";
 import type { McpContext } from "@/server/mcp/read-only-mcp-types";
 import { APP_CONFIG } from "@/config/constants";
 import { profileFormSchema } from "@/types/schemas/profile";
@@ -129,7 +130,7 @@ export async function callMemberWriteTool(
   oauthClientId: string,
   confirmedActiveMembership: boolean,
 ) {
-  const caller = createCaller({
+  const caller = createCallerFactory(dashboardDbRouter)({
     db: context.memberDb,
     clerkUserId: authUser.clerkUserId,
     headers: context.request.headers,
@@ -144,7 +145,7 @@ export async function callMemberWriteTool(
   switch (name) {
     case "daylily.create_listing": {
       const data = createListing.parse(input);
-      const listing = await caller.dashboardDb.listing.create({
+      const listing = await caller.listing.create({
         ...data,
         cultivarReferenceId: data.cultivarReferenceId ?? null,
       });
@@ -156,7 +157,7 @@ export async function callMemberWriteTool(
     case "daylily.update_listing": {
       const { listingId, expectedUpdatedAt, hidden, ...fields } =
         updateListing.parse(input);
-      const listing = await caller.dashboardDb.listing.update({
+      const listing = await caller.listing.update({
         id: listingId,
         expectedUpdatedAt,
         data: {
@@ -171,7 +172,7 @@ export async function callMemberWriteTool(
     }
     case "daylily.create_list": {
       const data = createList.parse(input);
-      const list = await caller.dashboardDb.list.create({
+      const list = await caller.list.create({
         title: data.title,
         description: data.description ?? undefined,
         requestId: data.requestId,
@@ -183,7 +184,7 @@ export async function callMemberWriteTool(
     }
     case "daylily.update_list": {
       const { listId, expectedUpdatedAt, ...data } = updateList.parse(input);
-      const list = await caller.dashboardDb.list.update({
+      const list = await caller.list.update({
         id: listId,
         expectedUpdatedAt,
         data,
@@ -195,7 +196,7 @@ export async function callMemberWriteTool(
     }
     case "daylily.add_listing_to_list": {
       const data = listMembership.parse(input);
-      const list = await caller.dashboardDb.list.addListingToList(data);
+      const list = await caller.list.addListingToList(data);
       return {
         listId: list.id,
         listingId: data.listingId,
@@ -204,7 +205,7 @@ export async function callMemberWriteTool(
     }
     case "daylily.link_listing_to_cultivar": {
       const data = cultivarLink.parse(input);
-      const listing = await caller.dashboardDb.listing.linkAhs({
+      const listing = await caller.listing.linkAhs({
         id: data.listingId,
         cultivarReferenceId: data.cultivarReferenceId,
         syncName: data.syncName ?? false,
@@ -216,7 +217,7 @@ export async function callMemberWriteTool(
     }
     case "daylily.sync_listing_cultivar_name": {
       const data = syncCultivarName.parse(input);
-      const listing = await caller.dashboardDb.listing.syncAhsName({
+      const listing = await caller.listing.syncAhsName({
         id: data.listingId,
       });
       return {
@@ -226,7 +227,7 @@ export async function callMemberWriteTool(
     }
     case "daylily.update_profile": {
       const { expectedUpdatedAt, ...data } = updateProfile.parse(input);
-      const profile = await caller.dashboardDb.userProfile.updateBasic({
+      const profile = await caller.userProfile.updateBasic({
         expectedUpdatedAt,
         data,
       });
@@ -237,7 +238,7 @@ export async function callMemberWriteTool(
     }
     case "daylily.reorder_images": {
       const data = reorderImages.parse(input);
-      await caller.dashboardDb.image.reorder({
+      await caller.image.reorder({
         type: data.type,
         referenceId: data.referenceId,
         images: data.imageIds.map((id, order) => ({ id, order })),

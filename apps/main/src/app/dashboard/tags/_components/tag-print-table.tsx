@@ -17,14 +17,11 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { DataTable } from "@/components/data-table/data-table";
-import {
-  DataTableLayout,
-  DataTableLayoutSkeleton,
-} from "@/components/data-table/data-table-layout";
+import { DataTableLayout } from "@/components/data-table/data-table-layout";
 import { DataTableViewOptions } from "@/components/data-table";
 import { DataTablePagination } from "@/components/data-table/data-table-pagination";
 import { useDataTable } from "@/hooks/use-data-table";
-import { APP_CONFIG } from "@/config/constants";
+import { APP_CONFIG, LISTING_TABLE_COLUMN_NAMES } from "@/config/constants";
 import {
   dashboardListingColumns,
   type ListingData,
@@ -41,7 +38,6 @@ import {
 } from "@/components/public-catalog-search/public-catalog-search-registry";
 import type { PublicCatalogSearchMode } from "@/components/public-catalog-search/public-catalog-search-types";
 import { useLocalStorage } from "@/hooks/use-local-storage";
-import { LISTING_TABLE_COLUMN_NAMES } from "@/config/constants";
 
 const tagPrintColumns: ColumnDef<ListingData>[] = [
   {
@@ -181,7 +177,6 @@ export function TagPrintTable() {
     listingRows: listings,
     lists,
     listingsById,
-    isReady,
   } = useDashboardListingReadModel();
   const [searchMode, setSearchMode] = useLocalStorage<PublicCatalogSearchMode>(
     "dashboard-tags-search-mode",
@@ -267,14 +262,6 @@ export function TagPrintTable() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [setSearchCollapsed]);
-
-  if (!isReady && !listings.length) {
-    return (
-      <div role="status" aria-label="Loading listings">
-        <DataTableLayoutSkeleton />
-      </div>
-    );
-  }
 
   if (!listings.length) {
     return (

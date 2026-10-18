@@ -22,13 +22,9 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { toast } from "sonner";
-import {
-  listingsCollection,
-  type ListingCollectionItem,
-} from "@/app/dashboard/_lib/dashboard-db/listings-collection";
-import { addListingToList } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
-import { DASHBOARD_DB_QUERY_KEYS } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-keys";
-import { useSeededDashboardDbQuery } from "@/app/dashboard/_lib/dashboard-db/use-seeded-dashboard-db-query";
+
+import { useLiveSuspenseQuery } from "@tanstack/react-db";
+import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
 
 interface AddListingsComboboxProps {
   listId: string;
@@ -39,20 +35,19 @@ export function AddListingsCombobox({
   listId,
   onMutationSuccess,
 }: AddListingsComboboxProps) {
+  const { listingsCollection, addListingToList } = useDashboardDb();
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const { list } = useListResource(listId);
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
-  const { data: listings = [], isReady } =
-    useSeededDashboardDbQuery<ListingCollectionItem>({
-      query: (q) =>
-        q
-          .from({ listing: listingsCollection })
-          .orderBy(({ listing }) => listing.title, "asc"),
-      queryKey: DASHBOARD_DB_QUERY_KEYS.listings,
-    });
+  const { data: listings } = useLiveSuspenseQuery({
+    query: (q) =>
+      q
+        .from({ listing: listingsCollection })
+        .orderBy(({ listing }) => listing.title, "asc"),
+  });
 
   const handleSelect = async (listingId: string) => {
     if (isSaving) return;
@@ -96,7 +91,7 @@ export function AddListingsCombobox({
       variant="outline"
       ref={triggerRef}
       className="w-full"
-      disabled={isSaving || !isReady}
+      disabled={isSaving}
       data-testid="add-listings-trigger"
     >
       {isSaving ? (

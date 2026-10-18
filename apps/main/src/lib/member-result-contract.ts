@@ -106,7 +106,9 @@ export const memberOperationResultSchemas = {
     }),
   ]),
   "image.create": memberImageResultSchema,
-  "image.reorder": successResult,
+  "image.reorder": successResult.extend({
+    images: z.array(memberImageResultSchema),
+  }),
   "image.delete": successResult,
   "cultivar.search": z.array(cultivarSearchItem),
   "cultivar.get": z.looseObject({ id: z.string() }),

@@ -101,11 +101,11 @@ test("browser crop tools keep listing and profile UI free of coordinate fields",
   let uploadedBytes: Buffer | null = null;
   const photoRequests: string[] = [];
   page.on("request", (request) => {
-    if (decodeURIComponent(request.url()).includes("dashboardDb.image."))
+    if (decodeURIComponent(request.url()).includes("dashboardV2.image."))
       photoRequests.push(request.url());
   });
   await page.route(
-    "**/api/trpc/dashboardDb.image.getPresignedUrl*",
+    "**/api/trpc/dashboardV2.image.getPresignedUrl*",
     async (route) => {
       const stream = jsonlStreamProducer({
         data: [
@@ -208,7 +208,7 @@ test("browser crop tools keep listing and profile UI free of coordinate fields",
     expect(uploadedBytes).toBeNull();
     expect(
       photoRequests.some((url) =>
-        decodeURIComponent(url).includes("dashboardDb.image.getPresignedUrl"),
+        decodeURIComponent(url).includes("dashboardV2.image.getPresignedUrl"),
       ),
     ).toBe(false);
     await expect(uploadButton).toBeEnabled();
@@ -275,7 +275,7 @@ test("browser crop tools keep listing and profile UI free of coordinate fields",
     ).toBeVisible();
     expect(
       photoRequests.some((url) =>
-        decodeURIComponent(url).includes("dashboardDb.image.create"),
+        decodeURIComponent(url).includes("dashboardV2.image.create"),
       ),
     ).toBe(false);
     await cropper.getByRole("button", { name: "Cancel", exact: true }).click();

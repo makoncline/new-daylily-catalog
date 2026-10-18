@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useCatalogImporterSession } from "@/hooks/use-catalog-importer-session";
 import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
-import { refreshDashboardDbFromServer } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence";
+
 import {
   getCatalogImportRowDisposition,
   prepareCatalogImportListing,
@@ -33,6 +33,7 @@ function getImportErrorMessage(error: unknown) {
 export function useDashboardCatalogImport(
   initialDraft: CatalogImporterDraft | null,
 ) {
+  const { refreshDashboardCatalog } = useDashboardDb();
   const {
     session,
     commitSession,
@@ -70,9 +71,8 @@ export function useDashboardCatalogImport(
     existingCount: 0,
     importedCount: 0,
   });
-  const importRows = api.dashboardDb.listing.importRows.useMutation();
-  const { userId: dashboardUserId } = useDashboardDb();
-  const existingListings = api.dashboardDb.listing.list.useQuery(undefined, {
+  const importRows = api.dashboardV2.listing.importRows.useMutation();
+  const existingListings = api.dashboardV2.listing.list.useQuery(undefined, {
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     staleTime: Infinity,
@@ -218,10 +218,7 @@ export function useDashboardCatalogImport(
     setIsRefreshing(true);
     setRefreshWarning(false);
     try {
-      if (dashboardUserId) {
-        const applied = await refreshDashboardDbFromServer(dashboardUserId);
-        setRefreshWarning(!applied);
-      }
+      await refreshDashboardCatalog();
     } catch {
       setRefreshWarning(true);
     } finally {

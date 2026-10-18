@@ -1,3 +1,4 @@
+import { withUsageRequest } from "@/server/observability/api-usage";
 import { publicDb } from "@/server/db";
 import { publicJson, publicReadResponse } from "@/server/api/public-http";
 import {
@@ -7,7 +8,7 @@ import {
 
 export const runtime = "nodejs";
 
-export async function GET(request: Request) {
+async function read(request: Request) {
   const params = new URL(request.url).searchParams;
   const seen = new Set<string>();
   const entries: Array<[string, unknown]> = [];
@@ -21,4 +22,8 @@ export async function GET(request: Request) {
   return publicReadResponse("public-profiles-api", () =>
     pagePublicProfiles({ database: publicDb, input: input.data }),
   );
+}
+
+export async function GET(...args: Parameters<typeof read>) {
+  return withUsageRequest(args[0], "public_api", () => read(...args));
 }
