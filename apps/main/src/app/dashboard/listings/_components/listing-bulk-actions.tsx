@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -40,7 +41,7 @@ const actions = {
   Delete: {
     result: "deleted",
     description:
-      "These listings will be permanently deleted from your catalog and all lists. This cannot be undone.",
+      "This permanently deletes the listings below and their images, and removes them from all lists. This cannot be undone.",
   },
   "Add to list": {
     description:
@@ -65,6 +66,8 @@ export function ListingBulkActions({
     rows: ListingData[];
   } | null>(null);
   const [listId, setListId] = useState("");
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const deleteConfirmed = deleteConfirmation.trim().toUpperCase() === "DELETE";
   const targetList = lists.find((list) => list.id === listId);
   const [completed, setCompleted] = useState(0);
   const { isDialogOpen, setIsDialogOpen, openDialog, isPending, runAction } =
@@ -112,6 +115,7 @@ export function ListingBulkActions({
     setRequest({ action, rows: selected.map((row) => row.original) });
     setCompleted(0);
     setListId("");
+    setDeleteConfirmation("");
     openDialog();
   }
 
@@ -166,8 +170,8 @@ export function ListingBulkActions({
       </Button>
       {request && (
         <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <AlertDialogContent className="max-h-dvh w-11/12 overflow-y-auto">
-            <AlertDialogHeader>
+          <AlertDialogContent className="flex max-h-9/10 w-11/12 flex-col overflow-y-auto max-sm:top-4 max-sm:translate-y-0">
+            <AlertDialogHeader className="text-left">
               <AlertDialogTitle>
                 {request.action === "Add to list" ? "Add" : request.action}{" "}
                 {request.rows.length} listing
@@ -179,15 +183,29 @@ export function ListingBulkActions({
                   : ""}
                 ?
               </AlertDialogTitle>
-              <AlertDialogDescription>
+              <AlertDialogDescription
+                variant={request.action === "Delete" ? "emphasis" : "default"}
+              >
                 {actions[request.action].description}
               </AlertDialogDescription>
             </AlertDialogHeader>
+            <ul
+              role="list"
+              aria-label="Selected listings"
+              tabIndex={0}
+              className="max-h-44 min-h-0 list-none overflow-y-auto overscroll-contain border-y py-1 text-sm focus-visible:outline-offset-4 sm:max-h-64"
+            >
+              {request.rows.map((row) => (
+                <li key={row.id} className="py-0.5 break-words">
+                  {row.title}
+                </li>
+              ))}
+            </ul>
             {request.action === "Add to list" && (
               <Field>
                 <FieldLabel htmlFor="bulk-target-list">List</FieldLabel>
                 <Select value={listId} onValueChange={setListId}>
-                  <SelectTrigger id="bulk-target-list">
+                  <SelectTrigger id="bulk-target-list" className="h-11 sm:h-9">
                     <SelectValue placeholder="Choose a list" />
                   </SelectTrigger>
                   <SelectContent>
@@ -202,26 +220,49 @@ export function ListingBulkActions({
                 </Select>
               </Field>
             )}
-            <ul
-              aria-label="Affected listings"
-              className="max-h-64 list-disc overflow-y-auto pl-5 break-words"
-            >
-              {request.rows.map((row) => (
-                <li key={row.id}>{row.title}</li>
-              ))}
-            </ul>
+            {request.action === "Delete" && (
+              <Field>
+                <FieldLabel htmlFor="bulk-delete-confirmation">
+                  <span>
+                    Type <strong>DELETE</strong> to confirm
+                  </span>
+                </FieldLabel>
+                <Input
+                  id="bulk-delete-confirmation"
+                  className="h-11 sm:h-9"
+                  value={deleteConfirmation}
+                  onChange={(event) =>
+                    setDeleteConfirmation(event.target.value)
+                  }
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                />
+              </Field>
+            )}
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogCancel className="h-11 sm:h-9">
+                Cancel
+              </AlertDialogCancel>
               <AlertDialogAction
+                className="h-11 sm:h-9"
                 variant={
-                  request.action === "Delete" ? "destructive" : "default"
+                  request.action === "Delete"
+                    ? deleteConfirmed
+                      ? "destructive"
+                      : "secondary"
+                    : "default"
                 }
                 disabled={
-                  isPending || (request.action === "Add to list" && !targetList)
+                  isPending ||
+                  (request.action === "Add to list" && !targetList) ||
+                  (request.action === "Delete" && !deleteConfirmed)
                 }
                 onClick={() => void runAction()}
               >
-                {request.action}
+                {request.action === "Delete"
+                  ? `Delete ${request.rows.length} listing${request.rows.length === 1 ? "" : "s"}`
+                  : request.action}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

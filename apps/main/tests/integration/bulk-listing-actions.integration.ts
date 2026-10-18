@@ -5,19 +5,32 @@ test("seller hides, publishes, and deletes selected listings without changing ot
   page,
   dashboardListings,
 }) => {
+  const titles = Array.from({ length: 22 }, (_, index) =>
+    index === 3
+      ? "Bulk Bloom 03 — A Cultivar with a Long Name for a Small Screen"
+      : `Bulk Bloom ${String(index).padStart(2, "0")}`,
+  );
   await withTempE2EDb(
     async (db) => {
       await db.listing.createMany({
-        data: Array.from({ length: 22 }, (_, index) => ({
+        data: titles.map((title, index) => ({
           id: `bulk-listing-${index}`,
           userId: "integration-user",
-          title: `Bulk Bloom ${String(index).padStart(2, "0")}`,
+          title,
           slug: `bulk-bloom-${index}`,
         })),
       });
       await db.list.update({
         where: { id: "integration-favorites-list" },
         data: { listings: { connect: [{ id: "bulk-listing-0" }] } },
+      });
+      await db.imageAsset.createMany({
+        data: [0, 20].map((index) => ({
+          id: `bulk-image-${index}`,
+          kind: "listing",
+          listingId: `bulk-listing-${index}`,
+          displayUrl: "/assets/bouquet.png",
+        })),
       });
     },
     { clearFirst: false },
@@ -117,40 +130,112 @@ test("seller hides, publishes, and deletes selected listings without changing ot
     .click();
   if (await dashboardListings.pagerFirstButton.isEnabled())
     await dashboardListings.pagerFirstButton.click();
-  await select("Bulk Bloom 00").check();
-  await select("Bulk Bloom 01").check();
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.screenshot({
-    path: test.info().outputPath("bulk-selection-mobile.png"),
-  });
+  await page
+    .getByRole("checkbox", { name: "Select all on this page", exact: true })
+    .check();
+  await expect(
+    page.getByText("1 listing published", { exact: true }),
+  ).toBeHidden();
   await page
     .getByRole("button", { name: "Delete selected", exact: true })
     .click();
-  await expect(dialog).toContainText("2 listings");
-  await expect(dialog.getByRole("listitem")).toHaveText([
-    "Bulk Bloom 00",
-    "Bulk Bloom 01",
-  ]);
-  await expect(dialog).toContainText("permanently deleted");
-  await page.screenshot({
-    path: test.info().outputPath("bulk-delete-confirmation-mobile.png"),
-    animations: "disabled",
+  await expect(dialog).toContainText("20 listings");
+  await expect(dialog).toContainText(
+    "This permanently deletes the listings below and their images",
+  );
+  const affected = dialog.getByRole("list", { name: "Selected listings" });
+  await expect(affected.getByRole("listitem")).toHaveText(titles.slice(0, 20));
+  const confirmation = dialog.getByRole("textbox", {
+    name: "Type DELETE to confirm",
   });
-  await dialog.getByRole("button", { name: "Delete", exact: true }).click();
-  await expect(
-    page.getByText("2 listings deleted", { exact: true }),
-  ).toBeVisible();
-  await page.reload();
-  await dashboardListings.isReady();
-  await expect(dashboardListings.listingRow("Bulk Bloom 00")).toHaveCount(0);
-  await expect(dashboardListings.listingRow("Bulk Bloom 02")).toBeVisible();
+  const deleteButton = dialog.getByRole("button", {
+    name: "Delete 20 listings",
+    exact: true,
+  });
+  for (const viewport of [
+    { name: "desktop", width: 1280, height: 720 },
+    { name: "mobile", width: 390, height: 844 },
+    { name: "small-mobile", width: 360, height: 568 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await expect(deleteButton).toBeDisabled();
+    await expect(deleteButton).toBeInViewport({ ratio: 1 });
+    await expect(confirmation).toBeInViewport({ ratio: 1 });
+    await expect(
+      dialog.getByRole("button", { name: "Cancel", exact: true }),
+    ).toBeInViewport({ ratio: 1 });
+    expect(
+      await affected.evaluate(
+        (element) => ({
+          scrollsVertically: element.scrollHeight > element.clientHeight,
+          fitsWidth: element.scrollWidth <= element.clientWidth,
+        }),
+      ),
+    ).toEqual({ scrollsVertically: true, fitsWidth: true });
+    await affected.focus();
+    await page.keyboard.press("Home");
+    await expect(affected.getByRole("listitem").first()).toBeInViewport({
+      ratio: 1,
+    });
+    await dialog.getByRole("button", { name: "Cancel", exact: true }).focus();
+    await page.screenshot({
+      path: test.info().outputPath(`bulk-delete-20-${viewport.name}.png`),
+      animations: "disabled",
+    });
+    await affected.focus();
+    await page.keyboard.press("End");
+    await expect(affected.getByRole("listitem").last()).toBeInViewport({
+      ratio: 1,
+    });
+    await expect(deleteButton).toBeInViewport({ ratio: 1 });
+  }
+  await confirmation.fill("keep");
+  await expect(deleteButton).toBeDisabled();
+  await confirmation.fill("delete");
+  await expect(deleteButton).toBeEnabled();
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
   await withTempE2EDb(
     async (db) => {
       expect(
         await db.listing.count({
           where: { id: { startsWith: "bulk-listing-" } },
         }),
-      ).toBe(20);
+      ).toBe(22);
+      expect(
+        await db.imageAsset.count({
+          where: { id: { startsWith: "bulk-image-" } },
+        }),
+      ).toBe(2);
+    },
+    { clearFirst: false },
+  );
+  await page
+    .getByRole("button", { name: "Delete selected", exact: true })
+    .click();
+  await expect(confirmation).toHaveValue("");
+  await expect(deleteButton).toBeDisabled();
+  await confirmation.fill("DELETE");
+  await deleteButton.click();
+  await expect(
+    page.getByText("20 listings deleted", { exact: true }),
+  ).toBeVisible();
+  await page.reload();
+  await dashboardListings.isReady();
+  await expect(dashboardListings.listingRow("Bulk Bloom 00")).toHaveCount(0);
+  await expect(dashboardListings.listingRow("Bulk Bloom 20")).toBeVisible();
+  await withTempE2EDb(
+    async (db) => {
+      expect(
+        await db.listing.count({
+          where: { id: { startsWith: "bulk-listing-" } },
+        }),
+      ).toBe(2);
+      expect(
+        await db.imageAsset.findUnique({ where: { id: "bulk-image-0" } }),
+      ).toBeNull();
+      expect(
+        await db.imageAsset.findUnique({ where: { id: "bulk-image-20" } }),
+      ).not.toBeNull();
       expect(
         await db.listing.findUnique({
           where: { id: "integration-existing-listing" },
@@ -181,9 +266,11 @@ test("seller reviews all selected listings and adds them to a list without repla
           status: "HIDDEN",
         })),
       });
-      await db.list.update({
-        where: { id: "integration-favorites-list" },
+      await db.list.create({
         data: {
+          id: "bulk-target-list",
+          userId: "integration-user",
+          title: "Bulk target list",
           listings: {
             connect: [
               { id: "bulk-add-0" },
@@ -237,7 +324,7 @@ test("seller reviews all selected listings and adds them to a list without repla
   ).toBeDisabled();
   await dialog.getByRole("combobox", { name: "List", exact: true }).click();
   await page
-    .getByRole("option", { name: "Integration Favorites", exact: true })
+    .getByRole("option", { name: "Bulk target list", exact: true })
     .click();
   await expect(dialog).toContainText(
     "Other list memberships and visibility do not change",
@@ -252,7 +339,7 @@ test("seller reviews all selected listings and adds them to a list without repla
       expect(
         await db.list.count({
           where: {
-            id: "integration-favorites-list",
+            id: "bulk-target-list",
             listings: { some: { id: "bulk-add-21" } },
           },
         }),
@@ -263,13 +350,13 @@ test("seller reviews all selected listings and adds them to a list without repla
   await page.getByRole("button", { name: "Add to list", exact: true }).click();
   await dialog.getByRole("combobox", { name: "List", exact: true }).click();
   await page
-    .getByRole("option", { name: "Integration Favorites", exact: true })
+    .getByRole("option", { name: "Bulk target list", exact: true })
     .click();
   await dialog
     .getByRole("button", { name: "Add to list", exact: true })
     .click();
   await expect(
-    page.getByText("2 listings are in “Integration Favorites”", {
+    page.getByText("2 listings are in “Bulk target list”", {
       exact: true,
     }),
   ).toBeVisible();
@@ -291,7 +378,7 @@ test("seller reviews all selected listings and adds them to a list without repla
   await withTempE2EDb(
     async (db) => {
       const target = await db.list.findUniqueOrThrow({
-        where: { id: "integration-favorites-list" },
+        where: { id: "bulk-target-list" },
         include: { listings: true },
       });
       expect(target.listings.map(({ id }) => id).sort()).toEqual([
