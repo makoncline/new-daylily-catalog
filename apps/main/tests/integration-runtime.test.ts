@@ -125,6 +125,10 @@ describe("offline integration runtime", () => {
         url: "https://example.com/fetch",
       },
       {
+        code: 'await fetch(new Request("https://example.com/request"))',
+        url: "https://example.com/request",
+      },
+      {
         code: 'import https from "node:https"; https.get("https://example.com/https")',
         url: "https://example.com/https",
       },
@@ -145,6 +149,71 @@ describe("offline integration runtime", () => {
         `Blocked outbound integration request: ${attempt.url}`,
       );
     }
+  });
+
+  it("blocks automatic redirects over real HTTP and preserves manual responses", () => {
+    const result = runWithGuard(`
+      import assert from "node:assert/strict";
+      import http from "node:http";
+      const received = [];
+      const server = http.createServer(async (request, response) => {
+        let body = "";
+        for await (const chunk of request) body += chunk;
+        received.push({ path: request.url, body });
+        if (request.url === "/redirect") {
+          response.writeHead(302, { location: "/arrived" });
+        }
+        response.end("loopback response");
+      });
+      await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+      const origin = "http://127.0.0.1:" + server.address().port;
+      const url = origin + "/redirect";
+      try {
+        for (const [input, init] of [
+          [url],
+          [new URL(url), { redirect: "follow" }],
+          [url, Object.freeze({ redirect: "follow" })],
+          [new Request(url, { redirect: "follow" })],
+          [new Request(url, { redirect: "manual" }), { redirect: "follow" }],
+        ]) {
+          received.length = 0;
+          await assert.rejects(fetch(input, init), (error) =>
+            error instanceof TypeError && error.cause?.message === "unexpected redirect",
+          );
+          assert.deepEqual(received, [{ path: "/redirect", body: "" }]);
+        }
+        const direct = await fetch(origin + "/direct");
+        assert.equal(direct.status, 200);
+        assert.equal(await direct.text(), "loopback response");
+
+        received.length = 0;
+        const requestOptions = new Request(origin + "/unused", {
+          method: "POST", body: "request options",
+        });
+        const requestResponse = await fetch(origin + "/direct", requestOptions);
+        assert.equal(requestResponse.status, 200);
+        await requestResponse.text();
+        assert.deepEqual(received, [{ path: "/direct", body: "request options" }]);
+
+        received.length = 0;
+        const manual = await fetch(new Request(url, {
+          method: "POST", body: "request body", redirect: "error",
+        }), Object.create({ redirect: "manual" }));
+        assert.equal(manual.status, 302);
+        assert.equal(manual.headers.get("location"), "/arrived");
+        await manual.text();
+        assert.deepEqual(received, [{ path: "/redirect", body: "request body" }]);
+        for (const redirect of [null, "invalid"]) {
+          received.length = 0;
+          await assert.rejects(fetch(url, { redirect }), TypeError);
+          assert.deepEqual(received, []);
+        }
+      } finally {
+        server.closeAllConnections();
+        await new Promise((resolve) => server.close(resolve));
+      }
+    `);
+    expect(result.status, result.stderr).toBe(0);
   });
 
   it("does not inherit real-service credentials in guard subprocesses", () => {
