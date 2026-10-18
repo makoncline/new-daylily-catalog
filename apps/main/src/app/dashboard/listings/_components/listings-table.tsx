@@ -35,7 +35,6 @@ import {
 } from "@/components/public-catalog-search/public-catalog-search-registry";
 import type { PublicCatalogSearchMode } from "@/components/public-catalog-search/public-catalog-search-types";
 import { logDashboardTiming } from "@/app/dashboard/_lib/dashboard-timing";
-import { api } from "@/trpc/react";
 
 export function ListingsTable({
   onEdit,
@@ -46,20 +45,7 @@ export function ListingsTable({
 }) {
   const firstRowsPaintedRef = React.useRef(false);
   const { listingRows: listings, lists } = useDashboardListingReadModel();
-  const { data: profile = null } = api.dashboardV2.userProfile.get.useQuery(
-    undefined,
-    {
-      staleTime: Infinity,
-      refetchOnWindowFocus: false,
-      refetchOnMount: false,
-    },
-  );
-  const publicUserSlug = profile?.slug ?? profile?.userId ?? "";
-
-  const columns = React.useMemo(
-    () => getColumns(onEdit, publicUserSlug),
-    [onEdit, publicUserSlug],
-  );
+  const columns = React.useMemo(() => getColumns(onEdit), [onEdit]);
   const [searchMode, setSearchMode] = useLocalStorage<PublicCatalogSearchMode>(
     "dashboard-listings-search-mode",
     "basic",

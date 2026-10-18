@@ -349,19 +349,12 @@ export const dashboardListingColumns: ColumnDef<ListingData>[] = [
 
 export function getColumns(
   onEdit: (id: string) => void,
-  publicUserSlug = "",
 ): ColumnDef<ListingData>[] {
   return [
     ...dashboardListingColumns,
     {
       id: "actions",
-      cell: ({ row }) => (
-        <DataTableRowActions
-          row={row}
-          onEdit={onEdit}
-          publicUserSlug={publicUserSlug}
-        />
-      ),
+      cell: ({ row }) => <DataTableRowActions row={row} onEdit={onEdit} />,
       enableSorting: false,
       enableHiding: false,
     },

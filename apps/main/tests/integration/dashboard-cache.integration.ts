@@ -5,7 +5,7 @@ const count = 5_000;
 const title = (index: number) => `Warm Bloom ${String(index).padStart(5, "0")}`;
 const catalogRead = "dashboardV2.bootstrap.catalog";
 
-test("saved listing links work before the profile has loaded", async ({
+test("saved listing links stay usable as the profile loads", async ({
   page,
   dashboardListings,
 }) => {
@@ -38,21 +38,23 @@ test("saved listing links work before the profile has loaded", async ({
     let profileHeld = false;
     await page.route("**/api/trpc/**", async (route) => {
       const url = route.request().url();
-      if (
-        !url.includes(catalogRead) &&
-        !url.includes("dashboardV2.userProfile.get")
-      )
-        return route.fallback();
+      if (!url.includes("dashboardV2.userProfile.get")) return route.fallback();
       const response = await route.fetch();
-      if (url.includes("dashboardV2.userProfile.get")) profileHeld = true;
+      profileHeld = true;
       await delivery;
       await route.fulfill({ response });
     });
     await page.reload();
     await expect.poll(() => profileHeld).toBe(true);
+    await expect(
+      page.getByRole("button", { name: "Refresh dashboard data" }),
+    ).toHaveAttribute("data-state", "idle");
     await dashboardListings.setGlobalSearch(listingTitle);
     await expect(dashboardListings.filteredCount()).toContainText("1 /");
     await page.getByTestId("listing-row-actions-trigger").click();
+    await expect(
+      page.getByRole("menuitem", { name: "Copy link" }),
+    ).toBeVisible();
     await page.getByRole("menuitem", { name: "Copy link" }).click();
     const expectedUrl = new URL(
       `/integration-user/${id}`,
@@ -61,7 +63,32 @@ test("saved listing links work before the profile has loaded", async ({
     await expect
       .poll(() => page.evaluate(() => navigator.clipboard.readText()))
       .toBe(expectedUrl);
+    await expect(
+      page.getByRole("menuitem", { name: "Copy link" }),
+    ).toBeHidden();
+    await page.getByTestId("listing-row-actions-trigger").click();
+    await expect(
+      page.getByRole("menuitem", { name: "Copy link" }),
+    ).toBeVisible();
+    const profileResponse = page.waitForResponse((response) =>
+      response.url().includes("dashboardV2.userProfile.get"),
+    );
     release();
+    await (await profileResponse).finished();
+    // Let React paint the completed profile request before using the open menu.
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        ),
+    );
+    await expect(
+      page.getByRole("menuitem", { name: "Copy link" }),
+    ).toBeVisible();
+    await page.getByRole("menuitem", { name: "Copy link" }).click();
+    await expect
+      .poll(() => page.evaluate(() => navigator.clipboard.readText()))
+      .toBe(new URL(`/integration-seller/${id}`, page.url()).toString());
     await page.unroute("**/api/trpc/**");
     await page.goto(expectedUrl);
     await expect(

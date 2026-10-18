@@ -1158,7 +1158,7 @@ export const ATLAS_FLOWS = [
       invariants: [
         "Keep dashboard collections active while the provider is ready, including idle editors.",
         "The dashboard renders the member's saved catalog before refresh completes. Old refreshes must not replace confirmed writes; successful refreshes reconcile additions and deletions.",
-        "Copied listing links use the listing owner ID until the profile URL loads.",
+        "Copied listing links use the listing owner ID until the profile URL loads. Loading the profile must not close an open row menu.",
         "Reject old dashboard API routes before writing data. Show reload instructions and keep the unsaved form open.",
         "Bind dashboard requests to the member that opened the session. Reject a changed or missing member identity before reads or writes.",
         "Store member versions as integer milliseconds and preserve stale-write rejection.",
