@@ -46,7 +46,7 @@ export function ListingsTable({
 }) {
   const firstRowsPaintedRef = React.useRef(false);
   const { listingRows: listings, lists } = useDashboardListingReadModel();
-  const { data: profile = null } = api.dashboardDb.userProfile.get.useQuery(
+  const { data: profile = null } = api.dashboardV2.userProfile.get.useQuery(
     undefined,
     {
       staleTime: Infinity,

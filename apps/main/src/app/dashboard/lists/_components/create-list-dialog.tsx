@@ -14,9 +14,10 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { PageHeader } from "@/components/page-header";
 import { normalizeError, reportError } from "@/lib/error-utils";
-import { insertList } from "@/app/dashboard/_lib/dashboard-db/collections";
+
 import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
 import { ListingSurfaceSaveBar } from "../../listings/_components/listing-surface-save-bar";
+import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
 
 export function CreateListSurface({
   onClose,
@@ -25,6 +26,7 @@ export function CreateListSurface({
   onClose: () => void;
   onCreated: (listId: string) => void;
 }) {
+  const { insertList } = useDashboardDb();
   const [title, setTitle] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const backButtonRef = useRef<HTMLButtonElement | null>(null);

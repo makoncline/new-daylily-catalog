@@ -59,7 +59,7 @@ export function AhsListingSelect({
     }
   };
 
-  const ahsSearchQuery = api.dashboardDb.ahs.search.useQuery(
+  const ahsSearchQuery = api.dashboardV2.ahs.search.useQuery(
     {
       query: debouncedSearchValue,
     },

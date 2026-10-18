@@ -4,14 +4,11 @@ import { eq, useLiveQuery } from "@tanstack/react-db";
 import { type Image } from "@prisma/client";
 import {
   type ListingCollectionItem,
-  listingsCollection,
-  cultivarReferencesCollection,
   type CultivarReferenceCollectionItem,
-  imagesCollection,
-  listsCollection,
 } from "@/app/dashboard/_lib/dashboard-db/collections";
 
 import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
+import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
 
 type LinkedAhsListing = CultivarReferenceCollectionItem["ahsListing"];
 type LinkedCultivarReferenceImage =
@@ -30,6 +27,12 @@ export interface ListingEditorResource {
 export function useListingEditorResource(
   listingId: string,
 ): ListingEditorResource {
+  const {
+    listingsCollection,
+    cultivarReferencesCollection,
+    imagesCollection,
+    listsCollection,
+  } = useDashboardDb();
   const { data: listings = [], isReady: isListingReady } = useLiveQuery({
     query: (q) =>
       q

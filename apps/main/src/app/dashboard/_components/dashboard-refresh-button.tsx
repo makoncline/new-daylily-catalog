@@ -7,11 +7,12 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { api } from "@/trpc/react";
 import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
-import { refreshDashboardCatalog } from "@/app/dashboard/_lib/dashboard-db/collections";
+
 import { writeCachedSubscription } from "@/hooks/use-persisted-subscription-query";
 
 export function DashboardRefreshButton() {
   const {
+    refreshDashboardCatalog,
     status,
     userId,
     isRefreshing: isBackgroundRefreshing,
@@ -28,13 +29,13 @@ export function DashboardRefreshButton() {
     setIsManualRefresh(true);
     try {
       await Promise.all([
-        refreshDashboardCatalog(userId),
-        utils.dashboardDb.userProfile.get.invalidate(),
+        refreshDashboardCatalog(),
+        utils.dashboardV2.userProfile.get.invalidate(),
         utils.stripe.getSubscription.invalidate(),
       ]);
 
       const [, subscription] = await Promise.all([
-        utils.dashboardDb.userProfile.get.fetch(),
+        utils.dashboardV2.userProfile.get.fetch(),
         utils.stripe.getSubscription.fetch(),
       ]);
       if (clerkUserId) {

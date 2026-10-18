@@ -385,7 +385,7 @@ test.describe("create/edit listing flow @local", () => {
       releaseDeleteRequest = resolve;
     });
     await page.route("**/api/trpc/**", async (route) => {
-      if (route.request().url().includes("dashboardDb.listing.delete")) {
+      if (route.request().url().includes("dashboardV2.listing.delete")) {
         markDeleteRequestStarted();
         await deleteRequestBlocked;
       }

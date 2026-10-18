@@ -7,7 +7,7 @@ import type { CatalogImportRow } from "@/lib/catalog-importer";
 const mocks = vi.hoisted(() => ({
   capturePosthogEvent: vi.fn(),
   importRows: vi.fn(),
-  revalidate: vi.fn(async () => true),
+  revalidate: vi.fn<() => Promise<void>>(),
   draft: null as CatalogImporterDraft | null,
 }));
 
@@ -16,16 +16,15 @@ vi.mock("@/lib/analytics/posthog", () => ({
 }));
 
 vi.mock("@/app/dashboard/_components/dashboard-db-provider", () => ({
-  useDashboardDb: () => ({ userId: "user-1" }),
-}));
-
-vi.mock("@/app/dashboard/_lib/dashboard-db/collections", () => ({
-  refreshDashboardCatalog: mocks.revalidate,
+  useDashboardDb: () => ({
+    refreshDashboardCatalog: mocks.revalidate,
+    userId: "user-1",
+  }),
 }));
 
 vi.mock("@/trpc/react", () => ({
   api: {
-    dashboardDb: {
+    dashboardV2: {
       listing: {
         importRows: {
           useMutation: () => ({
@@ -119,7 +118,7 @@ describe("DashboardCatalogImporter", () => {
     mocks.importRows.mockReset();
     mocks.capturePosthogEvent.mockReset();
     mocks.revalidate.mockReset();
-    mocks.revalidate.mockResolvedValue(true);
+    mocks.revalidate.mockResolvedValue(undefined);
     mocks.draft = {
       version: 3,
       activeReviewRowId: null,
@@ -229,7 +228,9 @@ describe("DashboardCatalogImporter", () => {
       existingCount: 0,
       skippedExactCount: 0,
     });
-    mocks.revalidate.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    mocks.revalidate
+      .mockRejectedValueOnce(new Error("Refresh failed"))
+      .mockResolvedValueOnce(undefined);
 
     render(<DashboardCatalogImporter initialDraft={mocks.draft} />);
     fireEvent.click(
@@ -263,8 +264,8 @@ describe("DashboardCatalogImporter", () => {
         ),
       ).not.toBeInTheDocument(),
     );
-    expect(mocks.revalidate).toHaveBeenNthCalledWith(1, "user-1");
-    expect(mocks.revalidate).toHaveBeenNthCalledWith(2, "user-1");
+    expect(mocks.revalidate).toHaveBeenNthCalledWith(1);
+    expect(mocks.revalidate).toHaveBeenNthCalledWith(2);
     expect(mocks.importRows).toHaveBeenCalledOnce();
     expect(
       screen.getByRole("heading", { name: "101 listings remain" }),

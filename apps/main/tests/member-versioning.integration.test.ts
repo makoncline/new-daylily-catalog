@@ -12,7 +12,7 @@ async function createCaller(userId: string) {
   const { createCaller } = await import("@/server/api/root");
   const caller = createCaller(async () => ({
     db,
-    headers: new Headers(),
+    headers: new Headers({ "x-dashboard-member-id": userId }),
     _authUser: {
       id: userId,
     } as TRPCInternalContext["_authUser"],
@@ -39,7 +39,7 @@ describe("member mutation versions", () => {
         },
       });
 
-      const linked = await caller.dashboardDb.listing.linkAhs({
+      const linked = await caller.dashboardV2.listing.linkAhs({
         id: listing.id,
         cultivarReferenceId: cultivar.id,
         syncName: true,
@@ -49,21 +49,21 @@ describe("member mutation versions", () => {
         listing.updatedAt.getTime(),
       );
 
-      const synced = await caller.dashboardDb.listing.syncAhsName({
+      const synced = await caller.dashboardV2.listing.syncAhsName({
         id: listing.id,
       });
       expect(synced.updatedAt.getTime()).toBeGreaterThan(
         linked.updatedAt.getTime(),
       );
 
-      const unlinked = await caller.dashboardDb.listing.unlinkAhs({
+      const unlinked = await caller.dashboardV2.listing.unlinkAhs({
         id: listing.id,
       });
       expect(unlinked.updatedAt.getTime()).toBeGreaterThan(
         synced.updatedAt.getTime(),
       );
       await expect(
-        caller.dashboardDb.listing.update({
+        caller.dashboardV2.listing.update({
           id: listing.id,
           expectedUpdatedAt: listing.updatedAt.toISOString(),
           data: { title: "Stale title" },
@@ -85,11 +85,11 @@ describe("member mutation versions", () => {
           updatedAt: new Date(Date.now() + 10_000),
         },
       });
-      const added = await caller.dashboardDb.list.addListingToList({
+      const added = await caller.dashboardV2.list.addListingToList({
         listId: list.id,
         listingId: listing.id,
       });
-      await caller.dashboardDb.listing.delete({ id: listing.id });
+      await caller.dashboardV2.listing.delete({ id: listing.id });
       const afterDelete = await db.list.findUniqueOrThrow({
         where: { id: list.id },
       });
@@ -97,7 +97,7 @@ describe("member mutation versions", () => {
         added.updatedAt.getTime(),
       );
       expect(
-        (await caller.dashboardDb.list.list()).find((row) => row.id === list.id)
+        (await caller.dashboardV2.list.list()).find((row) => row.id === list.id)
           ?.listings,
       ).toEqual([]);
     });
@@ -124,7 +124,7 @@ describe("member mutation versions", () => {
         data: { userId: user.id, title: "Bloom", slug: "bloom" },
       });
 
-      const added = await caller.dashboardDb.list.addListingToList({
+      const added = await caller.dashboardV2.list.addListingToList({
         listId: older.id,
         listingId: listing.id,
       });
@@ -132,12 +132,12 @@ describe("member mutation versions", () => {
         newer.updatedAt.getTime(),
       );
       expect(
-        (await caller.dashboardDb.list.list()).find(
+        (await caller.dashboardV2.list.list()).find(
           (list) => list.id === older.id,
         )?.listings,
       ).toEqual([{ id: listing.id }]);
 
-      const removed = await caller.dashboardDb.list.removeListingFromList({
+      const removed = await caller.dashboardV2.list.removeListingFromList({
         listId: older.id,
         listingId: listing.id,
       });
@@ -145,16 +145,16 @@ describe("member mutation versions", () => {
         added.updatedAt.getTime(),
       );
       expect(
-        (await caller.dashboardDb.list.list()).find(
+        (await caller.dashboardV2.list.list()).find(
           (list) => list.id === older.id,
         )?.listings,
       ).toEqual([]);
 
-      const addedAgain = await caller.dashboardDb.list.addListingToList({
+      const addedAgain = await caller.dashboardV2.list.addListingToList({
         listId: older.id,
         listingId: listing.id,
       });
-      const batchRemoved = await caller.dashboardDb.list.removeListingsFromList(
+      const batchRemoved = await caller.dashboardV2.list.removeListingsFromList(
         {
           listId: older.id,
           listingIds: [listing.id],
@@ -164,7 +164,7 @@ describe("member mutation versions", () => {
         addedAgain.updatedAt.getTime(),
       );
       expect(
-        (await caller.dashboardDb.list.list()).find(
+        (await caller.dashboardV2.list.list()).find(
           (list) => list.id === older.id,
         )?.listings,
       ).toEqual([]);
@@ -187,7 +187,7 @@ describe("member mutation versions", () => {
           updatedAt: new Date(Date.now() + 10_000),
         },
       });
-      const replaced = await caller.dashboardDb.userProfile.updateContent({
+      const replaced = await caller.dashboardV2.userProfile.updateContent({
         content: initialContent,
         expectedUpdatedAt: initial.updatedAt.toISOString(),
       });
@@ -196,7 +196,7 @@ describe("member mutation versions", () => {
       );
 
       const preserved =
-        await caller.dashboardDb.userProfile.updateContentPreservingBlocks({
+        await caller.dashboardV2.userProfile.updateContentPreservingBlocks({
           content: initialContent,
           expectedUpdatedAt: replaced.updatedAt.toISOString(),
         });
@@ -204,7 +204,7 @@ describe("member mutation versions", () => {
         replaced.updatedAt.getTime(),
       );
 
-      const appended = await caller.dashboardDb.userProfile.appendParagraph({
+      const appended = await caller.dashboardV2.userProfile.appendParagraph({
         paragraph: "Second",
         expectedUpdatedAt: preserved.updatedAt.toISOString(),
       });
@@ -212,7 +212,7 @@ describe("member mutation versions", () => {
         preserved.updatedAt.getTime(),
       );
 
-      const edited = await caller.dashboardDb.userProfile.updateParagraph({
+      const edited = await caller.dashboardV2.userProfile.updateParagraph({
         blockId: "p1",
         text: "Third",
         expectedUpdatedAt: appended.updatedAt.toISOString(),
@@ -221,7 +221,7 @@ describe("member mutation versions", () => {
         appended.updatedAt.getTime(),
       );
       await expect(
-        caller.dashboardDb.userProfile.updateContent({
+        caller.dashboardV2.userProfile.updateContent({
           content: initialContent,
           expectedUpdatedAt: initial.updatedAt.toISOString(),
         }),

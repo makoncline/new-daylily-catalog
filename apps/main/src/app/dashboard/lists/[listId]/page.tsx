@@ -12,7 +12,8 @@ import { ListForm, type ListFormHandle } from "@/components/forms/list-form";
 import { AddListingsSection } from "./_components/add-listings-section";
 import { useSaveBeforeNavigate } from "@/hooks/use-save-before-navigate";
 import { useListResource } from "@/app/dashboard/_lib/dashboard-db/use-list-resource";
-import { loadMissingList } from "@/app/dashboard/_lib/dashboard-db/collections";
+
+import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
 
 interface ListPageProps {
   params: Promise<{
@@ -27,6 +28,7 @@ export default function ListPage({ params }: ListPageProps) {
 }
 
 export function ManageListPageLive({ listId }: { listId: string }) {
+  const { loadMissingList } = useDashboardDb();
   const formRef = React.useRef<ListFormHandle | null>(null);
   useSaveBeforeNavigate(formRef, "navigate");
   const markListNeedsCommit = React.useCallback(() => {
@@ -44,7 +46,7 @@ export function ManageListPageLive({ listId }: { listId: string }) {
     return () => {
       active = false;
     };
-  }, [list, listId, unavailableId]);
+  }, [loadMissingList, list, listId, unavailableId]);
 
   if (!list && unavailableId !== listId) {
     return <ListFormSkeleton />;

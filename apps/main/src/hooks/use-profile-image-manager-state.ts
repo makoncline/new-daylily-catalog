@@ -2,9 +2,11 @@
 
 import { eq, useLiveSuspenseQuery } from "@tanstack/react-db";
 import { APP_CONFIG } from "@/config/constants";
-import { imagesCollection } from "@/app/dashboard/_lib/dashboard-db/collections";
+
+import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
 
 export function useProfileImageManagerState(profileId: string) {
+  const { imagesCollection } = useDashboardDb();
   const { data: images } = useLiveSuspenseQuery({
     query: (q) =>
       q

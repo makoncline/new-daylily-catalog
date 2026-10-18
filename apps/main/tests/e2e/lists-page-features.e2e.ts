@@ -215,7 +215,7 @@ test.describe("lists page features @local", () => {
       releaseDeleteRequest = resolve;
     });
     await page.route("**/api/trpc/**", async (route) => {
-      if (route.request().url().includes("dashboardDb.list.delete")) {
+      if (route.request().url().includes("dashboardV2.list.delete")) {
         markDeleteRequestStarted();
         await deleteRequestBlocked;
       }

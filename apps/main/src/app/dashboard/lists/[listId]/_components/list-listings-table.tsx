@@ -29,14 +29,10 @@ import { useConfirmableAsyncAction } from "@/hooks/use-confirmable-async-action"
 import { DataTableDownload } from "@/components/data-table";
 import { slugify } from "@/lib/utils/slugify";
 import { DataTableFilteredCount } from "@/components/data-table/data-table-filtered-count";
-import {
-  loadMissingList,
-  removeListingsFromList,
-  loadListingsByIds,
-} from "@/app/dashboard/_lib/dashboard-db/collections";
 
 import { useDashboardListingReadModel } from "@/app/dashboard/_lib/dashboard-db/use-dashboard-listing-read-model";
 import { getErrorMessage } from "@/lib/error-utils";
+import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
 
 interface ListListingsTableProps {
   listId: string;
@@ -62,6 +58,7 @@ function SelectedItemsActions({
   onMutationSuccess?: () => void;
   consumeAutomaticReview?: () => boolean;
 }) {
+  const { removeListingsFromList } = useDashboardDb();
   const selectedRows = table.getFilteredSelectedRowModel().rows;
   const selectedListingIds = selectedRows.map((row) => row.original.id);
   const {
@@ -186,6 +183,7 @@ export function ListListingsTable({
   listId,
   onMutationSuccess,
 }: ListListingsTableProps) {
+  const { loadMissingList, loadListingsByIds } = useDashboardDb();
   const searchParams = useSearchParams();
   const requestedRemoval = searchParams?.get("remove") ?? "";
   const requestedIds = React.useMemo(
@@ -206,7 +204,13 @@ export function ListListingsTable({
     return () => {
       cancelled = true;
     };
-  }, [listId, requestedIds, requestedRemoval]);
+  }, [
+    loadMissingList,
+    loadListingsByIds,
+    listId,
+    requestedIds,
+    requestedRemoval,
+  ]);
   const { listingRows: listings, lists } = useDashboardListingReadModel();
   const list = lists.find((row) => row.id === listId) ?? null;
 

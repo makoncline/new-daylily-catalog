@@ -34,10 +34,10 @@ vi.mock("@tanstack/react-db", () => ({
   createCollection: vi.fn(() => ({})),
 }));
 
-vi.mock("@/app/dashboard/_lib/dashboard-db/collections", () => ({
-  listsCollection: {},
-  loadMissingList,
-}));
+vi.mock("@/app/dashboard/_components/dashboard-db-provider", () => {
+  const state = { listsCollection: {}, loadMissingList };
+  return { useDashboardDb: () => state };
+});
 
 vi.mock("@/trpc/query-client", () => ({
   getQueryClient: () => ({

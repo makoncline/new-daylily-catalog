@@ -22,11 +22,9 @@ import { DataTableFilterReset } from "@/components/data-table/data-table-filter-
 import { DataTableViewOptions } from "@/components/data-table/data-table-view-options";
 import { useDataTable } from "@/hooks/use-data-table";
 import { APP_CONFIG, LIST_TABLE_COLUMN_NAMES } from "@/config/constants";
-import {
-  listsCollection,
-  type ListCollectionItem,
-} from "@/app/dashboard/_lib/dashboard-db/collections";
+import { type ListCollectionItem } from "@/app/dashboard/_lib/dashboard-db/collections";
 import { useLiveSuspenseQuery } from "@tanstack/react-db";
+import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
 
 type List = ListCollectionItem;
 
@@ -82,6 +80,7 @@ export function ListsTable({
   onEdit: (id: string) => void;
   onCreate: () => void;
 }) {
+  const { listsCollection } = useDashboardDb();
   const columns = React.useMemo(() => getColumns(onEdit), [onEdit]);
   const { data: lists } = useLiveSuspenseQuery({
     query: (q) =>

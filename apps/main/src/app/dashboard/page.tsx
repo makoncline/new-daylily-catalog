@@ -13,7 +13,7 @@ export default function DashboardPage() {
     images,
   } = useDashboardListingReadModel();
 
-  const { data: profile = null } = api.dashboardDb.userProfile.get.useQuery(
+  const { data: profile = null } = api.dashboardV2.userProfile.get.useQuery(
     undefined,
     {
       staleTime: Infinity,

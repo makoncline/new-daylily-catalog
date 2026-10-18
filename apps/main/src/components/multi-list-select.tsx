@@ -24,11 +24,9 @@ import {
 import { cn } from "@/lib/utils";
 import { TruncatedListBadge } from "@/components/data-table/truncated-list-badge";
 import { useLiveQuery } from "@tanstack/react-db";
-import {
-  insertList,
-  listsCollection,
-} from "@/app/dashboard/_lib/dashboard-db/collections";
+
 import { toast } from "sonner";
+import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
 
 interface MultiListSelectProps {
   values: string[];
@@ -41,6 +39,7 @@ export function MultiListSelect({
   onSelect,
   disabled,
 }: MultiListSelectProps) {
+  const { listsCollection, insertList } = useDashboardDb();
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
   const [isCreating, setIsCreating] = useState(false);

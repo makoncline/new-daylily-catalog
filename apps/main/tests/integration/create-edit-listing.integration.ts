@@ -162,7 +162,8 @@ test("catalog keeps existing listings when an idle creation form is submitted", 
   await editListingDialog.isReady();
   await editListingDialog.close();
   const persisted = await page.request.get(
-    "/api/trpc/dashboardDb.bootstrap.catalog",
+    "/api/trpc/dashboardV2.bootstrap.catalog",
+    { headers: { "x-dashboard-member-id": "integration-user" } },
   );
   expect(persisted.ok()).toBe(true);
   const snapshot = (await persisted.json()).result.data.json;
@@ -229,7 +230,7 @@ test("seller safely retries after a committed create response is lost in the bro
       await createListingDialog.changeTitle(title);
 
       await page.route(
-        "**/api/trpc/dashboardDb.listing.create*",
+        "**/api/trpc/dashboardV2.listing.create*",
         async (route) => {
           createRequestId = route.request().postDataJSON()[0].json.requestId;
           expect(createRequestId).toBeTruthy();

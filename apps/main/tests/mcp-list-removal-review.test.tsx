@@ -54,11 +54,10 @@ vi.mock(
     }),
   }),
 );
-vi.mock("@/app/dashboard/_lib/dashboard-db/collections", () => ({
-  removeListingsFromList,
-  loadMissingList,
-  loadListingsByIds,
-}));
+vi.mock("@/app/dashboard/_components/dashboard-db-provider", () => {
+  const state = { removeListingsFromList, loadMissingList, loadListingsByIds };
+  return { useDashboardDb: () => state };
+});
 
 vi.mock("@/app/dashboard/lists/[listId]/_components/columns", () => ({
   getColumns: () => [],

@@ -20,7 +20,8 @@ import {
   type ListingFormProps,
 } from "@/components/forms/use-listing-form";
 import { useListingEditorResource } from "@/hooks/use-listing-editor-resource";
-import { loadMissingListing } from "@/app/dashboard/_lib/dashboard-db/collections";
+
+import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
 
 type ListingEditorProps = ListingFormProps & {
   resource: ReturnType<typeof useListingEditorResource> & {
@@ -135,6 +136,7 @@ function ListingEditor({ resource, ...props }: ListingEditorProps) {
 }
 
 export function ListingForm(props: ListingFormProps) {
+  const { loadMissingListing } = useDashboardDb();
   const [unavailableId, setUnavailableId] = useState<string | null>(null);
   const [freshReviewId, setFreshReviewId] = useState<string | null>(null);
   const resource = useListingEditorResource(props.listingId);
@@ -154,7 +156,7 @@ export function ListingForm(props: ListingFormProps) {
     return () => {
       active = false;
     };
-  }, [needsPrimaryFetch, props.listingId]);
+  }, [loadMissingListing, needsPrimaryFetch, props.listingId]);
 
   if (
     !resource.isReady ||

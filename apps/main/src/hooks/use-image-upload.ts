@@ -11,7 +11,8 @@ import {
   normalizeError,
   reportError,
 } from "@/lib/error-utils";
-import { createImage } from "@/app/dashboard/_lib/dashboard-db/collections";
+
+import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
 
 interface UseImageUploadOptions {
   type: ImageType;
@@ -45,13 +46,14 @@ export function useImageUpload({
   isFirstImageUpload = false,
   onSuccess,
 }: UseImageUploadOptions) {
+  const { createImage } = useDashboardDb();
   const [progress, setProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
 
   const getPresignedUrlMutation =
-    api.dashboardDb.image.getPresignedUrl.useMutation();
+    api.dashboardV2.image.getPresignedUrl.useMutation();
   const moderateImageMutation =
-    api.dashboardDb.image.moderateImage.useMutation();
+    api.dashboardV2.image.moderateImage.useMutation();
 
   const upload = useCallback(
     async (file: Blob) => {
@@ -224,6 +226,7 @@ export function useImageUpload({
       type,
       referenceId,
       isFirstImageUpload,
+      createImage,
       getPresignedUrlMutation,
       moderateImageMutation,
       onSuccess,

@@ -75,7 +75,7 @@ function createRawV2CultivarReference(
   };
 }
 
-describe("dashboardDb.cultivarReference", () => {
+describe("dashboardV2.cultivarReference", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });

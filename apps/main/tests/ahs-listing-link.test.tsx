@@ -9,11 +9,14 @@ const mockSyncAhsName = vi.hoisted(() => vi.fn());
 const mockToastSuccess = vi.hoisted(() => vi.fn());
 const mockToastError = vi.hoisted(() => vi.fn());
 
-vi.mock("@/app/dashboard/_lib/dashboard-db/collections", () => ({
-  linkAhs: mockLinkAhs,
-  unlinkAhs: mockUnlinkAhs,
-  syncAhsName: mockSyncAhsName,
-}));
+vi.mock("@/app/dashboard/_components/dashboard-db-provider", () => {
+  const state = {
+    linkAhs: mockLinkAhs,
+    unlinkAhs: mockUnlinkAhs,
+    syncAhsName: mockSyncAhsName,
+  };
+  return { useDashboardDb: () => state };
+});
 
 vi.mock("sonner", () => ({
   toast: {
@@ -47,9 +50,9 @@ vi.mock("@/components/ahs-listing-select", () => ({
   ),
 }));
 
-type Listing = RouterOutputs["dashboardDb"]["listing"]["list"][number];
+type Listing = RouterOutputs["dashboardV2"]["listing"]["list"][number];
 type CultivarReferenceAhsListing = NonNullable<
-  RouterOutputs["dashboardDb"]["bootstrap"]["catalog"]["cultivarReferences"][number]["ahsListing"]
+  RouterOutputs["dashboardV2"]["bootstrap"]["catalog"]["cultivarReferences"][number]["ahsListing"]
 >;
 
 function createLinkedAhs(

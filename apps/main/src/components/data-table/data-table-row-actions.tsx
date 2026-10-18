@@ -15,9 +15,10 @@ import { toast } from "sonner";
 import { useState } from "react";
 import { Copy, Pencil, Trash2 } from "lucide-react";
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
-import { deleteListing as deleteListingFromDb } from "@/app/dashboard/_lib/dashboard-db/collections";
+
 import { useConfirmableAsyncAction } from "@/hooks/use-confirmable-async-action";
 import { capturePosthogEvent } from "@/lib/analytics/posthog";
+import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
 
 interface DataTableRowActionsProps<TData> {
   row: Row<TData>;
@@ -36,6 +37,7 @@ function getAbsoluteListingUrl(path: string) {
 export function DataTableRowActions<
   TData extends { id: string; slug?: string | null; userId?: string },
 >({ row, onEdit, publicUserSlug }: DataTableRowActionsProps<TData>) {
+  const { deleteListing: deleteListingFromDb } = useDashboardDb();
   const [open, setOpen] = useState(false);
   const {
     isDialogOpen: showDeleteDialog,

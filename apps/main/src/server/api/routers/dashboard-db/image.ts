@@ -405,7 +405,7 @@ export async function getOwnedDashboardImage(args: {
 }
 
 async function resolveDashboardImageRows(args: {
-  db: DbClient;
+  db: Pick<Prisma.TransactionClient, "imageAsset">;
   rows: DashboardImageRow[];
 }) {
   if (args.rows.length === 0) {
@@ -901,20 +901,27 @@ export const dashboardDbImageRouter = createTRPCRouter({
           })),
       ];
 
-      await ctx.db.$transaction(
-        mergedOrder.flatMap((img, index) => [
-          ctx.db.image.update({
-            where: { id: img.id, ...whereClause },
-            data: { order: index },
-          }),
-          ctx.db.imageAsset.updateMany({
-            where: { legacyImageId: img.id },
-            data: { order: index },
-          }),
-        ]),
-      );
+      const images = await ctx.db.$transaction(async (tx) => {
+        await Promise.all(
+          mergedOrder.flatMap((img, index) => [
+            tx.image.update({
+              where: { id: img.id, ...whereClause },
+              data: { order: index },
+            }),
+            tx.imageAsset.updateMany({
+              where: { legacyImageId: img.id },
+              data: { order: index },
+            }),
+          ]),
+        );
+        const rows = await tx.image.findMany({
+          where: whereClause,
+          orderBy: [{ order: "asc" }, { id: "asc" }],
+        });
+        return resolveDashboardImageRows({ db: tx, rows });
+      });
 
-      return { success: true } as const;
+      return { success: true, images } as const;
     }),
 
   delete: protectedProcedure
@@ -958,34 +965,6 @@ export const dashboardDbImageRouter = createTRPCRouter({
         await tx.imageAsset.deleteMany({
           where: { legacyImageId: input.imageId },
         });
-
-        const target =
-          input.type === "listing"
-            ? Prisma.sql`"listingId" = ${input.referenceId}`
-            : Prisma.sql`"userProfileId" = ${input.referenceId}`;
-        const assetTarget =
-          input.type === "listing"
-            ? Prisma.sql`image."listingId" = ${input.referenceId}`
-            : Prisma.sql`image."userProfileId" = ${input.referenceId}`;
-        const updatedAt = new Date();
-        await tx.$executeRaw(Prisma.sql`
-          WITH ranked AS MATERIALIZED (
-            SELECT id, ROW_NUMBER() OVER (ORDER BY "order", id) - 1 AS nextOrder
-            FROM "Image"
-            WHERE ${target}
-          )
-          UPDATE "Image"
-          SET "order" = ranked.nextOrder, "updatedAt" = ${updatedAt}
-          FROM ranked
-          WHERE "Image".id = ranked.id
-        `);
-        await tx.$executeRaw(Prisma.sql`
-          UPDATE "ImageAsset"
-          SET "order" = image."order", "updatedAt" = ${updatedAt}
-          FROM "Image" AS image
-          WHERE "ImageAsset"."legacyImageId" = image.id
-            AND ${assetTarget}
-        `);
       });
 
       return { success: true } as const;

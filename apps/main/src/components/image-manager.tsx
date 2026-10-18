@@ -33,12 +33,8 @@ import {
   normalizeError,
   reportError,
 } from "@/lib/error-utils";
-import {
-  deleteImage,
-  loadImageFromPrimary,
-  type ImageCollectionItem,
-  reorderImages,
-} from "@/app/dashboard/_lib/dashboard-db/collections";
+import { type ImageCollectionItem } from "@/app/dashboard/_lib/dashboard-db/collections";
+import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
 
 interface ImageManagerProps {
   images: ImageCollectionItem[];
@@ -53,6 +49,7 @@ function SortableImage({
   image,
   dragControls,
   priority,
+  disabled,
 }: {
   image: ImageCollectionItem;
   dragControls: (
@@ -60,6 +57,7 @@ function SortableImage({
     listeners: Record<string, unknown>,
   ) => React.ReactNode;
   priority: boolean;
+  disabled: boolean;
 }) {
   const {
     attributes,
@@ -68,7 +66,7 @@ function SortableImage({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: image.id });
+  } = useSortable({ id: image.id, disabled });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -98,6 +96,8 @@ export function ImageManager({
   referenceId,
   type,
 }: ImageManagerProps) {
+  const { deleteImage, loadImageFromPrimary, reorderImages } = useDashboardDb();
+  const [isReordering, setIsReordering] = useState(false);
   const searchParams = useSearchParams();
   const reviewImageId =
     searchParams?.get("intent") === "remove_image"
@@ -163,7 +163,7 @@ export function ImageManager({
     return () => {
       cancelled = true;
     };
-  }, [type, referenceId, reviewImageId, reviewKey]);
+  }, [loadImageFromPrimary, type, referenceId, reviewImageId, reviewKey]);
 
   useEffect(() => {
     if (
@@ -195,7 +195,7 @@ export function ImageManager({
 
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
-    if (!over || active.id === over.id) return;
+    if (isReordering || !over || active.id === over.id) return;
 
     const newImages = arrayMove(
       images,
@@ -203,11 +203,9 @@ export function ImageManager({
       images.findIndex((img) => img.id === over.id),
     );
 
-    onImagesChange?.(newImages);
-
-    // Save the new order
+    setIsReordering(true);
     try {
-      await reorderImages({
+      const result = await reorderImages({
         type,
         referenceId,
         images: newImages.map((img, index) => ({
@@ -215,6 +213,7 @@ export function ImageManager({
           order: index,
         })),
       });
+      onImagesChange?.(result.images);
       toast.success("Image order updated");
       onMutationSuccess?.();
     } catch (error) {
@@ -225,6 +224,8 @@ export function ImageManager({
         error: normalizeError(error),
         context: { source: "ImageManager" },
       });
+    } finally {
+      setIsReordering(false);
     }
   }
 
@@ -254,6 +255,7 @@ export function ImageManager({
                 <SortableImage
                   image={image}
                   priority={prioritizeImages}
+                  disabled={isReordering}
                   dragControls={(attributes, listeners) => (
                     <>
                       <Button
@@ -265,6 +267,7 @@ export function ImageManager({
                         data-image-id={image.id}
                         {...attributes}
                         {...listeners}
+                        disabled={isReordering}
                       >
                         <GripVertical aria-hidden="true" />
                         <span className="sr-only">Drag to reorder</span>
@@ -277,7 +280,7 @@ export function ImageManager({
                         type="button"
                         variant="destructive"
                         size="icon"
-                        disabled={isPending}
+                        disabled={isPending || isReordering}
                         className="absolute right-2 bottom-2"
                         data-testid="image-delete-button"
                         data-image-id={image.id}
@@ -298,6 +301,7 @@ export function ImageManager({
         </DndContext>
       </div>
 
+      {isReordering && <p role="status">Saving image order…</p>}
       <DeleteConfirmDialog
         open={isDeleteDialogOpen}
         onOpenChange={(open) => {

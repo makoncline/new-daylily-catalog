@@ -25,12 +25,15 @@ vi.mock("@/hooks/use-listing-editor-resource", () => ({
     linkedCultivarReferenceImage: null,
   }),
 }));
-vi.mock("@/app/dashboard/_lib/dashboard-db/collections", () => ({
-  updateListing,
-  deleteListing: vi.fn(),
-  addListingToList: vi.fn(),
-  removeListingFromList: vi.fn(),
-}));
+vi.mock("@/app/dashboard/_components/dashboard-db-provider", () => {
+  const state = {
+    updateListing,
+    deleteListing: vi.fn(),
+    addListingToList: vi.fn(),
+    removeListingFromList: vi.fn(),
+  };
+  return { useDashboardDb: () => state };
+});
 
 vi.mock("@/components/forms/listing-form-sections", () => ({
   ListingMediaSection: () => null,

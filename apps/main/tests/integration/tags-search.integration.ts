@@ -423,7 +423,7 @@ test("Tags shows dashboard loading and a recoverable load error", async ({
     releaseLookup = resolve;
   });
   await page.route("**/api/trpc/**", async (route) => {
-    if (!route.request().url().includes("dashboardDb.user.getCurrentUserId"))
+    if (!route.request().url().includes("dashboardV2.user.getCurrentUserId"))
       return route.continue();
     await gate;
     await route.fulfill({

@@ -16,12 +16,12 @@ import {
 } from "@/lib/telemetry";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 
-export function createClientLinks() {
+export function createClientLinks(memberId?: string) {
   const url = getBaseUrl() + "/api/trpc";
   const headers = () => {
     const nextHeaders = new Headers();
     nextHeaders.set("x-trpc-source", "nextjs-react");
-    nextHeaders.set("x-dashboard-data-version", "2");
+    if (memberId) nextHeaders.set("x-dashboard-member-id", memberId);
     return nextHeaders;
   };
 
@@ -60,7 +60,7 @@ export function createClientLinks() {
         (op.direction === "down" && op.result instanceof Error),
     }),
     splitLink({
-      condition: (op) => op.path === "dashboardDb.bootstrap.catalog",
+      condition: (op) => op.path === "dashboardV2.bootstrap.catalog",
       true: httpLink({
         fetch: correlatedFetch,
         transformer: SuperJSON,

@@ -15,10 +15,11 @@ import { getErrorMessage } from "@/lib/error-utils";
 import { type RouterOutputs } from "@/trpc/react";
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
 import Link from "next/link";
-import { deleteList } from "@/app/dashboard/_lib/dashboard-db/collections";
-import { useConfirmableAsyncAction } from "@/hooks/use-confirmable-async-action";
 
-type List = RouterOutputs["dashboardDb"]["list"]["list"][number];
+import { useConfirmableAsyncAction } from "@/hooks/use-confirmable-async-action";
+import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
+
+type List = RouterOutputs["dashboardV2"]["list"]["list"][number];
 
 interface DataTableRowActionsProps {
   row: Row<List>;
@@ -26,6 +27,7 @@ interface DataTableRowActionsProps {
 }
 
 export function DataTableRowActions({ row, onEdit }: DataTableRowActionsProps) {
+  const { deleteList } = useDashboardDb();
   const {
     isDialogOpen: showDeleteDialog,
     isPending: isDeleting,

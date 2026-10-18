@@ -59,7 +59,7 @@ export function ProfileUrlField({
       return;
     const timer = setTimeout(() => {
       setCheckingSlug(value);
-      void utils.dashboardDb.userProfile.checkSlug
+      void utils.dashboardV2.userProfile.checkSlug
         .fetch({ slug: value })
         .then((result) => {
           if (!active || getValues("slug") !== value) return;

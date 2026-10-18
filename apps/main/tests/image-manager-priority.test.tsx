@@ -11,11 +11,10 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(review.query),
 }));
 
-vi.mock("@/app/dashboard/_lib/dashboard-db/collections", () => ({
-  deleteImage,
-  loadImageFromPrimary,
-  reorderImages: vi.fn(),
-}));
+vi.mock("@/app/dashboard/_components/dashboard-db-provider", () => {
+  const state = { deleteImage, loadImageFromPrimary, reorderImages: vi.fn() };
+  return { useDashboardDb: () => state };
+});
 
 const images: ImageCollectionItem[] = ["first", "second"].map((id, order) => ({
   id,

@@ -24,7 +24,7 @@ async function createAuthedCaller(userId: string) {
     const user = await db.user.findUniqueOrThrow({ where: { id: userId } });
     return {
       db,
-      headers: new Headers(),
+      headers: new Headers({ "x-dashboard-member-id": user.id }),
       _authUser: user as unknown as TRPCInternalContext["_authUser"],
     } satisfies TRPCInternalContext;
   });
@@ -66,7 +66,7 @@ describe("dashboard list creation entitlements", () => {
       await seedFreeTierLimit(db, user.id);
 
       await expect(
-        caller.dashboardDb.list.create({ title: "One Too Many" }),
+        caller.dashboardV2.list.create({ title: "One Too Many" }),
       ).rejects.toMatchObject({ code: "FORBIDDEN" });
       await expect(db.list.count({ where: { userId: user.id } })).resolves.toBe(
         APP_CONFIG.LIST.FREE_TIER_MAX_LISTS,
@@ -97,7 +97,7 @@ describe("dashboard list creation entitlements", () => {
       await seedFreeTierLimit(db, user.id);
 
       await expect(
-        caller.dashboardDb.list.create({ title: "Allowed List" }),
+        caller.dashboardV2.list.create({ title: "Allowed List" }),
       ).resolves.toMatchObject({ title: "Allowed List" });
       await expect(db.list.count({ where: { userId: user.id } })).resolves.toBe(
         APP_CONFIG.LIST.FREE_TIER_MAX_LISTS + 1,

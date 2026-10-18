@@ -3,7 +3,7 @@ import { expect, test } from "./fixtures";
 
 const count = 5_000;
 const title = (index: number) => `Warm Bloom ${String(index).padStart(5, "0")}`;
-const catalogRead = /dashboardDb\.bootstrap\.catalog/;
+const catalogRead = /dashboardV2\.bootstrap\.catalog/;
 
 test("an outdated dashboard keeps its draft and explains how to reload", async ({
   page,
@@ -29,9 +29,9 @@ test("an outdated dashboard keeps its draft and explains how to reload", async (
     await editListingDialog.isReady();
     // Send the old browser protocol to the real server. Do not mock a response.
     await page.route("**/api/trpc/**", async (route) => {
-      const headers = await route.request().allHeaders();
-      delete headers["x-dashboard-data-version"];
-      await route.continue({ headers });
+      await route.continue({
+        url: route.request().url().replaceAll("dashboardV2.", "dashboardDb."),
+      });
     });
     await editListingDialog.fillDescription(draft);
     await editListingDialog.clickSaveChanges();
@@ -119,7 +119,7 @@ test("large saved catalog stays usable and current when a refresh overlaps a sav
   const requests: string[] = [];
   page.on("request", (request) => {
     const pathname = new URL(request.url()).pathname;
-    if (/dashboardDb\.bootstrap\.catalog/.test(pathname))
+    if (/dashboardV2\.bootstrap\.catalog/.test(pathname))
       requests.push(pathname);
   });
   const refresh = page.getByRole("button", { name: "Refresh dashboard data" });
@@ -430,5 +430,97 @@ test("a confirmed save survives failed refreshes and catalog reloads", async ({
     await withTempE2EDb((db) => db.listing.deleteMany({ where: { id } }), {
       clearFirst: false,
     });
+  }
+});
+
+test("an account change blocks an old dashboard save before it can write", async ({
+  page,
+  context,
+  baseURL,
+  createListingDialog,
+  dashboardListings,
+}) => {
+  const draft = "Keep this draft in the original account";
+  await withTempE2EDb(
+    (db) =>
+      db.user.upsert({
+        where: { clerkUserId: "user_integration_other" },
+        create: {
+          id: "boundary-other-member",
+          clerkUserId: "user_integration_other",
+        },
+        update: {},
+      }),
+    { clearFirst: false },
+  );
+  try {
+    await page.goto("/dashboard/listings?creating=true");
+    await createListingDialog.isReady();
+    await createListingDialog.titleInput.fill(draft);
+    // The cookie changes before Clerk updates the mounted dashboard.
+    await context.addCookies([
+      { name: "integration-auth", value: "other-member", url: baseURL! },
+    ]);
+    await createListingDialog.dialog
+      .getByRole("button", { name: "Save", exact: true })
+      .click();
+    await expect(
+      page
+        .locator("[data-sonner-toast]")
+        .filter({
+          hasText:
+            "Your account changed. Your changes were not saved. Copy any unsaved changes, then reload this page.",
+        }),
+    ).toBeVisible();
+    await expect(createListingDialog.titleInput).toHaveValue(draft);
+    await withTempE2EDb(
+      async (db) => {
+        expect(await db.listing.count({ where: { title: draft } })).toBe(0);
+      },
+      { clearFirst: false },
+    );
+    // Neither a missing header nor a forged source name bypasses the boundary.
+    const invalidHeaders: Record<string, string>[] = [
+      {},
+      { "x-trpc-source": "server-mcp" },
+      { "x-dashboard-member-id": "integration-user" },
+    ];
+    for (const headers of invalidHeaders) {
+      const response = await page.request.get(
+        "/api/trpc/dashboardV2.bootstrap.catalog",
+        { headers },
+      );
+      expect(response.status()).toBe(412);
+    }
+    const bootstrap = await page.request.get(
+      "/api/trpc/dashboardV2.user.getCurrentUserId",
+      {
+        params: {
+          input: JSON.stringify({
+            json: { clerkUserId: "user_integration_seller" },
+          }),
+        },
+      },
+    );
+    expect(bootstrap.status()).toBe(412);
+    // Deliver Clerk's account change without a page reload.
+    await page.evaluate(() =>
+      window.dispatchEvent(new Event("integration-auth-change")),
+    );
+    await expect(page.getByTestId("dashboard-refresh")).toHaveAttribute(
+      "data-state",
+      "idle",
+    );
+    await expect(dashboardListings.listingRow("Existing Bloom")).toHaveCount(0);
+    await context.clearCookies();
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.goto("/dashboard/listings?query=Existing%20Bloom");
+    await expect(dashboardListings.listingRow("Existing Bloom")).toBeVisible();
+  } finally {
+    await context.clearCookies();
+    await withTempE2EDb(
+      (db) => db.user.deleteMany({ where: { id: "boundary-other-member" } }),
+      { clearFirst: false },
+    );
   }
 });

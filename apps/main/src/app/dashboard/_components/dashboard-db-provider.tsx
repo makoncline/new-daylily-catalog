@@ -10,7 +10,7 @@ import {
 } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useLiveQuery } from "@tanstack/react-db";
-import { useQuery } from "@tanstack/react-query";
+import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { api } from "@/trpc/react";
 import { getTrpcClient } from "@/trpc/client";
 import { toast } from "sonner";
@@ -22,9 +22,8 @@ import {
 import { reportDashboardLoadFailure } from "@/app/dashboard/_lib/dashboard-db/dashboard-load-failure-reporting";
 import { writeCachedSubscription } from "@/hooks/use-persisted-subscription-query";
 
-type State = {
+type State = Dashboard & {
   status: DashboardDbStatus;
-  userId: string | null;
   isRefreshing: boolean;
 };
 type Dashboard = ReturnType<typeof createDashboard>;
@@ -39,10 +38,15 @@ export function DashboardDbProvider({ children }: { children: ReactNode }) {
   const { userId: clerkUserId } = useAuth();
   const { data: user, isError } = useQuery({
     queryKey: ["dashboard-member", clerkUserId],
-    queryFn: ({ signal }) =>
-      getTrpcClient().dashboardDb.user.getCurrentUserId.query(undefined, {
-        signal,
-      }),
+    queryFn: ({ signal }) => {
+      if (!clerkUserId) throw new Error("Not signed in");
+      return getTrpcClient().dashboardV2.user.getCurrentUserId.query(
+        { clerkUserId },
+        {
+          signal,
+        },
+      );
+    },
     enabled: Boolean(clerkUserId),
   });
   if (!user || !clerkUserId)
@@ -72,7 +76,6 @@ function MemberCatalog({
   userId: string;
   clerkUserId: string;
 }) {
-  const utils = api.useUtils();
   const [dashboard, setDashboard] = useState<Dashboard>();
   useEffect(() => {
     let cancelled = false;
@@ -81,7 +84,39 @@ function MemberCatalog({
       if (cancelled) return;
       setDashboard(current);
     });
-    void utils.dashboardDb.userProfile.get.prefetch();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+  return dashboard ? (
+    <QueryClientProvider client={dashboard.queryClient}>
+      <api.Provider
+        client={dashboard.client}
+        queryClient={dashboard.queryClient}
+      >
+        <Catalog dashboard={dashboard} clerkUserId={clerkUserId}>
+          {children}
+        </Catalog>
+      </api.Provider>
+    </QueryClientProvider>
+  ) : (
+    <DashboardDbLoadingScreen status="loading" isExiting={false} />
+  );
+}
+
+function Catalog({
+  dashboard,
+  children,
+  clerkUserId,
+}: {
+  dashboard: Dashboard;
+  children: ReactNode;
+  clerkUserId: string;
+}) {
+  const utils = api.useUtils();
+  useEffect(() => {
+    let cancelled = false;
+    void utils.dashboardV2.userProfile.get.prefetch();
     void utils.stripe.getSubscription
       .fetch()
       .then((subscription) => {
@@ -91,32 +126,18 @@ function MemberCatalog({
     return () => {
       cancelled = true;
     };
-  }, [userId, clerkUserId, utils]);
-  return dashboard ? (
-    <Catalog dashboard={dashboard}>{children}</Catalog>
-  ) : (
-    <DashboardDbLoadingScreen status="loading" isExiting={false} />
-  );
-}
-
-function Catalog({
-  dashboard,
-  children,
-}: {
-  dashboard: Dashboard;
-  children: ReactNode;
-}) {
+  }, [clerkUserId, utils]);
   const listings = useLiveQuery({
-    query: (q) => q.from({ row: dashboard.listings }),
+    query: (q) => q.from({ row: dashboard.listingsCollection }),
   });
   const lists = useLiveQuery({
-    query: (q) => q.from({ row: dashboard.lists }),
+    query: (q) => q.from({ row: dashboard.listsCollection }),
   });
   const images = useLiveQuery({
-    query: (q) => q.from({ row: dashboard.images }),
+    query: (q) => q.from({ row: dashboard.imagesCollection }),
   });
   const references = useLiveQuery({
-    query: (q) => q.from({ row: dashboard.references }),
+    query: (q) => q.from({ row: dashboard.cultivarReferencesCollection }),
   });
   const query = useQuery(
     { ...dashboard.queryOptions, refetchOnMount: "always" },
@@ -153,6 +174,7 @@ function Catalog({
   return (
     <Context.Provider
       value={{
+        ...dashboard,
         status,
         userId: dashboard.userId,
         isRefreshing: query.isFetching,

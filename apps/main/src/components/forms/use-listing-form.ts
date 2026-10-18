@@ -7,7 +7,6 @@ import {
   useState,
   type RefObject,
 } from "react";
-import { flushSync } from "react-dom";
 import { toast } from "sonner";
 import {
   listingFormSchema,
@@ -24,18 +23,11 @@ import {
   reportError,
 } from "@/lib/error-utils";
 import { STATUS } from "@/config/constants";
-import {
-  type ListingCollectionItem,
-  deleteListing,
-  loadMissingListing,
-  listingsCollection,
-  updateListing,
-  addListingToList,
-  removeListingFromList,
-} from "@/app/dashboard/_lib/dashboard-db/collections";
+import { type ListingCollectionItem } from "@/app/dashboard/_lib/dashboard-db/collections";
 
 import { rebaseFormValues } from "@/lib/rebase-form-values";
 import { isConflictError } from "@/trpc/is-conflict-error";
+import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
 
 export interface ListingFormProps {
   listingId: string;
@@ -97,6 +89,14 @@ export function useListingFormController({
   onPendingChangesChange?: (hasPendingChanges: boolean) => void;
   formRef?: RefObject<ListingFormHandle | null>;
 }) {
+  const {
+    deleteListing,
+    updateListing,
+    loadMissingListing,
+    listingsCollection,
+    addListingToList,
+    removeListingFromList,
+  } = useDashboardDb();
   const [isSaving, setIsSaving] = useState(false);
   const [hasRemoteChange, setHasRemoteChange] = useState(false);
   const committedListingRef = useRef(listing);
@@ -120,8 +120,8 @@ export function useListingFormController({
     setIsDialogOpen: setIsDeleteDialogOpen,
   } = useConfirmableAsyncAction({
     action: async () => {
-      flushSync(onDelete);
       await deleteListing({ id: listing.id });
+      onDelete();
     },
     onSuccess: () => {
       toast.success("Listing deleted successfully");
@@ -261,7 +261,14 @@ export function useListingFormController({
           }
         }
       },
-      [form, listing, needsParentCommitRef, onSave, resetNeedsParentCommit],
+      [
+        updateListing,
+        form,
+        listing,
+        needsParentCommitRef,
+        onSave,
+        resetNeedsParentCommit,
+      ],
     ),
   });
 
@@ -317,7 +324,13 @@ export function useListingFormController({
     } finally {
       setIsSaving(false);
     }
-  }, [form, listingId, resetNeedsParentCommit]);
+  }, [
+    listingsCollection,
+    loadMissingListing,
+    form,
+    listingId,
+    resetNeedsParentCommit,
+  ]);
 
   async function onSubmit() {
     await saveChanges("manual");

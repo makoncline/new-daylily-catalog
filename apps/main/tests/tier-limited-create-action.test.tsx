@@ -31,10 +31,10 @@ vi.mock("@tanstack/react-db", () => ({
   },
 }));
 
-vi.mock("@/app/dashboard/_lib/dashboard-db/collections", () => ({
-  listsCollection: {},
-  listingsCollection: {},
-}));
+vi.mock("@/app/dashboard/_components/dashboard-db-provider", () => {
+  const state = { listsCollection: {}, listingsCollection: {} };
+  return { useDashboardDb: () => state };
+});
 
 vi.mock("@/app/dashboard/_lib/dashboard-timing", () => ({
   logDashboardTiming: vi.fn(),

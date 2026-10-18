@@ -3,7 +3,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   trpcClient: {
-    dashboardDb: {
+    dashboardV2: {
       ahs: {
         search: { query: vi.fn() },
       },
@@ -55,13 +55,18 @@ vi.mock("@/trpc/query-client", () => ({
   getQueryClient: () => mocks.queryClient,
 }));
 
-vi.mock("@/app/dashboard/_lib/dashboard-db/collections", () => ({
-  insertListing: mocks.insertListing,
-  updateListing: mocks.updateListing,
-  linkAhs: mocks.linkAhs,
-  addListingToList: mocks.addListingToList,
-  insertList: mocks.insertList,
-}));
+vi.mock("@/app/dashboard/_components/dashboard-db-provider", () => {
+  const state = {
+    insertListing: mocks.insertListing,
+    updateListing: mocks.updateListing,
+    linkAhs: mocks.linkAhs,
+    addListingToList: mocks.addListingToList,
+    insertList: mocks.insertList,
+    client: mocks.trpcClient,
+    queryClient: mocks.queryClient,
+  };
+  return { useDashboardDb: () => state };
+});
 
 import { WebMcpProvider } from "@/components/webmcp-provider";
 
@@ -191,7 +196,7 @@ describe("WebMcpProvider", () => {
       id: "listing-1",
       updatedAt: new Date("2026-09-25T12:00:00.000Z"),
     });
-    mocks.trpcClient.dashboardDb.listing.get.query.mockResolvedValue({
+    mocks.trpcClient.dashboardV2.listing.get.query.mockResolvedValue({
       id: "listing-1",
       title: "Updated listing",
       price: 20,
@@ -211,7 +216,7 @@ describe("WebMcpProvider", () => {
       price: 20,
     });
 
-    expect(mocks.trpcClient.dashboardDb.listing.get.query).toHaveBeenCalledWith(
+    expect(mocks.trpcClient.dashboardV2.listing.get.query).toHaveBeenCalledWith(
       {
         id: "listing-1",
       },
@@ -328,7 +333,7 @@ describe("WebMcpProvider", () => {
   test("opens owned image editors and rejects a foreign listing", async () => {
     const registerTool = vi.fn();
     setModelContext({ registerTool });
-    mocks.trpcClient.dashboardDb.listing.get.query.mockResolvedValue({
+    mocks.trpcClient.dashboardV2.listing.get.query.mockResolvedValue({
       id: "listing-1",
     });
     render(<WebMcpProvider />);
@@ -353,7 +358,7 @@ describe("WebMcpProvider", () => {
       "/dashboard/profile#profile-images",
     );
     mocks.push.mockClear();
-    mocks.trpcClient.dashboardDb.listing.get.query.mockRejectedValueOnce(
+    mocks.trpcClient.dashboardV2.listing.get.query.mockRejectedValueOnce(
       new Error("Listing not found"),
     );
     await expect(

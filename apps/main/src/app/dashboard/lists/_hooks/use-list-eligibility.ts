@@ -2,10 +2,12 @@
 
 import { APP_CONFIG } from "@/config/constants";
 import { usePro } from "@/hooks/use-pro";
-import { listsCollection } from "@/app/dashboard/_lib/dashboard-db/collections";
+
 import { useLiveSuspenseQuery } from "@tanstack/react-db";
+import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
 
 export function useListEligibility() {
+  const { listsCollection } = useDashboardDb();
   const { isPro, isLoading: isSubscriptionLoading } = usePro();
   const listsQuery = useLiveSuspenseQuery({
     query: (q) => q.from({ list: listsCollection }),

@@ -112,7 +112,7 @@ function createCaller(db: MockDb) {
   });
 }
 
-describe("dashboardDb.image", () => {
+describe("dashboardV2.image", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     s3Mocks.getSignedUrl.mockResolvedValue("https://upload-url.example");
@@ -300,22 +300,6 @@ describe("dashboardDb.image", () => {
     expect(db.image.findMany).not.toHaveBeenCalled();
   });
 
-  it("delete updates order without loading each remaining image", async () => {
-    const db = createMockDb();
-    db.listing.findFirst.mockResolvedValueOnce({ id: "listing-1" });
-    db.image.deleteMany.mockResolvedValueOnce({ count: 1 });
-    const caller = createCaller(db);
-    const result = await caller.delete({
-      type: "listing",
-      referenceId: "listing-1",
-      imageId: "image-1",
-    });
-
-    expect(result).toEqual({ success: true });
-    expect(db.$executeRaw).toHaveBeenCalledTimes(2);
-    expect(db.image.findMany).not.toHaveBeenCalled();
-  });
-
   it("reorder rejects image ids outside the owned target set", async () => {
     const db = createMockDb();
     db.listing.findFirst.mockResolvedValueOnce({ id: "listing-1" });
@@ -347,6 +331,7 @@ describe("dashboardDb.image", () => {
       { id: "image-3" },
     ]);
     db.image.update.mockResolvedValue({});
+    db.image.findMany.mockResolvedValueOnce([]);
 
     const caller = createCaller(db);
     const result = await caller.reorder({
@@ -358,7 +343,7 @@ describe("dashboardDb.image", () => {
       ],
     });
 
-    expect(result).toEqual({ success: true });
+    expect(result).toEqual({ success: true, images: [] });
     expect(db.image.update).toHaveBeenCalledTimes(3);
     expect(db.image.update).toHaveBeenNthCalledWith(1, {
       where: { id: "image-3", userProfileId: "profile-1" },

@@ -13,9 +13,9 @@ interface ListingListRef {
   title: string;
 }
 
-type ListingBase = RouterOutputs["dashboardDb"]["listing"]["list"][number];
+type ListingBase = RouterOutputs["dashboardV2"]["listing"]["list"][number];
 type CultivarReference =
-  RouterOutputs["dashboardDb"]["bootstrap"]["catalog"]["cultivarReferences"][number];
+  RouterOutputs["dashboardV2"]["bootstrap"]["catalog"]["cultivarReferences"][number];
 type CultivarReferenceAhsListing = CultivarReference["ahsListing"];
 type CultivarReferenceImage = CultivarReference["cultivarReferenceImage"];
 

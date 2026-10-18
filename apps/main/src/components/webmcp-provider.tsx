@@ -3,17 +3,9 @@
 import { useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
 import { usePathname, useRouter } from "next/navigation";
-import { getQueryClient } from "@/trpc/query-client";
-import { getTrpcClient } from "@/trpc/client";
-import {
-  insertListing,
-  updateListing,
-  linkAhs,
-  addListingToList,
-  insertList,
-} from "@/app/dashboard/_lib/dashboard-db/collections";
 
 import { registerWebMcpTools, toolResult, type WebMcpTool } from "@/lib/webmcp";
+import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
 
 function asString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -55,6 +47,15 @@ const emptyObjectSchema = {
 };
 
 export function WebMcpProvider() {
+  const {
+    client,
+    queryClient,
+    insertListing,
+    updateListing,
+    linkAhs,
+    insertList,
+    addListingToList,
+  } = useDashboardDb();
   const router = useRouter();
   const pathname = usePathname();
   const { isLoaded, isSignedIn } = useUser();
@@ -65,9 +66,6 @@ export function WebMcpProvider() {
     try {
       if (!pathname.startsWith("/dashboard")) return;
       if (!isLoaded || !isSignedIn) return;
-
-      const client = getTrpcClient();
-      const queryClient = getQueryClient();
 
       const tools: WebMcpTool[] = [
         {
@@ -115,9 +113,9 @@ export function WebMcpProvider() {
           execute: async () => {
             try {
               const [profile, listings, lists] = await Promise.all([
-                client.dashboardDb.userProfile.get.query(),
-                client.dashboardDb.listing.list.query(),
-                client.dashboardDb.list.list.query(),
+                client.dashboardV2.userProfile.get.query(),
+                client.dashboardV2.listing.list.query(),
+                client.dashboardV2.list.list.query(),
               ]);
               return toolResult({
                 ok: true,
@@ -163,7 +161,7 @@ export function WebMcpProvider() {
           },
           execute: async (input) => {
             const query = asString(input.query);
-            const results = await client.dashboardDb.ahs.search.query({
+            const results = await client.dashboardV2.ahs.search.query({
               query,
             });
             return toolResult({ ok: true, query, results });
@@ -215,7 +213,7 @@ export function WebMcpProvider() {
             if (expectedUpdatedAt === "") {
               throw new Error("expectedUpdatedAt is required.");
             }
-            const profile = await client.dashboardDb.userProfile.update.mutate({
+            const profile = await client.dashboardV2.userProfile.update.mutate({
               expectedUpdatedAt,
               data: {
                 title: asOptionalString(input.title),
@@ -225,7 +223,7 @@ export function WebMcpProvider() {
               },
             });
             queryClient.setQueryData(
-              [["dashboardDb", "userProfile", "get"], { type: "query" }],
+              [["dashboardV2", "userProfile", "get"], { type: "query" }],
               profile,
             );
             void queryClient.invalidateQueries();
@@ -302,7 +300,7 @@ export function WebMcpProvider() {
                 },
               });
             }
-            const listing = await client.dashboardDb.listing.get.query({
+            const listing = await client.dashboardV2.listing.get.query({
               id: created.id,
             });
             return toolResult({ ok: true, listing });
@@ -380,7 +378,7 @@ export function WebMcpProvider() {
                       : null,
               },
             });
-            const listing = await client.dashboardDb.listing.get.query({ id });
+            const listing = await client.dashboardV2.listing.get.query({ id });
             return toolResult({ ok: true, listing });
           },
         },
@@ -482,7 +480,7 @@ export function WebMcpProvider() {
             const listingId = asString(input.listingId);
             let path: string;
             if (type === "listing" && listingId) {
-              await client.dashboardDb.listing.get.query({ id: listingId });
+              await client.dashboardV2.listing.get.query({ id: listingId });
               path = `/dashboard/listings?editing=${encodeURIComponent(listingId)}#listing-images`;
             } else if (type === "profile" && !listingId) {
               path = "/dashboard/profile#profile-images";
@@ -526,7 +524,7 @@ export function WebMcpProvider() {
               throw new Error("listingId and listId are required.");
             }
             await addListingToList({ listingId, listId });
-            const list = await client.dashboardDb.list.get.query({
+            const list = await client.dashboardV2.list.get.query({
               id: listId,
             });
             return toolResult({ ok: true, list });
@@ -540,7 +538,19 @@ export function WebMcpProvider() {
     }
 
     return () => abortController.abort();
-  }, [isLoaded, isSignedIn, pathname, router]);
+  }, [
+    client,
+    queryClient,
+    insertListing,
+    updateListing,
+    linkAhs,
+    insertList,
+    addListingToList,
+    isLoaded,
+    isSignedIn,
+    pathname,
+    router,
+  ]);
 
   return null;
 }

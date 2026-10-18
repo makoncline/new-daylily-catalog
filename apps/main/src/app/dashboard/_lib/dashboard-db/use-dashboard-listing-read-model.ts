@@ -2,21 +2,16 @@
 
 import { useMemo } from "react";
 import type { RouterOutputs } from "@/trpc/react";
-import {
-  listingsCollection,
-  listsCollection,
-  imagesCollection,
-  type ImageCollectionItem,
-  cultivarReferencesCollection,
-} from "@/app/dashboard/_lib/dashboard-db/collections";
+import { type ImageCollectionItem } from "@/app/dashboard/_lib/dashboard-db/collections";
 
 import { useLiveSuspenseQuery } from "@tanstack/react-db";
 import type { ListingData } from "@/app/dashboard/listings/_components/columns";
+import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
 
-type List = RouterOutputs["dashboardDb"]["list"]["list"][number];
-type Listing = RouterOutputs["dashboardDb"]["listing"]["list"][number];
+type List = RouterOutputs["dashboardV2"]["list"]["list"][number];
+type Listing = RouterOutputs["dashboardV2"]["listing"]["list"][number];
 type CultivarReference =
-  RouterOutputs["dashboardDb"]["bootstrap"]["catalog"]["cultivarReferences"][number];
+  RouterOutputs["dashboardV2"]["bootstrap"]["catalog"]["cultivarReferences"][number];
 
 export interface DashboardListingReadModel {
   images: ImageCollectionItem[];
@@ -90,6 +85,12 @@ function buildListingRows({
 }
 
 export function useDashboardListingReadModel(): DashboardListingReadModel {
+  const {
+    listingsCollection,
+    listsCollection,
+    imagesCollection,
+    cultivarReferencesCollection,
+  } = useDashboardDb();
   const listingsQuery = useLiveSuspenseQuery({
     query: (q) =>
       q

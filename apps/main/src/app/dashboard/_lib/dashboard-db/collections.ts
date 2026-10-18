@@ -1,13 +1,14 @@
 "use client";
 
+import { createCollection, type Collection } from "@tanstack/react-db";
 import {
-  createCollection,
-  createTransaction,
-  type Collection,
-} from "@tanstack/react-db";
-import { QueryClient, type QueryFunctionContext } from "@tanstack/react-query";
+  MutationObserver,
+  QueryClient,
+  type QueryFunctionContext,
+} from "@tanstack/react-query";
 import {
   queryCollectionOptions,
+  DeleteOperationItemNotFoundError,
   type QueryCollectionUtils,
 } from "@tanstack/query-db-collection";
 import {
@@ -16,11 +17,10 @@ import {
 } from "@tanstack/query-persist-client-core";
 import { get, set, del } from "idb-keyval";
 import type { RouterInputs, RouterOutputs } from "@/trpc/react";
-import { getTrpcClient } from "@/trpc/client";
-import { omitUndefined } from "@/lib/utils/omit-undefined";
+import { createMemberClient } from "@/trpc/client";
 import { capturePosthogEvent } from "@/lib/analytics/posthog";
 
-type Catalog = RouterOutputs["dashboardDb"]["bootstrap"]["catalog"];
+type Catalog = RouterOutputs["dashboardV2"]["bootstrap"]["catalog"];
 export type ListingCollectionItem = Catalog["listings"][number];
 export type ListCollectionItem = Catalog["lists"][number];
 export type ImageCollectionItem = Catalog["images"][number];
@@ -31,16 +31,13 @@ type NativeCollection<T extends { id: string }> = Collection<
   string,
   QueryCollectionUtils<T, string>
 >;
-type Input = RouterInputs["dashboardDb"];
+type Input = RouterInputs["dashboardV2"];
 
-export let listingsCollection: NativeCollection<ListingCollectionItem>;
-export let listsCollection: NativeCollection<ListCollectionItem>;
-export let imagesCollection: NativeCollection<ImageCollectionItem>;
-export let cultivarReferencesCollection: NativeCollection<CultivarReferenceCollectionItem>;
-let session: ReturnType<typeof createSession>;
+let session: ReturnType<typeof createSession> | undefined;
 
 function createSession(userId: string) {
   let active = true;
+  const client = createMemberClient(userId);
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
@@ -55,7 +52,10 @@ function createSession(userId: string) {
     maxAge: Infinity,
     buster: "1",
     dehydrateOptions: {
-      shouldDehydrateQuery: (query) => query.state.data !== undefined,
+      shouldDehydrateQuery: (query) =>
+        query.queryKey[0] === "dashboard-tanstack" &&
+        query.state.data !== undefined,
+      shouldDehydrateMutation: () => false,
     },
     persister: {
       restoreClient: () =>
@@ -76,7 +76,7 @@ function createSession(userId: string) {
   const queryKey = ["dashboard-tanstack", userId];
   const queryFn = async ({ signal }: QueryFunctionContext) => {
     assertActive();
-    return getTrpcClient().dashboardDb.bootstrap.catalog.query(undefined, {
+    return client.dashboardV2.bootstrap.catalog.query(undefined, {
       signal,
     });
   };
@@ -111,22 +111,63 @@ function createSession(userId: string) {
     "cultivarReferences",
     (catalog) => catalog.cultivarReferences,
   );
+  // Query owns ordering. Commands keep their original client through awaits.
+  function command<T>(
+    request: () => Promise<T>,
+    apply: (result: T) => Promise<unknown>,
+  ) {
+    return new MutationObserver<T>(queryClient, {
+      scope: { id: "dashboard-commands" },
+      networkMode: "always",
+      retry: false,
+      mutationFn: async () => {
+        assertActive();
+        const result = await request();
+        assertActive();
+        await apply(result);
+        return result;
+      },
+    }).mutate();
+  }
+
+  async function cacheReferences(ids: string[]) {
+    const missing = [...new Set(ids)].filter((id) => !references.has(id));
+    for (let offset = 0; offset < missing.length; offset += 200) {
+      const rows = await client.dashboardV2.cultivarReference.getByIds.query({
+        ids: missing.slice(offset, offset + 200),
+      });
+      assertActive();
+      await references.utils.writeUpsert(rows);
+    }
+  }
+  async function cacheListings(rows: ListingCollectionItem[]) {
+    await listings.utils.writeUpsert(rows);
+    await cacheReferences(
+      rows.flatMap((row) =>
+        row.cultivarReferenceId ? [row.cultivarReferenceId] : [],
+      ),
+    ).catch(() => {
+      // Reference metadata must not reject a confirmed listing save.
+      console.warn("Could not load cultivar reference details");
+    });
+  }
+
   return {
     userId,
-    listings,
-    lists,
-    images,
-    references,
+    client,
+    listingsCollection: listings,
+    listsCollection: lists,
+    imagesCollection: images,
+    cultivarReferencesCollection: references,
     restored,
     queryClient,
     queryOptions: { queryKey, queryFn },
-    assertActive,
-    async refresh() {
+    refreshDashboardCatalog: async () => {
       assertActive();
       await queryClient.cancelQueries({ queryKey });
       await listings.utils.refetch({ throwOnError: true });
     },
-    async dispose() {
+    dispose: async () => {
       active = false;
       stopPersisting();
       await queryClient.cancelQueries();
@@ -138,295 +179,140 @@ function createSession(userId: string) {
       ]);
       queryClient.clear();
     },
+    insertListing: (draft: Input["listing"]["create"]) =>
+      command(
+        () => client.dashboardV2.listing.create.mutate(draft),
+        async (row) => {
+          const first = listings.size === 0;
+          await cacheListings([row]);
+          if (first)
+            capturePosthogEvent("first_listing_created", {
+              listingId: row.id,
+              cultivarLinked: Boolean(draft.cultivarReferenceId),
+            });
+        },
+      ),
+    updateListing: (draft: Input["listing"]["update"]) =>
+      command(
+        () => client.dashboardV2.listing.update.mutate(draft),
+        (row) => listings.utils.writeUpsert(row),
+      ),
+    deleteListing: (draft: Input["listing"]["delete"]) =>
+      command(
+        () => client.dashboardV2.listing.delete.mutate(draft),
+        async (result) => {
+          await deleteConfirmed(listings, [draft.id]);
+          await deleteConfirmed(
+            images,
+            [...images.values()]
+              .filter((row) => row.listingId === draft.id)
+              .map((row) => row.id),
+          );
+          if (result.lists.length) await lists.utils.writeUpsert(result.lists);
+        },
+      ),
+    loadMissingListing: (id: string) =>
+      command(
+        () => client.dashboardV2.listing.get.query({ id }),
+        (row) => cacheListings([row]),
+      ),
+    loadListingsByIds: (ids: string[]) =>
+      command(
+        () => client.dashboardV2.listing.getByIds.query({ ids }),
+        cacheListings,
+      ),
+    linkAhs: (draft: Input["listing"]["linkAhs"]) =>
+      command(
+        () => client.dashboardV2.listing.linkAhs.mutate(draft),
+        (row) => cacheListings([row]),
+      ),
+    unlinkAhs: (draft: Input["listing"]["unlinkAhs"]) =>
+      command(
+        () => client.dashboardV2.listing.unlinkAhs.mutate(draft),
+        (row) => listings.utils.writeUpsert(row),
+      ),
+    syncAhsName: (draft: Input["listing"]["syncAhsName"]) =>
+      command(
+        () => client.dashboardV2.listing.syncAhsName.mutate(draft),
+        (row) => listings.utils.writeUpsert(row),
+      ),
+    insertList: (draft: Input["list"]["create"]) =>
+      command(
+        () => client.dashboardV2.list.create.mutate(draft),
+        (row) => lists.utils.writeUpsert(row),
+      ),
+    updateList: (draft: Input["list"]["update"]) =>
+      command(
+        () => client.dashboardV2.list.update.mutate(draft),
+        (row) => lists.utils.writeUpsert(row),
+      ),
+    deleteList: (draft: Input["list"]["delete"]) =>
+      command(
+        () => client.dashboardV2.list.delete.mutate(draft),
+        () => deleteConfirmed(lists, [draft.id]),
+      ),
+    loadMissingList: (id: string) =>
+      command(
+        () => client.dashboardV2.list.get.query({ id }),
+        (row) => lists.utils.writeUpsert(row),
+      ),
+    addListingToList: (draft: Input["list"]["addListingToList"]) =>
+      command(
+        () => client.dashboardV2.list.addListingToList.mutate(draft),
+        (row) => lists.utils.writeUpsert(row),
+      ),
+    removeListingFromList: (draft: Input["list"]["removeListingFromList"]) =>
+      command(
+        () => client.dashboardV2.list.removeListingFromList.mutate(draft),
+        (row) => lists.utils.writeUpsert(row),
+      ),
+    removeListingsFromList: (draft: Input["list"]["removeListingsFromList"]) =>
+      command(
+        () => client.dashboardV2.list.removeListingsFromList.mutate(draft),
+        (row) => lists.utils.writeUpsert(row),
+      ),
+    createImage: (draft: Input["image"]["create"]) =>
+      command(
+        () => client.dashboardV2.image.create.mutate(draft),
+        (row) => images.utils.writeUpsert(row),
+      ),
+    loadImageFromPrimary: (draft: Input["image"]["get"]) =>
+      command(
+        () => client.dashboardV2.image.get.query(draft),
+        (row) => images.utils.writeUpsert(row),
+      ),
+    reorderImages: (draft: Input["image"]["reorder"]) =>
+      command(
+        () => client.dashboardV2.image.reorder.mutate(draft),
+        (result) => images.utils.writeUpsert(result.images),
+      ),
+    deleteImage: (draft: Input["image"]["delete"]) =>
+      command(
+        () => client.dashboardV2.image.delete.mutate(draft),
+        () => deleteConfirmed(images, [draft.imageId]),
+      ),
   };
 }
 
-// Route suspension can restart effects without discarding React state. Keep
-// the member's client across navigation; only an account change replaces it.
+async function deleteConfirmed<T extends { id: string }>(
+  collection: NativeCollection<T>,
+  ids: string[],
+) {
+  for (const id of ids) {
+    try {
+      await collection.utils.writeDelete(id);
+    } catch (error) {
+      // A refresh may have already applied the confirmed server deletion.
+      if (!(error instanceof DeleteOperationItemNotFoundError)) throw error;
+    }
+  }
+}
+
+// Route suspension can restart effects. Reuse this member's catalog; callers
+// retain the returned session, so an account change cannot redirect their work.
 export function createDashboard(userId: string) {
   if (session?.userId === userId) return session;
   if (session) void session.dispose();
   session = createSession(userId);
-  listingsCollection = session.listings;
-  listsCollection = session.lists;
-  imagesCollection = session.images;
-  cultivarReferencesCollection = session.references;
   return session;
-}
-
-// TanStack owns the optimistic layer and rollback. Confirm with the server row;
-// a later refresh is independent of whether the command succeeded.
-async function mutate<T>(
-  optimistic: () => void,
-  write: () => Promise<T>,
-  confirm: (result: T) => Promise<void>,
-) {
-  const current = session;
-  current.assertActive();
-  const transaction = createTransaction({
-    autoCommit: false,
-    mutationFn: () => saved,
-  });
-  transaction.mutate(optimistic);
-  const saved = write().then(async (result) => {
-    current.assertActive();
-    await confirm(result);
-    return result;
-  });
-  await transaction.commit();
-  return saved;
-}
-
-export async function insertListing(draft: Input["listing"]["create"]) {
-  const current = session;
-  current.assertActive();
-  const first = current.listings.size === 0;
-  const created =
-    await getTrpcClient().dashboardDb.listing.create.mutate(draft);
-  current.assertActive();
-  await current.listings.utils.writeUpsert(created);
-  await cacheListingReferences(current, [created]);
-  if (first)
-    capturePosthogEvent("first_listing_created", {
-      listingId: created.id,
-      cultivarLinked: Boolean(draft.cultivarReferenceId),
-    });
-  return created;
-}
-export function updateListing(draft: Input["listing"]["update"]) {
-  const { listings } = session;
-  return mutate(
-    () =>
-      listings.update(draft.id, (row) => {
-        Object.assign(row, omitUndefined(draft.data));
-      }),
-    () => getTrpcClient().dashboardDb.listing.update.mutate(draft),
-    (row) => listings.utils.writeUpsert(row),
-  );
-}
-export function deleteListing(draft: Input["listing"]["delete"]) {
-  const { listings, lists, images } = session;
-  const imageIds = [...images.values()]
-    .filter((row) => row.listingId === draft.id)
-    .map((row) => row.id);
-  const memberships = [...lists.values()]
-    .filter((row) => row.listings.some((item) => item.id === draft.id))
-    .map((row) => ({
-      id: row.id,
-      listings: row.listings.filter((item) => item.id !== draft.id),
-    }));
-  return mutate(
-    () => {
-      listings.delete(draft.id);
-      if (imageIds.length) images.delete(imageIds);
-      for (const list of memberships)
-        lists.update(list.id, (row) => {
-          row.listings = list.listings;
-        });
-    },
-    () => getTrpcClient().dashboardDb.listing.delete.mutate(draft),
-    async (result) => {
-      await listings.utils.writeDelete(draft.id);
-      if (imageIds.length) await images.utils.writeDelete(imageIds);
-      if (result.lists.length) await lists.utils.writeUpsert(result.lists);
-    },
-  );
-}
-export async function loadMissingListing(id: string) {
-  const current = session;
-  const row = await getTrpcClient().dashboardDb.listing.get.query({ id });
-  current.assertActive();
-  await current.listings.utils.writeUpsert(row);
-  await cacheListingReferences(current, [row]);
-}
-export async function loadListingsByIds(ids: string[]) {
-  const current = session;
-  const rows = await getTrpcClient().dashboardDb.listing.getByIds.query({
-    ids,
-  });
-  current.assertActive();
-  await current.listings.utils.writeUpsert(rows);
-  await cacheListingReferences(current, rows);
-}
-export async function linkAhs(draft: Input["listing"]["linkAhs"]) {
-  const current = session;
-  const row = await getTrpcClient().dashboardDb.listing.linkAhs.mutate(draft);
-  current.assertActive();
-  await current.listings.utils.writeUpsert(row);
-  await cacheListingReferences(current, [row]);
-  return row;
-}
-export async function unlinkAhs(draft: Input["listing"]["unlinkAhs"]) {
-  const current = session;
-  const row = await getTrpcClient().dashboardDb.listing.unlinkAhs.mutate(draft);
-  current.assertActive();
-  await current.listings.utils.writeUpsert(row);
-  return row;
-}
-export async function syncAhsName(draft: Input["listing"]["syncAhsName"]) {
-  const current = session;
-  const row =
-    await getTrpcClient().dashboardDb.listing.syncAhsName.mutate(draft);
-  current.assertActive();
-  await current.listings.utils.writeUpsert(row);
-  return row;
-}
-export async function ensureCultivarReferencesCached(ids: string[]) {
-  return cacheReferences(session, ids);
-}
-
-async function cacheListingReferences(
-  current: ReturnType<typeof createSession>,
-  rows: ListingCollectionItem[],
-) {
-  await cacheReferences(
-    current,
-    rows.flatMap((row) =>
-      row.cultivarReferenceId ? [row.cultivarReferenceId] : [],
-    ),
-  ).catch(() => {
-    // Reference metadata is optional. Its failure must not reject a saved listing.
-    console.warn("Could not load cultivar reference details");
-  });
-}
-
-async function cacheReferences(
-  current: ReturnType<typeof createSession>,
-  ids: string[],
-) {
-  const missing = [...new Set(ids)].filter((id) => !current.references.has(id));
-  if (!missing.length) return [];
-  const rows: CultivarReferenceCollectionItem[] = [];
-  for (let offset = 0; offset < missing.length; offset += 200) {
-    rows.push(
-      ...(await getTrpcClient().dashboardDb.cultivarReference.getByIds.query({
-        ids: missing.slice(offset, offset + 200),
-      })),
-    );
-    current.assertActive();
-  }
-  await current.references.utils.writeUpsert(rows);
-  return rows;
-}
-
-export async function insertList(draft: Input["list"]["create"]) {
-  const current = session;
-  current.assertActive();
-  const created = await getTrpcClient().dashboardDb.list.create.mutate(draft);
-  current.assertActive();
-  await current.lists.utils.writeUpsert(created);
-  return created;
-}
-export function updateList(draft: Input["list"]["update"]) {
-  const { lists } = session;
-  return mutate(
-    () =>
-      lists.update(draft.id, (row) => {
-        Object.assign(row, omitUndefined(draft.data));
-      }),
-    () => getTrpcClient().dashboardDb.list.update.mutate(draft),
-    (row) => lists.utils.writeUpsert(row),
-  );
-}
-export function deleteList(draft: Input["list"]["delete"]) {
-  const { lists } = session;
-  return mutate(
-    () => lists.delete(draft.id),
-    () => getTrpcClient().dashboardDb.list.delete.mutate(draft),
-    () => lists.utils.writeDelete(draft.id),
-  );
-}
-export async function loadMissingList(id: string) {
-  const current = session;
-  const row = await getTrpcClient().dashboardDb.list.get.query({ id });
-  current.assertActive();
-  await current.lists.utils.writeUpsert(row);
-}
-export function addListingToList(draft: Input["list"]["addListingToList"]) {
-  const { lists } = session;
-  return mutate(
-    () =>
-      lists.update(draft.listId, (row) => {
-        if (!row.listings.some((item) => item.id === draft.listingId))
-          row.listings.push({ id: draft.listingId });
-      }),
-    () => getTrpcClient().dashboardDb.list.addListingToList.mutate(draft),
-    (row) => lists.utils.writeUpsert(row),
-  );
-}
-export function removeListingFromList(
-  draft: Input["list"]["removeListingFromList"],
-) {
-  const { lists } = session;
-  return mutate(
-    () =>
-      lists.update(draft.listId, (row) => {
-        row.listings = row.listings.filter(
-          (item) => item.id !== draft.listingId,
-        );
-      }),
-    () => getTrpcClient().dashboardDb.list.removeListingFromList.mutate(draft),
-    (row) => lists.utils.writeUpsert(row),
-  );
-}
-export function removeListingsFromList(
-  draft: Input["list"]["removeListingsFromList"],
-) {
-  const { lists } = session;
-  return mutate(
-    () =>
-      lists.update(draft.listId, (row) => {
-        row.listings = row.listings.filter(
-          (item) => !draft.listingIds.includes(item.id),
-        );
-      }),
-    () => getTrpcClient().dashboardDb.list.removeListingsFromList.mutate(draft),
-    (row) => lists.utils.writeUpsert(row),
-  );
-}
-
-export async function createImage(draft: Input["image"]["create"]) {
-  const current = session;
-  current.assertActive();
-  const created = await getTrpcClient().dashboardDb.image.create.mutate(draft);
-  current.assertActive();
-  await current.images.utils.writeUpsert(created);
-  return created;
-}
-export async function loadImageFromPrimary(draft: Input["image"]["get"]) {
-  const current = session;
-  const row = await getTrpcClient().dashboardDb.image.get.query(draft);
-  current.assertActive();
-  await current.images.utils.writeUpsert(row);
-  return row;
-}
-export function reorderImages(draft: Input["image"]["reorder"]) {
-  const { images } = session;
-  return mutate(
-    () => {
-      for (const image of draft.images)
-        images.update(image.id, (row) => {
-          row.order = image.order;
-        });
-    },
-    () => getTrpcClient().dashboardDb.image.reorder.mutate(draft),
-    () =>
-      images.utils.writeUpdate(
-        draft.images.map((image, order) => ({ id: image.id, order })),
-      ),
-  );
-}
-export function deleteImage(draft: Input["image"]["delete"]) {
-  const { images } = session;
-  return mutate(
-    () => images.delete(draft.imageId),
-    () => getTrpcClient().dashboardDb.image.delete.mutate(draft),
-    () => images.utils.writeDelete(draft.imageId),
-  );
-}
-
-export async function refreshDashboardCatalog(userId: string) {
-  if (session.userId !== userId) return false;
-  await session.refresh();
-  return true;
 }

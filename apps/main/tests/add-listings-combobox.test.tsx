@@ -22,9 +22,10 @@ vi.mock("@tanstack/react-db", () => ({
   }),
 }));
 
-vi.mock("@/app/dashboard/_lib/dashboard-db/collections", () => ({
-  addListingToList: addListingToListMock,
-}));
+vi.mock("@/app/dashboard/_components/dashboard-db-provider", () => {
+  const state = { addListingToList: addListingToListMock };
+  return { useDashboardDb: () => state };
+});
 
 vi.mock("@/app/dashboard/_lib/dashboard-db/use-list-resource", () => ({
   useListResource: () => ({

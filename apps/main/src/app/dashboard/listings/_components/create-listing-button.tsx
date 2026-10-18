@@ -7,11 +7,13 @@ import { usePro } from "@/hooks/use-pro";
 import { CheckoutButton } from "@/components/checkout-button";
 import { TierLimitedCreateAction } from "@/app/dashboard/_components/tier-limited-create-action";
 import { logDashboardTiming } from "@/app/dashboard/_lib/dashboard-timing";
-import { listingsCollection } from "@/app/dashboard/_lib/dashboard-db/collections";
+
 import { useLiveSuspenseQuery } from "@tanstack/react-db";
 import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
+import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
 
 export function CreateListingButton({ onCreate }: { onCreate: () => void }) {
+  const { listingsCollection } = useDashboardDb();
   const { isPro, isLoading: isSubscriptionLoading } = usePro();
   const listingsQuery = useLiveSuspenseQuery({
     query: (q) => q.from({ listing: listingsCollection }),

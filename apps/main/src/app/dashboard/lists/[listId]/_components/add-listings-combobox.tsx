@@ -22,12 +22,9 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { toast } from "sonner";
-import {
-  listingsCollection,
-  addListingToList,
-} from "@/app/dashboard/_lib/dashboard-db/collections";
 
 import { useLiveSuspenseQuery } from "@tanstack/react-db";
+import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
 
 interface AddListingsComboboxProps {
   listId: string;
@@ -38,6 +35,7 @@ export function AddListingsCombobox({
   listId,
   onMutationSuccess,
 }: AddListingsComboboxProps) {
+  const { listingsCollection, addListingToList } = useDashboardDb();
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const { list } = useListResource(listId);
   const [open, setOpen] = useState(false);

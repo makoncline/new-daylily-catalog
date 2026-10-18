@@ -651,24 +651,24 @@ describe.skipIf(!enabled)("remote member MCP with real local SQLite", () => {
       requestUrl: "https://daylilycatalog.com/dashboard",
     });
     await expect(
-      dashboardCaller.dashboardDb.userProfile.updateContent({
+      dashboardCaller.dashboardV2.userProfile.updateContent({
         content: originalContent ?? null,
         expectedUpdatedAt: required(profileBeforeEdit?.updatedAt.toISOString()),
       }),
     ).rejects.toMatchObject({ code: "CONFLICT" });
     const refreshedListings =
-      await dashboardCaller.dashboardDb.listing.getByIds({
+      await dashboardCaller.dashboardV2.listing.getByIds({
         ids: [listingId, foreignListing!.id],
       });
     expect(refreshedListings.map((listing) => listing.id)).toEqual([listingId]);
-    const refreshedImage = await dashboardCaller.dashboardDb.image.get({
+    const refreshedImage = await dashboardCaller.dashboardV2.image.get({
       type: "listing",
       referenceId: listingImage!.listingId!,
       imageId: listingImage!.id,
     });
     expect(refreshedImage.id).toBe(listingImage!.id);
     await expect(
-      dashboardCaller.dashboardDb.image.get({
+      dashboardCaller.dashboardV2.image.get({
         type: "listing",
         referenceId: foreignListing!.id,
         imageId: listingImage!.id,
@@ -708,10 +708,10 @@ describe.skipIf(!enabled)("remote member MCP with real local SQLite", () => {
     );
 
     await expect(
-      dashboardCaller.dashboardDb.list.delete({ id: listId }),
+      dashboardCaller.dashboardV2.list.delete({ id: listId }),
     ).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
     await expect(
-      dashboardCaller.dashboardDb.list.removeListingsFromList({
+      dashboardCaller.dashboardV2.list.removeListingsFromList({
         listId,
         listingIds: [listingId, foreignListing!.id],
       }),
@@ -721,12 +721,12 @@ describe.skipIf(!enabled)("remote member MCP with real local SQLite", () => {
         where: { id: listId, listings: { some: { id: listingId } } },
       }),
     ).toBeTruthy();
-    await dashboardCaller.dashboardDb.list.removeListingsFromList({
+    await dashboardCaller.dashboardV2.list.removeListingsFromList({
       listId,
       listingIds: [listingId],
     });
     expect(
-      await dashboardCaller.dashboardDb.list.delete({ id: listId }),
+      await dashboardCaller.dashboardV2.list.delete({ id: listId }),
     ).toEqual({
       id: listId,
     });

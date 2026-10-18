@@ -19,7 +19,7 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("@clerk/nextjs", () => ({ useAuth: () => ({ userId: "actor-1" }) }));
 vi.mock("@/app/dashboard/_components/dashboard-db-provider", () => ({
-  useDashboardDb: () => ({ userId: "seller-1" }),
+  useDashboardDb: () => ({ insertList, userId: "seller-1" }),
 }));
 vi.mock("@/app/dashboard/lists/_hooks/use-list-surface-state", () => ({
   useEditList: () => ({ closeEditList: vi.fn() }),
@@ -42,9 +42,6 @@ vi.mock("@/app/dashboard/listings/_components/create-listing-dialog", () => ({
 vi.mock("@/app/dashboard/listings/_components/edit-listing-dialog", () => ({
   useEditListing: () => ({ closeEditListing: vi.fn() }),
   EditListingSurface: () => null,
-}));
-vi.mock("@/app/dashboard/_lib/dashboard-db/collections", () => ({
-  insertList,
 }));
 
 describe("Lists-create history route acknowledgement", () => {

@@ -41,12 +41,15 @@ vi.mock("@tanstack/react-db", () => ({
   eq: vi.fn(),
 }));
 
-vi.mock("@/app/dashboard/_lib/dashboard-db/collections", () => ({
-  listsCollection: {},
-  updateList: updateListMock,
-  deleteList: deleteListMock,
-  loadMissingList: loadMissingListMock,
-}));
+vi.mock("@/app/dashboard/_components/dashboard-db-provider", () => {
+  const state = {
+    listsCollection: {},
+    updateList: updateListMock,
+    deleteList: deleteListMock,
+    loadMissingList: loadMissingListMock,
+  };
+  return { useDashboardDb: () => state };
+});
 
 vi.mock("@/trpc/query-client", () => ({
   getQueryClient: () => ({
