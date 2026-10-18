@@ -1,5 +1,11 @@
+import type { Page } from "@playwright/test";
 import { withTempE2EDb } from "@/lib/test-utils/e2e-db";
 import { expect, test } from "./fixtures";
+
+async function openBulkAction(page: Page, name: string) {
+  await page.getByRole("button", { name: /^Bulk actions \(/ }).click();
+  await page.getByRole("menuitem", { name, exact: true }).click();
+}
 
 test("seller hides, publishes, and deletes selected listings without changing other rows", async ({
   page,
@@ -45,20 +51,19 @@ test("seller hides, publishes, and deletes selected listings without changing ot
   await dashboardListings.pagerNextButton.click();
   await select("Bulk Bloom 21").check();
   await expect(
-    page.getByText("2 selected in these results", { exact: true }),
+    page.getByRole("button", { name: "Bulk actions (2)", exact: true }),
   ).toBeVisible();
 
   const dialog = page.getByRole("alertdialog");
   await page.screenshot({ path: test.info().outputPath("bulk-selection.png") });
-  await page
-    .getByRole("button", { name: "Hide selected", exact: true })
-    .click();
+  await openBulkAction(page, "Hide");
   await expect(dialog).toContainText("2 listings");
   await expect(dialog.getByRole("listitem")).toHaveText([
     "Bulk Bloom 00",
     "Bulk Bloom 21",
   ]);
   await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(dialog).toBeHidden();
   await withTempE2EDb(
     async (db) => {
       expect(
@@ -69,9 +74,7 @@ test("seller hides, publishes, and deletes selected listings without changing ot
     },
     { clearFirst: false },
   );
-  await page
-    .getByRole("button", { name: "Hide selected", exact: true })
-    .click();
+  await openBulkAction(page, "Hide");
   await dialog.getByRole("button", { name: "Hide", exact: true }).click();
   await expect(
     page.getByText("2 listings hidden", { exact: true }),
@@ -102,12 +105,17 @@ test("seller hides, publishes, and deletes selected listings without changing ot
   await select("Bulk Bloom 21").check();
   await dashboardListings.setGlobalSearch("Bulk Bloom 00");
   await select("Bulk Bloom 00").check();
-  await page
-    .getByRole("button", { name: "Publish selected", exact: true })
-    .click();
+  await openBulkAction(page, "Publish");
+  await expect(dialog.getByRole("listitem")).toHaveText([
+    "Bulk Bloom 00",
+    "Bulk Bloom 21",
+  ]);
+  await expect(dialog).toContainText(
+    "Hidden by your filters: 1 selected. This action includes them.",
+  );
   await dialog.getByRole("button", { name: "Publish", exact: true }).click();
   await expect(
-    page.getByText("1 listing published", { exact: true }),
+    page.getByText("2 listings published", { exact: true }),
   ).toBeVisible();
   await withTempE2EDb(
     async (db) => {
@@ -116,30 +124,29 @@ test("seller hides, publishes, and deletes selected listings without changing ot
       ).toMatchObject({ status: null });
       expect(
         await db.listing.findUnique({ where: { id: "bulk-listing-21" } }),
-      ).toMatchObject({ status: "HIDDEN" });
+      ).toMatchObject({ status: null });
     },
     { clearFirst: false },
   );
 
   await dashboardListings.setGlobalSearch("Bulk Bloom");
   await expect(
-    page.getByText("1 selected in these results", { exact: true }),
-  ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Clear selection", exact: true })
-    .click();
+    page.getByRole("button", { name: /^Bulk actions \(/ }),
+  ).toHaveCount(0);
   if (await dashboardListings.pagerFirstButton.isEnabled())
     await dashboardListings.pagerFirstButton.click();
   await page
     .getByRole("checkbox", { name: "Select all on this page", exact: true })
     .check();
   await expect(
-    page.getByText("1 listing published", { exact: true }),
+    page.getByText("2 listings published", { exact: true }),
   ).toBeHidden();
-  await page
-    .getByRole("button", { name: "Delete selected", exact: true })
-    .click();
+  await dashboardListings.setGlobalSearch("Bulk Bloom 00");
+  await openBulkAction(page, "Delete");
   await expect(dialog).toContainText("20 listings");
+  await expect(dialog).toContainText(
+    "Hidden by your filters: 19 selected. This action includes them.",
+  );
   await expect(dialog).toContainText(
     "This permanently deletes the listings below and their images",
   );
@@ -192,6 +199,7 @@ test("seller hides, publishes, and deletes selected listings without changing ot
   await confirmation.fill("delete");
   await expect(deleteButton).toBeEnabled();
   await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(dialog).toBeHidden();
   await withTempE2EDb(
     async (db) => {
       expect(
@@ -207,9 +215,7 @@ test("seller hides, publishes, and deletes selected listings without changing ot
     },
     { clearFirst: false },
   );
-  await page
-    .getByRole("button", { name: "Delete selected", exact: true })
-    .click();
+  await openBulkAction(page, "Delete");
   await expect(confirmation).toHaveValue("");
   await expect(deleteButton).toBeDisabled();
   await confirmation.fill("DELETE");
@@ -217,6 +223,10 @@ test("seller hides, publishes, and deletes selected listings without changing ot
   await expect(
     page.getByText("20 listings deleted", { exact: true }),
   ).toBeVisible();
+  await dashboardListings.setGlobalSearch("Bulk Bloom");
+  await expect(page).toHaveURL(
+    (url) => url.searchParams.get("query") === "Bulk Bloom",
+  );
   await page.reload();
   await dashboardListings.isReady();
   await expect(dashboardListings.listingRow("Bulk Bloom 00")).toHaveCount(0);
@@ -294,25 +304,68 @@ test("seller reviews all selected listings and adds them to a list without repla
     dashboardListings
       .listingRow(title)
       .getByRole("checkbox", { name: "Select row" });
-  await expect(page.getByRole("button", { name: /^Selected \(/ })).toHaveCount(
-    0,
-  );
+  const viewSelected = page.getByRole("button", {
+    name: "View selected",
+    exact: true,
+  });
+  const backToResults = page.getByRole("button", {
+    name: "Back to results",
+    exact: true,
+  });
+  const search = page.getByPlaceholder("Search listings...");
+  const forSale = page.getByTestId("advanced-filter-for-sale");
+  await expect(viewSelected).toHaveCount(0);
   await select("Bulk Add 00").check();
   await dashboardListings.pagerNextButton.click();
   await select("Bulk Add 21").check();
-  await dashboardListings.setGlobalSearch("No matching listings");
-  const selectedFilter = page.getByRole("button", {
-    name: "Selected (2)",
-    exact: true,
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page
+    .getByRole("heading", { name: "Listings", exact: true })
+    .scrollIntoViewIfNeeded();
+  await page.screenshot({
+    path: test.info().outputPath("bulk-toolbar-mobile.png"),
+    animations: "disabled",
   });
-  await selectedFilter.click();
-  await expect(selectedFilter).toHaveAttribute("aria-pressed", "true");
+  await dashboardListings.setGlobalSearch("No matching listings");
+  await forSale.click();
+  await expect(forSale).toHaveAttribute("aria-pressed", "true");
+  await expect(
+    page.getByText("Hidden by your filters: 2 selected.", { exact: true }),
+  ).toBeVisible();
+  await viewSelected.click();
+  await expect(search).toBeHidden();
   await expect(dashboardListings.listingRow("Bulk Add 00")).toBeVisible();
   await expect(dashboardListings.listingRow("Bulk Add 21")).toBeVisible();
   await expect(dashboardListings.listingRow("Bulk Add 01")).toHaveCount(0);
+  for (const viewport of [
+    { name: "desktop", width: 1280, height: 720 },
+    { name: "mobile", width: 390, height: 844 },
+    { name: "small-mobile", width: 360, height: 568 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.screenshot({
+      path: test.info().outputPath(`bulk-review-${viewport.name}.png`),
+      animations: "disabled",
+    });
+    await page
+      .getByRole("button", { name: "Bulk actions (2)", exact: true })
+      .click();
+    await expect(
+      page.getByRole("menuitem", { name: "Delete", exact: true }),
+    ).toBeInViewport({ ratio: 1 });
+    await page.screenshot({
+      path: test.info().outputPath(`bulk-menu-${viewport.name}.png`),
+      animations: "disabled",
+    });
+    await page.keyboard.press("Escape");
+  }
+  await backToResults.click();
+  await expect(search).toHaveValue("No matching listings");
+  await expect(forSale).toHaveAttribute("aria-pressed", "true");
+  await expect(dashboardListings.listingRow("Bulk Add 00")).toHaveCount(0);
 
   const dialog = page.getByRole("alertdialog");
-  await page.getByRole("button", { name: "Add to list", exact: true }).click();
+  await openBulkAction(page, "Add to list");
   await expect(dialog.getByRole("listitem")).toHaveText([
     "Bulk Add 00",
     "Bulk Add 21",
@@ -346,7 +399,7 @@ test("seller reviews all selected listings and adds them to a list without repla
     },
     { clearFirst: false },
   );
-  await page.getByRole("button", { name: "Add to list", exact: true }).click();
+  await openBulkAction(page, "Add to list");
   await dialog.getByRole("combobox", { name: "List", exact: true }).click();
   await page
     .getByRole("option", { name: "Bulk target list", exact: true })
@@ -359,19 +412,24 @@ test("seller reviews all selected listings and adds them to a list without repla
       exact: true,
     }),
   ).toBeVisible();
-  await expect(page.getByRole("button", { name: /^Selected \(/ })).toHaveCount(
-    0,
-  );
+  await expect(viewSelected).toHaveCount(0);
+  await expect(search).toHaveValue("No matching listings");
+  await expect(forSale).toHaveAttribute("aria-pressed", "true");
+  await dashboardListings.setGlobalSearch("Bulk Add");
+  await forSale.click();
   await expect(dashboardListings.listingRow("Bulk Add 01")).toBeVisible();
 
   await select("Bulk Add 00").check();
-  await page.getByRole("button", { name: "Selected (1)", exact: true }).click();
+  await viewSelected.click();
   await select("Bulk Add 00").uncheck();
+  await expect(search).toHaveValue("Bulk Add");
   await expect(dashboardListings.listingRow("Bulk Add 01")).toBeVisible();
   await select("Bulk Add 00").check();
-  await expect(
-    page.getByRole("button", { name: "Selected (1)", exact: true }),
-  ).toHaveAttribute("aria-pressed", "false");
+  await viewSelected.click();
+  await openBulkAction(page, "Clear selection");
+  await expect(viewSelected).toHaveCount(0);
+  await expect(search).toHaveValue("Bulk Add");
+  await expect(dashboardListings.listingRow("Bulk Add 01")).toBeVisible();
   await page.reload();
   await dashboardListings.isReady();
   await withTempE2EDb(
@@ -436,9 +494,7 @@ test("seller creates a first list from bulk selection before confirming its memb
         .getByRole("checkbox", { name: "Select row" })
         .check();
     }
-    const add = page.getByRole("button", { name: "Add to list", exact: true });
-    await expect(add).toBeEnabled();
-    await add.click();
+    await openBulkAction(page, "Add to list");
     const confirmation = page.getByRole("alertdialog");
     await confirmation
       .getByRole("combobox", { name: "List", exact: true })
@@ -485,7 +541,7 @@ test("seller creates a first list from bulk selection before confirming its memb
       { clearFirst: false },
     );
 
-    await add.click();
+    await openBulkAction(page, "Add to list");
     await confirmation
       .getByRole("combobox", { name: "List", exact: true })
       .click();
@@ -560,9 +616,7 @@ test("a conflicting bulk save stops after the confirmed rows", async ({
   await page
     .getByRole("checkbox", { name: "Select all on this page", exact: true })
     .check();
-  await page
-    .getByRole("button", { name: "Hide selected", exact: true })
-    .click();
+  await openBulkAction(page, "Hide");
   await withTempE2EDb(
     async (db) => {
       await db.listing.update({

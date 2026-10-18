@@ -24,6 +24,7 @@ import { APP_CONFIG } from "@/config/constants";
 interface DataTablePaginationProps<TData> {
   table: Table<TData>;
   pageSizeOptions?: number[];
+  showSelectionCount?: boolean;
 }
 
 export function DataTablePaginationSkeleton() {
@@ -40,6 +41,7 @@ export function DataTablePaginationSkeleton() {
 export function DataTablePagination<TData>({
   table,
   pageSizeOptions = APP_CONFIG.TABLE.PAGINATION.PAGE_SIZE_OPTIONS,
+  showSelectionCount = true,
 }: DataTablePaginationProps<TData>) {
   const { pageSize, pageIndex } = table.getState().pagination;
   const numSelected = table.getFilteredSelectedRowModel().rows.length;
@@ -55,7 +57,7 @@ export function DataTablePagination<TData>({
     <div className="flex">
       <div className="flex-1" />
       <div className="flex flex-col gap-4 px-2 sm:flex-row sm:items-center sm:justify-between">
-        {numSelected > 0 && (
+        {showSelectionCount && numSelected > 0 && (
           <Muted className="text-sm">
             {numSelected} of {totalCount} row(s) selected.
           </Muted>

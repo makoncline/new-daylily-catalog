@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { type Table } from "@tanstack/react-table";
 import { toast } from "sonner";
+import { ChevronDown } from "lucide-react";
 import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
 import {
   AlertDialog,
@@ -15,6 +16,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { MultiListSelect } from "@/components/multi-list-select";
@@ -46,17 +55,22 @@ type Action = keyof typeof actions;
 export function ListingBulkActions({
   table,
   lists,
+  viewingSelected,
+  onViewSelected,
 }: {
   table: Table<ListingData>;
   lists: { id: string; title: string }[];
+  viewingSelected: boolean;
+  onViewSelected: () => void;
 }) {
   const { updateListing, deleteListing, addListingToList } = useDashboardDb();
-  const selected = table
-    .getSortedRowModel()
-    .rows.filter((row) => row.getIsSelected());
+  const selected = table.getSelectedRowModel().rows;
+  const hiddenCount =
+    selected.length - table.getFilteredSelectedRowModel().rows.length;
   const [request, setRequest] = useState<{
     action: Action;
     rows: ListingData[];
+    hiddenCount: number;
   } | null>(null);
   const [listId, setListId] = useState("");
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
@@ -105,62 +119,85 @@ export function ListingBulkActions({
     });
 
   function confirm(action: Action) {
-    setRequest({ action, rows: selected.map((row) => row.original) });
+    setRequest({
+      action,
+      rows: selected
+        .map((row) => row.original)
+        .sort((a, b) => a.title.localeCompare(b.title)),
+      hiddenCount,
+    });
     setCompleted(0);
     setListId("");
     setDeleteConfirmation("");
     openDialog();
   }
 
-  if (!selected.length && !isPending && !isDialogOpen) return null;
+  if (!selected.length && !viewingSelected && !isPending && !isDialogOpen)
+    return null;
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <span role="status">
-        {isPending
-          ? `${completed} of ${request?.rows.length} changes confirmed…`
-          : `${selected.length} selected in these results`}
-      </span>
-      <Button
-        size="sm"
-        variant="outline"
-        disabled={isPending}
-        onClick={() => confirm("Add to list")}
-      >
-        Add to list
-      </Button>
-      <Button
-        size="sm"
-        variant="outline"
-        disabled={isPending}
-        onClick={() => confirm("Hide")}
-      >
-        Hide selected
-      </Button>
-      <Button
-        size="sm"
-        variant="outline"
-        disabled={isPending}
-        onClick={() => confirm("Publish")}
-      >
-        Publish selected
-      </Button>
-      <Button
-        size="sm"
-        variant="destructive"
-        disabled={isPending}
-        onClick={() => confirm("Delete")}
-      >
-        Delete selected
-      </Button>
-      <Button
-        size="sm"
-        variant="ghost"
-        disabled={isPending}
-        onClick={() => table.resetRowSelection()}
-      >
-        Clear selection
-      </Button>
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-11 sm:h-9"
+              disabled={isPending || !selected.length}
+            >
+              Bulk actions ({selected.length.toLocaleString()})
+              <ChevronDown data-icon="inline-end" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="min-w-48">
+            <DropdownMenuGroup>
+              {(["Add to list", "Hide", "Publish"] as const).map((action) => (
+                <DropdownMenuItem
+                  key={action}
+                  className="min-h-11"
+                  onSelect={() => confirm(action)}
+                >
+                  {action}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuItem
+                className="min-h-11"
+                onSelect={() => table.resetRowSelection()}
+              >
+                Clear selection
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="min-h-11"
+                onSelect={() => confirm("Delete")}
+              >
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-11 sm:h-9"
+          disabled={isPending}
+          onClick={onViewSelected}
+        >
+          {viewingSelected ? "Back to results" : "View selected"}
+        </Button>
+      </div>
+      {isPending ? (
+        <span role="status">
+          {completed} of {request?.rows.length} changes confirmed…
+        </span>
+      ) : hiddenCount > 0 ? (
+        <p className="text-muted-foreground text-sm">
+          Hidden by your filters: {hiddenCount.toLocaleString()} selected.
+        </p>
+      ) : null}
       {request && (
         <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <AlertDialogContent className="flex max-h-9/10 w-11/12 flex-col overflow-y-auto max-sm:top-4 max-sm:translate-y-0">
@@ -182,6 +219,12 @@ export function ListingBulkActions({
                 {actions[request.action].description}
               </AlertDialogDescription>
             </AlertDialogHeader>
+            {request.hiddenCount > 0 && (
+              <p className="text-sm">
+                Hidden by your filters: {request.hiddenCount.toLocaleString()}{" "}
+                selected. This action includes them.
+              </p>
+            )}
             <ul
               role="list"
               aria-label="Selected listings"

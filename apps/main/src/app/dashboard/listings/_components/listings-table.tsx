@@ -5,7 +5,6 @@ import {
   functionalUpdate,
   type RowSelectionState,
 } from "@tanstack/react-table";
-import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableLayout } from "@/components/data-table/data-table-layout";
 import { DataTablePagination } from "@/components/data-table/data-table-pagination";
@@ -52,7 +51,7 @@ export function ListingsTable({
   const firstRowsPaintedRef = React.useRef(false);
   const { listingRows: listings, lists } = useDashboardListingReadModel();
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
-  const [selectedOnly, setSelectedOnly] = React.useState(false);
+  const [viewingSelected, setViewingSelected] = React.useState(false);
   const selectedListings = React.useMemo(
     () => listings.filter((listing) => rowSelection[listing.id]),
     [listings, rowSelection],
@@ -78,18 +77,20 @@ export function ListingsTable({
   );
 
   const table = useDataTable({
-    data: selectedOnly ? selectedListings : listings,
+    data: viewingSelected ? selectedListings : listings,
     columns,
     storageKey: "listings-table",
     columnNames,
     config: {
+      manualFiltering: viewingSelected,
+      enableColumnFilters: !viewingSelected,
       getRowId: (row) => row.id,
       state: { rowSelection },
       onRowSelectionChange: (updater) => {
         const next = functionalUpdate(updater, rowSelection);
         setRowSelection(next);
-        if (!Object.values(next).some(Boolean)) setSelectedOnly(false);
-        if (selectedOnly) table.setPageIndex(0);
+        if (!Object.values(next).some(Boolean)) setViewingSelected(false);
+        if (viewingSelected) table.setPageIndex(0);
       },
     },
     pinnedColumns: {
@@ -183,48 +184,49 @@ export function ListingsTable({
 
   return (
     <div className="flex flex-col gap-4" data-testid="listing-table">
-      <PublicCatalogSearchAdvancedPanel
-        advancedSectionsColumns={3}
-        table={table}
-        listOptions={listOptions}
-        facetOptions={facetOptions}
-        mode={searchMode}
-        onModeChange={setSearchMode}
-        collapsed={searchCollapsed}
-        onCollapsedChange={setSearchCollapsed}
-        onSearchSubmit={scrollToResultsSummary}
-      />
+      <div hidden={viewingSelected}>
+        <PublicCatalogSearchAdvancedPanel
+          advancedSectionsColumns={3}
+          table={table}
+          listOptions={listOptions}
+          facetOptions={facetOptions}
+          mode={searchMode}
+          onModeChange={setSearchMode}
+          collapsed={searchCollapsed}
+          onCollapsedChange={setSearchCollapsed}
+          onSearchSubmit={scrollToResultsSummary}
+        />
+      </div>
 
       <div id="dashboard-listings-results" className="min-w-0">
         <DataTableLayout
           table={table}
           toolbar={
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <PublicCatalogSearchResultCount table={table} />
-              {(selectedListings.length > 0 || selectedOnly) && (
-                <Button
-                  size="sm"
-                  variant={selectedOnly ? "secondary" : "outline"}
-                  aria-pressed={selectedOnly}
-                  title="Show selected listings. Clears other filters."
-                  onClick={() => {
-                    table.setGlobalFilter("");
-                    table.setColumnFilters([]);
-                    table.setPageIndex(0);
-                    setSelectedOnly(!selectedOnly);
-                  }}
-                >
-                  Selected ({selectedListings.length})
-                </Button>
-              )}
-              <ListingBulkActions table={table} lists={lists} />
-              <DataTableViewOptions table={table} />
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between gap-2">
+                {viewingSelected ? (
+                  <span className="text-sm font-medium">Selected listings</span>
+                ) : (
+                  <PublicCatalogSearchResultCount table={table} />
+                )}
+                <DataTableViewOptions table={table} />
+              </div>
+              <ListingBulkActions
+                table={table}
+                lists={lists}
+                viewingSelected={viewingSelected}
+                onViewSelected={() => {
+                  table.setPageIndex(0);
+                  setViewingSelected(!viewingSelected);
+                }}
+              />
             </div>
           }
           pagination={
             <>
               <DataTablePagination
                 table={table}
+                showSelectionCount={false}
                 pageSizeOptions={
                   APP_CONFIG.TABLE.PAGINATION.DASHBOARD_PAGE_SIZE_OPTIONS
                 }
