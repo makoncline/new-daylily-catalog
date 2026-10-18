@@ -172,6 +172,7 @@ describe("offline integration runtime", () => {
         for (const [input, init] of [
           [url],
           [new URL(url), { redirect: "follow" }],
+          [url, Object.freeze({ redirect: "follow" })],
           [new Request(url, { redirect: "follow" })],
           [new Request(url, { redirect: "manual" }), { redirect: "follow" }],
         ]) {
@@ -184,6 +185,15 @@ describe("offline integration runtime", () => {
         const direct = await fetch(origin + "/direct");
         assert.equal(direct.status, 200);
         assert.equal(await direct.text(), "loopback response");
+
+        received.length = 0;
+        const requestOptions = new Request(origin + "/unused", {
+          method: "POST", body: "request options",
+        });
+        const requestResponse = await fetch(origin + "/direct", requestOptions);
+        assert.equal(requestResponse.status, 200);
+        await requestResponse.text();
+        assert.deepEqual(received, [{ path: "/direct", body: "request options" }]);
 
         received.length = 0;
         const manual = await fetch(new Request(url, {
