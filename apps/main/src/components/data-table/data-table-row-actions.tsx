@@ -54,7 +54,10 @@ export function DataTableRowActions<
       toast.error("Failed to delete listing");
     },
   });
-  const publicListingPath = `/${publicUserSlug || row.original.userId}/${
+  const publicOwner = publicUserSlug?.length
+    ? publicUserSlug
+    : row.original.userId;
+  const publicListingPath = `/${publicOwner}/${
     row.original.slug ?? row.original.id
   }`;
 

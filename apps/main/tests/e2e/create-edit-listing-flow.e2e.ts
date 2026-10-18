@@ -376,8 +376,8 @@ test.describe("create/edit listing flow @local", () => {
     await editListingDialog.isReady();
     await expect(page).toHaveURL(/editing=/);
 
-    let releaseDeleteRequest = () => {};
-    let markDeleteRequestStarted = () => {};
+    let releaseDeleteRequest: () => void = () => undefined;
+    let markDeleteRequestStarted: () => void = () => undefined;
     const deleteRequestStarted = new Promise<void>((resolve) => {
       markDeleteRequestStarted = resolve;
     });

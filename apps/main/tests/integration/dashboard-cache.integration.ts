@@ -3,7 +3,7 @@ import { expect, test } from "./fixtures";
 
 const count = 5_000;
 const title = (index: number) => `Warm Bloom ${String(index).padStart(5, "0")}`;
-const catalogRead = /dashboardV2\.bootstrap\.catalog/;
+const catalogRead = "dashboardV2.bootstrap.catalog";
 
 test("saved listing links work before the profile has loaded", async ({
   page,
@@ -39,7 +39,7 @@ test("saved listing links work before the profile has loaded", async ({
     await page.route("**/api/trpc/**", async (route) => {
       const url = route.request().url();
       if (
-        !catalogRead.test(url) &&
+        !url.includes(catalogRead) &&
         !url.includes("dashboardV2.userProfile.get")
       )
         return route.fallback();
@@ -190,8 +190,7 @@ test("large saved catalog stays usable and current when a refresh overlaps a sav
   const requests: string[] = [];
   page.on("request", (request) => {
     const pathname = new URL(request.url()).pathname;
-    if (/dashboardV2\.bootstrap\.catalog/.test(pathname))
-      requests.push(pathname);
+    if (pathname.includes(catalogRead)) requests.push(pathname);
   });
   const refresh = page.getByRole("button", { name: "Refresh dashboard data" });
   let release: () => void = () => undefined;
@@ -241,7 +240,7 @@ test("large saved catalog stays usable and current when a refresh overlaps a sav
       release = resolve;
     });
     await page.route("**/api/trpc/**", async (route) => {
-      if (held || !catalogRead.test(route.request().url()))
+      if (held || !route.request().url().includes(catalogRead))
         return route.fallback();
       held = true;
       const response = await route.fetch();
@@ -367,7 +366,8 @@ test("saved catalog survives a failed refresh and stays scoped to its member", a
     timeout: 15_000,
   });
   await page.route("**/api/trpc/**", async (route) => {
-    if (catalogRead.test(route.request().url())) return route.abort("failed");
+    if (route.request().url().includes(catalogRead))
+      return route.abort("failed");
     return route.fallback();
   });
   await page.reload();
@@ -452,7 +452,8 @@ test("a confirmed save survives failed refreshes and catalog reloads", async ({
       timeout: 15_000,
     });
     await page.route("**/api/trpc/**", (route) => {
-      if (catalogRead.test(route.request().url())) return route.abort("failed");
+      if (route.request().url().includes(catalogRead))
+        return route.abort("failed");
       return route.fallback();
     });
     await editListingDialog.fillDescription(

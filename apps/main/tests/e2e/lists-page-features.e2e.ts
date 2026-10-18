@@ -206,8 +206,8 @@ test.describe("lists page features @local", () => {
     await dashboardLists.chooseRowActionEdit();
     await expect(dashboardLists.editDialog()).toBeVisible();
 
-    let releaseDeleteRequest = () => {};
-    let markDeleteRequestStarted = () => {};
+    let releaseDeleteRequest: () => void = () => undefined;
+    let markDeleteRequestStarted: () => void = () => undefined;
     const deleteRequestStarted = new Promise<void>((resolve) => {
       markDeleteRequestStarted = resolve;
     });
