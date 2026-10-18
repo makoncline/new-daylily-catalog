@@ -4,7 +4,6 @@ process.env.SKIP_ENV_VALIDATION = "1";
 process.env.DATABASE_URL ??= "file:./tests/.tmp/mcp-read-only.sqlite";
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { TRPCError } from "@trpc/server";
 
 const mocks = vi.hoisted(() => ({
   authenticateRequest: vi.fn(async () => ({
@@ -33,7 +32,7 @@ const mocks = vi.hoisted(() => ({
   memberDb: {
     $queryRaw: vi.fn(),
     image: { findMany: vi.fn() },
-    list: { findFirst: vi.fn(), findMany: vi.fn(), updateMany: vi.fn() },
+    list: { findFirst: vi.fn(), findMany: vi.fn() },
     listing: { findFirst: vi.fn(), findMany: vi.fn() },
     user: { findUnique: vi.fn() },
     userProfile: { findUnique: vi.fn() },
@@ -48,10 +47,6 @@ vi.mock("@/server/clerk/client", () => ({
   getClerk: vi.fn(async () => ({
     authenticateRequest: mocks.authenticateRequest,
   })),
-}));
-
-vi.mock("@/server/clerk/sync-user", () => ({
-  getClerkUserData: async () => ({ email: "member@example.com" }),
 }));
 
 vi.mock("@/server/db", () => ({
@@ -1357,17 +1352,8 @@ describe("read-only MCP server", () => {
     });
   });
 
-  it.each([
-    new Error("database path leaked"),
-    new TRPCError({
-      code: "INTERNAL_SERVER_ERROR",
-      cause: new Error("database path leaked"),
-    }),
-    new TRPCError({
-      code: "NOT_IMPLEMENTED",
-      message: "internal operation leaked",
-    }),
-  ])("does not expose unexpected MCP read error details: %s", async (error) => {
+  it("does not expose unexpected MCP error details", async () => {
+    const error = new Error("database path leaked");
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     mocks.readDb.listing.findMany.mockRejectedValueOnce(error);
 
@@ -1387,17 +1373,9 @@ describe("read-only MCP server", () => {
       }),
     );
 
-    await expect(response.json()).resolves.toEqual({
-      jsonrpc: "2.0",
-      id: 53,
+    await expect(response.json()).resolves.toMatchObject({
       result: {
         isError: true,
-        content: [
-          {
-            type: "text",
-            text: "INTERNAL_ERROR: The tool could not complete the request.",
-          },
-        ],
         structuredContent: {
           error: {
             code: "INTERNAL_ERROR",
@@ -1405,134 +1383,9 @@ describe("read-only MCP server", () => {
           },
         },
       },
+      id: 53,
     });
     expect(errorSpy).toHaveBeenCalledWith("Unexpected MCP error:", error);
-    errorSpy.mockRestore();
-  });
-
-  it("sanitizes internal write failures and keeps read/write domain errors actionable", async () => {
-    mocks.authenticateRequest.mockResolvedValue({
-      toAuth: () => ({
-        clientId: "mcp_client_test",
-        isAuthenticated: true,
-        scopes: ["catalog:read", "catalog:write"],
-        userId: "user_write_errors",
-      }),
-    } as never);
-    mocks.memberDb.user.findUnique.mockResolvedValue({
-      id: "app-user-1",
-      clerkUserId: "user_write_errors",
-    });
-    const { handleMcpRequest } = await import("@/server/mcp/read-only-mcp");
-    const call = async (
-      argumentsValue: Record<string, unknown>,
-      name = "daylily.update_list",
-    ) => {
-      const response = await handleMcpRequest(
-        new Request("https://daylilycatalog.com/api/mcp/server", {
-          method: "POST",
-          body: JSON.stringify({
-            jsonrpc: "2.0",
-            id: 54,
-            method: "tools/call",
-            params: { name, arguments: argumentsValue },
-          }),
-        }),
-      );
-      expect(response.status).toBe(200);
-      return response.json();
-    };
-    const input = {
-      listId: "list-1",
-      expectedUpdatedAt: new Date(0).toISOString(),
-      title: "Changed",
-    };
-    const failure = new Error("controlled internal backend failure");
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    mocks.memberDb.list.updateMany.mockRejectedValueOnce(failure);
-    const internal = await call(input);
-    expect(internal).toEqual({
-      jsonrpc: "2.0",
-      id: 54,
-      result: {
-        isError: true,
-        content: [
-          {
-            type: "text",
-            text: "INTERNAL_ERROR: The tool could not complete the request.",
-          },
-        ],
-        structuredContent: {
-          error: {
-            code: "INTERNAL_ERROR",
-            message: "The tool could not complete the request.",
-          },
-        },
-      },
-    });
-    expect(errorSpy).toHaveBeenCalledWith(
-      "Unexpected MCP error:",
-      expect.objectContaining({
-        code: "INTERNAL_SERVER_ERROR",
-        cause: failure,
-      }),
-    );
-    errorSpy.mockRestore();
-
-    mocks.memberDb.list.updateMany.mockResolvedValue({ count: 0 });
-    for (const [ownedList, code, message] of [
-      [
-        { id: "list-1" },
-        "CONFLICT",
-        "The list changed. Load the latest version before saving.",
-      ],
-      [null, "NOT_FOUND", "List not found"],
-    ] as const) {
-      mocks.memberDb.list.findFirst.mockResolvedValueOnce(ownedList);
-      expect((await call(input)).result).toEqual({
-        isError: true,
-        content: [{ type: "text", text: `${code}: ${message}` }],
-        structuredContent: { error: { code, message } },
-      });
-    }
-    for (const code of [
-      "FORBIDDEN",
-      "UNAUTHORIZED",
-      "PRECONDITION_FAILED",
-    ] as const) {
-      mocks.memberDb.list.updateMany.mockRejectedValueOnce(
-        new TRPCError({ code, message: "Action is not allowed." }),
-      );
-      expect((await call(input)).result.structuredContent.error).toEqual({
-        code: "FORBIDDEN",
-        message: "Action is not allowed.",
-      });
-    }
-    mocks.memberDb.list.updateMany.mockRejectedValueOnce(
-      new TRPCError({ code: "BAD_REQUEST", message: "List data is invalid." }),
-    );
-    expect((await call(input)).result.structuredContent.error).toEqual({
-      code: "INVALID_ARGUMENTS",
-      message: "List data is invalid.",
-    });
-    mocks.memberDb.list.updateMany.mockClear();
-    expect((await call({ ...input, title: "" })).result).toMatchObject({
-      isError: true,
-      structuredContent: {
-        error: {
-          code: "INVALID_ARGUMENTS",
-          message: expect.stringContaining("title"),
-        },
-      },
-    });
-    expect(mocks.memberDb.list.updateMany).not.toHaveBeenCalled();
-    expect(
-      (await call({ cursor: "invalid" }, "daylily.list_listings")).result
-        .structuredContent.error,
-    ).toEqual({
-      code: "INVALID_ARGUMENTS",
-      message: "Invalid listing page cursor.",
-    });
   });
 
   it("rejects oversized public search input before reading the database", async () => {

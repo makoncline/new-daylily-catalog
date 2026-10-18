@@ -1,9 +1,10 @@
+import { withUsageRequest } from "@/server/observability/api-usage";
 import { getPublicProfile } from "@/server/db/public-seller-read-model";
 import { publicJson, publicReadResponse } from "@/server/api/public-http";
 
 export const runtime = "nodejs";
 
-export async function GET(
+async function read(
   _request: Request,
   context: { params: Promise<{ slugOrId: string }> },
 ) {
@@ -14,4 +15,8 @@ export async function GET(
   return publicReadResponse("public-profile-api", () =>
     getPublicProfile(slugOrId),
   );
+}
+
+export async function GET(...args: Parameters<typeof read>) {
+  return withUsageRequest(args[0], "public_api", () => read(...args));
 }

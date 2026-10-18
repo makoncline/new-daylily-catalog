@@ -2,8 +2,8 @@
 
 import * as React from "react";
 import { DataTable } from "@/components/data-table/data-table";
-import { DataTableLayoutSkeleton } from "@/components/data-table/data-table-layout";
 import { DataTableLayout } from "@/components/data-table/data-table-layout";
+
 import { DataTablePagination } from "@/components/data-table/data-table-pagination";
 import {
   Empty,
@@ -22,12 +22,9 @@ import { DataTableFilterReset } from "@/components/data-table/data-table-filter-
 import { DataTableViewOptions } from "@/components/data-table/data-table-view-options";
 import { useDataTable } from "@/hooks/use-data-table";
 import { APP_CONFIG, LIST_TABLE_COLUMN_NAMES } from "@/config/constants";
-import {
-  listsCollection,
-  type ListCollectionItem,
-} from "@/app/dashboard/_lib/dashboard-db/lists-collection";
-import { DASHBOARD_DB_QUERY_KEYS } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-keys";
-import { useSeededDashboardDbQuery } from "@/app/dashboard/_lib/dashboard-db/use-seeded-dashboard-db-query";
+import { type ListCollectionItem } from "@/app/dashboard/_lib/dashboard-db/collections";
+import { useLiveSuspenseQuery } from "@tanstack/react-db";
+import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
 
 type List = ListCollectionItem;
 
@@ -83,13 +80,13 @@ export function ListsTable({
   onEdit: (id: string) => void;
   onCreate: () => void;
 }) {
+  const { listsCollection } = useDashboardDb();
   const columns = React.useMemo(() => getColumns(onEdit), [onEdit]);
-  const { data: lists = [], isReady } = useSeededDashboardDbQuery<List>({
+  const { data: lists } = useLiveSuspenseQuery({
     query: (q) =>
       q
         .from({ list: listsCollection })
         .orderBy(({ list }) => list.createdAt, "desc"),
-    queryKey: DASHBOARD_DB_QUERY_KEYS.lists,
   });
 
   const table = useDataTable({
@@ -102,13 +99,6 @@ export function ListsTable({
     },
     columnNames: LIST_TABLE_COLUMN_NAMES,
   });
-
-  if (!isReady && !lists.length)
-    return (
-      <div role="status" aria-label="Loading lists">
-        <DataTableLayoutSkeleton />
-      </div>
-    );
 
   if (!lists.length) {
     return <NoResults onCreate={onCreate} />;

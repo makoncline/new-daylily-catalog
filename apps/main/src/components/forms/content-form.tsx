@@ -6,7 +6,7 @@ import type EditorJS from "@editorjs/editorjs";
 import type { AppRouter } from "@/server/api/root";
 import { type RouterOutputs } from "@/trpc/react";
 import { api } from "@/trpc/react";
-import { getTrpcClient } from "@/trpc/client";
+import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
 import { toast } from "sonner";
 import { Editor } from "@/components/editor";
 import { parseEditorContent } from "@/lib/editor-utils";
@@ -30,10 +30,10 @@ export interface ContentManagerFormHandle {
 }
 
 interface ContentManagerFormProps {
-  initialProfile: RouterOutputs["dashboardDb"]["userProfile"]["get"];
+  initialProfile: RouterOutputs["dashboardV2"]["userProfile"]["get"];
   formRef?: React.RefObject<ContentManagerFormHandle | null>;
   onMutationSuccess?: (
-    profile: RouterOutputs["dashboardDb"]["userProfile"]["updateContent"],
+    profile: RouterOutputs["dashboardV2"]["userProfile"]["updateContent"],
   ) => void;
   onDirtyChange?: (isDirty: boolean) => void;
 }
@@ -44,6 +44,7 @@ export function ContentManagerFormItem({
   onMutationSuccess,
   onDirtyChange,
 }: ContentManagerFormProps) {
+  const { client } = useDashboardDb();
   useDashboardSectionFocus("profile-content");
   const [isSaving, setIsSaving] = React.useState(false);
   const [isDirty, setIsDirty] = React.useState(false);
@@ -61,7 +62,7 @@ export function ContentManagerFormItem({
   isDirtyRef.current = isDirty;
 
   const updateContentMutation =
-    api.dashboardDb.userProfile.updateContent.useMutation();
+    api.dashboardV2.userProfile.updateContent.useMutation();
   const utils = api.useUtils();
 
   const markDirty = React.useCallback(() => {
@@ -150,9 +151,8 @@ export function ContentManagerFormItem({
         ) {
           setHasRemoteChange(true);
           try {
-            const latest =
-              await getTrpcClient().dashboardDb.userProfile.get.query();
-            utils.dashboardDb.userProfile.get.setData(undefined, latest);
+            const latest = await client.dashboardV2.userProfile.get.query();
+            utils.dashboardV2.userProfile.get.setData(undefined, latest);
           } catch (refreshError) {
             reportError({
               error: normalizeError(refreshError),
@@ -177,7 +177,7 @@ export function ContentManagerFormItem({
         }
       }
     },
-    [onDirtyChange, onMutationSuccess, updateContentMutation, utils],
+    [client, onDirtyChange, onMutationSuccess, updateContentMutation, utils],
   );
 
   const { saveChanges } = useManagedFormSave<
@@ -227,8 +227,8 @@ export function ContentManagerFormItem({
   const loadLatestContent = React.useCallback(async () => {
     setIsSaving(true);
     try {
-      const latest = await getTrpcClient().dashboardDb.userProfile.get.query();
-      utils.dashboardDb.userProfile.get.setData(undefined, latest);
+      const latest = await client.dashboardV2.userProfile.get.query();
+      utils.dashboardV2.userProfile.get.setData(undefined, latest);
       lastSavedRef.current = latest.content;
       lastAcceptedContentRef.current = latest.content;
       lastSavedUpdatedAtRef.current = latest.updatedAt;
@@ -247,7 +247,7 @@ export function ContentManagerFormItem({
     } finally {
       setIsSaving(false);
     }
-  }, [onDirtyChange, utils]);
+  }, [client, onDirtyChange, utils]);
 
   useOnClickOutside(contentRef as React.RefObject<HTMLElement>, () => {
     void saveChanges("outside");

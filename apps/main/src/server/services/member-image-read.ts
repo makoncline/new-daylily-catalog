@@ -1,3 +1,4 @@
+import { recordUsageInput } from "@/server/observability/api-usage";
 import "server-only";
 
 import { Prisma } from "@prisma/client";
@@ -18,6 +19,7 @@ export async function pageOwnedMemberImages(args: {
   cursor?: string;
   limit: number;
 }) {
+  recordUsageInput(args);
   if (args.type === "listing") {
     await assertOwnedListing({
       db: args.database,

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ImageManager } from "@/components/image-manager";
-import type { ImageCollectionItem } from "@/app/dashboard/_lib/dashboard-db/images-collection";
+import type { ImageCollectionItem } from "@/app/dashboard/_lib/dashboard-db/collections";
 
 const review = vi.hoisted(() => ({ query: "" }));
 const deleteImage = vi.hoisted(() => vi.fn());
@@ -11,11 +11,10 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(review.query),
 }));
 
-vi.mock("@/app/dashboard/_lib/dashboard-db/images-collection", () => ({
-  deleteImage,
-  loadImageFromPrimary,
-  reorderImages: vi.fn(),
-}));
+vi.mock("@/app/dashboard/_components/dashboard-db-provider", () => {
+  const state = { deleteImage, loadImageFromPrimary, reorderImages: vi.fn() };
+  return { useDashboardDb: () => state };
+});
 
 const images: ImageCollectionItem[] = ["first", "second"].map((id, order) => ({
   id,

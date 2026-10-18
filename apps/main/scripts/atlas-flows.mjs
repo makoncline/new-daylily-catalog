@@ -93,10 +93,34 @@ export const ATLAS_FLOWS = [
           label: "Published listing reads",
           path: "src/server/db/public-listing-read-model.ts",
         },
+        {
+          label: "Public profile count links",
+          path: "src/app/(public)/[userSlugOrId]/_components/profile-section.tsx",
+        },
+        {
+          label: "Public catalog section links",
+          path: "src/app/(public)/[userSlugOrId]/_components/catalog-nav.tsx",
+        },
+        {
+          label: "Social image rendering",
+          path: "src/app/api/og/[kind]/[id]/route.tsx",
+        },
+        {
+          label: "Social image font and emoji assets",
+          path: "src/server/social-card-assets.ts",
+        },
+        {
+          label: "Production social image smoke test",
+          path: "scripts/smoke-social-images-local.mjs",
+          command:
+            "pnpm main exec node scripts/smoke-social-images-local.mjs <image>",
+        },
       ],
       invariants: [
         "Read public data through the replica and apply published-listing filters.",
         "Keep profile data and listing cards in the first HTML response.",
+        "Link profile counts to their sections. Both Lists links must return to the first catalog page, where list summaries are available.",
+        "Keep public page navigation responsive during social image generation. Check the built container with a warm Next image optimizer.",
       ],
     },
     tests: {
@@ -675,12 +699,36 @@ export const ATLAS_FLOWS = [
     title: "Create a catalog and start membership",
     description:
       "Understand the grower offer, transform an existing catalog, and continue to Stripe-hosted membership checkout.",
+    implementation: {
+      entryPoints: [
+        {
+          label: "Importer finish membership offer",
+          path: "src/app/(public)/catalog-importer/_components/catalog-importer-publish-actions.tsx",
+        },
+        {
+          label: "Optional Pro feedback",
+          path: "src/components/pro-membership-feedback.tsx",
+        },
+        {
+          label: "Pro survey contract",
+          path: "src/lib/analytics/pro-membership-feedback.ts",
+        },
+      ],
+      invariants: [
+        "Offer feedback at the importer finish step, after the prepared catalog. Open it only on an explicit click. Keep downloads and checkout independent of the answer.",
+        "Use the active PostHog API survey and existing SDK identity. Keep support available when feedback is unavailable.",
+      ],
+    },
     tests: {
       unit: [
         testRef("unit", "tests/catalog-importer-draft.test.ts"),
         testRef("unit", "tests/catalog-importer-file.test.ts"),
       ],
       integration: [
+        testRef("integration", "tests/pro-membership-feedback.test.tsx"),
+        fullAppIntegrationRef(
+          "tests/integration/pro-membership-feedback.integration.ts",
+        ),
         testRef("integration", "tests/catalog-importer-workbench.test.tsx"),
         testRef(
           "integration",
@@ -748,10 +796,29 @@ export const ATLAS_FLOWS = [
     title: "Choose the next catalog action",
     description:
       "Orient on the dashboard across setup, membership, billing, and established Pro states without multiplying partial-state permutations.",
+    implementation: {
+      entryPoints: [
+        {
+          label: "Membership action",
+          path: "src/components/pro-membership-action.tsx",
+        },
+        {
+          label: "Optional Pro feedback",
+          path: "src/components/pro-membership-feedback.tsx",
+        },
+      ],
+      invariants: [
+        "Offer feedback beside checkout. Omit it during loading, for active Pro members, and for billing recovery.",
+      ],
+    },
     tests: {
       unit: [testRef("unit", "tests/build-dashboard-stats.test.ts")],
       integration: [
         testRef("integration", "tests/pro-membership-card.test.tsx"),
+        testRef("integration", "tests/pro-membership-feedback.test.tsx"),
+        fullAppIntegrationRef(
+          "tests/integration/pro-membership-feedback.integration.ts",
+        ),
         testRef("integration", "tests/persisted-subscription-query.test.ts"),
       ],
       e2e: [
@@ -849,6 +916,10 @@ export const ATLAS_FLOWS = [
     implementation: {
       entryPoints: [
         {
+          label: "API/MCP usage evidence",
+          path: "src/server/observability/api-usage.ts",
+        },
+        {
           label: "Managed disposable media fixtures",
           path: "scripts/atlas-media-fixtures.mjs",
         },
@@ -877,6 +948,10 @@ export const ATLAS_FLOWS = [
           path: "src/server/mcp/read-only-mcp.ts",
         },
         {
+          label: "Production MCP proxy smoke test",
+          path: "scripts/smoke-mcp-keepalive-local.mjs",
+        },
+        {
           label: "Member API authentication and account tier",
           path: "src/server/api/member-http.ts",
         },
@@ -901,8 +976,10 @@ export const ATLAS_FLOWS = [
         "Convert uppercase profile URL input to lowercase before validation and saving.",
         "Reject member MCP requests before database reads when the token, scope, or client is not allowed.",
         "Keep known MCP domain errors actionable; report unexpected read/write failures on the server and return a generic INTERNAL_ERROR.",
+        "Record bounded API/MCP use with verified account provenance, logical call counts and persisted mutation results. Treat proxy and retention gaps as limits.",
         "Allow confirmed non-Pro remote writes within dashboard limits; reject unconfirmed billing and keep destructive MCP actions in dashboard approval.",
         "Publish MCP endpoint resource metadata and complete tool-level OAuth challenges.",
+        "Keep the app idle timeout above Caddy's 120 seconds. Verify real MCP requests through Caddy in Docker image CI.",
         "Build the complete plugin with a reviewer video URL kept outside public source. Reuse sample records on repeated review runs.",
         "Store member versions as integer milliseconds and preserve stale-write rejection.",
         "Classify editor save conflicts by the tRPC code; keep drafts and load the latest version only on explicit recovery.",
@@ -915,6 +992,8 @@ export const ATLAS_FLOWS = [
         testRef("integration", "tests/atlas-browser-diagnostics.test.ts"),
         testRef("integration", "tests/oauth-metadata.test.ts"),
         testRef("integration", "tests/mcp-read-only.test.ts"),
+        fullAppIntegrationRef("tests/integration/api-usage.integration.ts"),
+        fullAppIntegrationRef("tests/integration/mcp-errors.integration.ts"),
         testRef(
           "integration",
           "tests/member-version-storage.integration.test.ts",
@@ -1046,6 +1125,10 @@ export const ATLAS_FLOWS = [
           path: "src/app/dashboard/_components/dashboard-db-provider.tsx",
         },
         {
+          label: "Native catalog collections and confirmed writes",
+          path: "src/app/dashboard/_lib/dashboard-db/collections.ts",
+        },
+        {
           label: "Listing creation and retry identity",
           path: "src/app/dashboard/listings/_components/create-listing-dialog.tsx",
         },
@@ -1076,6 +1159,10 @@ export const ATLAS_FLOWS = [
       ],
       invariants: [
         "Keep dashboard collections active while the provider is ready, including idle editors.",
+        "The dashboard renders the member's saved catalog before refresh completes. Old refreshes must not replace confirmed writes; successful refreshes reconcile additions and deletions.",
+        "Copied listing links use the listing owner ID until the profile URL loads. Loading the profile must not close an open row menu.",
+        "Reject old dashboard API routes before writing data. Show reload instructions and keep the unsaved form open.",
+        "Bind dashboard requests to the member that opened the session. Reject a changed or missing member identity before reads or writes.",
         "Store member versions as integer milliseconds and preserve stale-write rejection.",
         "Classify editor save conflicts by the tRPC code; keep drafts and load the latest version only on explicit recovery.",
         "Reuse the same create request ID for the same draft after lost create confirmation. Keep one saved listing after retry and include that ID in the failure report.",
@@ -1114,6 +1201,9 @@ export const ATLAS_FLOWS = [
         testRef("integration", "tests/edit-listing-dialog-url-sync.test.tsx"),
         fullAppIntegrationRef(
           "tests/integration/create-edit-listing.integration.ts",
+        ),
+        fullAppIntegrationRef(
+          "tests/integration/dashboard-cache.integration.ts",
         ),
         fullAppIntegrationRef("tests/integration/editor-save.integration.ts"),
         fullAppIntegrationRef(
@@ -1507,6 +1597,7 @@ export const ATLAS_FLOWS = [
         "Use two reserved synthetic listings with nine local images and zero images. Keep the surrounding realistic catalog.",
         "Create media fixtures only in a runner-owned disposable snapshot. Refuse BASE_URL, DATABASE_URL, and ATLAS_DATABASE_URL overrides before any write.",
         "Keep populated, empty, preview, crop, reorder, and delete-confirmation assertions. Do not send an upload.",
+        "Delete only the selected image. Keep survivor order values; apply the full canonical image set after a reorder, including images absent from the browser.",
       ],
     },
     tests: {
@@ -1661,6 +1752,9 @@ export const ATLAS_FLOWS = [
         "Store member versions as integer milliseconds and preserve stale-write rejection.",
         "Classify editor save conflicts by the tRPC code; keep drafts and load the latest version only on explicit recovery.",
         "Save list fields through the editor; write membership changes at once and mark the parent for commit.",
+        "Keep confirmed list membership current when commands overlap, including after a reload with catalog reads unavailable.",
+        "Order targeted reads with writes so a delayed response cannot replace a later confirmed edit.",
+        "Keep queued commands bound to their original member and reject them if authentication changes before dispatch.",
         "Enforce the same non-Pro list cap for dashboard, member API, and MCP callers, including safe create retries.",
         "Keep drafts after rejected saves and canceled browser history changes.",
         "Keep title and actions pinned in the overview; keep selection and title pinned in Manage List.",
@@ -1682,16 +1776,11 @@ export const ATLAS_FLOWS = [
           "integration",
           "tests/member-non-pro-access.integration.test.ts",
         ),
-        testRef(
-          "integration",
-          "tests/dashboard-db-list-membership-sync.test.tsx",
-        ),
         testRef("integration", "tests/list-form-boundary-save.test.tsx"),
         testRef(
           "integration",
           "tests/manage-list-page-membership-commit.test.tsx",
         ),
-        testRef("integration", "tests/use-list-resource.test.tsx"),
         fullAppIntegrationRef(
           "tests/integration/list-management.integration.ts",
         ),

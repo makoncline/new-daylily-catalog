@@ -86,6 +86,9 @@ export function reportError({
 
 export function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {
+    if (/^No procedure found on path ["']?dashboardV2\./.test(error.message)) {
+      return "This dashboard is out of date. Your changes were not saved. Copy any unsaved changes, then reload this page.";
+    }
     return error.message;
   }
 

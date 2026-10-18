@@ -199,3 +199,18 @@ check current code before applying them.
 - [2026-10-14] Listing create response loss: The listing create procedure already has transactional requestId receipts. Keep the same requestId when retrying the same draft after confirmation is lost. A browser regression can send the real create with route.fetch, check its successful result and persisted row, then abort delivery to the browser. Use this path to test committed writes without a separate database service.
 - [2026-10-14] PostHog proxy UI links: A custom api_host also becomes the replay-link host unless ui_host is explicit. Keep ui_host on the project region when changing ingestion to a managed proxy. Test get_session_replay_url with the real SDK, local fake time, and capture disabled.
 - [2026-10-15] MCP internal error boundary: tRPC wraps unexpected procedure failures as INTERNAL_SERVER_ERROR and can retain the original cause message. Classify only known domain codes at mcpToolError. Test the exported handler through real tRPC callers; rethrowing alone does not sanitize the response.
+
+- [2026-10-16] Private usage exports: Sentry error and log hooks export shared log context and console breadcrumbs. Keep raw usage search/IP fields in the private usage record, not shared context. Filter serialized usage breadcrumbs at the Sentry export boundary.
+- [2026-10-16] App log copies: Journald forwards app records to rsyslog on the VPS. The journal has 14-day/1-GiB ceilings, but private syslog files rotate weekly with four archives. Check both stores before making retention or deletion claims.
+
+- [2026-10-16] Warm social renderer: Next 16.3 disables Sharp SVG loading when its image optimizer starts. When changing social rendering, warm `/_next/image` in the built container before testing PNG generation. Do not change Sharp's process-wide loader permissions to bypass this restriction.
+
+- [2026-10-17] TanStack hidden views: React Activity releases live-query subscriptions while an editor hides its table. A query can restart with empty data and remove the focus-return button. For an eager catalog that is already loaded, use the native useLiveSuspenseQuery hook to wait for cached rows. Test editor Back/Forward, idle creation, and refresh/save overlap in the browser.
+
+[2026-10-17] Query collection snapshot writes: Query collection 1.4.5 ignores setQueryData snapshots after direct collection writes. Seed before startup, then publish complete snapshots with awaited writeBatch and delete omitted rows. Check a real save followed by refresh when upgrading.
+
+- [2026-10-17] Old dashboard tabs: A deployed client cannot add UI to JavaScript already loaded in an open tab. The old listing editor displays server error messages and keeps a rejected draft. For an incompatible dashboard API change, reject old browser mutations before writing and test an unchanged Chrome tab across two production-built containers.
+
+- [2026-10-17] PostHog survey capture: posthog-js 1.438.10 adds survey response person properties to the captured event `$set`. It does not expose them through `get_property`. The return value confirms local capture, not delivery. Browser automation can pass `is_capturing()` and still return no capture because of bot filtering. For API survey tests, check the event contract and identity. Change bot filtering only in private fixtures.
+
+- [2026-10-17] Query command ordering: Direct collection writes use arrival order, not server row versions. Run dashboard commands and their canonical cache writes in one TanStack Query mutation scope. Exclude paused mutations from snapshot persistence. Do not nest the scoped runner. Check ordering with delayed real responses and a warm reload.

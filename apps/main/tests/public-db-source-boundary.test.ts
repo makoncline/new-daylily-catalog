@@ -182,7 +182,7 @@ describe("public database source boundary", () => {
     await expect(cultivarCaller.search({ query: "stella" })).rejects.toThrow(
       "Public database reads require local SQLite or an embedded replica.",
     );
-    const batchCaller = dashboardDbCultivarReferenceRouter.createCaller({
+    const referenceCaller = dashboardDbCultivarReferenceRouter.createCaller({
       db,
       replicaDb,
       hasReplicaDb: false,
@@ -191,7 +191,7 @@ describe("public database source boundary", () => {
       } as unknown as TRPCInternalContext["_authUser"],
       headers: new Headers(),
     });
-    await expect(batchCaller.getByIdsBatch({ ids: ["cr-1"] })).rejects.toThrow(
+    await expect(referenceCaller.getByIds({ ids: ["cr-1"] })).rejects.toThrow(
       "Public database reads require local SQLite or an embedded replica.",
     );
   });

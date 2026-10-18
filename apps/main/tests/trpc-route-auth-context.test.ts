@@ -53,7 +53,7 @@ describe("authenticated tRPC route", () => {
   it("resolves Clerk authentication at the HTTP request boundary", async () => {
     const { GET } = await import("@/app/api/trpc/[trpc]/route");
     const request = new NextRequest(
-      "http://localhost/api/trpc/dashboardDb.user.getCurrentUserId?batch=1&input=%7B%220%22%3A%7B%22json%22%3Anull%7D%7D",
+      "http://localhost/api/trpc/dashboardV2.user.getCurrentUserId?batch=1&input=%7B%220%22%3A%7B%22json%22%3A%7B%22clerkUserId%22%3A%22clerk-user-1%22%7D%7D%7D",
     );
 
     requestScope.active = true;

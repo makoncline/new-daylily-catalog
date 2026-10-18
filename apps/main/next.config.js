@@ -31,7 +31,11 @@ const config = {
   outputFileTracingIncludes: {
     "/api/og/**": ["./public/fonts/geist-*.ttf"],
   },
-  serverExternalPackages: ["@prisma/adapter-better-sqlite3", "better-sqlite3"],
+  serverExternalPackages: [
+    "@prisma/adapter-better-sqlite3",
+    "better-sqlite3",
+    "@resvg/resvg-js",
+  ],
   cacheMaxMemorySize: 0,
 
   images: {

@@ -1,3 +1,7 @@
+import {
+  withUsageRequest,
+  logUsageOperation,
+} from "@/server/observability/api-usage";
 import { reportError } from "@/lib/error-utils";
 import { toPublicSearchStatus } from "@/server/search/public-search-api-platform";
 import {
@@ -86,7 +90,7 @@ function getValidatedBody(body: MatchRequestBody) {
   return { cultivarReferenceIds, includeCandidates, names } as const;
 }
 
-export async function POST(request: Request) {
+async function match(request: Request) {
   let body: MatchRequestBody;
   try {
     body = (await request.json()) as MatchRequestBody;
@@ -103,7 +107,15 @@ export async function POST(request: Request) {
   }
 
   try {
+    const startedAt = performance.now();
     const results = await matchCultivarNames(validated);
+    logUsageOperation({
+      operation: "cultivar.match",
+      operation_kind: "read",
+      outcome: "success",
+      duration_ms: performance.now() - startedAt,
+      results_returned: results.length,
+    });
     return Response.json(
       { results },
       { headers: { "Cache-Control": "private, no-store" } },
@@ -143,4 +155,8 @@ export async function POST(request: Request) {
       },
     );
   }
+}
+
+export async function POST(request: Request) {
+  return withUsageRequest(request, "public_api", () => match(request));
 }

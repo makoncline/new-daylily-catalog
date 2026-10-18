@@ -1,3 +1,4 @@
+import { recordUsageInput } from "@/server/observability/api-usage";
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import type { db } from "@/server/db";
@@ -161,6 +162,7 @@ export async function searchPublicListings(args: {
   database: typeof db;
   input: PublicListingSearchInput;
 }) {
+  recordUsageInput(args.input);
   const rows = await args.database.listing.findMany({
     where: await buildPublicListingWhere(args.database, args.input),
     select: publicListingSelect,

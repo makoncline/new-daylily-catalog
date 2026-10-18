@@ -1,3 +1,7 @@
+import {
+  logUsageOperation,
+  usageResultSummary,
+} from "@/server/observability/api-usage";
 import { TRPCError } from "@trpc/server";
 import { reportError } from "@/lib/error-utils";
 import { hasPublicReadDb } from "@/server/db";
@@ -19,9 +23,25 @@ export async function publicReadResponse(
     return publicJson({ error: "public_database_unavailable" }, 503);
   }
 
+  const startedAt = performance.now();
   try {
-    return publicJson(await read());
+    const result = await read();
+    logUsageOperation({
+      operation: source,
+      operation_kind: "read",
+      outcome: "success",
+      duration_ms: performance.now() - startedAt,
+      ...usageResultSummary(result),
+    });
+    return publicJson(result);
   } catch (error) {
+    logUsageOperation({
+      operation: source,
+      operation_kind: "read",
+      outcome: "error",
+      duration_ms: performance.now() - startedAt,
+      error_code: error instanceof TRPCError ? error.code : "INTERNAL_ERROR",
+    });
     if (error instanceof TRPCError && error.code === "NOT_FOUND") {
       return publicJson({ error: "not_found" }, 404);
     }

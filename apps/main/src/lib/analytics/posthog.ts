@@ -92,6 +92,10 @@ async function isPosthogEnabled() {
   return posthogEnabledPromise;
 }
 
+export async function getPosthogClient() {
+  return (await isPosthogEnabled()) ? posthog : null;
+}
+
 async function initializePosthog() {
   if (process.env.NODE_ENV !== "production") {
     return false;
