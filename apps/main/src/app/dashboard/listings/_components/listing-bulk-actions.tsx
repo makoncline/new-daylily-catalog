@@ -4,8 +4,26 @@ import { useState } from "react";
 import { type Table } from "@tanstack/react-table";
 import { toast } from "sonner";
 import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
-import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Field, FieldLabel } from "@/components/ui/field";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useConfirmableAsyncAction } from "@/hooks/use-confirmable-async-action";
 import { getErrorMessage } from "@/lib/error-utils";
 import { type ListingData } from "./listing-table-model";
@@ -24,11 +42,21 @@ const actions = {
     description:
       "These listings will be permanently deleted from your catalog and all lists. This cannot be undone.",
   },
+  "Add to list": {
+    description:
+      "Add these listings to the list you choose. Listings already in this list stay there. Other list memberships and visibility do not change.",
+  },
 };
 type Action = keyof typeof actions;
 
-export function ListingBulkActions({ table }: { table: Table<ListingData> }) {
-  const { updateListing, deleteListing } = useDashboardDb();
+export function ListingBulkActions({
+  table,
+  lists,
+}: {
+  table: Table<ListingData>;
+  lists: { id: string; title: string }[];
+}) {
+  const { updateListing, deleteListing, addListingToList } = useDashboardDb();
   const selected = table
     .getSortedRowModel()
     .rows.filter((row) => row.getIsSelected());
@@ -36,15 +64,20 @@ export function ListingBulkActions({ table }: { table: Table<ListingData> }) {
     action: Action;
     rows: ListingData[];
   } | null>(null);
+  const [listId, setListId] = useState("");
+  const targetList = lists.find((list) => list.id === listId);
   const [completed, setCompleted] = useState(0);
   const { isDialogOpen, setIsDialogOpen, openDialog, isPending, runAction } =
     useConfirmableAsyncAction({
       action: async () => {
-        if (!request) return;
+        if (!request || (request.action === "Add to list" && !targetList))
+          return;
         let confirmed = 0;
         try {
           for (const row of request.rows) {
-            if (request.action === "Delete") {
+            if (request.action === "Add to list") {
+              await addListingToList({ listId, listingId: row.id });
+            } else if (request.action === "Delete") {
               await deleteListing({ id: row.id });
             } else {
               await updateListing({
@@ -67,7 +100,9 @@ export function ListingBulkActions({ table }: { table: Table<ListingData> }) {
           );
         }
         toast.success(
-          `${confirmed} listing${confirmed === 1 ? "" : "s"} ${actions[request.action].result}`,
+          request.action === "Add to list"
+            ? `${confirmed} listing${confirmed === 1 ? " is" : "s are"} in “${targetList?.title}”`
+            : `${confirmed} listing${confirmed === 1 ? "" : "s"} ${actions[request.action].result}`,
         );
       },
       onError: (error) => toast.error(getErrorMessage(error)),
@@ -76,6 +111,7 @@ export function ListingBulkActions({ table }: { table: Table<ListingData> }) {
   function confirm(action: Action) {
     setRequest({ action, rows: selected.map((row) => row.original) });
     setCompleted(0);
+    setListId("");
     openDialog();
   }
 
@@ -88,6 +124,14 @@ export function ListingBulkActions({ table }: { table: Table<ListingData> }) {
           ? `${completed} of ${request?.rows.length} changes confirmed…`
           : `${selected.length} selected in these results`}
       </span>
+      <Button
+        size="sm"
+        variant="outline"
+        disabled={isPending || lists.length === 0}
+        onClick={() => confirm("Add to list")}
+      >
+        Add to list
+      </Button>
       <Button
         size="sm"
         variant="outline"
@@ -121,15 +165,67 @@ export function ListingBulkActions({ table }: { table: Table<ListingData> }) {
         Clear selection
       </Button>
       {request && (
-        <DeleteConfirmDialog
-          open={isDialogOpen}
-          onOpenChange={setIsDialogOpen}
-          onConfirm={() => void runAction()}
-          title={`${request.action} ${request.rows.length} listing${request.rows.length === 1 ? "" : "s"}?`}
-          description={actions[request.action].description}
-          actionLabel={request.action}
-          destructive={request.action === "Delete"}
-        />
+        <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <AlertDialogContent className="max-h-dvh w-11/12 overflow-y-auto">
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {request.action === "Add to list" ? "Add" : request.action}{" "}
+                {request.rows.length} listing
+                {request.rows.length === 1 ? "" : "s"}
+                {request.action === "Add to list"
+                  ? targetList
+                    ? ` to “${targetList.title}”`
+                    : " to a list"
+                  : ""}
+                ?
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {actions[request.action].description}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            {request.action === "Add to list" && (
+              <Field>
+                <FieldLabel htmlFor="bulk-target-list">List</FieldLabel>
+                <Select value={listId} onValueChange={setListId}>
+                  <SelectTrigger id="bulk-target-list">
+                    <SelectValue placeholder="Choose a list" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {lists.map((list) => (
+                        <SelectItem key={list.id} value={list.id}>
+                          {list.title}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+            )}
+            <ul
+              aria-label="Affected listings"
+              className="max-h-64 list-disc overflow-y-auto pl-5 break-words"
+            >
+              {request.rows.map((row) => (
+                <li key={row.id}>{row.title}</li>
+              ))}
+            </ul>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                variant={
+                  request.action === "Delete" ? "destructive" : "default"
+                }
+                disabled={
+                  isPending || (request.action === "Add to list" && !targetList)
+                }
+                onClick={() => void runAction()}
+              >
+                {request.action}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
     </div>
   );

@@ -41,6 +41,10 @@ test("seller hides, publishes, and deletes selected listings without changing ot
     .getByRole("button", { name: "Hide selected", exact: true })
     .click();
   await expect(dialog).toContainText("2 listings");
+  await expect(dialog.getByRole("listitem")).toHaveText([
+    "Bulk Bloom 00",
+    "Bulk Bloom 21",
+  ]);
   await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
   await withTempE2EDb(
     async (db) => {
@@ -123,6 +127,15 @@ test("seller hides, publishes, and deletes selected listings without changing ot
     .getByRole("button", { name: "Delete selected", exact: true })
     .click();
   await expect(dialog).toContainText("2 listings");
+  await expect(dialog.getByRole("listitem")).toHaveText([
+    "Bulk Bloom 00",
+    "Bulk Bloom 01",
+  ]);
+  await expect(dialog).toContainText("permanently deleted");
+  await page.screenshot({
+    path: test.info().outputPath("bulk-delete-confirmation-mobile.png"),
+    animations: "disabled",
+  });
   await dialog.getByRole("button", { name: "Delete", exact: true }).click();
   await expect(
     page.getByText("2 listings deleted", { exact: true }),
@@ -148,6 +161,154 @@ test("seller hides, publishes, and deletes selected listings without changing ot
           where: { id: "integration-favorites-list" },
         }),
       ).not.toBeNull();
+    },
+    { clearFirst: false },
+  );
+});
+
+test("seller reviews all selected listings and adds them to a list without replacing memberships", async ({
+  page,
+  dashboardListings,
+}) => {
+  await withTempE2EDb(
+    async (db) => {
+      await db.listing.createMany({
+        data: Array.from({ length: 22 }, (_, index) => ({
+          id: `bulk-add-${index}`,
+          userId: "integration-user",
+          title: `Bulk Add ${String(index).padStart(2, "0")}`,
+          slug: `bulk-add-${index}`,
+          status: "HIDDEN",
+        })),
+      });
+      await db.list.update({
+        where: { id: "integration-favorites-list" },
+        data: {
+          listings: {
+            connect: [
+              { id: "bulk-add-0" },
+              { id: "integration-existing-listing" },
+            ],
+          },
+        },
+      });
+      await db.list.create({
+        data: {
+          id: "bulk-other-list",
+          userId: "integration-user",
+          title: "Other list",
+          listings: { connect: { id: "bulk-add-21" } },
+        },
+      });
+    },
+    { clearFirst: false },
+  );
+  await page.goto("/dashboard/listings?size=20&query=Bulk%20Add");
+  await dashboardListings.isReady();
+  const select = (title: string) =>
+    dashboardListings
+      .listingRow(title)
+      .getByRole("checkbox", { name: "Select row" });
+  await expect(page.getByRole("button", { name: /^Selected \(/ })).toHaveCount(
+    0,
+  );
+  await select("Bulk Add 00").check();
+  await dashboardListings.pagerNextButton.click();
+  await select("Bulk Add 21").check();
+  await dashboardListings.setGlobalSearch("No matching listings");
+  const selectedFilter = page.getByRole("button", {
+    name: "Selected (2)",
+    exact: true,
+  });
+  await selectedFilter.click();
+  await expect(selectedFilter).toHaveAttribute("aria-pressed", "true");
+  await expect(dashboardListings.listingRow("Bulk Add 00")).toBeVisible();
+  await expect(dashboardListings.listingRow("Bulk Add 21")).toBeVisible();
+  await expect(dashboardListings.listingRow("Bulk Add 01")).toHaveCount(0);
+
+  const dialog = page.getByRole("alertdialog");
+  await page.getByRole("button", { name: "Add to list", exact: true }).click();
+  await expect(dialog.getByRole("listitem")).toHaveText([
+    "Bulk Add 00",
+    "Bulk Add 21",
+  ]);
+  await expect(
+    dialog.getByRole("button", { name: "Add to list", exact: true }),
+  ).toBeDisabled();
+  await dialog.getByRole("combobox", { name: "List", exact: true }).click();
+  await page
+    .getByRole("option", { name: "Integration Favorites", exact: true })
+    .click();
+  await expect(dialog).toContainText(
+    "Other list memberships and visibility do not change",
+  );
+  await page.screenshot({
+    path: test.info().outputPath("bulk-add-confirmation.png"),
+    animations: "disabled",
+  });
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await withTempE2EDb(
+    async (db) => {
+      expect(
+        await db.list.count({
+          where: {
+            id: "integration-favorites-list",
+            listings: { some: { id: "bulk-add-21" } },
+          },
+        }),
+      ).toBe(0);
+    },
+    { clearFirst: false },
+  );
+  await page.getByRole("button", { name: "Add to list", exact: true }).click();
+  await dialog.getByRole("combobox", { name: "List", exact: true }).click();
+  await page
+    .getByRole("option", { name: "Integration Favorites", exact: true })
+    .click();
+  await dialog
+    .getByRole("button", { name: "Add to list", exact: true })
+    .click();
+  await expect(
+    page.getByText("2 listings are in “Integration Favorites”", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Selected \(/ })).toHaveCount(
+    0,
+  );
+  await expect(dashboardListings.listingRow("Bulk Add 01")).toBeVisible();
+
+  await select("Bulk Add 00").check();
+  await page.getByRole("button", { name: "Selected (1)", exact: true }).click();
+  await select("Bulk Add 00").uncheck();
+  await expect(dashboardListings.listingRow("Bulk Add 01")).toBeVisible();
+  await select("Bulk Add 00").check();
+  await expect(
+    page.getByRole("button", { name: "Selected (1)", exact: true }),
+  ).toHaveAttribute("aria-pressed", "false");
+  await page.reload();
+  await dashboardListings.isReady();
+  await withTempE2EDb(
+    async (db) => {
+      const target = await db.list.findUniqueOrThrow({
+        where: { id: "integration-favorites-list" },
+        include: { listings: true },
+      });
+      expect(target.listings.map(({ id }) => id).sort()).toEqual([
+        "bulk-add-0",
+        "bulk-add-21",
+        "integration-existing-listing",
+      ]);
+      const other = await db.list.findUniqueOrThrow({
+        where: { id: "bulk-other-list" },
+        include: { listings: true },
+      });
+      expect(other.listings.map(({ id }) => id)).toEqual(["bulk-add-21"]);
+      expect(
+        await db.listing.count({
+          where: { id: { startsWith: "bulk-add-" }, status: "HIDDEN" },
+        }),
+      ).toBe(22);
     },
     { clearFirst: false },
   );

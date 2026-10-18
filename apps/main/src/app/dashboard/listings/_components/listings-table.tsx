@@ -1,6 +1,11 @@
 "use client";
 
 import * as React from "react";
+import {
+  functionalUpdate,
+  type RowSelectionState,
+} from "@tanstack/react-table";
+import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableLayout } from "@/components/data-table/data-table-layout";
 import { DataTablePagination } from "@/components/data-table/data-table-pagination";
@@ -46,6 +51,12 @@ export function ListingsTable({
 }) {
   const firstRowsPaintedRef = React.useRef(false);
   const { listingRows: listings, lists } = useDashboardListingReadModel();
+  const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
+  const [selectedOnly, setSelectedOnly] = React.useState(false);
+  const selectedListings = React.useMemo(
+    () => listings.filter((listing) => rowSelection[listing.id]),
+    [listings, rowSelection],
+  );
   const columns = React.useMemo(() => getColumns(onEdit), [onEdit]);
   const [searchMode, setSearchMode] = useLocalStorage<PublicCatalogSearchMode>(
     "dashboard-listings-search-mode",
@@ -67,11 +78,20 @@ export function ListingsTable({
   );
 
   const table = useDataTable({
-    data: listings,
+    data: selectedOnly ? selectedListings : listings,
     columns,
     storageKey: "listings-table",
     columnNames,
-    config: { getRowId: (row) => row.id },
+    config: {
+      getRowId: (row) => row.id,
+      state: { rowSelection },
+      onRowSelectionChange: (updater) => {
+        const next = functionalUpdate(updater, rowSelection);
+        setRowSelection(next);
+        if (!Object.values(next).some(Boolean)) setSelectedOnly(false);
+        if (selectedOnly) table.setPageIndex(0);
+      },
+    },
     pinnedColumns: {
       left: ["select", "title"],
       right: ["actions"],
@@ -181,7 +201,23 @@ export function ListingsTable({
           toolbar={
             <div className="flex flex-wrap items-center justify-between gap-3">
               <PublicCatalogSearchResultCount table={table} />
-              <ListingBulkActions table={table} />
+              {(selectedListings.length > 0 || selectedOnly) && (
+                <Button
+                  size="sm"
+                  variant={selectedOnly ? "secondary" : "outline"}
+                  aria-pressed={selectedOnly}
+                  title="Show selected listings. Clears other filters."
+                  onClick={() => {
+                    table.setGlobalFilter("");
+                    table.setColumnFilters([]);
+                    table.setPageIndex(0);
+                    setSelectedOnly(!selectedOnly);
+                  }}
+                >
+                  Selected ({selectedListings.length})
+                </Button>
+              )}
+              <ListingBulkActions table={table} lists={lists} />
               <DataTableViewOptions table={table} />
             </div>
           }

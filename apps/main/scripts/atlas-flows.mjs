@@ -1171,7 +1171,7 @@ export const ATLAS_FLOWS = [
         "Classify editor save conflicts by the tRPC code; keep drafts and load the latest version only on explicit recovery.",
         "Reuse the same create request ID for the same draft after lost create confirmation. Keep one saved listing after retry and include that ID in the failure report.",
         "Scope listing writes to the authenticated user on the server.",
-        "Bulk actions use the selected filtered rows across pages. Confirm the count, preserve write conflicts, and stop on the first failure with the confirmed count.",
+        "Bulk actions use the selected filtered rows across pages. Confirm every title and the action. Add to list preserves other memberships and visibility. The Selected view clears other filters to show all selected listings. Preserve write conflicts and stop on the first failure with the confirmed count.",
         "Enforce the same non-Pro create cap for dashboard, member API, and MCP callers. Reuse the confirmed tier within each remote request.",
         "Validate before save and keep the form open when save fails.",
         "Save listing fields through the editor; write media and membership changes at once and mark the parent for commit.",
