@@ -30,6 +30,9 @@ export function CreateListSurface({
   const [title, setTitle] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const backButtonRef = useRef<HTMLButtonElement | null>(null);
+  const createRequestRef = useRef<Parameters<typeof insertList>[0] | null>(
+    null,
+  );
   const hasPendingChanges = () => Boolean(title.trim());
   const { confirmDiscard } = useUnsavedChangesGuard(hasPendingChanges);
 
@@ -38,6 +41,7 @@ export function CreateListSurface({
   }, []);
 
   const handleCreate = async () => {
+    if (isSaving) return;
     if (!title.trim()) {
       toast.error("Title required", {
         description: "Please enter a title for your list.",
@@ -47,10 +51,17 @@ export function CreateListSurface({
 
     setIsSaving(true);
     try {
-      const newList = await insertList({
-        title: title.trim(),
-        description: "",
-      });
+      const normalizedTitle = title.trim();
+      let request = createRequestRef.current;
+      if (request?.title !== normalizedTitle) {
+        request = {
+          title: normalizedTitle,
+          description: "",
+          requestId: crypto.randomUUID(),
+        };
+        createRequestRef.current = request;
+      }
+      const newList = await insertList(request);
 
       toast.success("List created", {
         description: `${newList.title} has been created.`,
@@ -61,7 +72,10 @@ export function CreateListSurface({
       toast.error("Failed to create list");
       reportError({
         error: normalizeError(error),
-        context: { source: "CreateListDialog" },
+        context: {
+          source: "CreateListDialog",
+          create_request_id: createRequestRef.current?.requestId,
+        },
       });
     } finally {
       setIsSaving(false);

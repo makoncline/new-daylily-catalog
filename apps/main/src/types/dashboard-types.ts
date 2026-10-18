@@ -13,7 +13,6 @@ export interface ProfileStep extends BaseStep {
 }
 
 export interface CatalogStep extends BaseStep {
-  target: string;
   isComplete: (stats: DashboardStats) => boolean;
 }
 
