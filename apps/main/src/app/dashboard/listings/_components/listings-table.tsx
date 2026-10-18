@@ -24,6 +24,7 @@ import { createDashboardListingsCsv } from "@/app/dashboard/listings/_lib/dashbo
 import { APP_CONFIG, LISTING_TABLE_COLUMN_NAMES } from "@/config/constants";
 
 import { getColumns } from "./columns";
+import { ListingBulkActions } from "./listing-bulk-actions";
 import { useDashboardListingReadModel } from "@/app/dashboard/_lib/dashboard-db/use-dashboard-listing-read-model";
 import { PublicCatalogSearchAdvancedPanel } from "@/components/public-catalog-search/public-catalog-search-advanced-panel";
 import { PublicCatalogSearchResultCount } from "@/components/public-catalog-search/public-catalog-search-composable";
@@ -70,8 +71,9 @@ export function ListingsTable({
     columns,
     storageKey: "listings-table",
     columnNames,
+    config: { getRowId: (row) => row.id },
     pinnedColumns: {
-      left: ["title"],
+      left: ["select", "title"],
       right: ["actions"],
     },
     initialStateOverrides: {
@@ -179,6 +181,7 @@ export function ListingsTable({
           toolbar={
             <div className="flex flex-wrap items-center justify-between gap-3">
               <PublicCatalogSearchResultCount table={table} />
+              <ListingBulkActions table={table} />
               <DataTableViewOptions table={table} />
             </div>
           }

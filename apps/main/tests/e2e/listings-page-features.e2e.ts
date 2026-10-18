@@ -102,7 +102,7 @@ test.describe("listings page features @local", () => {
         .rows()
         .first()
         .locator("td")
-        .first();
+        .nth(1);
 
       await dashboardListings.sortByColumn(columnLabel);
       await expect(firstRowTitleCell).toHaveText(

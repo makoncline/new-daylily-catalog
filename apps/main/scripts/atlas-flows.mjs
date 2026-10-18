@@ -1145,6 +1145,10 @@ export const ATLAS_FLOWS = [
           path: "src/components/forms/listing-form.tsx",
         },
         {
+          label: "Bulk listing actions",
+          path: "src/app/dashboard/listings/_components/listing-bulk-actions.tsx",
+        },
+        {
           label: "Listing save and draft state",
           path: "src/components/forms/use-listing-form.ts",
         },
@@ -1167,6 +1171,7 @@ export const ATLAS_FLOWS = [
         "Classify editor save conflicts by the tRPC code; keep drafts and load the latest version only on explicit recovery.",
         "Reuse the same create request ID for the same draft after lost create confirmation. Keep one saved listing after retry and include that ID in the failure report.",
         "Scope listing writes to the authenticated user on the server.",
+        "Bulk actions use the selected filtered rows across pages. Confirm the count, preserve write conflicts, and stop on the first failure with the confirmed count.",
         "Enforce the same non-Pro create cap for dashboard, member API, and MCP callers. Reuse the confirmed tier within each remote request.",
         "Validate before save and keep the form open when save fails.",
         "Save listing fields through the editor; write media and membership changes at once and mark the parent for commit.",
@@ -1201,6 +1206,9 @@ export const ATLAS_FLOWS = [
         testRef("integration", "tests/edit-listing-dialog-url-sync.test.tsx"),
         fullAppIntegrationRef(
           "tests/integration/create-edit-listing.integration.ts",
+        ),
+        fullAppIntegrationRef(
+          "tests/integration/bulk-listing-actions.integration.ts",
         ),
         fullAppIntegrationRef(
           "tests/integration/dashboard-cache.integration.ts",

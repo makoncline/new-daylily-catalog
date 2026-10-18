@@ -8,6 +8,7 @@ import { type Row, type ColumnDef } from "@tanstack/react-table";
 import { TruncatedListBadge } from "@/components/data-table/truncated-list-badge";
 import { Image as ImageIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { TableImagePreview } from "@/components/data-table/table-image-preview";
 import { fuzzyFilter } from "@/lib/table-utils";
 import { getCultivarListingColumns } from "./listing-cultivar-columns";
@@ -351,6 +352,28 @@ export function getColumns(
   onEdit: (id: string) => void,
 ): ColumnDef<ListingData>[] {
   return [
+    {
+      id: "select",
+      header: ({ table }) => (
+        <Checkbox
+          checked={
+            table.getIsAllPageRowsSelected() ||
+            (table.getIsSomePageRowsSelected() && "indeterminate")
+          }
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all on this page"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
     ...dashboardListingColumns,
     {
       id: "actions",
