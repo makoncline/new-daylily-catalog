@@ -166,12 +166,6 @@ export function ListingBulkActions({
             <DropdownMenuGroup>
               <DropdownMenuItem
                 className="min-h-11"
-                onSelect={() => table.resetRowSelection()}
-              >
-                Clear selection
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="min-h-11"
                 onSelect={() => confirm("Delete")}
               >
                 Delete
@@ -179,15 +173,26 @@ export function ListingBulkActions({
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-11 sm:h-9"
-          disabled={isPending}
-          onClick={onViewSelected}
-        >
-          {viewingSelected ? "Back to results" : "View selected"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-11 sm:h-9"
+            disabled={isPending}
+            onClick={onViewSelected}
+          >
+            {viewingSelected ? "Back to results" : "View selected"}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-11 sm:h-9"
+            disabled={isPending}
+            onClick={() => table.resetRowSelection()}
+          >
+            Clear selection
+          </Button>
+        </div>
       </div>
       {isPending ? (
         <span role="status">

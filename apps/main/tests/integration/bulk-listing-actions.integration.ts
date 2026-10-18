@@ -426,7 +426,9 @@ test("seller reviews all selected listings and adds them to a list without repla
   await expect(dashboardListings.listingRow("Bulk Add 01")).toBeVisible();
   await select("Bulk Add 00").check();
   await viewSelected.click();
-  await openBulkAction(page, "Clear selection");
+  await page
+    .getByRole("button", { name: "Clear selection", exact: true })
+    .click();
   await expect(viewSelected).toHaveCount(0);
   await expect(search).toHaveValue("Bulk Add");
   await expect(dashboardListings.listingRow("Bulk Add 01")).toBeVisible();
