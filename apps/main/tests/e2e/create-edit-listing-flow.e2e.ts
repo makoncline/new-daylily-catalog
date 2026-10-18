@@ -395,6 +395,9 @@ test.describe("create/edit listing flow @local", () => {
     await editListingDialog.clickDeleteListing();
     await editListingDialog.confirmDeleteListing();
     await deleteRequestStarted;
+    await expect(editListingDialog.dialog).toBeVisible();
+    await expect(page).toHaveURL(/editing=/);
+    releaseDeleteRequest();
     await expect(
       page.getByRole("heading", { name: "Listings", exact: true }),
     ).toBeVisible();
@@ -408,7 +411,6 @@ test.describe("create/edit listing flow @local", () => {
         has: page.getByTestId("listings-dashboard"),
       }),
     ).toBeFocused();
-    releaseDeleteRequest();
     await expectToast("Listing deleted successfully");
 
     await expect(

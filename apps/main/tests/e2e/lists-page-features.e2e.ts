@@ -225,13 +225,16 @@ test.describe("lists page features @local", () => {
     await dashboardLists.surfaceDeleteButton().click();
     await dashboardLists.confirmDelete();
     await deleteRequestStarted;
+    await expect(dashboardLists.editDialog()).toBeVisible();
+    await expect(dashboardLists.surfaceDeleteButton()).toBeDisabled();
+    await expect(page).toHaveURL(/editing=/);
+    releaseDeleteRequest();
     await expect(
       page.getByRole("heading", { name: "Lists", exact: true }),
     ).toBeVisible();
     await expect(dashboardLists.editDialog()).toHaveCount(0);
     await expect(page.locator(".animate-pulse:visible")).toHaveCount(0);
     await expect(page).not.toHaveURL(/editing=/);
-    releaseDeleteRequest();
     await expect(
       page
         .locator("[data-sonner-toast]")

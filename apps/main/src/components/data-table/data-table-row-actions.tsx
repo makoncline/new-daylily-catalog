@@ -35,7 +35,7 @@ function getAbsoluteListingUrl(path: string) {
 }
 
 export function DataTableRowActions<
-  TData extends { id: string; slug?: string | null; userId?: string },
+  TData extends { id: string; slug?: string | null; userId: string },
 >({ row, onEdit, publicUserSlug }: DataTableRowActionsProps<TData>) {
   const { deleteListing: deleteListingFromDb } = useDashboardDb();
   const [open, setOpen] = useState(false);
@@ -54,7 +54,7 @@ export function DataTableRowActions<
       toast.error("Failed to delete listing");
     },
   });
-  const publicListingPath = `/${publicUserSlug ?? row.original.userId ?? ""}/${
+  const publicListingPath = `/${publicUserSlug || row.original.userId}/${
     row.original.slug ?? row.original.id
   }`;
 

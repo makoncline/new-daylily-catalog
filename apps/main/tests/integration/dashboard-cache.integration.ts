@@ -5,6 +5,77 @@ const count = 5_000;
 const title = (index: number) => `Warm Bloom ${String(index).padStart(5, "0")}`;
 const catalogRead = /dashboardV2\.bootstrap\.catalog/;
 
+test("saved listing links work before the profile has loaded", async ({
+  page,
+  dashboardListings,
+}) => {
+  const id = "copy-link-before-profile";
+  const listingTitle = "Copy Link Bloom";
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await withTempE2EDb(
+    (db) =>
+      db.listing.create({
+        data: {
+          id,
+          userId: "integration-user",
+          title: listingTitle,
+          slug: id,
+          status: "PUBLISHED",
+        },
+      }),
+    { clearFirst: false },
+  );
+  let release: () => void = () => undefined;
+  const delivery = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  try {
+    await page.goto("/dashboard/listings");
+    await expect(dashboardListings.listingRow(listingTitle)).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Refresh dashboard data" }),
+    ).toHaveAttribute("data-state", "idle");
+    let profileHeld = false;
+    await page.route("**/api/trpc/**", async (route) => {
+      const url = route.request().url();
+      if (
+        !catalogRead.test(url) &&
+        !url.includes("dashboardV2.userProfile.get")
+      )
+        return route.fallback();
+      const response = await route.fetch();
+      if (url.includes("dashboardV2.userProfile.get")) profileHeld = true;
+      await delivery;
+      await route.fulfill({ response });
+    });
+    await page.reload();
+    await expect.poll(() => profileHeld).toBe(true);
+    await dashboardListings.setGlobalSearch(listingTitle);
+    await expect(dashboardListings.filteredCount()).toContainText("1 /");
+    await page.getByTestId("listing-row-actions-trigger").click();
+    await page.getByRole("menuitem", { name: "Copy link" }).click();
+    const expectedUrl = new URL(
+      `/integration-user/${id}`,
+      page.url(),
+    ).toString();
+    await expect
+      .poll(() => page.evaluate(() => navigator.clipboard.readText()))
+      .toBe(expectedUrl);
+    release();
+    await page.unroute("**/api/trpc/**");
+    await page.goto(expectedUrl);
+    await expect(
+      page.getByRole("heading", { name: listingTitle, exact: true }),
+    ).toBeVisible();
+  } finally {
+    release();
+    await page.unroute("**/api/trpc/**");
+    await withTempE2EDb((db) => db.listing.deleteMany({ where: { id } }), {
+      clearFirst: false,
+    });
+  }
+});
+
 test("an outdated dashboard keeps its draft and explains how to reload", async ({
   page,
   editListingDialog,
@@ -465,12 +536,10 @@ test("an account change blocks an old dashboard save before it can write", async
       .getByRole("button", { name: "Save", exact: true })
       .click();
     await expect(
-      page
-        .locator("[data-sonner-toast]")
-        .filter({
-          hasText:
-            "Your account changed. Your changes were not saved. Copy any unsaved changes, then reload this page.",
-        }),
+      page.locator("[data-sonner-toast]").filter({
+        hasText:
+          "Your account changed. Your changes were not saved. Copy any unsaved changes, then reload this page.",
+      }),
     ).toBeVisible();
     await expect(createListingDialog.titleInput).toHaveValue(draft);
     await withTempE2EDb(
