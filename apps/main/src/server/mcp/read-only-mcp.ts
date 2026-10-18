@@ -254,7 +254,18 @@ function mcpResult(payload: unknown) {
   };
 }
 
+const trpcToolErrorCodes: Partial<Record<TRPCError["code"], string>> = {
+  NOT_FOUND: "NOT_FOUND",
+  CONFLICT: "CONFLICT",
+  BAD_REQUEST: "INVALID_ARGUMENTS",
+  FORBIDDEN: "FORBIDDEN",
+  UNAUTHORIZED: "FORBIDDEN",
+  PRECONDITION_FAILED: "FORBIDDEN",
+};
+
 function mcpToolError(error: unknown) {
+  const trpcCode =
+    error instanceof TRPCError ? trpcToolErrorCodes[error.code] : undefined;
   let code = "INTERNAL_ERROR";
   let message = "The tool could not complete the request.";
   if (error instanceof z.ZodError) {
@@ -279,8 +290,8 @@ function mcpToolError(error: unknown) {
                 ? "RATE_LIMITED"
                 : "TOOL_ERROR";
     message = error.message;
-  } else if (error instanceof TRPCError) {
-    code = error.code;
+  } else if (error instanceof TRPCError && trpcCode) {
+    code = trpcCode;
     message = error.message;
   } else {
     console.error("Unexpected MCP error:", error);
@@ -573,40 +584,25 @@ async function callTool(context: McpContext, name: string, input: unknown) {
         -32003,
       );
     }
-    try {
-      updateLogContext({
-        membership_active_at_event: hasActiveSubscription(
-          subscription.subscription.status,
-        ),
-      });
-      const authUser = {
-        ...user,
-        clerk: await getClerkUserData(user.clerkUserId),
-      };
-      return mcpResult(
-        await callMemberWriteTool(
-          context,
-          name,
-          input,
-          authUser,
-          user.oauthClientId,
-          hasActiveSubscription(subscription.subscription.status),
-        ),
-      );
-    } catch (error) {
-      if (error instanceof TRPCError) {
-        const code =
-          error.code === "NOT_FOUND"
-            ? -32004
-            : error.code === "CONFLICT"
-              ? -32009
-              : error.code === "BAD_REQUEST"
-                ? -32602
-                : -32003;
-        throw new McpError(error.message, code);
-      }
-      throw error;
-    }
+    updateLogContext({
+      membership_active_at_event: hasActiveSubscription(
+        subscription.subscription.status,
+      ),
+    });
+    const authUser = {
+      ...user,
+      clerk: await getClerkUserData(user.clerkUserId),
+    };
+    return mcpResult(
+      await callMemberWriteTool(
+        context,
+        name,
+        input,
+        authUser,
+        user.oauthClientId,
+        hasActiveSubscription(subscription.subscription.status),
+      ),
+    );
   }
 
   if (PUBLIC_DATABASE_TOOLS.has(name) && !context.hasLocalPublicReadDb) {
@@ -885,19 +881,11 @@ async function callTool(context: McpContext, name: string, input: unknown) {
       const input = memberDashboardHandoffSchema.parse(args);
       recordUsageInput(input);
       const user = await requireMcpUser(context);
-      let handoff;
-      try {
-        handoff = await getMemberDashboardHandoff({
-          database: context.memberDb,
-          userId: user.id,
-          input,
-        });
-      } catch (error) {
-        if (error instanceof TRPCError && error.code === "NOT_FOUND") {
-          throw new McpError(error.message, -32004);
-        }
-        throw error;
-      }
+      const handoff = await getMemberDashboardHandoff({
+        database: context.memberDb,
+        userId: user.id,
+        input,
+      });
       return mcpResult({
         url: new URL(handoff.dashboardPath, context.baseUrl).toString(),
         destination: handoff.destination,
