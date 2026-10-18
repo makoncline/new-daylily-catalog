@@ -90,6 +90,28 @@ test("saved listing links stay usable as the profile loads", async ({
       .poll(() => page.evaluate(() => navigator.clipboard.readText()))
       .toBe(new URL(`/integration-seller/${id}`, page.url()).toString());
     await page.unroute("**/api/trpc/**");
+    await withTempE2EDb(
+      (db) =>
+        db.userProfile.update({
+          where: { userId: "integration-user" },
+          data: { slug: "" },
+        }),
+      { clearFirst: false },
+    );
+    const refresh = page.getByRole("button", {
+      name: "Refresh dashboard data",
+    });
+    await refresh.click();
+    await expect(
+      page
+        .locator("[data-sonner-toast]")
+        .filter({ hasText: "Dashboard refreshed" }),
+    ).toBeVisible();
+    await page.getByTestId("listing-row-actions-trigger").click();
+    await page.getByRole("menuitem", { name: "Copy link" }).click();
+    await expect
+      .poll(() => page.evaluate(() => navigator.clipboard.readText()))
+      .toBe(expectedUrl);
     await page.goto(expectedUrl);
     await expect(
       page.getByRole("heading", { name: listingTitle, exact: true }),
@@ -97,9 +119,16 @@ test("saved listing links stay usable as the profile loads", async ({
   } finally {
     release();
     await page.unroute("**/api/trpc/**");
-    await withTempE2EDb((db) => db.listing.deleteMany({ where: { id } }), {
-      clearFirst: false,
-    });
+    await withTempE2EDb(
+      async (db) => {
+        await db.listing.deleteMany({ where: { id } });
+        await db.userProfile.update({
+          where: { userId: "integration-user" },
+          data: { slug: "integration-seller" },
+        });
+      },
+      { clearFirst: false },
+    );
   }
 });
 

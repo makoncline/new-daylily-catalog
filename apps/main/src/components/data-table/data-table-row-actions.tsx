@@ -57,7 +57,9 @@ export function DataTableRowActions<
   });
   async function copyListingLink() {
     const profile = utils.dashboardV2.userProfile.get.getData();
-    const publicOwner = profile?.slug ?? row.original.userId;
+    const publicOwner = profile?.slug?.length
+      ? profile.slug
+      : row.original.userId;
     const publicListingPath = `/${publicOwner}/${row.original.slug ?? row.original.id}`;
     await navigator.clipboard.writeText(
       getAbsoluteListingUrl(publicListingPath),
