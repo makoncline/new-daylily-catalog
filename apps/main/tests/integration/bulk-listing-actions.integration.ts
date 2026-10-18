@@ -165,12 +165,10 @@ test("seller hides, publishes, and deletes selected listings without changing ot
       dialog.getByRole("button", { name: "Cancel", exact: true }),
     ).toBeInViewport({ ratio: 1 });
     expect(
-      await affected.evaluate(
-        (element) => ({
-          scrollsVertically: element.scrollHeight > element.clientHeight,
-          fitsWidth: element.scrollWidth <= element.clientWidth,
-        }),
-      ),
+      await affected.evaluate((element) => ({
+        scrollsVertically: element.scrollHeight > element.clientHeight,
+        fitsWidth: element.scrollWidth <= element.clientWidth,
+      })),
     ).toEqual({ scrollsVertically: true, fitsWidth: true });
     await affected.focus();
     await page.keyboard.press("Home");
@@ -399,6 +397,143 @@ test("seller reviews all selected listings and adds them to a list without repla
     },
     { clearFirst: false },
   );
+});
+
+test("seller creates a first list from bulk selection before confirming its members", async ({
+  page,
+  context,
+  baseURL,
+  dashboardListings,
+}) => {
+  await withTempE2EDb(
+    (db) =>
+      db.user.create({
+        data: {
+          id: "bulk-new-list-member",
+          clerkUserId: "user_integration_other",
+          listings: {
+            create: [0, 1, 2].map((index) => ({
+              id: `bulk-new-list-${index}`,
+              title: `New List Bloom ${index}`,
+              slug: `new-list-bloom-${index}`,
+              status: "HIDDEN",
+            })),
+          },
+        },
+      }),
+    { clearFirst: false },
+  );
+  try {
+    await context.addCookies([
+      { name: "integration-auth", value: "other-member", url: baseURL! },
+    ]);
+    await page.goto("/dashboard/listings");
+    await dashboardListings.isReady();
+    for (const index of [0, 1]) {
+      await dashboardListings
+        .listingRow(`New List Bloom ${index}`)
+        .getByRole("checkbox", { name: "Select row" })
+        .check();
+    }
+    const add = page.getByRole("button", { name: "Add to list", exact: true });
+    await expect(add).toBeEnabled();
+    await add.click();
+    const confirmation = page.getByRole("alertdialog");
+    await confirmation
+      .getByRole("combobox", { name: "List", exact: true })
+      .click();
+    const picker = page.getByRole("dialog", {
+      name: "Select a list",
+      exact: true,
+    });
+    await picker.getByPlaceholder("Search lists...").fill("New bulk list");
+    await page.screenshot({
+      path: test.info().outputPath("bulk-create-list-desktop.png"),
+      animations: "disabled",
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.screenshot({
+      path: test.info().outputPath("bulk-create-list-mobile.png"),
+      animations: "disabled",
+    });
+    await picker
+      .getByRole("option", { name: 'Create "New bulk list"', exact: true })
+      .click();
+    await expect(picker).toBeHidden();
+    await expect(confirmation).toContainText("New bulk list");
+    await expect(confirmation.getByRole("listitem")).toHaveText([
+      "New List Bloom 0",
+      "New List Bloom 1",
+    ]);
+    await confirmation
+      .getByRole("button", { name: "Cancel", exact: true })
+      .click();
+    await withTempE2EDb(
+      async (db) => {
+        const lists = await db.list.findMany({
+          where: { userId: "bulk-new-list-member" },
+          include: { listings: true },
+        });
+        expect(lists).toHaveLength(1);
+        expect(lists[0]).toMatchObject({
+          title: "New bulk list",
+          listings: [],
+        });
+      },
+      { clearFirst: false },
+    );
+
+    await add.click();
+    await confirmation
+      .getByRole("combobox", { name: "List", exact: true })
+      .click();
+    await picker
+      .getByRole("option", { name: "New bulk list", exact: true })
+      .click();
+    await expect(picker).toBeHidden();
+    await page.screenshot({
+      path: test.info().outputPath("bulk-new-list-mobile.png"),
+      animations: "disabled",
+    });
+    await confirmation
+      .getByRole("button", { name: "Add to list", exact: true })
+      .click();
+    await expect(
+      page.getByText("2 listings are in “New bulk list”", { exact: true }),
+    ).toBeVisible();
+    await page.reload();
+    await dashboardListings.isReady();
+    await expect(
+      page.getByRole("cell", { name: "New bulk list", exact: true }),
+    ).toHaveCount(2);
+    await withTempE2EDb(
+      async (db) => {
+        const lists = await db.list.findMany({
+          where: { userId: "bulk-new-list-member" },
+          include: { listings: { orderBy: { id: "asc" } } },
+        });
+        expect(lists).toHaveLength(1);
+        expect(
+          lists[0]?.listings.map(({ id, status }) => ({ id, status })),
+        ).toEqual([
+          { id: "bulk-new-list-0", status: "HIDDEN" },
+          { id: "bulk-new-list-1", status: "HIDDEN" },
+        ]);
+      },
+      { clearFirst: false },
+    );
+  } finally {
+    await withTempE2EDb(
+      async (db) => {
+        await db.list.deleteMany({ where: { userId: "bulk-new-list-member" } });
+        await db.listing.deleteMany({
+          where: { userId: "bulk-new-list-member" },
+        });
+        await db.user.delete({ where: { id: "bulk-new-list-member" } });
+      },
+      { clearFirst: false },
+    );
+  }
 });
 
 test("a conflicting bulk save stops after the confirmed rows", async ({

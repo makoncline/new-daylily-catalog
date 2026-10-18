@@ -217,3 +217,5 @@ check current code before applying them.
 - [2026-10-17] Query command ordering: Direct collection writes use arrival order, not server row versions. Run dashboard commands and their canonical cache writes in one TanStack Query mutation scope. Exclude paused mutations from snapshot persistence. Do not nest the scoped runner. Check ordering with delayed real responses and a warm reload.
 
 - [2026-10-18] Browser test database reads: `withTempE2EDb` clears the database by default. During full-app browser tests, use `{ clearFirst: false }` for additional fixtures and persistence checks so the running app keeps its seeded account and related records.
+
+- [2026-10-18] Pinned table test rows: The listing table renders pinned titles and list memberships in separate table rows. For browser assertions across those columns, check the membership cells and verify exact listing IDs in the disposable database. Do not expect the title row to contain every column.

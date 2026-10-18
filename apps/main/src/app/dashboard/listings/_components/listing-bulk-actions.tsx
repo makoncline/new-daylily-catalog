@@ -17,14 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { MultiListSelect } from "@/components/multi-list-select";
 import { useConfirmableAsyncAction } from "@/hooks/use-confirmable-async-action";
 import { getErrorMessage } from "@/lib/error-utils";
 import { type ListingData } from "./listing-table-model";
@@ -131,7 +124,7 @@ export function ListingBulkActions({
       <Button
         size="sm"
         variant="outline"
-        disabled={isPending || lists.length === 0}
+        disabled={isPending}
         onClick={() => confirm("Add to list")}
       >
         Add to list
@@ -204,20 +197,13 @@ export function ListingBulkActions({
             {request.action === "Add to list" && (
               <Field>
                 <FieldLabel htmlFor="bulk-target-list">List</FieldLabel>
-                <Select value={listId} onValueChange={setListId}>
-                  <SelectTrigger id="bulk-target-list" className="h-11 sm:h-9">
-                    <SelectValue placeholder="Choose a list" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {lists.map((list) => (
-                        <SelectItem key={list.id} value={list.id}>
-                          {list.title}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
+                <MultiListSelect
+                  id="bulk-target-list"
+                  multiple={false}
+                  values={listId ? [listId] : []}
+                  onSelect={(ids) => setListId(ids[0] ?? "")}
+                  disabled={isPending}
+                />
               </Field>
             )}
             {request.action === "Delete" && (
