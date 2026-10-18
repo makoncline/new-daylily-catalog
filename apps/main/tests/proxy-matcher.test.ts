@@ -42,7 +42,7 @@ describe("proxy matcher", () => {
     expect(
       unstable_doesMiddlewareMatch({
         config,
-        url: "/api/trpc/dashboardDb.user.getCurrentUser",
+        url: "/api/trpc/dashboardV2.user.getCurrentUser",
       }),
     ).toBe(true);
     expect(

@@ -26,7 +26,7 @@ const loadMissingList = vi.hoisted(() =>
 );
 
 vi.mock("@tanstack/react-db", () => ({
-  useLiveQuery: () => ({
+  useLiveSuspenseQuery: () => ({
     data: listState.rows,
     isReady: true,
   }),
@@ -34,10 +34,10 @@ vi.mock("@tanstack/react-db", () => ({
   createCollection: vi.fn(() => ({})),
 }));
 
-vi.mock("@/app/dashboard/_lib/dashboard-db/lists-collection", () => ({
-  listsCollection: {},
-  loadMissingList,
-}));
+vi.mock("@/app/dashboard/_components/dashboard-db-provider", () => {
+  const state = { listsCollection: {}, loadMissingList };
+  return { useDashboardDb: () => state };
+});
 
 vi.mock("@/trpc/query-client", () => ({
   getQueryClient: () => ({

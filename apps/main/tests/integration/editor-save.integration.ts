@@ -46,8 +46,8 @@ for (const [device, viewport] of [
       });
       const createdTitle = `Save recovery ${device} ${noun}`;
       const savedTitle = `${createdTitle} saved`;
-      const createRequest = `**/api/trpc/dashboardDb.${noun}.create*`;
-      const updateRequest = `**/api/trpc/dashboardDb.${noun}.update*`;
+      const createRequest = `**/api/trpc/dashboardV2.${noun}.create*`;
+      const updateRequest = `**/api/trpc/dashboardV2.${noun}.update*`;
       const field = edit.getByLabel(family === "lists" ? "Title" : "Name", {
         exact: true,
       });

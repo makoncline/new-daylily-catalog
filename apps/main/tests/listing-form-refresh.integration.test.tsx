@@ -1,6 +1,5 @@
 import { TRPCClientError } from "@trpc/client";
 import type { AppRouter } from "@/server/api/root";
-import * as React from "react";
 import {
   act,
   fireEvent,
@@ -10,7 +9,7 @@ import {
 } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ListingForm } from "@/components/forms/listing-form";
-import type { ListingCollectionItem } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
+import type { ListingCollectionItem } from "@/app/dashboard/_lib/dashboard-db/collections";
 
 const updateListing = vi.hoisted(() => vi.fn());
 const resource = vi.hoisted(() => ({ listing: {} as ListingCollectionItem }));
@@ -26,14 +25,16 @@ vi.mock("@/hooks/use-listing-editor-resource", () => ({
     linkedCultivarReferenceImage: null,
   }),
 }));
-vi.mock("@/app/dashboard/_lib/dashboard-db/listings-collection", () => ({
-  updateListing,
-  deleteListing: vi.fn(),
-}));
-vi.mock("@/app/dashboard/_lib/dashboard-db/lists-collection", () => ({
-  addListingToList: vi.fn(),
-  removeListingFromList: vi.fn(),
-}));
+vi.mock("@/app/dashboard/_components/dashboard-db-provider", () => {
+  const state = {
+    updateListing,
+    deleteListing: vi.fn(),
+    addListingToList: vi.fn(),
+    removeListingFromList: vi.fn(),
+  };
+  return { useDashboardDb: () => state };
+});
+
 vi.mock("@/components/forms/listing-form-sections", () => ({
   ListingMediaSection: () => null,
   ListingListsSection: () => null,

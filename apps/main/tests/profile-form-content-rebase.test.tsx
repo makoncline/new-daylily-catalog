@@ -53,7 +53,7 @@ const updateProfile = vi.hoisted(() =>
   >(),
 );
 const profileUtils = vi.hoisted(() => ({
-  dashboardDb: {
+  dashboardV2: {
     userProfile: {
       get: {
         setData: vi.fn(),
@@ -62,7 +62,7 @@ const profileUtils = vi.hoisted(() => ({
           async (
             _input?: void,
             _options?: { staleTime?: number },
-          ): Promise<RouterOutputs["dashboardDb"]["userProfile"]["get"]> =>
+          ): Promise<RouterOutputs["dashboardV2"]["userProfile"]["get"]> =>
             state.saved,
         ),
       },
@@ -73,7 +73,7 @@ const profileUtils = vi.hoisted(() => ({
 vi.mock("@/trpc/react", () => ({
   api: {
     useUtils: () => profileUtils,
-    dashboardDb: {
+    dashboardV2: {
       userProfile: {
         update: { useMutation: () => ({ mutateAsync: updateProfile }) },
         checkSlug: { useQuery: () => ({ refetch: vi.fn() }) },
@@ -112,7 +112,7 @@ describe("profile fields after a story save", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     updateProfile.mockReset();
-    profileUtils.dashboardDb.userProfile.get.fetch.mockImplementation(
+    profileUtils.dashboardV2.userProfile.get.fetch.mockImplementation(
       async () => state.saved,
     );
     state.saved = {
@@ -188,10 +188,10 @@ describe("profile fields after a story save", () => {
       ],
     });
     const realUtils = createTRPCQueryUtils<AppRouter>({ client, queryClient });
-    realUtils.dashboardDb.userProfile.get.setData(undefined, state.initial);
-    profileUtils.dashboardDb.userProfile.get.fetch.mockImplementation(
+    realUtils.dashboardV2.userProfile.get.setData(undefined, state.initial);
+    profileUtils.dashboardV2.userProfile.get.fetch.mockImplementation(
       (input, options) =>
-        realUtils.dashboardDb.userProfile.get.fetch(input, options),
+        realUtils.dashboardV2.userProfile.get.fetch(input, options),
     );
     state.saved.title = "Latest server garden";
     updateProfile.mockRejectedValueOnce(
@@ -295,7 +295,7 @@ describe("profile fields after a story save", () => {
       });
     });
     expect(
-      profileUtils.dashboardDb.userProfile.get.setData.mock.lastCall?.[1],
+      profileUtils.dashboardV2.userProfile.get.setData.mock.lastCall?.[1],
     ).toEqual(state.saved);
     fireEvent.change(screen.getByRole("textbox", { name: "Location" }), {
       target: { value: "New location" },

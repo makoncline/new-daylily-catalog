@@ -150,6 +150,7 @@ async function openPreview() {
 
 vi.mock("@/lib/analytics/posthog", () => ({
   capturePosthogEvent: capturePosthogEventMock,
+  getPosthogClient: async () => null,
 }));
 
 vi.mock("@/lib/catalog-importer-match-client", () => ({
@@ -1142,6 +1143,9 @@ describe("CatalogImporterWorkbench", () => {
       screen.getByRole("link", { name: "Continue to import" }),
     ).toHaveAttribute("href", "/dashboard/imports");
     expect(
+      screen.queryByRole("button", { name: "Not ready for Pro? Tell us why" }),
+    ).not.toBeInTheDocument();
+    expect(
       screen.queryByRole("heading", {
         name: "Publish with Daylily Catalog Pro",
       }),
@@ -1161,6 +1165,10 @@ describe("CatalogImporterWorkbench", () => {
     expect(
       screen.getByRole("button", { name: "Reload account status" }),
     ).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Finish" }));
+    expect(
+      screen.queryByRole("button", { name: "Not ready for Pro? Tell us why" }),
+    ).not.toBeInTheDocument();
   });
 
   it("does not reload an in-memory catalog when browser storage is unavailable", async () => {
@@ -1506,6 +1514,9 @@ describe("CatalogImporterWorkbench", () => {
       name: "Publish this catalog with Pro",
     });
     expect(
+      screen.queryByRole("button", { name: "Not ready for Pro? Tell us why" }),
+    ).not.toBeInTheDocument();
+    expect(
       screen.getByRole("button", { name: "Continue to secure checkout" }),
     ).toHaveAttribute(
       "data-ph-capture-attribute-action",
@@ -1666,6 +1677,22 @@ describe("CatalogImporterWorkbench", () => {
       name: "Publish your catalog",
     });
     expect(downloadMembership).toBeVisible();
+    const draftBeforeFeedback = await readCatalogImporterDraft();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Not ready for Pro? Tell us why" }),
+    );
+    expect(
+      await screen.findByText(/This feedback question is not available/),
+    ).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(await readCatalogImporterDraft()).toEqual(draftBeforeFeedback);
+    expect(
+      screen.getByRole("button", { name: "Continue to secure checkout" }),
+    ).toBeEnabled();
+    expect(
+      screen.getByRole("button", { name: "Download prepared import file" }),
+    ).toBeEnabled();
     const signInButton = screen.getByRole("button", {
       name: "Sign in instead",
     });

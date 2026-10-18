@@ -98,8 +98,8 @@ test.describe("dashboard setup journey @local", () => {
         (response) => {
           const url = decodeURIComponent(response.url());
           return (
-            url.includes("dashboardDb.userProfile.update") &&
-            !url.includes("dashboardDb.userProfile.updateContent")
+            url.includes("dashboardV2.userProfile.update") &&
+            !url.includes("dashboardV2.userProfile.updateContent")
           );
         },
         { timeout: 15000 },

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import {
   LocationBadge,
@@ -47,8 +48,12 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
       )}
 
       <div className="flex gap-2">
-        <ListingCountBadge count={profile._count.listings} />
-        <ListCountBadge count={profile.listCount} lists={profile.lists} />
+        <Link href="#listings" prefetch={false}>
+          <ListingCountBadge count={profile._count.listings} />
+        </Link>
+        <Link href={`/${profile.slug ?? profile.id}#lists`} prefetch={false}>
+          <ListCountBadge count={profile.listCount} />
+        </Link>
       </div>
 
       <FloatingCartButton

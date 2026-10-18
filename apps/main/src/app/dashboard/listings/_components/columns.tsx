@@ -1,10 +1,7 @@
 "use client";
 
-import {
-  DataTableColumnHeader,
-  TooltipCell,
-  DataTableRowActions,
-} from "@/components/data-table";
+import { DataTableColumnHeader, TooltipCell } from "@/components/data-table";
+import { DataTableRowActions } from "@/components/data-table/data-table-row-actions";
 import { LISTING_TABLE_COLUMN_NAMES } from "@/config/constants";
 import { formatPrice, formatAhsListingSummary } from "@/lib/utils";
 import { type Row, type ColumnDef } from "@tanstack/react-table";
@@ -352,19 +349,12 @@ export const dashboardListingColumns: ColumnDef<ListingData>[] = [
 
 export function getColumns(
   onEdit: (id: string) => void,
-  publicUserSlug = "",
 ): ColumnDef<ListingData>[] {
   return [
     ...dashboardListingColumns,
     {
       id: "actions",
-      cell: ({ row }) => (
-        <DataTableRowActions
-          row={row}
-          onEdit={onEdit}
-          publicUserSlug={publicUserSlug}
-        />
-      ),
+      cell: ({ row }) => <DataTableRowActions row={row} onEdit={onEdit} />,
       enableSorting: false,
       enableHiding: false,
     },

@@ -6,28 +6,26 @@ const addListingToListMock = vi.hoisted(() => vi.fn());
 const toastSuccessMock = vi.hoisted(() => vi.fn());
 const toastErrorMock = vi.hoisted(() => vi.fn());
 
-vi.mock(
-  "@/app/dashboard/_lib/dashboard-db/use-seeded-dashboard-db-query",
-  () => ({
-    useSeededDashboardDbQuery: () => ({
-      data: [
-        {
-          id: "listing-1",
-          title: "Moonlit Smile",
-        },
-        {
-          id: "listing-2",
-          title: "Solar Echo",
-        },
-      ],
-      isReady: true,
-    }),
+vi.mock("@tanstack/react-db", () => ({
+  useLiveSuspenseQuery: () => ({
+    data: [
+      {
+        id: "listing-1",
+        title: "Moonlit Smile",
+      },
+      {
+        id: "listing-2",
+        title: "Solar Echo",
+      },
+    ],
+    isReady: true,
   }),
-);
-
-vi.mock("@/app/dashboard/_lib/dashboard-db/lists-collection", () => ({
-  addListingToList: addListingToListMock,
 }));
+
+vi.mock("@/app/dashboard/_components/dashboard-db-provider", () => {
+  const state = { addListingToList: addListingToListMock };
+  return { useDashboardDb: () => state };
+});
 
 vi.mock("@/app/dashboard/_lib/dashboard-db/use-list-resource", () => ({
   useListResource: () => ({

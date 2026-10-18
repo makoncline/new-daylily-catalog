@@ -64,6 +64,19 @@ export function clerkMiddleware(
 
 export async function clerkClient() {
   return {
+    // Substitute only the external OAuth provider. App admission and account lookup stay real.
+    authenticateRequest: async (request: Request) => ({
+      toAuth: () =>
+        request.headers.get("authorization") ===
+        "Bearer integration-oauth-seller"
+          ? {
+              isAuthenticated: true,
+              userId: clerkUser.id,
+              clientId: "integration-oauth-client",
+              scopes: ["catalog:read", "catalog:write"],
+            }
+          : { isAuthenticated: false },
+    }),
     users: {
       getUser: async () => clerkUser,
     },

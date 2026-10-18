@@ -16,7 +16,7 @@ test("list breadcrumb distinguishes ready, missing and failed lookups", async ({
   await expect(breadcrumb).toContainText("List not found", { timeout: 15_000 });
 
   // The lookup can share a transport batch with the current-user query.
-  await page.route("**/api/trpc/*dashboardDb.list.get*", (route) =>
+  await page.route("**/api/trpc/*dashboardV2.list.get*", (route) =>
     route.abort("failed"),
   );
   await page.goto("/dashboard/lists/integration-favorites-list");
@@ -27,7 +27,7 @@ test("list breadcrumb distinguishes ready, missing and failed lookups", async ({
     timeout: 15_000,
   });
   await expect(breadcrumb).not.toContainText("Loading...");
-  await page.unroute("**/api/trpc/*dashboardDb.list.get*");
+  await page.unroute("**/api/trpc/*dashboardV2.list.get*");
   await page.reload();
   await expect(breadcrumb).toContainText("Integration Favorites");
 });

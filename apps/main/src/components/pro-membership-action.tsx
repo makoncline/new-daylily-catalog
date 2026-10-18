@@ -2,6 +2,7 @@
 
 import { CreditCard } from "lucide-react";
 import { CheckoutButton } from "@/components/checkout-button";
+import { ProMembershipFeedback } from "@/components/pro-membership-feedback";
 import { Button } from "@/components/ui/button";
 import { usePro } from "@/hooks/use-pro";
 import { useStripePortal } from "@/hooks/use-stripe-portal";
@@ -24,13 +25,16 @@ export function ProMembershipAction({
 
   if (!needsBillingAttention(subscriptionStatus)) {
     return (
-      <CheckoutButton
-        className={className}
-        data-testid="dashboard-upgrade-to-pro"
-        size="lg"
-      >
-        {children}
-      </CheckoutButton>
+      <div className="flex flex-col items-center gap-1">
+        <CheckoutButton
+          className={className}
+          data-testid="dashboard-upgrade-to-pro"
+          size="lg"
+        >
+          {children}
+        </CheckoutButton>
+        <ProMembershipFeedback />
+      </div>
     );
   }
 

@@ -41,7 +41,7 @@ function createCaller(db: MockDb) {
   });
 }
 
-describe("dashboardDb.userProfile", () => {
+describe("dashboardV2.userProfile", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });

@@ -55,6 +55,18 @@ import {
   getPublicSellerListSummaries,
   getUserIdFromSlugOrId,
 } from "@/server/db/public-seller-read-model";
+import {
+  logUsageOperation,
+  attributePublicUsage,
+  recordUsageInput,
+  usageInputSummary,
+  usageResultSummary,
+} from "@/server/observability/api-usage";
+import {
+  updateLogContext,
+  withLogContext,
+} from "@/server/observability/log-context";
+import { getLogContext } from "@/lib/telemetry";
 import { getScopedOAuthClient } from "@/server/api/member-oauth";
 import { getClerkUserData } from "@/server/clerk/sync-user";
 import {
@@ -483,6 +495,7 @@ async function requireMcpUser(
     );
   }
 
+  updateLogContext({ app_user_id: user.id });
   return {
     ...user,
     clerkUserId: client.clerkUserId,
@@ -561,6 +574,11 @@ async function callTool(context: McpContext, name: string, input: unknown) {
       );
     }
     try {
+      updateLogContext({
+        membership_active_at_event: hasActiveSubscription(
+          subscription.subscription.status,
+        ),
+      });
       const authUser = {
         ...user,
         clerk: await getClerkUserData(user.clerkUserId),
@@ -601,6 +619,7 @@ async function callTool(context: McpContext, name: string, input: unknown) {
   switch (name) {
     case "daylily.search_cultivars": {
       const parsed = searchCultivarsSchema.parse(args);
+      recordUsageInput(parsed);
       const results = await searchCultivars({
         baseUrl: context.baseUrl,
         color: parsed.color,
@@ -615,6 +634,7 @@ async function callTool(context: McpContext, name: string, input: unknown) {
 
     case "daylily.get_cultivar": {
       const parsed = getCultivarSchema.parse(args);
+      recordUsageInput(parsed);
       const cultivarReference = await getPublicCultivarReference({
         database: context.publicDb,
         cultivarReferenceId: parsed.cultivarReferenceId,
@@ -634,6 +654,7 @@ async function callTool(context: McpContext, name: string, input: unknown) {
 
     case "daylily.search_public_listings": {
       const parsed = publicListingSearchSchema.parse(args);
+      recordUsageInput(parsed);
       const page = await searchPublicListings({
         database: context.publicDb,
         input: parsed,
@@ -648,6 +669,7 @@ async function callTool(context: McpContext, name: string, input: unknown) {
 
     case "daylily.get_public_listing": {
       const parsed = publicListingSchema.parse(args);
+      recordUsageInput(parsed);
       const listingId =
         parsed.id ??
         (await mcpLookup(
@@ -668,6 +690,7 @@ async function callTool(context: McpContext, name: string, input: unknown) {
 
     case "daylily.get_public_profile": {
       const parsed = publicProfileSchema.parse(args);
+      recordUsageInput(parsed);
       const profile = await mcpLookup(
         getPublicProfile(parsed.sellerSlug),
         "Public catalog not found.",
@@ -677,6 +700,7 @@ async function callTool(context: McpContext, name: string, input: unknown) {
 
     case "daylily.list_public_profiles": {
       const parsed = publicProfilePageSchema.parse(args);
+      recordUsageInput(parsed);
       return mcpResult(
         await pagePublicProfiles({
           database: context.publicDb,
@@ -687,6 +711,7 @@ async function callTool(context: McpContext, name: string, input: unknown) {
 
     case "daylily.list_public_profile_lists": {
       const parsed = publicProfileSchema.parse(args);
+      recordUsageInput(parsed);
       const userId = await mcpLookup(
         getUserIdFromSlugOrId(parsed.sellerSlug),
         "Public catalog not found.",
@@ -697,6 +722,7 @@ async function callTool(context: McpContext, name: string, input: unknown) {
 
     case "daylily.list_public_listings": {
       const parsed = publicListingSearchSchema.parse(args);
+      recordUsageInput(parsed);
       if (!parsed.sellerSlug) {
         throw new McpError("sellerSlug is required.", -32602);
       }
@@ -737,6 +763,7 @@ async function callTool(context: McpContext, name: string, input: unknown) {
 
     case "daylily.list_lists": {
       const parsed = memberListSchema.parse(args);
+      recordUsageInput(parsed);
       const user = await requireMcpUser(context);
       const page = await pageOwnedMemberLists({
         database: context.memberDb,
@@ -762,6 +789,7 @@ async function callTool(context: McpContext, name: string, input: unknown) {
 
     case "daylily.get_list": {
       const parsed = getByIdSchema.parse(args);
+      recordUsageInput(parsed);
       const user = await requireMcpUser(context);
       const list = await getOwnedMemberListDetail({
         database: context.memberDb,
@@ -778,6 +806,7 @@ async function callTool(context: McpContext, name: string, input: unknown) {
 
     case "daylily.list_listings": {
       const parsed = memberListingSearchSchema.parse(args);
+      recordUsageInput(parsed);
       const user = await requireMcpUser(context);
       const page = await searchOwnedMemberListings({
         database: context.memberDb,
@@ -806,6 +835,7 @@ async function callTool(context: McpContext, name: string, input: unknown) {
 
     case "daylily.get_listing": {
       const parsed = getByIdSchema.parse(args);
+      recordUsageInput(parsed);
       const user = await requireMcpUser(context);
       const listing = await getOwnedMemberListingDetail({
         id: parsed.id,
@@ -823,6 +853,7 @@ async function callTool(context: McpContext, name: string, input: unknown) {
 
     case "daylily.list_images": {
       const input = listImagesSchema.parse(args);
+      recordUsageInput(input);
       const user = await requireMcpUser(context);
       const page = await pageOwnedMemberImages({
         database: context.memberDb,
@@ -837,6 +868,7 @@ async function callTool(context: McpContext, name: string, input: unknown) {
 
     case "daylily.get_image": {
       const input = getImageSchema.parse(args);
+      recordUsageInput(input);
       const user = await requireMcpUser(context);
       const image = await mcpLookup(
         getOwnedDashboardImage({
@@ -851,6 +883,7 @@ async function callTool(context: McpContext, name: string, input: unknown) {
 
     case "daylily.open_dashboard": {
       const input = memberDashboardHandoffSchema.parse(args);
+      recordUsageInput(input);
       const user = await requireMcpUser(context);
       let handoff;
       try {
@@ -964,7 +997,7 @@ function validateMcpOrigin(request: Request, baseUrl: string) {
   );
 }
 
-async function handleJsonRpcRequest(
+async function dispatchJsonRpcRequest(
   request: JsonRpcRequest,
   context: McpContext,
 ) {
@@ -1021,6 +1054,70 @@ async function handleJsonRpcRequest(
     default:
       throw new McpError(`Method not found: ${request.method}`, -32601);
   }
+}
+
+async function handleJsonRpcRequest(
+  request: JsonRpcRequest,
+  context: McpContext,
+) {
+  const params = parseObject(request.params);
+  const tool =
+    request.method === "tools/call" && typeof params.name === "string"
+      ? tools.find((tool) => tool.name === params.name)
+      : undefined;
+  const operation =
+    tool?.name ??
+    (["initialize", "tools/list", "ping", "notifications/initialized"].includes(
+      request.method ?? "",
+    )
+      ? request.method!
+      : "unknown");
+  const operationKind = tool
+    ? tool.annotations?.readOnlyHint
+      ? "read"
+      : "write"
+    : "discovery";
+  return withLogContext(
+    { ...getLogContext(), usage_operation_id: crypto.randomUUID() },
+    async () => {
+      const startedAt = performance.now();
+      if (tool?.securitySchemes.some((scheme) => scheme.type === "noauth"))
+        await attributePublicUsage(context.request);
+      try {
+        const result = await dispatchJsonRpcRequest(request, context);
+        const failed = result && "isError" in result && result.isError === true;
+        const structured =
+          result && "structuredContent" in result
+            ? result.structuredContent
+            : undefined;
+        logUsageOperation({
+          operation,
+          operation_kind: operationKind,
+          outcome: failed ? "tool_error" : "success",
+          duration_ms: performance.now() - startedAt,
+          ...(!failed && tool && !tool.annotations?.readOnlyHint
+            ? usageInputSummary(params.arguments, false)
+            : {}),
+          ...usageResultSummary(structured),
+        });
+        return result;
+      } catch (error) {
+        logUsageOperation({
+          operation,
+          operation_kind: operationKind,
+          outcome: "rpc_error",
+          error_code:
+            error instanceof McpAuthRequiredError
+              ? error.reason
+              : error instanceof McpError
+                ? error.code
+                : "INTERNAL_ERROR",
+          duration_ms: performance.now() - startedAt,
+        });
+        throw error;
+      }
+    },
+  );
 }
 
 export function getMcpServerCard(baseUrl: string) {

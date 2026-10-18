@@ -183,7 +183,7 @@ test("Profile retains drafts across refresh and fast failed navigation", async (
   await capture(page, "desktop-retained-draft");
 
   await page.route(
-    "**/api/trpc/dashboardDb.userProfile.updateContent?*",
+    "**/api/trpc/dashboardV2.userProfile.updateContent?*",
     (route) => route.abort("failed"),
   );
   await paragraph.fill("Fast navigation content");
@@ -196,7 +196,7 @@ test("Profile retains drafts across refresh and fast failed navigation", async (
   ).toBeVisible();
   await expect(paragraph).toHaveText("Fast navigation content");
   await expect(profile.gardenNameInput).toHaveValue("Retained draft");
-  await page.unroute("**/api/trpc/dashboardDb.userProfile.updateContent?*");
+  await page.unroute("**/api/trpc/dashboardV2.userProfile.updateContent?*");
   await page.getByRole("link", { name: "View Public Profile" }).click();
   await expect(page).toHaveURL("/dashboard/profile");
   await expect(paragraph).toHaveText("Fast navigation content");
@@ -238,7 +238,7 @@ test("Profile retains drafts across refresh and fast failed navigation", async (
   ).toBeVisible();
   await profile.slugInput.fill("integration-seller");
   await profile.locationInput.fill("Parent retry draft");
-  await page.route("**/api/trpc/dashboardDb.userProfile.update?*", (route) =>
+  await page.route("**/api/trpc/dashboardV2.userProfile.update?*", (route) =>
     route.abort("failed"),
   );
   await page.getByRole("link", { name: "View Public Profile" }).click();
@@ -248,7 +248,7 @@ test("Profile retains drafts across refresh and fast failed navigation", async (
   await expect(page).toHaveURL("/dashboard/profile");
   await expect(profile.locationInput).toHaveValue("Parent retry draft");
   await expect(profile.saveChangesButton).toBeEnabled();
-  await page.unroute("**/api/trpc/dashboardDb.userProfile.update?*");
+  await page.unroute("**/api/trpc/dashboardV2.userProfile.update?*");
   await profile.saveChangesButton.click();
   await expect(profile.saveChangesButton).toBeDisabled();
   await page.reload();
@@ -263,7 +263,7 @@ test("Profile retains drafts across refresh and fast failed navigation", async (
     parentWritten = resolve;
   });
   await page.route(
-    "**/api/trpc/dashboardDb.userProfile.update?*",
+    "**/api/trpc/dashboardV2.userProfile.update?*",
     async (route) => {
       const response = await route.fetch();
       parentWritten();
@@ -279,7 +279,7 @@ test("Profile retains drafts across refresh and fast failed navigation", async (
     .first();
   await liveParagraph.fill("New content during parent save");
   const contentConflict = page.waitForResponse((response) =>
-    response.url().includes("dashboardDb.userProfile.updateContent"),
+    response.url().includes("dashboardV2.userProfile.updateContent"),
   );
   await page.getByRole("heading", { name: "Profile", exact: true }).click();
   await contentConflict;
@@ -298,7 +298,7 @@ test("Profile retains drafts across refresh and fast failed navigation", async (
   releaseParent();
   await expect(profile.saveChangesButton).toBeEnabled();
   await expect(liveParagraph).toHaveText("New content during parent save");
-  await page.unroute("**/api/trpc/dashboardDb.userProfile.update?*");
+  await page.unroute("**/api/trpc/dashboardV2.userProfile.update?*");
   await profile.saveChangesButton.click();
   await expect(profile.saveChangesButton).toBeDisabled();
   await page.reload();
@@ -337,7 +337,7 @@ test("Profile URL checks ignore late results and preserve eligibility", async ({
     lateStarted = resolve;
   });
   await page.route(
-    "**/api/trpc/dashboardDb.userProfile.checkSlug?*",
+    "**/api/trpc/dashboardV2.userProfile.checkSlug?*",
     async (route) => {
       if (
         decodeURIComponent(route.request().url()).includes('"slug":"dashboard"')
@@ -450,7 +450,7 @@ test("Profile loading, empty images, crop recovery and image limits", async ({
       serialize: SuperJSON.serialize,
       data: results.map((result, index) =>
         Promise.resolve(
-          calls[index] === "dashboardDb.userProfile.get"
+          calls[index] === "dashboardV2.userProfile.get"
             ? {
                 error: {
                   message: "Profile read rejected for integration test.",
@@ -514,7 +514,7 @@ test("Profile loading, empty images, crop recovery and image limits", async ({
   await page
     .locator("#image-upload-input")
     .setInputFiles(path.resolve("public/assets/bouquet.png"));
-  await page.route("**/api/trpc/dashboardDb.image.getPresignedUrl?*", (route) =>
+  await page.route("**/api/trpc/dashboardV2.image.getPresignedUrl?*", (route) =>
     route.abort("failed"),
   );
   await page.getByRole("button", { name: "Upload", exact: true }).click();
@@ -567,7 +567,7 @@ test("Profile retains new text when a pending story save normalizes a link", asy
     contentWritten = resolve;
   });
   await page.route(
-    "**/api/trpc/dashboardDb.userProfile.updateContent?*",
+    "**/api/trpc/dashboardV2.userProfile.updateContent?*",
     async (route) => {
       const response = await route.fetch();
       contentWritten();
@@ -588,7 +588,7 @@ test("Profile retains new text when a pending story save normalizes a link", asy
     expect(saved.content).not.toContain("https://daylilycatalog.com");
     await paragraph.fill("New story text during save");
     const refreshed = page.waitForResponse((response) =>
-      response.url().includes("dashboardDb.userProfile.get"),
+      response.url().includes("dashboardV2.userProfile.get"),
     );
     releaseContent();
     await refreshed;
@@ -596,7 +596,7 @@ test("Profile retains new text when a pending story save normalizes a link", asy
     await expect(
       page.getByText("Saving it will report a conflict.", { exact: false }),
     ).toHaveCount(0);
-    await page.unroute("**/api/trpc/dashboardDb.userProfile.updateContent?*");
+    await page.unroute("**/api/trpc/dashboardV2.userProfile.updateContent?*");
     await profile.saveChangesButton.click();
     await expect(profile.saveChangesButton).toBeDisabled();
     await page.reload();
@@ -735,7 +735,7 @@ for (const [device, viewport] of [
     await profile.gardenNameInput.fill(`Reference Garden ${device}`);
     await profile.descriptionInput.fill("Saved garden description.");
     await profile.locationInput.fill("Colorado");
-    await page.route("**/api/trpc/dashboardDb.userProfile.update?*", (route) =>
+    await page.route("**/api/trpc/dashboardV2.userProfile.update?*", (route) =>
       route.abort("failed"),
     );
     await profile.saveChangesButton.click();
@@ -747,7 +747,7 @@ for (const [device, viewport] of [
     );
     await expect(profile.saveChangesButton).toBeEnabled();
     await capture(page, `${device}-save-error`);
-    await page.unroute("**/api/trpc/dashboardDb.userProfile.update?*");
+    await page.unroute("**/api/trpc/dashboardV2.userProfile.update?*");
     await profile.saveChangesButton.click();
     await expect(saved).toBeVisible();
     await expect(profile.saveChangesButton).toBeDisabled();

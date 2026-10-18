@@ -9,7 +9,7 @@ import { withTempAppDb } from "@/lib/test-utils/app-test-db";
 vi.mock("server-only", () => ({}));
 
 describe("dashboard image deletion with SQLite", () => {
-  it("renumbers only the owned target and keeps linked asset order", async () => {
+  it("deletes only the owned image and leaves survivor order unchanged", async () => {
     await withTempAppDb(async ({ user }) => {
       const { db } = await import("@/server/db");
       const { dashboardDbImageRouter } = await import(
@@ -137,11 +137,11 @@ describe("dashboard image deletion with SQLite", () => {
       expect(
         Object.fromEntries(images.map((image) => [image.id, image.order])),
       ).toEqual({
-        "listing-b": 0,
-        "listing-c": 1,
-        "listing-d": 2,
-        "profile-b": 0,
-        "profile-c": 1,
+        "listing-b": 9,
+        "listing-c": 9,
+        "listing-d": 20,
+        "profile-b": 12,
+        "profile-c": 24,
         "other-image": 7,
       });
       const allOwnedListingImages = await db.image.findMany({
@@ -150,18 +150,21 @@ describe("dashboard image deletion with SQLite", () => {
         select: { order: true },
       });
       expect(allOwnedListingImages).toHaveLength(104);
-      expect(allOwnedListingImages.map((image) => image.order)).toEqual(
-        Array.from({ length: 104 }, (_, index) => index),
-      );
+      expect(allOwnedListingImages.map((image) => image.order)).toEqual([
+        9,
+        9,
+        20,
+        ...Array.from({ length: 101 }, (_, index) => 30 + index),
+      ]);
       const assets = await db.imageAsset.findMany({
         select: { id: true, order: true },
       });
       expect(
         Object.fromEntries(assets.map((asset) => [asset.id, asset.order])),
       ).toEqual({
-        "asset-listing-b": 0,
-        "asset-listing-d": 2,
-        "asset-profile-c": 1,
+        "asset-listing-b": 9,
+        "asset-listing-d": 20,
+        "asset-profile-c": 24,
       });
     });
   });

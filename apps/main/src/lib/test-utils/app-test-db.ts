@@ -207,9 +207,6 @@ export async function withTempAppDb<T>(
     const { setTestTrpcClient } = await import("@/trpc/client");
     setTestTrpcClient(clientLike);
 
-    const { setCurrentUserId } = await import("@/lib/utils/cursor");
-    setCurrentUserId(user.id);
-
     return await fn({ user: { id: user.id } });
   } finally {
     cleanup();
@@ -217,13 +214,6 @@ export async function withTempAppDb<T>(
     try {
       const { resetQueryClient } = await import("@/trpc/query-client");
       await resetQueryClient();
-    } catch {
-      // ignore
-    }
-
-    try {
-      const { setCurrentUserId } = await import("@/lib/utils/cursor");
-      setCurrentUserId(null);
     } catch {
       // ignore
     }

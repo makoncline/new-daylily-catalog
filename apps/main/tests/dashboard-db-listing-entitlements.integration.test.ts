@@ -24,7 +24,7 @@ async function createAuthedCaller(userId: string) {
     const user = await db.user.findUniqueOrThrow({ where: { id: userId } });
     return {
       db,
-      headers: new Headers(),
+      headers: new Headers({ "x-dashboard-member-id": user.id }),
       _authUser: user as unknown as TRPCInternalContext["_authUser"],
     } satisfies TRPCInternalContext;
   });
@@ -65,7 +65,7 @@ describe("dashboard listing creation entitlements", () => {
       await seedFreeTierLimit(db, user.id);
 
       await expect(
-        caller.dashboardDb.listing.create({ title: "One Too Many" }),
+        caller.dashboardV2.listing.create({ title: "One Too Many" }),
       ).rejects.toMatchObject({ code: "FORBIDDEN" });
       await expect(
         db.listing.count({ where: { userId: user.id } }),
@@ -96,7 +96,7 @@ describe("dashboard listing creation entitlements", () => {
       await seedFreeTierLimit(db, user.id);
 
       await expect(
-        caller.dashboardDb.listing.create({ title: "Allowed Listing" }),
+        caller.dashboardV2.listing.create({ title: "Allowed Listing" }),
       ).resolves.toMatchObject({ title: "Allowed Listing" });
       await expect(
         db.listing.count({ where: { userId: user.id } }),
@@ -132,10 +132,10 @@ describe("dashboard listing creation entitlements", () => {
       ];
 
       await expect(
-        caller.dashboardDb.listing.importRows({ rows }),
+        caller.dashboardV2.listing.importRows({ rows }),
       ).resolves.toMatchObject({ createdCount: 2, existingCount: 0 });
       await expect(
-        caller.dashboardDb.listing.importRows({ rows }),
+        caller.dashboardV2.listing.importRows({ rows }),
       ).resolves.toMatchObject({ createdCount: 0, existingCount: 2 });
 
       const listings = await db.listing.findMany({
@@ -179,10 +179,10 @@ describe("dashboard listing creation entitlements", () => {
       }));
 
       await expect(
-        caller.dashboardDb.listing.importRows({ rows }),
+        caller.dashboardV2.listing.importRows({ rows }),
       ).rejects.toMatchObject({ code: "FORBIDDEN" });
       await expect(
-        caller.dashboardDb.listing.importRows({ rows: [rows[0]!] }),
+        caller.dashboardV2.listing.importRows({ rows: [rows[0]!] }),
       ).resolves.toMatchObject({ createdCount: 1 });
       await expect(
         db.listing.count({ where: { userId: user.id } }),
@@ -218,7 +218,7 @@ describe("dashboard listing creation entitlements", () => {
         title: "Happy Returns",
       };
       await expect(
-        caller.dashboardDb.listing.importRows({ rows: [exactRow] }),
+        caller.dashboardV2.listing.importRows({ rows: [exactRow] }),
       ).resolves.toMatchObject({
         createdCount: 0,
         skippedExactCount: 1,
@@ -230,11 +230,11 @@ describe("dashboard listing creation entitlements", () => {
         price: 18,
       };
       await expect(
-        caller.dashboardDb.listing.importRows({ rows: [changedRow] }),
+        caller.dashboardV2.listing.importRows({ rows: [changedRow] }),
       ).rejects.toMatchObject({ code: "CONFLICT" });
 
       await expect(
-        caller.dashboardDb.listing.importRows({
+        caller.dashboardV2.listing.importRows({
           rows: [{ ...changedRow, allowExistingDuplicate: true }],
         }),
       ).resolves.toMatchObject({ createdCount: 1, skippedExactCount: 0 });

@@ -15,14 +15,15 @@ import { toast } from "sonner";
 import { useState } from "react";
 import { Copy, Pencil, Trash2 } from "lucide-react";
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
-import { deleteListing as deleteListingFromDb } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
+
 import { useConfirmableAsyncAction } from "@/hooks/use-confirmable-async-action";
 import { capturePosthogEvent } from "@/lib/analytics/posthog";
+import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
+import { api } from "@/trpc/react";
 
 interface DataTableRowActionsProps<TData> {
   row: Row<TData>;
   onEdit: (id: string) => void;
-  publicUserSlug?: string;
 }
 
 function getAbsoluteListingUrl(path: string) {
@@ -34,8 +35,10 @@ function getAbsoluteListingUrl(path: string) {
 }
 
 export function DataTableRowActions<
-  TData extends { id: string; slug?: string | null; userId?: string },
->({ row, onEdit, publicUserSlug }: DataTableRowActionsProps<TData>) {
+  TData extends { id: string; slug?: string | null; userId: string },
+>({ row, onEdit }: DataTableRowActionsProps<TData>) {
+  const utils = api.useUtils();
+  const { deleteListing: deleteListingFromDb } = useDashboardDb();
   const [open, setOpen] = useState(false);
   const {
     isDialogOpen: showDeleteDialog,
@@ -52,11 +55,12 @@ export function DataTableRowActions<
       toast.error("Failed to delete listing");
     },
   });
-  const publicListingPath = `/${publicUserSlug ?? row.original.userId ?? ""}/${
-    row.original.slug ?? row.original.id
-  }`;
-
   async function copyListingLink() {
+    const profile = utils.dashboardV2.userProfile.get.getData();
+    const publicOwner = profile?.slug?.length
+      ? profile.slug
+      : row.original.userId;
+    const publicListingPath = `/${publicOwner}/${row.original.slug ?? row.original.id}`;
     await navigator.clipboard.writeText(
       getAbsoluteListingUrl(publicListingPath),
     );
