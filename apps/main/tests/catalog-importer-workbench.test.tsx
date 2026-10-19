@@ -706,6 +706,53 @@ describe("CatalogImporterWorkbench", () => {
     expect(requestCultivarMatchesMock).not.toHaveBeenCalled();
   });
 
+  it("shows progress during automatic matching and stays on Start after clearing", async () => {
+    let finishMatching!: (results: CultivarNameMatchResult[]) => void;
+    requestCultivarMatchesMock.mockReturnValueOnce(
+      new Promise<CultivarNameMatchResult[]>((resolve) => {
+        finishMatching = resolve;
+      }),
+    );
+    render(<CatalogImporterWorkbench />);
+    uploadCsv(
+      `${createCatalogImportTemplateCsv().split(/\r?\n/)[0]}\nA.W. Shucks,12,Purple,Back bed`,
+    );
+    await waitFor(() =>
+      expect(requestCultivarMatchesMock).toHaveBeenCalledOnce(),
+    );
+    const status = screen.getByRole("status", {
+      name: "Building catalog preview",
+    });
+    expect(status).toBeVisible();
+    expect(status).toHaveTextContent("0 / 1");
+    expect(
+      screen.getByRole("progressbar", { name: "Cultivar matching progress" }),
+    ).toHaveAttribute("aria-valuenow", "0");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Clear local progress" }),
+    );
+    fireEvent.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Clear local progress",
+      }),
+    );
+    await act(async () => {
+      finishMatching(createSavedIdMatchResults());
+    });
+    expect(
+      screen.getByText("Drop a spreadsheet here, or choose a file"),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("status", { name: "Building catalog preview" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Map your columns" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("region", { name: "Catalog preview ready" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("retains the recognized file and mapping when matching fails, then retries", async () => {
     requestCultivarMatchesMock.mockRejectedValueOnce(
       new Error("Matching unavailable"),
