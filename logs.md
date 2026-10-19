@@ -215,3 +215,5 @@ check current code before applying them.
 - [2026-10-17] PostHog survey capture: posthog-js 1.438.10 adds survey response person properties to the captured event `$set`. It does not expose them through `get_property`. The return value confirms local capture, not delivery. Browser automation can pass `is_capturing()` and still return no capture because of bot filtering. For API survey tests, check the event contract and identity. Change bot filtering only in private fixtures.
 
 - [2026-10-17] Query command ordering: Direct collection writes use arrival order, not server row versions. Run dashboard commands and their canonical cache writes in one TanStack Query mutation scope. Exclude paused mutations from snapshot persistence. Do not nest the scoped runner. Check ordering with delayed real responses and a warm reload.
+
+[2026-10-18] Progress values: The shared Progress component uses value for its visual indicator but does not pass it to the Radix root. When numeric progress must be available to assistive technology, pass aria-valuenow with value. Check the named status and progress bar together in the affected flow.
