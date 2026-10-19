@@ -30,9 +30,17 @@ test("seller hides, publishes, and deletes selected listings without changing ot
         where: { id: "integration-favorites-list" },
         data: { listings: { connect: [{ id: "bulk-listing-0" }] } },
       });
+      await db.image.createMany({
+        data: [0, 20].map((index) => ({
+          id: `bulk-image-${index}`,
+          listingId: `bulk-listing-${index}`,
+          url: "/assets/bouquet.png",
+        })),
+      });
       await db.imageAsset.createMany({
         data: [0, 20].map((index) => ({
           id: `bulk-image-${index}`,
+          legacyImageId: `bulk-image-${index}`,
           kind: "listing",
           listingId: `bulk-listing-${index}`,
           displayUrl: "/assets/bouquet.png",
@@ -102,7 +110,8 @@ test("seller hides, publishes, and deletes selected listings without changing ot
     { clearFirst: false },
   );
 
-  await dashboardListings.pagerNextButton.click();
+  if (await dashboardListings.pagerNextButton.isEnabled())
+    await dashboardListings.pagerNextButton.click();
   await select("Bulk Bloom 21").check();
   await dashboardListings.setGlobalSearch("Bulk Bloom 00");
   await select("Bulk Bloom 00").check();
@@ -247,6 +256,12 @@ test("seller hides, publishes, and deletes selected listings without changing ot
       expect(
         await db.imageAsset.findUnique({ where: { id: "bulk-image-0" } }),
       ).toBeNull();
+      expect(
+        await db.image.findUnique({ where: { id: "bulk-image-0" } }),
+      ).toBeNull();
+      expect(
+        await db.image.findUnique({ where: { id: "bulk-image-20" } }),
+      ).toMatchObject({ listingId: "bulk-listing-20" });
       expect(
         await db.imageAsset.findUnique({ where: { id: "bulk-image-20" } }),
       ).not.toBeNull();
