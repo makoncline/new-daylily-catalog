@@ -1,19 +1,22 @@
+import { usageScalar } from "@/server/observability/api-usage";
+import { logEvent, safeUrl } from "@/lib/telemetry";
+
 type AuditValue = boolean | null | number | string | undefined;
 
 interface AuditUser {
   id?: string | null;
   clerkUserId?: string | null;
-  clerk?: {
-    email?: string | null;
-  } | null;
 }
 
 interface LogUserMutationInput {
   path: string;
   user: AuditUser;
   rawInput: unknown;
+  persistedResult?: unknown;
   requestUrl?: string;
-  headers?: Headers;
+  oauthClientId?: string;
+  oauthScope?: string;
+  mcpToolName?: string;
   status: "success" | "error";
   durationMs: number;
   errorCode?: string;
@@ -23,26 +26,11 @@ interface LogUserAuthInput {
   action: "signup" | "signin";
   appUserId?: string | null;
   clerkUserId?: string | null;
-  email?: string | null;
   source: string;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function asAuditValue(value: unknown): AuditValue {
-  if (
-    typeof value === "string" ||
-    typeof value === "number" ||
-    typeof value === "boolean" ||
-    value === null ||
-    typeof value === "undefined"
-  ) {
-    return value;
-  }
-
-  return undefined;
 }
 
 function pickInputIdentifiers(input: unknown): Record<string, AuditValue> {
@@ -62,13 +50,14 @@ function pickInputIdentifiers(input: unknown): Record<string, AuditValue> {
   ];
 
   for (const key of idKeys) {
-    const value = asAuditValue(input[key]);
+    const value = usageScalar(input[key]);
     if (typeof value !== "undefined") {
       summary[key] = value;
     }
   }
 
-  for (const [key, value] of Object.entries(input)) {
+  for (const key of ["ids", "listingIds", "imageIds", "images", "rows"]) {
+    const value = input[key];
     if (Array.isArray(value)) {
       summary[`${key}Count`] = value.length;
     }
@@ -77,53 +66,70 @@ function pickInputIdentifiers(input: unknown): Record<string, AuditValue> {
   return summary;
 }
 
-function requestIdFromHeaders(headers?: Headers) {
-  return (
-    headers?.get("x-vercel-id") ??
-    headers?.get("x-request-id") ??
-    headers?.get("cf-ray") ??
-    undefined
-  );
-}
-
 export function logUserMutation({
   path,
   user,
   rawInput,
+  persistedResult,
   requestUrl,
-  headers,
+  oauthClientId,
+  oauthScope,
+  mcpToolName,
   status,
   durationMs,
   errorCode,
 }: LogUserMutationInput) {
-  console.info(JSON.stringify({
-    event: "user_mutation",
+  logEvent("info", "user_mutation", {
+    event_id: crypto.randomUUID(),
     status,
-    path,
+    procedure: path,
     appUserId: user.id ?? undefined,
     clerkUserId: user.clerkUserId ?? undefined,
-    email: user.clerk?.email ?? undefined,
-    requestId: requestIdFromHeaders(headers),
-    requestUrl,
-    durationMs,
-    errorCode,
+    requestUrl: requestUrl ? safeUrl(requestUrl) : undefined,
+    oauthClientId,
+    oauthScope,
+    mcpToolName,
+    clientRequestId:
+      isRecord(rawInput) && typeof rawInput.requestId === "string"
+        ? rawInput.requestId.slice(0, 200)
+        : undefined,
+    duration_ms: durationMs,
+    error_code: errorCode,
     ...pickInputIdentifiers(rawInput),
-  }));
+    ...(status === "success" && isRecord(persistedResult)
+      ? {
+          saved: Object.fromEntries(
+            [
+              "id",
+              "title",
+              "price",
+              "status",
+              "cultivarReferenceId",
+              "updatedAt",
+              "listId",
+              "listingId",
+              "count",
+            ].flatMap((key) => {
+              const value = usageScalar(persistedResult[key]);
+              return value === undefined ? [] : [[key, value]];
+            }),
+          ),
+          saved_evidence: "persisted_result",
+        }
+      : {}),
+  });
 }
 
 export function logUserAuth({
   action,
   appUserId,
   clerkUserId,
-  email,
   source,
 }: LogUserAuthInput) {
-  console.info(JSON.stringify({
-    event: "user_auth",
+  logEvent("info", "user_auth", {
     action,
     appUserId,
     clerkUserId,
-    email,
     source,
-  }));
+  });
 }

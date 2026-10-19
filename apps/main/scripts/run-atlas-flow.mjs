@@ -30,7 +30,14 @@ import {
   resolveRealisticDataOutputPath,
 } from "./realistic-data-snapshot.mjs";
 import { assertNoUnexpectedBrowserDiagnostics } from "./atlas-browser-diagnostics.mjs";
-const ATLAS_HEALTH_PATH = "/api/runtime-config";
+import {
+  ATLAS_MEDIA_FLOW_IDS,
+  createAtlasMediaSnapshot,
+} from "./atlas-media-fixtures.mjs";
+import {
+  assertAtlasAppReady,
+  assertAtlasPortAvailable,
+} from "./atlas-app-readiness.mjs";
 const appRoot = path.resolve(import.meta.dirname, "..");
 const repoRoot = path.resolve(appRoot, "../..");
 const [requestedFlowId, outputArgument, ...unexpected] = process.argv.slice(2);
@@ -43,6 +50,18 @@ if (
 
 const flows =
   requestedFlowId === "all" ? ATLAS_FLOWS : [getAtlasFlow(requestedFlowId)];
+const mediaFlowIds = flows
+  .map((flow) => flow.id)
+  .filter((id) => ATLAS_MEDIA_FLOW_IDS.includes(id));
+if (
+  mediaFlowIds.length &&
+  (process.env.BASE_URL ||
+    process.env.DATABASE_URL ||
+    process.env.ATLAS_DATABASE_URL)
+)
+  throw new Error(
+    "Atlas media fixtures require a managed disposable database. Unset BASE_URL, DATABASE_URL, and ATLAS_DATABASE_URL.",
+  );
 validateAtlasFlows({ appRoot });
 const outputDirectory = path.resolve(process.cwd(), outputArgument.slice(9));
 const finalServerLogPath = path.join(outputDirectory, "server.log");
@@ -106,25 +125,18 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
     });
   });
 }
-async function isHealthy() {
-  try {
-    const response = await fetch(new URL(ATLAS_HEALTH_PATH, baseURL), {
-      signal: AbortSignal.timeout(5_000),
-    });
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
 async function startServer() {
-  if (await isHealthy()) {
-    if (process.env.BASE_URL) return;
-    throw new Error(
-      `${baseURL} is already serving an app. Stop it or pass BASE_URL explicitly to reuse it.`,
-    );
+  if (process.env.BASE_URL) {
+    try {
+      await assertAtlasAppReady(baseURL);
+    } catch (error) {
+      throw new Error(
+        `BASE_URL app is not ready: ${baseURL}. ${error.message}`,
+      );
+    }
+    return;
   }
-  if (process.env.BASE_URL)
-    throw new Error(`BASE_URL is not healthy: ${process.env.BASE_URL}`);
+  await assertAtlasPortAvailable(baseURL);
   for (const envPath of [
     path.join(repoRoot, ".env.development"),
     path.join(appRoot, ".env.development"),
@@ -145,9 +157,14 @@ async function startServer() {
       throw new Error(
         "Seeded database missing. Run `pnpm db:seed:prepare` first.",
       );
-    disposableDatabase = await createDisposableRealisticDataSnapshot({
-      sourcePath: seededDatabase,
-    });
+    disposableDatabase = mediaFlowIds.length
+      ? await createAtlasMediaSnapshot({
+          sourcePath: seededDatabase,
+          flowIds: mediaFlowIds,
+        })
+      : await createDisposableRealisticDataSnapshot({
+          sourcePath: seededDatabase,
+        });
     databaseUrl = `file:${disposableDatabase.databasePath}`;
   }
   atlasDatabaseUrl = databaseUrl;
@@ -162,7 +179,11 @@ async function startServer() {
       DATABASE_URL: databaseUrl,
       NEXT_PUBLIC_POSTHOG_KEY: "",
       NEXT_PUBLIC_SENTRY_ENABLED: "false",
-      PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS: "0",
+      PLAYWRIGHT_LOCAL_E2E: flows.some(
+        (flow) => flow.id === "onboarding-membership",
+      )
+        ? "true"
+        : process.env.PLAYWRIGHT_LOCAL_E2E,
       RUNTIME_FEATURE_FLAGS_PATH: runtimeFlagsPath,
       TURSO_DATABASE_AUTH_TOKEN: "",
       TURSO_EMBEDDED_REPLICA_URL: "",
@@ -170,14 +191,27 @@ async function startServer() {
     },
   });
   const deadline = Date.now() + 120_000;
+  let readinessFailure = "The owned Next listener has not started.";
   while (Date.now() < deadline) {
     if (server.exitCode !== null)
       throw new Error(`Atlas dev server exited early. See ${serverLogPath}.`);
-    if (await isHealthy()) return;
+    // Next emits this line after its own listener binds the requested port.
+    if (readFileSync(serverLogPath, "utf8").includes("Ready in ")) {
+      try {
+        await assertAtlasAppReady(baseURL);
+        if (server.exitCode !== null)
+          throw new Error(
+            `Atlas dev server exited early. See ${serverLogPath}.`,
+          );
+        return;
+      } catch (error) {
+        readinessFailure = error.message;
+      }
+    }
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
   throw new Error(
-    `Atlas dev server was not ready at ${baseURL}. See ${serverLogPath}.`,
+    `Atlas dev server was not ready at ${baseURL}. ${readinessFailure} See ${serverLogPath}.`,
   );
 }
 try {

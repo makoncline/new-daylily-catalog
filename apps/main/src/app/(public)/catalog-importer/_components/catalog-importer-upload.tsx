@@ -34,7 +34,6 @@ import { Spinner } from "@/components/ui/spinner";
 import { MAX_CATALOG_IMPORT_FILE_BYTES } from "@/lib/catalog-importer-file";
 import { cn } from "@/lib/utils";
 import type { CatalogImporterWorkbenchController } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
-import type { CatalogImporterSourceDestination } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
 
 const ACCEPTED_FILES = {
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
@@ -47,7 +46,7 @@ interface CatalogImporterUploadProps {
   controller: CatalogImporterWorkbenchController;
   onClear?: () => void;
   onEditMapping?: () => void;
-  onSourceReady?: (destination: CatalogImporterSourceDestination) => void;
+  onSourceReady?: (destination: "prepare" | "preview") => void;
   showClear?: boolean;
 }
 

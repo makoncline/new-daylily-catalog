@@ -1,3 +1,5 @@
+import { getLogContext } from "@/lib/telemetry";
+import { withUsageRequest } from "@/server/observability/api-usage";
 import { NextResponse } from "next/server";
 import { getTrustedBaseUrl } from "@/lib/agent-readiness";
 import { reportError } from "@/lib/error-utils";
@@ -9,7 +11,6 @@ import {
 } from "@/server/search/public-search-api-platform";
 import { searchCultivars } from "@/server/search/cultivar-search";
 import {
-  getRequestId,
   getTelemetryHeaders,
   logSearchRequest,
 } from "@/server/search/cultivar-search-request-telemetry";
@@ -58,12 +59,16 @@ function getSummaryLimit(params: URLSearchParams) {
 }
 
 export async function GET(request: Request) {
+  return withUsageRequest(request, "public_api", () => handleSearch(request));
+}
+
+async function handleSearch(request: Request) {
   if (!isPublicSearchApiEnabled()) {
     return getPublicSearchApiDisabledResponse();
   }
 
   const startedAt = performance.now();
-  const requestId = getRequestId(request.headers);
+  const requestId = getLogContext().correlation_id;
   const { searchParams } = new URL(request.url);
   const summaryMode = searchParams.get("mode") === "summary";
   const mode = summaryMode ? "summary" : "full";
@@ -108,6 +113,7 @@ export async function GET(request: Request) {
       priceMax: getNumberParam(searchParams, "priceMax"),
       priceMin: getNumberParam(searchParams, "priceMin"),
       q: searchParams.get("q") ?? undefined,
+      rebloom: getBooleanParam(searchParams, "rebloom"),
       scapeHeightMax: getNumberParam(searchParams, "scapeHeightMax"),
       scapeHeightMin: getNumberParam(searchParams, "scapeHeightMin"),
       sculptedType: searchParams.get("sculptedType") ?? undefined,
@@ -194,7 +200,7 @@ export async function GET(request: Request) {
     reportError({
       error,
       context: {
-        requestId,
+        correlation_id: requestId,
         source: "public-cultivar-search",
       },
     });

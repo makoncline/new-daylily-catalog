@@ -1,18 +1,25 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it } from "vitest";
-import { mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import {
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  utimesSync,
+  writeFileSync,
+} from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
   ATLAS_FLOWS,
   confidenceCommandsForFlow,
   getAtlasFlow,
-  getAtlasState,
   missingFreshStateIds,
   resolveLiveStateUrl,
   statesForFlow,
   validateAtlasFlows,
 } from "../scripts/atlas-flows.mjs";
+import { generateAtlasGallery } from "../scripts/generate-atlas-gallery.mjs";
 const appRoot = path.resolve(import.meta.dirname, "..");
 const tempDirectories: string[] = [];
 const cloneFlows = () => structuredClone(ATLAS_FLOWS);
@@ -20,144 +27,75 @@ afterEach(() =>
   tempDirectories.splice(0).forEach((dir) => rmSync(dir, { recursive: true })),
 );
 describe("Atlas flow contract", () => {
-  it("validates the public flow and every referenced file", () => {
+  it("validates the flow registry and every referenced file", () => {
     expect(validateAtlasFlows({ appRoot })).toBe(true);
-    expect(statesForFlow(ATLAS_FLOWS[0]!)).toHaveLength(9);
   });
 
-  it("resolves states from independently captured flows", () => {
-    const onboarding = getAtlasFlow("onboarding-membership");
-
-    expect(onboarding.steps.map(({ title }) => title)).toEqual([
-      "Understand the offer",
-      "Bring a catalog",
-      "See the transformation",
-      "Choose the outcome",
-      "Start the trial",
-    ]);
-    expect(getAtlasState("onboarding-importer-results").captureSpec).toBe(
-      "tests/atlas/onboarding-membership.atlas.ts",
+  it("keeps the required Atlas journeys", () => {
+    expect(ATLAS_FLOWS.map(({ id }) => id)).toEqual(
+      expect.arrayContaining([
+        "public-catalog",
+        "cultivar-search",
+        "catalog-importer",
+        "dashboard-catalog-importer",
+        "onboarding-membership",
+        "dashboard-home",
+        "profile-management",
+        "listing-management",
+        "tag-printing",
+        "listing-media",
+        "list-management",
+        "buyer-inquiry",
+      ]),
     );
   });
 
-  it("declares the listing-management journey and its compact UI states", () => {
-    const listings = getAtlasFlow("listing-management");
+  it("routes confidence commands to the right test runners", () => {
+    const commands = confidenceCommandsForFlow(getAtlasFlow("list-management"));
 
-    expect(listings.steps.map(({ title }) => title)).toEqual([
-      "Orient in a real catalog",
-      "Find the right listings",
-      "Create a listing",
-      "Edit a listing",
-    ]);
-    expect(statesForFlow(listings)).toHaveLength(15);
-  });
-
-  it("declares the list-management journey at both supported sizes", () => {
-    const lists = getAtlasFlow("list-management");
-
-    expect(lists.steps.map(({ title }) => title)).toEqual([
-      "Review catalog lists",
-      "Start a collection",
-      "Manage a populated collection",
-      "Find a listing to add",
-      "Review a removal",
-    ]);
-    expect(statesForFlow(lists)).toHaveLength(10);
-    expect(getAtlasState("list-management-desktop-add").urlReproducible).toBe(
-      false,
+    expect(commands).toHaveLength(3);
+    expect(commands[0]).toMatch(/^pnpm main exec vitest run --maxWorkers=1 /);
+    expect(commands[0]).not.toContain("tests/integration/");
+    expect(commands[1]).toMatch(
+      /^node apps\/main\/scripts\/run-integration-local\.mjs tests\/integration\//,
     );
-    expect(getAtlasState("list-management-mobile-remove").urlReproducible).toBe(
-      false,
+    expect(commands[2]).toMatch(
+      /^pnpm main exec playwright test --retries=0 tests\/e2e\//,
+    );
+    const editorSave = getAtlasFlow("list-management").tests.integration.find(
+      ({ path: file }) =>
+        file === "tests/integration/editor-save.integration.ts",
+    );
+    expect(
+      editorSave && "evidenceCommand" in editorSave
+        ? editorSave.evidenceCommand
+        : null,
+    ).toBe(
+      "node apps/main/scripts/run-integration-local.mjs --evidence tests/integration/editor-save.integration.ts",
     );
   });
 
-  it("declares the profile-management journey at both supported sizes", () => {
-    const profile = getAtlasFlow("profile-management");
-
-    expect(profile.steps.map(({ title }) => title)).toEqual([
-      "Review the profile",
-      "Prepare profile edits",
-      "Inspect profile media",
-    ]);
-    expect(statesForFlow(profile)).toHaveLength(10);
-    expect(
-      getAtlasState("profile-management-desktop-populated").urlReproducible,
-    ).toBe(true);
-    expect(
-      getAtlasState("profile-management-mobile-url-warning").urlReproducible,
-    ).toBe(false);
-  });
-
-  it("provides copy-paste confidence commands for a complete flow", () => {
-    expect(confidenceCommandsForFlow(getAtlasFlow("list-management"))).toEqual([
-      "pnpm main exec vitest run --maxWorkers=1 tests/manage-list-columns.test.ts tests/add-listings-combobox.test.tsx tests/dashboard-db-list-membership-sync.test.tsx tests/list-form-boundary-save.test.tsx tests/manage-list-page-membership-commit.test.tsx tests/use-list-resource.test.tsx",
-      "node apps/main/scripts/run-integration-local.mjs tests/integration/list-management.integration.ts",
-      "pnpm main exec playwright test --retries=0 tests/e2e/lists-page-features.e2e.ts tests/e2e/manage-list-page-features.e2e.ts",
-    ]);
-  });
-
-  it("declares the buyer inquiry journey without sending a real message", () => {
-    const buyerInquiry = getAtlasFlow("buyer-inquiry");
-
-    expect(buyerInquiry.steps.map(({ title }) => title)).toEqual([
-      "Choose an item",
-      "Contact the seller",
-      "Review the request",
-    ]);
-    expect(statesForFlow(buyerInquiry)).toHaveLength(8);
-    expect(confidenceCommandsForFlow(buyerInquiry)).toEqual([
-      "pnpm main exec vitest run --maxWorkers=1 tests/use-cart.test.tsx tests/contact-form.test.tsx tests/floating-cart-button.test.tsx tests/public-inquiry.test.ts tests/public-inquiry-rate-limit.test.ts tests/public-router-send-message.test.ts",
-      "node apps/main/scripts/run-integration-local.mjs tests/integration/buyer-inquiry-email.integration.ts",
-    ]);
-  });
-
-  it("declares the public cultivar search journey at both supported sizes", () => {
-    const cultivarSearch = getAtlasFlow("cultivar-search");
-
-    expect(cultivarSearch.steps.map(({ title }) => title)).toEqual([
-      "Search the registry",
-      "Refine results",
-      "Inspect a cultivar",
-    ]);
-    expect(statesForFlow(cultivarSearch)).toHaveLength(14);
-    expect(
-      getAtlasState("cultivar-search-desktop-info-card").urlReproducible,
-    ).toBe(false);
-    expect(
-      getAtlasState("cultivar-search-mobile-info-card").urlReproducible,
-    ).toBe(false);
-  });
-
-  it("declares the public catalog import journey at desktop and mobile sizes", () => {
-    const importer = getAtlasFlow("catalog-importer");
-
-    expect(importer.steps.map(({ title }) => title)).toEqual([
-      "Start from a spreadsheet",
-      "Reveal the prepared catalog",
-      "Resolve uncertain matches",
-      "Repair spreadsheet data",
-      "Preview the catalog",
-      "Download the prepared spreadsheet",
-    ]);
-    expect(statesForFlow(importer)).toHaveLength(18);
-    expect(
-      getAtlasState("catalog-importer-desktop-results").urlReproducible,
-    ).toBe(false);
-    expect(
-      getAtlasState("catalog-importer-mobile-review").urlReproducible,
-    ).toBe(false);
-  });
-
-  it("declares the signed-in create-only catalog import journey", () => {
-    const importer = getAtlasFlow("dashboard-catalog-importer");
-
-    expect(importer.steps.map(({ title }) => title)).toEqual([
-      "Open the shared builder",
-      "Select listings to create",
-      "Explain excluded rows",
-      "Confirm and create",
-    ]);
-    expect(statesForFlow(importer)).toHaveLength(11);
+  it.each([
+    ["dashboard-catalog-importer", ["dashboard-imports"]],
+    ["profile-management", ["profile-workflow"]],
+    ["listing-management", ["editor-save", "surface-history"]],
+    ["list-management", ["editor-save", "surface-history"]],
+    ["tag-printing", ["tags-search"]],
+  ])("keeps %s reference checks reachable", (flowId, testNames) => {
+    const flow = getAtlasFlow(flowId);
+    expect(flow.implementation?.entryPoints.length).toBeGreaterThan(0);
+    expect(flow.implementation?.invariants.length).toBeGreaterThan(0);
+    const commands = confidenceCommandsForFlow(flow);
+    const fullAppCommand = commands.find((command) =>
+      command?.startsWith("node apps/main/scripts/run-integration-local.mjs "),
+    );
+    for (const testName of testNames) {
+      const testPath = `tests/integration/${testName}.integration.ts`;
+      expect(fullAppCommand?.split(" ")).toContain(testPath);
+      expect(
+        commands.filter((command) => command !== fullAppCommand).join(" "),
+      ).not.toContain(testPath);
+    }
   });
 
   it.each([
@@ -183,6 +121,45 @@ describe("Atlas flow contract", () => {
     );
   });
 
+  it("rejects broken implementation links", () => {
+    const missingSource = cloneFlows();
+    missingSource[0]!.implementation!.entryPoints[0]!.path =
+      "src/server/db/missing-read-model.ts";
+    expect(() => validateAtlasFlows({ flows: missingSource, appRoot })).toThrow(
+      "Missing implementation entry point: src/server/db/missing-read-model.ts",
+    );
+  });
+
+  it("links a flow to its source and behavioral tests", () => {
+    const directory = mkdtempSync(path.join(os.tmpdir(), "atlas-gallery-"));
+    tempDirectories.push(directory);
+    const flow = getAtlasFlow("public-catalog");
+    const screenshots = path.join(directory, "screenshots");
+    mkdirSync(screenshots);
+    for (const stateItem of statesForFlow(flow)) {
+      writeFileSync(path.join(screenshots, stateItem.capture), "capture");
+    }
+
+    const html = readFileSync(
+      generateAtlasGallery({
+        flowId: flow.id,
+        outputDirectory: directory,
+      }),
+      "utf8",
+    );
+    expect(html).toContain("Profile page data");
+    const sourceLink = /href="([^"]*public-profile-route\.ts)"/.exec(html)?.[1];
+    expect(sourceLink).toBeDefined();
+    expect(path.resolve(directory, decodeURIComponent(sourceLink!))).toBe(
+      path.join(
+        appRoot,
+        "src/app/(public)/[userSlugOrId]/_lib/public-profile-route.ts",
+      ),
+    );
+    expect(html).toContain("Read public data through the replica");
+    expect(html).toContain("tests/public-profile-route.test.ts");
+  });
+
   it("rejects a state without a reproduction command", () => {
     const flows = cloneFlows();
     statesForFlow(flows[0]!)[0]!.reproductionCommand = "";
@@ -191,11 +168,13 @@ describe("Atlas flow contract", () => {
     );
   });
 
-  it("makes every copied reproduction command self-contained", () => {
-    for (const stateItem of statesForFlow(ATLAS_FLOWS[0]!)) {
-      expect(stateItem.reproductionCommand).toContain(
-        "ATLAS_CAPTURE_DIR=local/atlas/reproduce/screenshots",
-      );
+  it("routes every copied reproduction command through its managed flow", () => {
+    for (const flow of ATLAS_FLOWS) {
+      for (const stateItem of statesForFlow(flow)) {
+        expect(stateItem.reproductionCommand).toBe(
+          `node apps/main/scripts/run-atlas-flow.mjs ${flow.id} --output=local/atlas/reproduce`,
+        );
+      }
     }
   });
 

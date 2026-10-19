@@ -1,73 +1,25 @@
-# Database Backup System
+# Database Backup and Local Snapshot
 
-This repository includes automated database backup scripts and GitHub Actions workflows to regularly backup the Turso database to AWS S3.
+`.github/workflows/db-backup.yml` runs at 02:00 UTC each day and can be started
+manually. Its `ops` environment needs `AWS_ACCESS_KEY_ID`,
+`AWS_SECRET_ACCESS_KEY`, and `TURSO_API_TOKEN`. It uploads SQL zip files to the
+`daylily-catalog-db-backup` S3 bucket in `us-east-1`.
 
-## Setup Instructions
+To create a verified local production copy, run from the repository root:
 
-### GitHub Secrets
-
-To enable automated backups, add the following secrets to your GitHub repository:
-
-1. Go to your GitHub repository → Settings → Secrets and variables → Actions
-2. Add the following secrets:
-   - `AWS_ACCESS_KEY_ID`: Your AWS access key with S3 write permissions
-   - `AWS_SECRET_ACCESS_KEY`: Your AWS secret access key
-   - `TURSO_API_TOKEN`: Your Turso API token for database access
-
-### AWS S3 Bucket
-
-Ensure you have an S3 bucket named `daylily-catalog-db-backup` in the `us-east-1` region, or update the bucket name and region in the script.
-
-## Backup Process
-
-- The GitHub Actions workflow runs automatically every day at 02:00 UTC
-- You can also trigger a manual backup by running the workflow from the Actions tab
-- The backup script:
-  1. Creates a database dump from Turso
-  2. Compresses the dump file
-  3. Uploads the compressed file to S3
-  4. Cleans up temporary files
-
-## Restore Process
-
-To restore a backup:
-
-```bash
-# Download the backup file from S3 (if needed) or manually
-aws s3 cp s3://daylily-catalog-db-backup/BACKUP_FILENAME.sql.zip ./
-
-# Run the restore script
-./scripts/restore-backup.sh -z BACKUP_FILENAME.sql.zip -o path/to/output/database.db
+```sh
+CI=false pnpm env:dev bash scripts/db-backup.sh
 ```
 
-## Local Testing
-
-To test the backup script locally:
-
-```bash
-# Set required environment variables
-export TURSO_API_TOKEN="your_turso_api_token"
-export AWS_ACCESS_KEY_ID="your_aws_access_key"
-export AWS_SECRET_ACCESS_KEY="your_aws_secret_key"
-export CI="false"  # Set to true to upload to S3, false for local verification only
-
-# Run the backup script using the development environment variables
-pnpm env:dev bash scripts/db-backup.sh
-# start the dev server pointing to the local-prod-copy-daylily-catalog.db database
-DATABASE_URL="file:/absolute/path/to/prisma/local-prod-copy-daylily-catalog.db" pnpm dev
-```
-
-If `CI` is set to `false`, the script verifies the backup and writes the local
-copy to
+The default destination is
 `apps/main/prisma/local-prod-copy-daylily-catalog.db` in the primary checkout.
-This is also the destination when the command is run from a linked worktree.
-Run `pnpm db:seed:prepare` from a worktree when you want its normal sanitized,
-realistic development database derived from that shared production snapshot.
+The script restores into a temporary file and replaces the copy after it
+succeeds. It does not change production data.
 
-### Linked Worktrees
+## Linked worktrees
 
-For an exceptional workflow that needs the full snapshot inside a linked
-worktree, copy it explicitly:
+The backup command still writes to the primary checkout. When a procedure
+needs the full snapshot in a linked worktree, copy it explicitly:
 
 ```sh
 PRIMARY_CHECKOUT="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
@@ -75,3 +27,43 @@ CURRENT_CHECKOUT="$(git rev-parse --show-toplevel)"
 cp "$PRIMARY_CHECKOUT/apps/main/prisma/local-prod-copy-daylily-catalog.db" \
   "$CURRENT_CHECKOUT/apps/main/prisma/local-prod-copy-daylily-catalog.db"
 ```
+
+## Restore an archived backup locally
+
+```sh
+aws s3 cp s3://daylily-catalog-db-backup/BACKUP_FILENAME.sql.zip ./
+cd apps/main
+bash scripts/restore-backup.sh -z ../../BACKUP_FILENAME.sql.zip -o path/to/output/database.db
+```
+
+Inspect the restored database before any separate production recovery action.
+
+## Test an archived backup
+
+Use an existing S3 object for this test. The backup command above creates a
+new remote dump; the restore command tests the stored archive.
+
+1. Check the latest successful `Database Backup` workflow. Match its upload
+   filename to an object in `daylily-catalog-db-backup`.
+2. Download that object into a private directory under
+   `apps/main/tests/.tmp/`. Verify the S3 checksum and the ZIP CRC.
+3. Run `scripts/restore-backup.sh` with a new output database path. The script
+   imports into the named database, so always use an empty destination.
+4. Run these checks on the local restored file:
+
+   ```sh
+   sqlite3 -readonly path/to/restored.db 'PRAGMA integrity_check; PRAGMA foreign_key_check;'
+   ```
+
+   Expect `ok` from the integrity check and no rows from the foreign key check.
+   Confirm that all expected tables and their rows were restored. Keep member
+   records out of reports.
+5. For an index change, copy the restored database and apply the exact tracked
+   SQL to the copy in a transaction. Check integrity, index columns, and query
+   plans. Compare table counts and data hashes before and after the change.
+6. Save the workflow URL, S3 object key, checksums, and test results. Remove
+   temporary dumps and databases after the test.
+
+The scheduled workflow creates and uploads the archive. It does not run this
+restore test. An archived-backup test also does not replace the fresh backup
+required immediately before an approved production schema change.

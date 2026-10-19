@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
 
@@ -28,16 +28,10 @@ describe("useUnsavedChangesGuard", () => {
     expect(window.confirm).toHaveBeenCalledTimes(1);
   });
 
-  it("restores the editor when browser Back is cancelled", () => {
-    vi.spyOn(window, "confirm").mockReturnValue(false);
-    const forward = vi
-      .spyOn(window.history, "forward")
-      .mockImplementation(() => {});
+  it("blocks document exit while the editor has unsaved changes", () => {
     render(<GuardHarness />);
-
-    fireEvent(window, new PopStateEvent("popstate"));
-
-    expect(window.confirm).toHaveBeenCalledTimes(1);
-    expect(forward).toHaveBeenCalledTimes(1);
+    const unload = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(unload);
+    expect(unload.defaultPrevented).toBe(true);
   });
 });

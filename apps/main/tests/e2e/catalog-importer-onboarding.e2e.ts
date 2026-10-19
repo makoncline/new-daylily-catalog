@@ -4,6 +4,7 @@ import { deleteClerkUserByEmail, getClerkUserIdByEmail } from "./utils/clerk";
 import { withTempE2EDb } from "../../src/lib/test-utils/e2e-db";
 import { SUBSCRIPTION_CONFIG } from "../../src/config/subscription-config";
 import { mockCultivarMatches } from "./utils/catalog-importer";
+import { LOCAL_E2E_CHECKOUT_EMAIL } from "../../src/server/catalog-importer/local-checkout";
 
 const TEST_CODE = "424242";
 const MATCHED_SAMPLE_CULTIVAR_NAMES = [
@@ -109,11 +110,10 @@ test.describe("importer-first seller onboarding @local", () => {
   test("previews a catalog, starts Pro, and reaches the preserved import", async ({
     page,
     homePage,
-  }, testInfo) => {
+  }) => {
     test.slow();
 
-    const runId = `${Date.now()}-${testInfo.workerIndex}-${testInfo.repeatEachIndex}-${testInfo.retry}`;
-    const email = `importer-onboarding+clerk_test_${runId}@example.com`;
+    const email = LOCAL_E2E_CHECKOUT_EMAIL;
     let checkoutSessionId: string | null = null;
     let clerkUserId: string | null = null;
 
@@ -159,18 +159,9 @@ test.describe("importer-first seller onboarding @local", () => {
 
       await page
         .getByRole("button", {
-          name: SUBSCRIPTION_CONFIG.COPY.CTA.START_TRIAL,
+          name: SUBSCRIPTION_CONFIG.COPY.CTA.CONTINUE_TO_CHECKOUT,
         })
         .first()
-        .click();
-      await expect(page).toHaveURL(
-        /\/catalog-importer\/checkout\?.*entry=catalog_importer/,
-      );
-      await page.getByLabel("Email address").fill(email);
-      await page
-        .getByRole("button", {
-          name: SUBSCRIPTION_CONFIG.COPY.CTA.CONTINUE_TO_TRIAL,
-        })
         .click();
       await expect(page).toHaveURL(
         /\/catalog-importer\/checkout\/success\?session_id=cs_test_catalog_importer_/,
@@ -244,7 +235,7 @@ test.describe("importer-first seller onboarding @local", () => {
       expect(
         dbState.listings.every((listing) => listing.cultivarReferenceId),
       ).toBe(true);
-      expect(dbState.subscriptionCache).toContain('"status":"trialing"');
+      expect(dbState.subscriptionCache).toContain('"status":"active"');
     } finally {
       clerkUserId ??= await getClerkUserIdByEmail(email).catch(() => null);
       try {

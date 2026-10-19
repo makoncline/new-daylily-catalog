@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import { buildDashboardStats } from "@/app/dashboard/_lib/build-dashboard-stats";
 import type { RouterOutputs } from "@/trpc/react";
 
-type Listing = RouterOutputs["dashboardDb"]["listing"]["list"][number];
-type List = RouterOutputs["dashboardDb"]["list"]["list"][number];
-type Image = RouterOutputs["dashboardDb"]["image"]["list"][number];
-type UserProfile = RouterOutputs["dashboardDb"]["userProfile"]["get"];
+type Listing = RouterOutputs["dashboardV2"]["listing"]["list"][number];
+type List = RouterOutputs["dashboardV2"]["list"]["list"][number];
+type Image = RouterOutputs["dashboardV2"]["image"]["list"][number];
+type UserProfile = RouterOutputs["dashboardV2"]["userProfile"]["get"];
 
 const now = new Date("2026-02-24T10:00:00.000Z");
 

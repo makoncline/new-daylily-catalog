@@ -64,34 +64,27 @@ export const integrationNetworkHandlers = [
       </SendEmailResponse>
     `);
   }),
-  http.get("*/v1/prices/:priceId", ({ params }) =>
-    HttpResponse.json({
-      id: params.priceId,
+  http.get("*/v1/prices", () => {
+    return HttpResponse.json({
       object: "price",
-      active: true,
-      currency: "usd",
-      recurring: { interval: "year", interval_count: 1 },
-      type: "recurring",
-      unit_amount: 4900,
-      unit_amount_decimal: "4900",
-    }),
-  ),
+      data: [
+        {
+          id: "price_integration_monthly",
+          object: "price",
+          active: true,
+          currency: "usd",
+          product: "prod_integration_membership",
+          recurring: { interval: "month", interval_count: 1 },
+          type: "recurring",
+          unit_amount: 1299,
+          unit_amount_decimal: "1299",
+        },
+      ],
+      has_more: false,
+    });
+  }),
   http.post("*/v1/checkout/sessions", async ({ request }) => {
     const body = await request.formData();
-
-    if (
-      body.get("customer_email") === "integration-stripe-failure@example.com"
-    ) {
-      return HttpResponse.json(
-        {
-          error: {
-            message: "Stripe is unavailable in this integration scenario.",
-            type: "api_error",
-          },
-        },
-        { status: 500 },
-      );
-    }
 
     const importId = body.get("metadata[import_id]");
     if (typeof importId === "string" && importId.length > 0) {
@@ -115,15 +108,45 @@ export const integrationNetworkHandlers = [
         email: "integration-stripe-success@example.com",
       },
       metadata: {
+        billing_choice: "stripe_checkout_upsell",
         entry_source: "catalog_importer",
         import_id: catalogImporterImportId,
+        membership_currency: "usd",
+        membership_product_id: "prod_integration_membership",
         return_to: "/catalog-importer",
+        source: "catalog_importer",
       },
       subscription: {
         id: "sub_integration_catalog_importer",
         object: "subscription",
-        status: "trialing",
+        status: "active",
       },
     }),
+  ),
+  http.get(
+    "*/v1/checkout/sessions/cs_test_integration_catalog_importer/line_items",
+    () =>
+      HttpResponse.json({
+        object: "list",
+        data: [
+          {
+            id: "li_integration_membership",
+            object: "item",
+            price: {
+              id: "price_integration_annual",
+              object: "price",
+              active: true,
+              currency: "usd",
+              product: "prod_integration_membership",
+              recurring: { interval: "year", interval_count: 1 },
+              type: "recurring",
+              unit_amount: 7999,
+              unit_amount_decimal: "7999",
+            },
+            quantity: 1,
+          },
+        ],
+        has_more: false,
+      }),
   ),
 ];

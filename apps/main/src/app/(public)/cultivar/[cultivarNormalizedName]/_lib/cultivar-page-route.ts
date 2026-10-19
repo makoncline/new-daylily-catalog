@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { METADATA_CONFIG } from "@/config/constants";
 import { IMAGES } from "@/lib/constants/images";
 import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
+import { getSocialCardImageUrl } from "@/lib/social-card";
 import { fromCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import { getPublicCultivarPage } from "@/server/db/public-cultivar-read-model";
@@ -61,6 +62,11 @@ export async function getCultivarPageMetadata(
     description,
     imageAlt: `${cultivarPage.summary.name} daylily cultivar`,
     imageUrl,
+    socialImageUrl: getSocialCardImageUrl({
+      baseUrl,
+      id: cultivarNormalizedName,
+      kind: "cultivar",
+    }),
     pageUrl,
     title,
   });

@@ -64,7 +64,7 @@ export function CatalogSeoPagination({
       <P className="text-sm font-medium">Page</P>
       <Select value={String(page)} onValueChange={handleGoToPage}>
         <SelectTrigger
-          className="h-8 w-fit min-w-[3.5rem]"
+          className="h-8 w-fit min-w-14"
           data-testid={goToPageTestId}
         >
           <SelectValue placeholder={page} />

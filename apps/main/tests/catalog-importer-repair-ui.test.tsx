@@ -172,7 +172,7 @@ describe("catalog importer repair UI", () => {
     const previousUpdatedPrice = importRow({
       id: "row-2",
       price: null,
-      priceWarning: "Price must be a whole number.",
+      priceWarning: "Price must be a nonnegative number.",
       sourcePrice: "two for $30",
       sourceRow: 2,
       sourceTitle: "Aerial Art",
@@ -180,7 +180,7 @@ describe("catalog importer repair UI", () => {
     const previousRemovedPrice = importRow({
       id: "row-3",
       price: null,
-      priceWarning: "Price must be a whole number.",
+      priceWarning: "Price must be a nonnegative number.",
       sourcePrice: "trade",
       sourceRow: 3,
       sourceTitle: "Brookwood Black Kitten",
@@ -377,23 +377,23 @@ describe("catalog importer repair UI", () => {
     expect(
       within(table).getByRole("button", { name: "Save price for row 3" }),
     ).toBeDisabled();
-    expect(screen.getAllByText("Price must be a whole number.")).toHaveLength(
-      2,
-    );
+    expect(
+      screen.getAllByText("Price must be a nonnegative number."),
+    ).toHaveLength(2);
 
     fireEvent.change(secondPriceInput, {
       target: { value: "12.50" },
     });
-    expect(screen.getAllByText("Price must be a whole number.")).toHaveLength(
-      2,
-    );
+    expect(
+      screen.getAllByText("Price must be a nonnegative number."),
+    ).toHaveLength(1);
     expect(screen.getByRole("button", { name: "Save all" })).toBeDisabled();
     fireEvent.change(firstPriceInput, { target: { value: "15" } });
     fireEvent.change(secondPriceInput, { target: { value: "0" } });
     fireEvent.click(screen.getByRole("button", { name: "Save all" }));
     expect(resolvePriceIssues).toHaveBeenCalledWith([
       { preserveOriginalOffer: false, price: 15, rowId: "row-2" },
-      { preserveOriginalOffer: false, price: null, rowId: "row-3" },
+      { preserveOriginalOffer: false, price: 0, rowId: "row-3" },
     ]);
   });
 

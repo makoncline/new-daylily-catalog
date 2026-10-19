@@ -202,14 +202,6 @@ function sampleCsv() {
   ].join("\n");
 }
 
-function ordinaryCsv() {
-  return [
-    "cultivar,cost,details,notes",
-    "Happy Returns,15.00,Pale yellow fragrant bloom,Display row",
-    "Chicago Apache,18.00,Velvety red flower,Back border",
-  ].join("\n");
-}
-
 async function openCleaner(page: Page, viewport: typeof desktop) {
   await page.setViewportSize(viewport);
   await mockCultivarMatches(page);
@@ -255,7 +247,7 @@ test("Mobile importer upload", async ({ page }) => {
 
 test("Desktop importer column mapping", async ({ page }) => {
   await openCleaner(page, desktop);
-  await loadSpreadsheet(page, ordinaryCsv());
+  await loadSpreadsheet(page, sampleCsv().replace("name,", "cultivar,"));
   await expect(
     page.getByRole("button", { name: "Build catalog preview" }),
   ).toBeVisible();
@@ -358,7 +350,7 @@ test("Desktop importer incomplete download", async ({ page }) => {
   await uploadSpreadsheet(page);
   await page.getByRole("button", { name: "Finish" }).click();
   await page
-    .getByRole("button", { name: "Download updated original spreadsheet" })
+    .getByRole("button", { name: "Download enhanced original" })
     .click();
   await expect(page.getByRole("alertdialog")).toBeVisible();
   await captureAtlasState(page, "catalog-importer-desktop-download-confirm");

@@ -2,7 +2,13 @@ services:
   app:
     image: ghcr.io/makoncline/daylilycatalog:${IMAGE_TAG}
     restart: unless-stopped
+    logging:
+      driver: journald
+      options:
+        tag: "{{.Name}}"
     mem_limit: 1400m
+    environment:
+      DAYLILY_TRUST_PROXY_IP: "true"
     env_file:
       - .env
     volumes:

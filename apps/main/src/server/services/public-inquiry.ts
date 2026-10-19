@@ -144,8 +144,12 @@ async function loadPublicInquiryContext(
 ): Promise<PublicInquiryContext> {
   const user = await db.user.findUnique({
     where: { id: input.userId },
-    include: {
-      profile: true,
+    select: {
+      id: true,
+      clerkUserId: true,
+      profile: {
+        select: { slug: true, title: true },
+      },
     },
   });
 

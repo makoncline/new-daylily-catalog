@@ -25,9 +25,7 @@ if (args[0] === "--seeded-database-default") {
   args.shift();
 }
 
-if (args[0] === "--") {
-  args.shift();
-}
+if (args[0] === "--") args.shift();
 
 const envName =
   explicitEnvName ??
@@ -38,50 +36,149 @@ for (const envPath of [
   path.join(repoRoot, envFile),
   path.join(appRoot, envFile),
 ]) {
-  if (existsSync(envPath)) {
-    dotenv.config({ path: envPath, quiet: true });
-  }
+  if (existsSync(envPath)) dotenv.config({ path: envPath, quiet: true });
 }
 
-if (
-  envName === "development" &&
-  useSeededDatabaseDefault &&
-  !explicitDatabaseUrl
-) {
-  const seededDatabasePath = path.join(
-    appRoot,
-    "local",
-    "realistic-data",
-    "realistic-data.sqlite",
-  );
-  if (!existsSync(seededDatabasePath)) {
-    console.error(
-      "The seeded development database is missing. Run `pnpm db:seed:prepare` first.",
+if (args.length === 0) process.exit(0);
+
+const disposableIndex = useSeededDatabaseDefault
+  ? args.indexOf("--disposable")
+  : -1;
+const disposableRequested = disposableIndex !== -1;
+if (disposableRequested) {
+  args.splice(disposableIndex, 1);
+  if (explicitDatabaseUrl || envName !== "development") {
+    throw new Error(
+      "--disposable requires the default seeded development database. Unset DATABASE_URL.",
     );
-    process.exit(1);
   }
-  process.env.DATABASE_URL = `file:${seededDatabasePath}`;
-  process.env.PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS = "0";
-  process.env.TURSO_DATABASE_AUTH_TOKEN = "";
-  process.env.TURSO_EMBEDDED_REPLICA_URL = "";
-  process.env.TURSO_EMBEDDED_REPLICA_SYNC_INTERVAL_SECONDS = "";
-  process.env.TURSO_EMBEDDED_REPLICA_SYNC_URL = "";
 }
 
-if (args.length === 0) {
-  process.exit(0);
+let disposableDatabase;
+const ownsProcessGroup = disposableRequested && process.platform !== "win32";
+let child;
+let rejectChildExit;
+let forwardedSignal;
+let ownedShutdown;
+const signalChild = (signal) => {
+  if (!child?.pid) return;
+  try {
+    if (ownsProcessGroup) process.kill(-child.pid, signal);
+    else child.kill(signal);
+  } catch (error) {
+    if (error.code !== "ESRCH") throw error;
+  }
+};
+
+const signalHandlers = new Map();
+if (disposableRequested) {
+  for (const signal of ["SIGINT", "SIGTERM"]) {
+    const handler = () => {
+      forwardedSignal ??= signal;
+      if (ownsProcessGroup && child?.pid) {
+        ownedShutdown ??= stopOwnedProcessGroup();
+        ownedShutdown.catch(rejectChildExit);
+      } else signalChild(forwardedSignal);
+    };
+    signalHandlers.set(signal, handler);
+    process.on(signal, handler);
+  }
 }
 
-const child = spawn(args[0], args.slice(1), {
-  env: process.env,
-  stdio: "inherit",
-});
+async function stopOwnedProcessGroup() {
+  if (!ownsProcessGroup || !child?.pid) return;
+  const deadline = Date.now() + 5_000;
+  let terminationSent = false;
+  while (true) {
+    try {
+      if (!terminationSent) {
+        signalChild(forwardedSignal ?? "SIGTERM");
+        terminationSent = true;
+      }
+      process.kill(-child.pid, 0);
+      if (Date.now() >= deadline) {
+        signalChild("SIGKILL");
+        return;
+      }
+    } catch (error) {
+      if (error.code === "ESRCH") return;
+      if (error.code !== "EPERM") throw error;
+      if (Date.now() >= deadline)
+        throw new Error(
+          "Cannot confirm owned process group termination; disposable database retained.",
+          { cause: error },
+        );
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+}
 
-child.on("exit", (code, signal) => {
-  if (signal) {
-    process.kill(process.pid, signal);
-    return;
+let result = { code: 0, signal: null };
+try {
+  if (
+    envName === "development" &&
+    useSeededDatabaseDefault &&
+    !explicitDatabaseUrl
+  ) {
+    const {
+      assertRealisticDataSeedFresh,
+      createDisposableRealisticDataSnapshot,
+      resolveRealisticDataOutputPath,
+    } = await import("./realistic-data-snapshot.mjs");
+    const manifest = assertRealisticDataSeedFresh({
+      manifestPath: path.join(appRoot, "local/realistic-data/personas.json"),
+      schemaPath: path.join(appRoot, "prisma/schema.prisma"),
+    });
+    const seededDatabasePath = resolveRealisticDataOutputPath({
+      appRoot,
+      configuredPath: manifest.databasePath,
+      cwd: appRoot,
+    });
+    if (!existsSync(seededDatabasePath)) {
+      throw new Error(
+        "The seeded development database is missing. Run `pnpm db:seed:prepare` first.",
+      );
+    }
+    if (disposableRequested) {
+      disposableDatabase = await createDisposableRealisticDataSnapshot({
+        sourcePath: seededDatabasePath,
+      });
+      console.log(
+        `Disposable realistic database: ${disposableDatabase.databasePath}`,
+      );
+      console.log("Local changes are removed when this server stops.");
+      console.log(
+        "After restart, use dashboard Refresh or a fresh browser context.",
+      );
+    } else {
+      console.log(`Persistent realistic database: ${seededDatabasePath}`);
+      console.log("Local changes remain after this server stops.");
+    }
+    process.env.DATABASE_URL = `file:${disposableDatabase?.databasePath ?? seededDatabasePath}`;
+    process.env.TURSO_DATABASE_AUTH_TOKEN = "";
+    process.env.TURSO_EMBEDDED_REPLICA_URL = "";
+    process.env.TURSO_EMBEDDED_REPLICA_SYNC_INTERVAL_SECONDS = "";
+    process.env.TURSO_EMBEDDED_REPLICA_SYNC_URL = "";
   }
 
-  process.exit(code ?? 0);
-});
+  if (!forwardedSignal) {
+    child = spawn(args[0], args.slice(1), {
+      env: process.env,
+      stdio: "inherit",
+      detached: ownsProcessGroup,
+    });
+    result = await new Promise((resolve, reject) => {
+      rejectChildExit = reject;
+      child.once("error", reject);
+      child.once("exit", (code, signal) => resolve({ code, signal }));
+    });
+  }
+} finally {
+  await (ownedShutdown ??= stopOwnedProcessGroup());
+  disposableDatabase?.cleanup();
+  for (const [signal, handler] of signalHandlers) process.off(signal, handler);
+}
+
+if (result.signal || forwardedSignal)
+  process.kill(process.pid, forwardedSignal ?? result.signal);
+else process.exitCode = result.code ?? 0;

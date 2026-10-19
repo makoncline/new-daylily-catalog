@@ -4,17 +4,25 @@ import * as React from "react";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableLayout } from "@/components/data-table/data-table-layout";
 import { DataTablePagination } from "@/components/data-table/data-table-pagination";
-import { EmptyState } from "@/components/empty-state";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { Flower2 } from "lucide-react";
+
 import { CreateListingButton } from "./create-listing-button";
-import { useEditListing } from "./edit-listing-dialog";
 import { useDataTable } from "@/hooks/use-data-table";
 import {
   DataTableDownload,
   DataTableViewOptions,
 } from "@/components/data-table";
 import { createDashboardListingsCsv } from "@/app/dashboard/listings/_lib/dashboard-listings-export";
-import { APP_CONFIG } from "@/config/constants";
-import { LISTING_TABLE_COLUMN_NAMES } from "@/config/constants";
+import { APP_CONFIG, LISTING_TABLE_COLUMN_NAMES } from "@/config/constants";
+
 import { getColumns } from "./columns";
 import { useDashboardListingReadModel } from "@/app/dashboard/_lib/dashboard-db/use-dashboard-listing-read-model";
 import { PublicCatalogSearchAdvancedPanel } from "@/components/public-catalog-search/public-catalog-search-advanced-panel";
@@ -27,26 +35,17 @@ import {
 } from "@/components/public-catalog-search/public-catalog-search-registry";
 import type { PublicCatalogSearchMode } from "@/components/public-catalog-search/public-catalog-search-types";
 import { logDashboardTiming } from "@/app/dashboard/_lib/dashboard-timing";
-import { api } from "@/trpc/react";
 
-function ListingsTableLive() {
+export function ListingsTable({
+  onEdit,
+  onCreate,
+}: {
+  onEdit: (id: string) => void;
+  onCreate: () => void;
+}) {
   const firstRowsPaintedRef = React.useRef(false);
-  const { editListing } = useEditListing();
   const { listingRows: listings, lists } = useDashboardListingReadModel();
-  const { data: profile = null } = api.dashboardDb.userProfile.get.useQuery(
-    undefined,
-    {
-      staleTime: Infinity,
-      refetchOnWindowFocus: false,
-      refetchOnMount: false,
-    },
-  );
-  const publicUserSlug = profile?.slug ?? profile?.userId ?? "";
-
-  const columns = React.useMemo(
-    () => getColumns(editListing, publicUserSlug),
-    [editListing, publicUserSlug],
-  );
+  const columns = React.useMemo(() => getColumns(onEdit), [onEdit]);
   const [searchMode, setSearchMode] = useLocalStorage<PublicCatalogSearchMode>(
     "dashboard-listings-search-mode",
     "basic",
@@ -72,11 +71,8 @@ function ListingsTableLive() {
     storageKey: "listings-table",
     columnNames,
     pinnedColumns: {
-      left: ["select", "title"],
+      left: ["title"],
       right: ["actions"],
-    },
-    config: {
-      enableRowSelection: true,
     },
     initialStateOverrides: {
       pagination: {
@@ -144,16 +140,27 @@ function ListingsTableLive() {
 
   if (!listings.length) {
     return (
-      <EmptyState
-        title="No listings"
-        description="Create your first listing to start selling"
-        action={<CreateListingButton />}
-      />
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <Flower2 />
+          </EmptyMedia>
+          <EmptyTitle role="heading" aria-level={2}>
+            No listings
+          </EmptyTitle>
+          <EmptyDescription>
+            Create your first listing to start selling.
+          </EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <CreateListingButton onCreate={onCreate} />
+        </EmptyContent>
+      </Empty>
     );
   }
 
   return (
-    <div className="space-y-4" data-testid="listing-table">
+    <div className="flex flex-col gap-4" data-testid="listing-table">
       <PublicCatalogSearchAdvancedPanel
         advancedSectionsColumns={3}
         table={table}
@@ -170,7 +177,7 @@ function ListingsTableLive() {
         <DataTableLayout
           table={table}
           toolbar={
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <PublicCatalogSearchResultCount table={table} />
               <DataTableViewOptions table={table} />
             </div>
@@ -191,11 +198,22 @@ function ListingsTableLive() {
             </>
           }
           noResults={
-            <EmptyState
-              title="No listings found"
-              description="Try adjusting your filters or create a new listing"
-              action={<CreateListingButton />}
-            />
+            <Empty>
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <Flower2 />
+                </EmptyMedia>
+                <EmptyTitle role="heading" aria-level={2}>
+                  No listings found
+                </EmptyTitle>
+                <EmptyDescription>
+                  Adjust your filters or create a new listing.
+                </EmptyDescription>
+              </EmptyHeader>
+              <EmptyContent>
+                <CreateListingButton onCreate={onCreate} />
+              </EmptyContent>
+            </Empty>
           }
         >
           <DataTable table={table} />
@@ -203,8 +221,4 @@ function ListingsTableLive() {
       </div>
     </div>
   );
-}
-
-export function ListingsTable() {
-  return <ListingsTableLive />;
 }

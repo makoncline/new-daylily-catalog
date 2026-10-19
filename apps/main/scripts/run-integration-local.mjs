@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -8,13 +8,21 @@ import {
   removeIntegrationDatabaseFiles,
   validateIntegrationRuntime,
 } from "./integration-network-guard.mjs";
+import { startEvidence } from "./integration-evidence.mjs";
 
 const appRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
 );
-const port = process.env.INTEGRATION_PORT ?? "3210";
+const args = process.argv.slice(2);
+const recording = args[0] === "--evidence";
+const specs = recording ? args.slice(1) : args;
+const port = Number(process.env.INTEGRATION_PORT ?? "3210");
+if (!Number.isInteger(port) || port < 1 || port >= 65535) {
+  throw new Error("INTEGRATION_PORT must be a port from 1 to 65534.");
+}
 const appBaseUrl = `http://localhost:${port}`;
+const providerUrl = `http://127.0.0.1:${port + 1}`;
 const runId = `${process.pid}-${crypto.randomUUID()}`;
 const databasePath = path.join(
   appRoot,
@@ -23,6 +31,9 @@ const databasePath = path.join(
   `integration-${runId}.sqlite`,
 );
 const databaseUrl = `file:${databasePath}`;
+const runtimeFlagsPath =
+  process.env.RUNTIME_FEATURE_FLAGS_PATH ??
+  path.join(appRoot, "tests", ".tmp", `integration-flags-${runId}.json`);
 const guardUrl = pathToFileURL(
   path.join(appRoot, "scripts", "integration-network-guard.mjs"),
 ).href;
@@ -34,19 +45,25 @@ const integrationEnv = {
   INTEGRATION_MODE: "1",
   INTEGRATION_NETWORK_GUARD: "1",
   APP_BASE_URL: appBaseUrl,
-  INTEGRATION_PROVIDER_URL: "http://127.0.0.1:3211",
+  INTEGRATION_PROVIDER_URL: providerUrl,
   DATABASE_URL: databaseUrl,
+  RUNTIME_FEATURE_FLAGS_PATH: runtimeFlagsPath,
+  DAYLILY_TRUST_PROXY_IP: "false",
+  DAYLILY_MCP_OAUTH_CLIENT_ID: "integration-oauth-client",
+  DAYLILY_MEMBER_API_OAUTH_CLIENT_IDS: "integration-oauth-client",
+  SENTRY_RELEASE: execFileSync("git", ["rev-parse", "HEAD"], {
+    cwd: appRoot,
+    encoding: "utf8",
+  }).trim(),
   CLERK_SECRET_KEY: "sk_test_integration",
   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_integration",
   STRIPE_SECRET_KEY: "sk_test_integration",
-  STRIPE_PRICE_ID: "price_integration",
   AWS_ACCESS_KEY_ID: "integration-access-key",
   AWS_SECRET_ACCESS_KEY: "integration-secret-key",
   AWS_REGION: "integration-region",
-  AWS_ENDPOINT_URL_SES: "http://127.0.0.1:3211/ses",
+  AWS_ENDPOINT_URL_SES: `${providerUrl}/ses`,
   NEXT_PUBLIC_CLOUDFLARE_URL: appBaseUrl,
   NEXT_PUBLIC_SENTRY_ENABLED: "false",
-  PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS: "0",
   RUST_LOG: "info",
   NODE_OPTIONS: `--import=${guardUrl}`,
 };
@@ -95,6 +112,13 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
 
 fs.mkdirSync(path.dirname(databasePath), { recursive: true });
 removeIntegrationDatabaseFiles(databaseUrl);
+const evidence = recording ? startEvidence(appRoot, specs) : null;
+if (evidence) {
+  integrationEnv.INTEGRATION_EVIDENCE_DIR = evidence.directory;
+  console.log(`Evidence: ${evidence.directory}`);
+} else {
+  delete integrationEnv.INTEGRATION_EVIDENCE_DIR;
+}
 
 let exitCode = 1;
 try {
@@ -111,13 +135,21 @@ try {
   ]);
   if (exitCode !== 0) throw new Error("Failed to seed integration database.");
 
-  const specs = process.argv.slice(2);
   exitCode = await run(
     path.join(appRoot, "node_modules", ".bin", "playwright"),
     ["test", "--config", "playwright.integration.config.ts", ...specs],
   );
+} catch (error) {
+  exitCode = 1;
+  console.error(error);
 } finally {
   removeIntegrationDatabaseFiles(databaseUrl);
+  if (!process.env.RUNTIME_FEATURE_FLAGS_PATH)
+    fs.rmSync(runtimeFlagsPath, { force: true });
+  if (evidence?.finish(exitCode, forwardedSignal)) {
+    console.error("Source changed during recording. Evidence is invalid.");
+    exitCode = 1;
+  }
 }
 
 if (forwardedSignal) process.kill(process.pid, forwardedSignal);

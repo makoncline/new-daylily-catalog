@@ -9,7 +9,7 @@ import {
   getActiveProUserIdsForUserIds,
   getProUserIds,
 } from "@/server/db/getProUserIds";
-import { replicaDb } from "@/server/db";
+import { publicDb } from "@/server/db";
 import { getUserIdFromSlugOrId } from "@/server/db/getPublicProfile";
 import {
   isPublicList,
@@ -153,7 +153,7 @@ async function getSortedPublicListingIds(
 ): Promise<string[]> {
   const forSaleFirst = options?.forSaleFirst ?? false;
   const rows = forSaleFirst
-    ? await replicaDb.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+    ? await publicDb.$queryRaw<Array<{ id: string }>>(Prisma.sql`
         SELECT "id"
         FROM "Listing"
         WHERE "userId" = ${userId}
@@ -171,7 +171,7 @@ async function getSortedPublicListingIds(
           LTRIM("title") COLLATE NOCASE ASC,
           "id" ASC
       `)
-    : await replicaDb.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+    : await publicDb.$queryRaw<Array<{ id: string }>>(Prisma.sql`
         SELECT "id"
         FROM "Listing"
         WHERE "userId" = ${userId}
@@ -190,7 +190,7 @@ async function getSortedPublicListingIds(
 }
 
 async function getSortedPublicListingPageIds(
-  database: typeof replicaDb,
+  database: typeof publicDb,
   userId: string,
   options: {
     limit: number;
@@ -228,7 +228,7 @@ async function getPublicListingRowsByIds(
     return [];
   }
 
-  const rows = await replicaDb.listing.findMany({
+  const rows = await publicDb.listing.findMany({
     where: {
       id: {
         in: ids,
@@ -269,12 +269,6 @@ export async function getInitialListings(userSlugOrId: string) {
   return transformListings(items);
 }
 
-export interface GetPublicListingsPageArgs {
-  userSlugOrId: string;
-  page: number;
-  pageSize?: number;
-}
-
 export interface GetPublicListingsPageIdsForUserIdArgs {
   userId: string;
   page: number;
@@ -287,7 +281,7 @@ export async function getPublicListingsPageIdsForUserId(
     page,
     pageSize = PUBLIC_PROFILE_LISTINGS_PAGE_SIZE,
   }: GetPublicListingsPageIdsForUserIdArgs,
-  database: typeof replicaDb = replicaDb,
+  database: typeof publicDb = publicDb,
 ) {
   const requestedPage = Math.max(page, 1);
   const requestedOffset = (requestedPage - 1) * pageSize;
@@ -323,35 +317,8 @@ export async function getPublicListingsPageIdsForUserId(
   };
 }
 
-async function getPublicListingsPageIds({
-  userSlugOrId,
-  page,
-  pageSize = PUBLIC_PROFILE_LISTINGS_PAGE_SIZE,
-}: GetPublicListingsPageArgs) {
-  const userId = await getUserIdFromSlugOrId(userSlugOrId);
-
-  return getPublicListingsPageIdsForUserId({
-    userId,
-    page,
-    pageSize,
-  });
-}
-
-export async function getPublicListingsPage(args: GetPublicListingsPageArgs) {
-  const pageData = await getPublicListingsPageIds(args);
-  const items = await getPublicListingCardsByIds(pageData.ids);
-
-  return {
-    items,
-    page: pageData.page,
-    pageSize: pageData.pageSize,
-    totalCount: pageData.totalCount,
-    totalPages: pageData.totalPages,
-  };
-}
-
 export async function getPublicListingDetail(listingId: string) {
-  const listing = await replicaDb.listing.findFirst({
+  const listing = await publicDb.listing.findFirst({
     where: { id: listingId, ...isPublished() },
     select: publicListingSelect,
   });
@@ -369,7 +336,7 @@ export async function getPublicListingDetail(listingId: string) {
 }
 
 export async function getPublicForSaleListingsCount(userId: string) {
-  return replicaDb.listing.count({
+  return publicDb.listing.count({
     where: {
       userId,
       price: {
@@ -410,7 +377,7 @@ export async function getPublicCatalogRouteEntries(): Promise<
     return [];
   }
 
-  const listingCounts = await replicaDb.listing.groupBy({
+  const listingCounts = await publicDb.listing.groupBy({
     by: ["userId"],
     where: {
       ...isPublished(),
@@ -428,7 +395,7 @@ export async function getPublicCatalogRouteEntries(): Promise<
   }
 
   const userIds = listingCounts.map((entry) => entry.userId);
-  const users = await replicaDb.user.findMany({
+  const users = await publicDb.user.findMany({
     select: {
       id: true,
       createdAt: true,
@@ -473,7 +440,7 @@ export async function getPublicListingRouteEntryCount() {
     return 0;
   }
 
-  return replicaDb.listing.count({
+  return publicDb.listing.count({
     where: getPublicListingRouteWhere(proUserIds),
   });
 }
@@ -488,7 +455,7 @@ export async function getPublicListingRouteEntries(args: {
     return [];
   }
 
-  const listings = await replicaDb.listing.findMany({
+  const listings = await publicDb.listing.findMany({
     where: getPublicListingRouteWhere(proUserIds),
     select: {
       id: true,
@@ -510,7 +477,7 @@ export async function getPublicListingRouteEntries(args: {
   const users =
     userIds.length === 0
       ? []
-      : await replicaDb.user.findMany({
+      : await publicDb.user.findMany({
           where: {
             id: {
               in: userIds,

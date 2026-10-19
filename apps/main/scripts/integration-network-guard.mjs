@@ -192,7 +192,22 @@ export function installIntegrationNetworkGuard() {
   globalThis.fetch = function guardedFetch(input, init) {
     const url = input instanceof Request ? input.url : input;
     assertLoopbackDestination(url);
-    return originalFetch(input, init);
+    const originalInit = init ?? {};
+    const { redirect = input instanceof Request ? input.redirect : "follow" } =
+      originalInit;
+    const redirectMode = String(redirect);
+    const guardedInit = new Proxy(
+      {},
+      {
+        get(_target, property) {
+          if (property === "redirect") {
+            return redirectMode === "follow" ? "error" : redirectMode;
+          }
+          return Reflect.get(originalInit, property, originalInit);
+        },
+      },
+    );
+    return originalFetch(input, guardedInit);
   };
 
   guardHttpModule(http, "http:");

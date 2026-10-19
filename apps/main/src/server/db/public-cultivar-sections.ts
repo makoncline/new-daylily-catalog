@@ -10,7 +10,7 @@ import {
   withResolvedDisplayAhsListing,
 } from "@/lib/utils/ahs-display";
 import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
-import { replicaDb } from "@/server/db";
+import { publicDb } from "@/server/db";
 import { getCloudflareUrlForDaylilyS3Image } from "@/lib/utils/cloudflareLoader";
 import type { ImageAssetView } from "@/server/services/image-asset-read-model";
 import {
@@ -489,7 +489,7 @@ export async function buildPublicCultivarSummary(args: PublicCultivarContext) {
         : [];
   const relatedByHybridizer = hybridizerIdentifiers.length
     ? (
-        await replicaDb.v2AhsCultivar.findMany({
+        await publicDb.v2AhsCultivar.findMany({
           where: {
             OR: hybridizerIdentifiers,
             AND: [

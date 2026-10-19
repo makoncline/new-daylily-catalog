@@ -1,4 +1,6 @@
 import "server-only";
+import { getLogContext, logEvent } from "@/lib/telemetry";
+import { withLogContext } from "@/server/observability/log-context";
 
 import { execFile } from "node:child_process";
 import { mkdir, open, stat, unlink } from "node:fs/promises";
@@ -7,7 +9,8 @@ import { promisify } from "node:util";
 import { createClient } from "@libsql/client";
 import {
   ensurePublicSearchIndex,
-  getPublicSearchIndexPath,
+  isPublicSearchIndexUsable,
+  PublicSearchIndexUnavailableError,
 } from "@/server/search/public-search-index";
 
 const execFileAsync = promisify(execFile);
@@ -170,7 +173,9 @@ async function queryParentageIndexMeta(dbPath: string) {
 async function hasActiveRefreshLock() {
   try {
     const lockStat = await stat(getRefreshLockPath());
-    return Date.now() - lockStat.mtimeMs < PARENTAGE_INDEX_REFRESH_LOCK_STALE_MS;
+    return (
+      Date.now() - lockStat.mtimeMs < PARENTAGE_INDEX_REFRESH_LOCK_STALE_MS
+    );
   } catch (error) {
     if (isMissingFileError(error)) {
       return false;
@@ -260,20 +265,29 @@ async function acquireRefreshLock() {
   }
 }
 
-function logParentageIndex(event: string, payload: Record<string, unknown> = {}) {
-  console.log(
-    JSON.stringify({
-      component: "public-parentage-index",
-      event,
-      timestamp: new Date().toISOString(),
-      ...payload,
-    }),
-  );
+function logParentageIndex(
+  event: string,
+  payload: Record<string, unknown> = {},
+) {
+  logEvent(event.endsWith("failed") ? "error" : "info", event, {
+    component: "public-parentage-index",
+    ...payload,
+  });
 }
 
 async function refreshPublicParentageIndex(): Promise<PublicParentageIndexStatus> {
-  globalForParentageIndex.publicParentageIndexRefreshPromise ??= (async () => {
-      await ensurePublicSearchIndex();
+  globalForParentageIndex.publicParentageIndexRefreshPromise ??= withLogContext(
+    {
+      correlation_id: crypto.randomUUID(),
+      correlation_scope: "operation",
+      parent_correlation_id: getLogContext().correlation_id,
+      operation: "public-parentage-index-refresh",
+    },
+    async () => {
+      const source = await ensurePublicSearchIndex();
+      if (!isPublicSearchIndexUsable(source)) {
+        throw new PublicSearchIndexUnavailableError(source);
+      }
       const releaseLock = await acquireRefreshLock();
 
       if (!releaseLock) {
@@ -284,7 +298,7 @@ async function refreshPublicParentageIndex(): Promise<PublicParentageIndexStatus
       try {
         logParentageIndex("public_parentage_index_build_started", {
           path: getPublicParentageIndexPath(),
-          sourcePath: getPublicSearchIndexPath(),
+          sourcePath: source.path,
         });
 
         const { stdout, stderr } = await execFileAsync(
@@ -292,7 +306,7 @@ async function refreshPublicParentageIndex(): Promise<PublicParentageIndexStatus
           [
             getBuildScriptPath(),
             "--source",
-            getPublicSearchIndexPath(),
+            source.path,
             "--target",
             getPublicParentageIndexPath(),
           ],
@@ -331,7 +345,8 @@ async function refreshPublicParentageIndex(): Promise<PublicParentageIndexStatus
       } finally {
         await releaseLock();
       }
-  })().finally(() => {
+    },
+  ).finally(() => {
     globalForParentageIndex.publicParentageIndexRefreshPromise = undefined;
   });
 

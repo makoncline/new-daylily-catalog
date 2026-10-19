@@ -91,7 +91,6 @@ jobs:
           BUILD_DATABASE_URL: ${{ vars.DATABASE_URL }}
           BUILD_TURSO_DATABASE_AUTH_TOKEN: ${{ secrets.TURSO_DATABASE_AUTH_TOKEN }}
           BUILD_STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
-          BUILD_STRIPE_PRICE_ID: ${{ vars.STRIPE_PRICE_ID }}
           BUILD_SENTRY_AUTH_TOKEN: ${{ github.event_name != 'pull_request' && secrets.SENTRY_AUTH_TOKEN || '' }}
         run: |
           BUILD_ENV_FILE="$RUNNER_TEMP/daylilycatalog-build.env"
@@ -106,8 +105,8 @@ jobs:
             exit 1
           fi
 
-          if [ -z "$BUILD_STRIPE_SECRET_KEY" ] || [ -z "$BUILD_STRIPE_PRICE_ID" ]; then
-            echo "Configure STRIPE_SECRET_KEY and STRIPE_PRICE_ID in the '$BUILD_ENVIRONMENT_NAME' environment." >&2
+          if [ -z "$BUILD_STRIPE_SECRET_KEY" ]; then
+            echo "Configure STRIPE_SECRET_KEY in the '$BUILD_ENVIRONMENT_NAME' environment." >&2
             exit 1
           fi
 
@@ -122,7 +121,6 @@ jobs:
           DATABASE_URL=$BUILD_DATABASE_URL
           TURSO_DATABASE_AUTH_TOKEN=$BUILD_TURSO_DATABASE_AUTH_TOKEN
           STRIPE_SECRET_KEY=$BUILD_STRIPE_SECRET_KEY
-          STRIPE_PRICE_ID=$BUILD_STRIPE_PRICE_ID
           EOF
 
           if [ -n "$BUILD_SENTRY_AUTH_TOKEN" ]; then
@@ -155,6 +153,7 @@ jobs:
           context: .
           file: apps/main/Dockerfile
           push: ${{ steps.meta.outputs.should_push == 'true' }}
+          load: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
@@ -166,6 +165,20 @@ jobs:
           # PRs consume the last main cache without paying to export throwaway app layers.
           # Main refreshes the complete cache after merge for future builds.
           cache-to: ${{ steps.meta.outputs.cache_to }}
+
+      - name: Check MCP after an idle proxy connection
+        run: node apps/main/scripts/smoke-mcp-keepalive-local.mjs '${{ steps.meta.outputs.image_repo }}:${{ steps.meta.outputs.immutable_tag }}'
+
+      - name: Enable corepack
+        run: corepack enable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --prefer-offline
+      - run: pnpm main exec playwright install --with-deps chromium
+      - name: Check page navigation during social image generation
+        run: pnpm main exec node scripts/smoke-social-images-local.mjs '${{ steps.meta.outputs.image_repo }}:${{ steps.meta.outputs.immutable_tag }}'
 
       - name: Summarize image tags
         run: |

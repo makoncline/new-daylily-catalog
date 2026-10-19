@@ -28,29 +28,6 @@ export function createCatalogImporterCheckoutSource(
   });
 }
 
-export function createCatalogImporterCheckoutPath(importId: string) {
-  const source = createCatalogImporterCheckoutSource(importId);
-  const params = new URLSearchParams({
-    import_id: source.importId,
-    entry: source.entrySource,
-    return_to: source.returnTo,
-  });
-  return `/catalog-importer/checkout?${params.toString()}`;
-}
-
-export function parseCatalogImporterCheckoutSource(params: {
-  import_id?: string | string[];
-  entry?: string | string[];
-  return_to?: string | string[];
-}) {
-  const parsed = catalogImporterCheckoutSourceSchema.safeParse({
-    importId: params.import_id,
-    entrySource: params.entry,
-    returnTo: params.return_to,
-  });
-  return parsed.success ? parsed.data : null;
-}
-
 export const catalogImporterViewerStateSchema = z.enum([
   "anonymous",
   "signed_in_nonpro",

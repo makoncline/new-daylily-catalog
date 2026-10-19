@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { isCatalogImporterDiscoveryEnabled } from "@/config/feature-flags";
 import { METADATA_CONFIG } from "@/config/constants";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
-import { getMembershipPriceDisplay } from "@/server/stripe/get-membership-price-display";
 import { CatalogImporterClient } from "./_components/catalog-importer-client";
 
 export const dynamic = "force-dynamic";
@@ -33,10 +32,6 @@ export function generateMetadata(): Metadata {
 }
 
 export default async function CatalogImporterPage() {
-  const membershipPriceDisplay = await getMembershipPriceDisplay().catch(
-    () => null,
-  );
-
   return (
     <div className="w-full px-3 py-8 lg:px-8 lg:py-12">
       <header className="mb-6 max-w-3xl">
@@ -53,7 +48,7 @@ export default async function CatalogImporterPage() {
         </p>
       </header>
 
-      <CatalogImporterClient membershipPriceDisplay={membershipPriceDisplay} />
+      <CatalogImporterClient />
     </div>
   );
 }

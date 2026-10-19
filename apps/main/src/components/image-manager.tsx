@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   DndContext,
   closestCenter,
@@ -32,11 +33,8 @@ import {
   normalizeError,
   reportError,
 } from "@/lib/error-utils";
-import {
-  deleteImage,
-  type ImageCollectionItem,
-  reorderImages,
-} from "@/app/dashboard/_lib/dashboard-db/images-collection";
+import { type ImageCollectionItem } from "@/app/dashboard/_lib/dashboard-db/collections";
+import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
 
 interface ImageManagerProps {
   images: ImageCollectionItem[];
@@ -51,6 +49,7 @@ function SortableImage({
   image,
   dragControls,
   priority,
+  disabled,
 }: {
   image: ImageCollectionItem;
   dragControls: (
@@ -58,6 +57,7 @@ function SortableImage({
     listeners: Record<string, unknown>,
   ) => React.ReactNode;
   priority: boolean;
+  disabled: boolean;
 }) {
   const {
     attributes,
@@ -66,7 +66,7 @@ function SortableImage({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: image.id });
+  } = useSortable({ id: image.id, disabled });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -96,6 +96,18 @@ export function ImageManager({
   referenceId,
   type,
 }: ImageManagerProps) {
+  const { deleteImage, loadImageFromPrimary, reorderImages } = useDashboardDb();
+  const [isReordering, setIsReordering] = useState(false);
+  const searchParams = useSearchParams();
+  const reviewImageId =
+    searchParams?.get("intent") === "remove_image"
+      ? searchParams?.get("imageId")
+      : null;
+  const reviewKey = reviewImageId
+    ? `${type}:${referenceId}:${reviewImageId}`
+    : null;
+  const [loadedReviewKey, setLoadedReviewKey] = useState<string | null>(null);
+  const openedImageRef = useRef<string | null>(null);
   const [imageToDelete, setImageToDelete] =
     useState<ImageCollectionItem | null>(null);
   const {
@@ -137,6 +149,43 @@ export function ImageManager({
     },
   });
 
+  useEffect(() => {
+    if (!reviewImageId || !reviewKey) return;
+    let cancelled = false;
+    void loadImageFromPrimary({ type, referenceId, imageId: reviewImageId })
+      .then(() => {
+        if (!cancelled) setLoadedReviewKey(reviewKey);
+      })
+      .catch(() => {
+        if (!cancelled)
+          toast.error("This image removal link is no longer current.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [loadImageFromPrimary, type, referenceId, reviewImageId, reviewKey]);
+
+  useEffect(() => {
+    if (
+      !reviewImageId ||
+      loadedReviewKey !== reviewKey ||
+      openedImageRef.current === reviewKey
+    )
+      return;
+    const image = images.find((item) => item.id === reviewImageId);
+    if (!image) return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled || openedImageRef.current === reviewKey) return;
+      openedImageRef.current = reviewKey;
+      setImageToDelete(image);
+      openDeleteDialog();
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [images, loadedReviewKey, reviewImageId, reviewKey, openDeleteDialog]);
+
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -146,7 +195,7 @@ export function ImageManager({
 
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
-    if (!over || active.id === over.id) return;
+    if (isReordering || !over || active.id === over.id) return;
 
     const newImages = arrayMove(
       images,
@@ -154,11 +203,9 @@ export function ImageManager({
       images.findIndex((img) => img.id === over.id),
     );
 
-    onImagesChange?.(newImages);
-
-    // Save the new order
+    setIsReordering(true);
     try {
-      await reorderImages({
+      const result = await reorderImages({
         type,
         referenceId,
         images: newImages.map((img, index) => ({
@@ -166,6 +213,7 @@ export function ImageManager({
           order: index,
         })),
       });
+      onImagesChange?.(result.images);
       toast.success("Image order updated");
       onMutationSuccess?.();
     } catch (error) {
@@ -176,6 +224,8 @@ export function ImageManager({
         error: normalizeError(error),
         context: { source: "ImageManager" },
       });
+    } finally {
+      setIsReordering(false);
     }
   }
 
@@ -184,9 +234,9 @@ export function ImageManager({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       <div
-        className="grid max-w-[800px] grid-cols-2 gap-4 md:grid-cols-4"
+        className="grid max-w-200 grid-cols-2 gap-4 md:grid-cols-4"
         data-testid="image-manager-grid"
       >
         <DndContext
@@ -205,32 +255,33 @@ export function ImageManager({
                 <SortableImage
                   image={image}
                   priority={prioritizeImages}
+                  disabled={isReordering}
                   dragControls={(attributes, listeners) => (
                     <>
                       <Button
                         type="button"
                         variant="secondary"
                         size="icon"
-                        className="absolute top-2 left-2 size-8 cursor-grab touch-none"
+                        className="absolute top-2 left-2 cursor-grab touch-none"
                         data-testid="image-drag-handle"
                         data-image-id={image.id}
                         {...attributes}
                         {...listeners}
+                        disabled={isReordering}
                       >
-                        <GripVertical className="size-4" />
+                        <GripVertical aria-hidden="true" />
                         <span className="sr-only">Drag to reorder</span>
                       </Button>
                       <ImagePreviewDialog
                         images={[image]}
-                        size="sm"
                         className="absolute top-2 right-2"
                       />
                       <Button
                         type="button"
                         variant="destructive"
                         size="icon"
-                        disabled={isPending}
-                        className="absolute right-2 bottom-2 size-8"
+                        disabled={isPending || isReordering}
+                        className="absolute right-2 bottom-2"
                         data-testid="image-delete-button"
                         data-image-id={image.id}
                         onClick={() => {
@@ -238,7 +289,7 @@ export function ImageManager({
                           openDeleteDialog();
                         }}
                       >
-                        <Trash2 className="size-4" />
+                        <Trash2 aria-hidden="true" />
                         <span className="sr-only">Delete image</span>
                       </Button>
                     </>
@@ -250,6 +301,7 @@ export function ImageManager({
         </DndContext>
       </div>
 
+      {isReordering && <p role="status">Saving image order…</p>}
       <DeleteConfirmDialog
         open={isDeleteDialogOpen}
         onOpenChange={(open) => {
@@ -266,7 +318,7 @@ export function ImageManager({
           void confirmDelete();
         }}
         title="Delete Image"
-        description="Are you sure you want to delete this image? This action cannot be undone."
+        description={`Delete image ${imageToDelete?.id ?? ""}? This action cannot be undone.`}
       />
     </div>
   );
@@ -274,11 +326,11 @@ export function ImageManager({
 
 export function ImageManagerSkeleton() {
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <div key={i} className="relative aspect-square">
-            <Skeleton className="size-full rounded-lg" />
+            <Skeleton className="size-full" />
           </div>
         ))}
       </div>

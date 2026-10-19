@@ -1,5 +1,6 @@
 import { type RouterOutputs } from "@/trpc/react";
 import { type Table } from "@tanstack/react-table";
+import type { PublicCatalogSearchSectionDefinition } from "./public-catalog-search-registry";
 
 export type PublicCatalogListing =
   RouterOutputs["public"]["getListings"][number];
@@ -48,6 +49,8 @@ export interface PublicCatalogSearchAdvancedPanelProps<
   TData = PublicCatalogListing,
 > {
   advancedSectionsColumns?: 1 | 3;
+  sectionDefinitions?: PublicCatalogSearchSectionDefinition[];
+  framed?: boolean;
   table: Table<TData>;
   listOptions: PublicCatalogSearchFacetOption[];
   facetOptions: PublicCatalogSearchFacetOptions;

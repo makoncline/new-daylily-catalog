@@ -22,7 +22,10 @@ const anonymousAuthResult = {
 };
 
 function authResultForCookie(value: string | undefined) {
-  return value === "anonymous" ? anonymousAuthResult : authResult;
+  if (value === "anonymous") return anonymousAuthResult;
+  return value === "other-member"
+    ? { ...authResult, userId: "user_integration_other" }
+    : authResult;
 }
 
 export async function auth() {
@@ -61,6 +64,19 @@ export function clerkMiddleware(
 
 export async function clerkClient() {
   return {
+    // Substitute only the external OAuth provider. App admission and account lookup stay real.
+    authenticateRequest: async (request: Request) => ({
+      toAuth: () =>
+        request.headers.get("authorization") ===
+        "Bearer integration-oauth-seller"
+          ? {
+              isAuthenticated: true,
+              userId: clerkUser.id,
+              clientId: "integration-oauth-client",
+              scopes: ["catalog:read", "catalog:write"],
+            }
+          : { isAuthenticated: false },
+    }),
     users: {
       getUser: async () => clerkUser,
     },

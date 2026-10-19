@@ -4,6 +4,19 @@ import superjson from "superjson";
 import { db, hasEmbeddedReplica, replicaDb } from "@/server/db";
 import { getClerkUserData } from "@/server/clerk/sync-user";
 import { ZodError } from "zod";
+import {
+  getErrorContext,
+  getLogContext,
+  logEvent,
+  setErrorContext,
+} from "@/lib/telemetry";
+import { reportError } from "@/lib/error-utils";
+import {
+  logUsageOperation,
+  usageInputSummary,
+  usageResultSummary,
+} from "@/server/observability/api-usage";
+import { withLogContext } from "@/server/observability/log-context";
 import { logUserMutation } from "@/server/audit/user-action-audit";
 
 export async function getUserByClerkId(clerkUserId: string) {
@@ -48,9 +61,14 @@ export interface TRPCContext {
   hasReplicaDb?: boolean;
   replicaDb?: typeof db;
   requestUrl?: string;
+  oauthClientId?: string;
+  oauthScope?: string;
+  mcpToolName?: string;
 }
 
 export interface TRPCInternalContext extends TRPCContext {
+  /** Confirmed tier from bearer or MCP admission: true = Pro, false = non-Pro, undefined = unresolved. */
+  _confirmedActiveMembership?: boolean;
   /**
    * Auth sentinel:
    * - `undefined`: not resolved yet for this request
@@ -77,6 +95,9 @@ export const createTRPCContext = async (opts: {
   headers: Headers;
   requestUrl?: string;
   clerkUserId?: string | null;
+  oauthClientId?: string;
+  oauthScope?: string;
+  mcpToolName?: string;
 }): Promise<TRPCContext> => {
   return {
     ...opts,
@@ -95,11 +116,19 @@ export const createTRPCContext = async (opts: {
  */
 const t = initTRPC.context<TRPCInternalContext>().create({
   transformer: superjson,
-  errorFormatter({ shape, error }) {
+  errorFormatter({ shape, error, path }) {
     return {
       ...shape,
+      ...(error.code === "NOT_FOUND" && path?.startsWith("dashboardDb.")
+        ? {
+            message:
+              "This dashboard is out of date. Your changes were not saved. Copy any unsaved changes, then reload this page.",
+          }
+        : {}),
       data: {
         ...shape.data,
+        correlationId: (getErrorContext(error) ?? getLogContext())
+          .correlation_id,
         zodError:
           error.cause instanceof ZodError ? error.cause.flatten() : null,
       },
@@ -134,22 +163,74 @@ export const createTRPCRouter = t.router;
  * You can remove this if you don't like it, but it can help catch unwanted waterfalls by simulating
  * network latency that would occur in production but not in local development.
  */
-const timingMiddleware = t.middleware(async ({ next, path }) => {
-  const start = Date.now();
+const timingMiddleware = t.middleware(
+  async ({ next, path, type, ctx, getRawInput }) => {
+    return withLogContext(
+      {
+        ...getLogContext(),
+        ...(!ctx.mcpToolName && ctx.oauthClientId
+          ? { usage_operation_id: crypto.randomUUID() }
+          : {}),
+      },
+      async () => {
+        const start = Date.now();
 
-  if (t._config.isDev && process.env.INTEGRATION_MODE !== "1") {
-    // artificial delay in dev
-    const waitMs = Math.floor(Math.random() * 400) + 100;
-    await new Promise((resolve) => setTimeout(resolve, waitMs));
-  }
+        if (t._config.isDev && process.env.INTEGRATION_MODE !== "1") {
+          // artificial delay in dev
+          const waitMs = Math.floor(Math.random() * 400) + 100;
+          await new Promise((resolve) => setTimeout(resolve, waitMs));
+        }
 
-  const result = await next();
+        const result = await next();
 
-  const end = Date.now();
-  console.log(`[TRPC] ${path} took ${end - start}ms to execute`);
+        if (ctx.oauthClientId && !ctx.mcpToolName) {
+          logUsageOperation({
+            operation: path,
+            operation_kind: type === "query" ? "read" : "write",
+            outcome: result.ok ? "success" : "procedure_error",
+            error_code: result.ok ? undefined : result.error.code,
+            duration_ms: Date.now() - start,
+            ...(result.ok ? usageInputSummary(await getRawInput(), false) : {}),
+            ...(result.ok ? usageResultSummary(result.data) : {}),
+          });
+        }
+        const end = Date.now();
+        const attributes = {
+          procedure: path,
+          operation_type: type,
+          duration_ms: end - start,
+        };
+        if (result.ok) {
+          logEvent("info", "trpc_procedure_completed", attributes);
+        } else {
+          setErrorContext(result.error, {
+            ...getLogContext(),
+            ...attributes,
+            error_code: result.error.code,
+          });
+          if (result.error.code === "INTERNAL_SERVER_ERROR") {
+            reportError({
+              error: result.error,
+              context: {
+                source: "trpc",
+                ...attributes,
+                error_code: result.error.code,
+              },
+            });
+          } else {
+            logEvent("warn", "trpc_procedure_rejected", {
+              ...attributes,
+              error_code: result.error.code,
+              error: result.error,
+            });
+          }
+        }
 
-  return result;
-});
+        return result;
+      },
+    );
+  },
+);
 
 /**
  * Public (unauthenticated) procedure
@@ -187,14 +268,7 @@ async function resolveAuthenticatedUser(requestClerkUserId?: string | null) {
   return getOrCreateUser(clerkUserId);
 }
 
-const READ_ONLY_MUTATION_PATHS = new Set([
-  "dashboardDb.cultivarReference.getByIdsBatch",
-  "dashboardDb.cultivarReference.getByIdsBatchReplica",
-  "dashboardDb.image.listByListingIds",
-  "dashboardDb.image.listByListingIdsReplica",
-]);
-
-const REDACTED_MUTATION_PATHS = new Set(["dashboardDb.listing.importRows"]);
+const REDACTED_MUTATION_PATHS = new Set(["dashboardV2.listing.importRows"]);
 
 function getMutationAuditInput(path: string, input: unknown) {
   if (!REDACTED_MUTATION_PATHS.has(path)) {
@@ -226,8 +300,18 @@ const isAuthenticated = t.middleware(async (opts) => {
     });
   }
 
-  const shouldAuditMutation =
-    opts.type === "mutation" && !READ_ONLY_MUTATION_PATHS.has(opts.path);
+  if (
+    opts.path.startsWith("dashboardV2.") &&
+    opts.ctx.headers.get("x-dashboard-member-id") !== user.id
+  ) {
+    throw new TRPCError({
+      code: "PRECONDITION_FAILED",
+      message:
+        "Your account changed. Your changes were not saved. Copy any unsaved changes, then reload this page.",
+    });
+  }
+
+  const shouldAuditMutation = opts.type === "mutation";
   const rawInput = shouldAuditMutation
     ? getMutationAuditInput(opts.path, await opts.getRawInput())
     : undefined;
@@ -246,8 +330,11 @@ const isAuthenticated = t.middleware(async (opts) => {
       path: opts.path,
       user,
       rawInput,
+      persistedResult: result.ok ? result.data : undefined,
       requestUrl: opts.ctx.requestUrl,
-      headers: opts.ctx.headers,
+      oauthClientId: opts.ctx.oauthClientId,
+      oauthScope: opts.ctx.oauthScope,
+      mcpToolName: opts.ctx.mcpToolName,
       status: result.ok ? "success" : "error",
       durationMs: Date.now() - startedAt,
       errorCode: result.ok ? undefined : result.error.code,

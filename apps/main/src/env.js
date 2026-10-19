@@ -23,14 +23,14 @@ export const env = createEnv({
     TURSO_DATABASE_AUTH_TOKEN: z.string().optional(),
     TURSO_EMBEDDED_REPLICA_URL: z.string().optional(),
     TURSO_EMBEDDED_REPLICA_SYNC_INTERVAL_SECONDS: z.string().optional(),
-    PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS: z.string().optional(),
+    SEARCH_INDEX_CANDIDATE_TOKEN: z.string().min(32).optional(),
     VERCEL_AUTOMATION_BYPASS_SECRET: z.string().optional(),
     CLERK_SECRET_KEY: z.string().optional(),
     CLERK_WEBHOOK_SECRET: z.string().optional(),
     DAYLILY_MCP_OAUTH_CLIENT_ID: z.string().optional(),
+    DAYLILY_MEMBER_API_OAUTH_CLIENT_IDS: z.string().optional(),
     STRIPE_SECRET_KEY: z.string().optional(),
     STRIPE_WEBHOOK_SECRET: z.string().optional(),
-    STRIPE_PRICE_ID: z.string().optional(),
     AWS_ACCESS_KEY_ID: z.string().optional(),
     AWS_SECRET_ACCESS_KEY: z.string().optional(),
     AWS_REGION: z.string().optional(),
@@ -55,19 +55,19 @@ export const env = createEnv({
     TURSO_EMBEDDED_REPLICA_URL: process.env.TURSO_EMBEDDED_REPLICA_URL,
     TURSO_EMBEDDED_REPLICA_SYNC_INTERVAL_SECONDS:
       process.env.TURSO_EMBEDDED_REPLICA_SYNC_INTERVAL_SECONDS,
-    PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS:
-      process.env.PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS,
+    SEARCH_INDEX_CANDIDATE_TOKEN: process.env.SEARCH_INDEX_CANDIDATE_TOKEN,
     VERCEL_AUTOMATION_BYPASS_SECRET:
       process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
     CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY,
     CLERK_WEBHOOK_SECRET: process.env.CLERK_WEBHOOK_SECRET,
     DAYLILY_MCP_OAUTH_CLIENT_ID: process.env.DAYLILY_MCP_OAUTH_CLIENT_ID,
+    DAYLILY_MEMBER_API_OAUTH_CLIENT_IDS:
+      process.env.DAYLILY_MEMBER_API_OAUTH_CLIENT_IDS,
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:
       process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
     NEXT_PUBLIC_CLOUDFLARE_URL: process.env.NEXT_PUBLIC_CLOUDFLARE_URL,
     STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
-    STRIPE_PRICE_ID: process.env.STRIPE_PRICE_ID,
     AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID,
     AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
     AWS_REGION: process.env.AWS_REGION,
@@ -154,21 +154,6 @@ if (!process.env.SKIP_ENV_VALIDATION) {
     if (!Number.isInteger(syncIntervalSeconds) || syncIntervalSeconds < 1) {
       throw new Error(
         "TURSO_EMBEDDED_REPLICA_SYNC_INTERVAL_SECONDS must be a positive integer.",
-      );
-    }
-  }
-
-  if (env.PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS) {
-    const refreshIntervalSeconds = Number(
-      env.PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS,
-    );
-
-    if (
-      !Number.isInteger(refreshIntervalSeconds) ||
-      refreshIntervalSeconds < 0
-    ) {
-      throw new Error(
-        "PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS must be a non-negative integer.",
       );
     }
   }

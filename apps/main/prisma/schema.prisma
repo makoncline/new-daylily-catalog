@@ -142,7 +142,7 @@ model Listing {
   @@unique([userId, importKey])
   @@index([ahsId])
   @@index([cultivarReferenceId])
-  @@index([userId])
+  @@index([userId, id])
   @@index([slug])
 }
 
@@ -157,7 +157,7 @@ model List {
   listings    Listing[] @relation("ListToListing")
   user        User      @relation(fields: [userId], references: [id])
 
-  @@index([userId])
+  @@index([userId, id])
 }
 
 model UserProfile {

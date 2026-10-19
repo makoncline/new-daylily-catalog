@@ -7,13 +7,8 @@ vi.mock("next/navigation", () => ({
   usePathname: () => navigationState.pathname,
 }));
 
-vi.mock("@/components/public-nav", () => ({
-  isGrowerMarketingPath: (pathname: string) =>
-    [
-      "/start-membership",
-      "/daylily-database-software",
-      "/sell-daylilies-online",
-    ].includes(pathname),
+vi.mock("@/components/public-nav", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/components/public-nav")>()),
   PublicHeader: () => <header>Public header</header>,
 }));
 

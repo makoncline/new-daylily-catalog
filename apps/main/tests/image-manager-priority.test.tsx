@@ -1,12 +1,20 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ImageManager } from "@/components/image-manager";
-import type { ImageCollectionItem } from "@/app/dashboard/_lib/dashboard-db/images-collection";
+import type { ImageCollectionItem } from "@/app/dashboard/_lib/dashboard-db/collections";
 
-vi.mock("@/app/dashboard/_lib/dashboard-db/images-collection", () => ({
-  deleteImage: vi.fn(),
-  reorderImages: vi.fn(),
+const review = vi.hoisted(() => ({ query: "" }));
+const deleteImage = vi.hoisted(() => vi.fn());
+const loadImageFromPrimary = vi.hoisted(() => vi.fn(async () => {}));
+
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(review.query),
 }));
+
+vi.mock("@/app/dashboard/_components/dashboard-db-provider", () => {
+  const state = { deleteImage, loadImageFromPrimary, reorderImages: vi.fn() };
+  return { useDashboardDb: () => state };
+});
 
 const images: ImageCollectionItem[] = ["first", "second"].map((id, order) => ({
   id,
@@ -36,5 +44,32 @@ describe("ImageManager image priority", () => {
       expect(image).toHaveAttribute("loading", "eager");
       expect(image).toHaveAttribute("fetchpriority", "high");
     }
+  });
+
+  it("opens image removal for review and leaves the image intact on cancel", async () => {
+    let completeRefresh: (() => void) | undefined;
+    loadImageFromPrimary.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          completeRefresh = resolve;
+        }),
+    );
+    review.query = "intent=remove_image&imageId=second";
+    render(
+      <ImageManager images={images} referenceId="profile-1" type="profile" />,
+    );
+
+    expect(loadImageFromPrimary).toHaveBeenCalledWith({
+      type: "profile",
+      referenceId: "profile-1",
+      imageId: "second",
+    });
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    completeRefresh?.();
+    expect(await screen.findByRole("alertdialog")).toBeVisible();
+    expect(deleteImage).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(deleteImage).not.toHaveBeenCalled();
+    review.query = "";
   });
 });

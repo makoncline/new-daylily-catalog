@@ -20,13 +20,9 @@ export function DataTableFilterReset<TData>({
   if (!isFiltered) return null;
 
   return (
-    <Button
-      variant="ghost"
-      onClick={() => resetTableState(table)}
-      className="h-8 px-2 lg:px-3"
-    >
+    <Button variant="ghost" onClick={() => resetTableState(table)} size="sm">
       Reset
-      <X className="ml-2 size-4" />
+      <X aria-hidden="true" data-icon="inline-end" />
     </Button>
   );
 }

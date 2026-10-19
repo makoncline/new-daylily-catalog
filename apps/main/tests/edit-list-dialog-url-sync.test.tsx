@@ -1,13 +1,7 @@
 import * as React from "react";
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useEditList } from "@/app/dashboard/lists/_components/edit-list-dialog";
+import { useEditList } from "@/app/dashboard/lists/_hooks/use-list-surface-state";
 
 const navigationState = vi.hoisted(() => {
   let pathname = "/dashboard/lists";
@@ -66,7 +60,7 @@ describe("useEditList URL sync", () => {
     navigationState.replace.mockClear();
   });
 
-  it("clears editing query without pushing a bare '?' URL", async () => {
+  it("keeps the editor open until its editing URL clears without pushing a bare '?' URL", async () => {
     const { rerender } = render(<EditListHookHarness />);
 
     await waitFor(() => {
@@ -75,13 +69,12 @@ describe("useEditList URL sync", () => {
 
     fireEvent.click(screen.getByRole("button"));
 
-    expect(screen.getByRole("button")).toHaveTextContent("none");
+    expect(screen.getByRole("button")).toHaveTextContent("list-1");
 
     await waitFor(() => {
-      expect(navigationState.replace).toHaveBeenCalledWith(
-        "/dashboard/lists",
-        { scroll: false },
-      );
+      expect(navigationState.replace).toHaveBeenCalledWith("/dashboard/lists", {
+        scroll: false,
+      });
     });
     expect(navigationState.push).not.toHaveBeenCalled();
     expect(
@@ -90,12 +83,19 @@ describe("useEditList URL sync", () => {
 
     navigationState.setSearch("");
     rerender(<EditListHookHarness />);
-    await act(async () => {
-      await new Promise((resolve) => window.setTimeout(resolve, 0));
-    });
+    expect(screen.getByRole("button")).toHaveTextContent("none");
 
     navigationState.setSearch("editing=list-1");
     rerender(<EditListHookHarness />);
     expect(screen.getByRole("button")).toHaveTextContent("list-1");
+  });
+
+  it("clears deletion intent when closing an edit", () => {
+    navigationState.setSearch("editing=list-1&intent=delete");
+    render(<EditListHookHarness />);
+    fireEvent.click(screen.getByRole("button"));
+    expect(navigationState.replace).toHaveBeenCalledWith("/dashboard/lists", {
+      scroll: false,
+    });
   });
 });

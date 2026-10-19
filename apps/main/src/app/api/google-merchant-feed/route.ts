@@ -1,4 +1,5 @@
-import { replicaDb } from "@/server/db";
+import { logEvent } from "@/lib/telemetry";
+import { publicDb } from "@/server/db";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import { formatAhsListingSummary } from "@/lib/utils";
 import {
@@ -66,7 +67,7 @@ export async function GET(_request: Request) {
 
     let cursor: string | undefined;
     while (true) {
-      const listings = await replicaDb.listing.findMany({
+      const listings = await publicDb.listing.findMany({
         where,
         include,
         orderBy: { id: "asc" },
@@ -166,7 +167,10 @@ export async function GET(_request: Request) {
           xml += itemXml;
         } catch (error) {
           const errorMessage = `Error processing listing ${listing.id}: ${String(error)}`;
-          console.error(errorMessage);
+          logEvent("error", "merchant_feed_listing_failed", {
+            listing_id: listing.id,
+            error,
+          });
           errors.push(errorMessage);
         }
       });
@@ -179,7 +183,9 @@ export async function GET(_request: Request) {
 
     // If we encountered errors, add a comment in the XML
     if (errors.length > 0) {
-      console.error(`Encountered ${errors.length} errors during processing`);
+      logEvent("error", "merchant_feed_items_failed", {
+        error_count: errors.length,
+      });
       xml += `<!-- ${errors.length} items failed processing -->\n`;
     }
 
@@ -307,7 +313,7 @@ function validateXml(xml: string): boolean {
 
     for (const field of requiredFields) {
       if (!xml.includes(field)) {
-        console.error(`XML validation failed: Missing required field ${field}`);
+        logEvent("error", "merchant_feed_field_missing", { field });
         return false;
       }
     }

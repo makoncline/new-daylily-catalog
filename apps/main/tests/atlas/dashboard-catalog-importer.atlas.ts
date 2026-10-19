@@ -124,12 +124,12 @@ async function prepareListings(page: Page, csv = sampleCsv()) {
     buffer: Buffer.from(csv),
   });
   await expect(
-    page.getByRole("button", { name: "Finish", exact: true }),
+    page.getByRole("heading", { name: "Your catalog preview" }),
   ).toBeVisible({ timeout: 30_000 });
   await page.getByRole("button", { name: "Finish", exact: true }).click();
   await expect(
     page.getByRole("heading", {
-      name: /\d+ listings? ready/,
+      name: /Your (current )?import is ready/,
     }),
   ).toBeVisible({ timeout: 30_000 });
   await page.getByRole("link", { name: "Continue to import" }).click();
@@ -206,9 +206,7 @@ test("Dashboard importer mobile unresolved issues", async ({ page }) => {
 test("Dashboard importer skips existing listings", async ({ page }) => {
   await openDashboardImporter(page, desktop);
   await prepareListings(page, existingListingCsv());
-  await expect(
-    page.getByText("1 listing is in your catalog"),
-  ).toBeVisible();
+  await expect(page.getByText("1 listing is in your catalog")).toBeVisible();
   await expect(page.getByRole("button", { name: "Create anyway" })).toHaveCount(
     0,
   );
@@ -218,9 +216,7 @@ test("Dashboard importer skips existing listings", async ({ page }) => {
 test("Dashboard importer mobile existing listing", async ({ page }) => {
   await openDashboardImporter(page, mobile);
   await prepareListings(page, existingListingCsv());
-  await expect(
-    page.getByText("1 listing is in your catalog"),
-  ).toBeVisible();
+  await expect(page.getByText("1 listing is in your catalog")).toBeVisible();
   await expectNoPageOverflow(page);
   await captureAtlasState(page, "dashboard-importer-mobile-existing");
 });

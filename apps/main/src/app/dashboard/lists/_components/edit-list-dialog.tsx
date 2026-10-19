@@ -6,55 +6,18 @@ import { ArrowLeft } from "lucide-react";
 import {
   Suspense,
   useCallback,
-  useEffect,
   useLayoutEffect,
   useRef,
   useState,
 } from "react";
 import { ErrorBoundary } from "react-error-boundary";
-import { useQueryParamDialogState } from "@/hooks/use-dialog-search-param";
 import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
 import { Button } from "@/components/ui/button";
 import { ErrorFallback } from "@/components/error-fallback";
 import { PageHeader } from "@/components/page-header";
 import { ListingSurfaceSaveBar } from "../../listings/_components/listing-surface-save-bar";
 import { reportError } from "@/lib/error-utils";
-
-export const useEditList = () => {
-  const { setValue, value } = useQueryParamDialogState({
-    history: "push",
-    paramName: "editing",
-    scroll: false,
-  });
-  const [optimisticEditing, setOptimisticEditing] = useState<{
-    from: string | null;
-    to: string | null;
-  } | null>(null);
-
-  const editingId =
-    optimisticEditing?.from === value ? optimisticEditing.to : value;
-
-  useEffect(() => {
-    if (optimisticEditing?.to !== value) {
-      return;
-    }
-
-    const timeout = window.setTimeout(() => setOptimisticEditing(null), 0);
-    return () => window.clearTimeout(timeout);
-  }, [optimisticEditing, value]);
-
-  return {
-    editList: (id: string) => {
-      setOptimisticEditing({ from: value, to: id });
-      setValue(id);
-    },
-    closeEditList: () => {
-      setOptimisticEditing({ from: editingId, to: null });
-      setValue(null, "replace");
-    },
-    editingId,
-  };
-};
+import { useSearchParams } from "next/navigation";
 
 export function EditListSurface({
   listId,
@@ -64,6 +27,7 @@ export function EditListSurface({
   onClose: () => void;
 }) {
   const formRef = useRef<ListFormHandle | null>(null);
+  const openDeleteOnMount = useSearchParams()?.get("intent") === "delete";
   const backButtonRef = useRef<HTMLButtonElement | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -112,7 +76,7 @@ export function EditListSurface({
           variant="outline"
           onClick={handleBack}
         >
-          <ArrowLeft aria-hidden="true" />
+          <ArrowLeft data-icon="inline-start" aria-hidden="true" />
           Back to lists
         </Button>
       </PageHeader>
@@ -130,6 +94,7 @@ export function EditListSurface({
           <ListForm
             formRef={formRef}
             listId={listId}
+            openDeleteOnMount={openDeleteOnMount}
             onDelete={onClose}
             onSave={onClose}
             onPendingChangesChange={setIsDirty}

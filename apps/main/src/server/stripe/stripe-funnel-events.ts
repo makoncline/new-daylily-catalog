@@ -1,4 +1,5 @@
 import type Stripe from "stripe";
+import type { SubscriptionBillingOption } from "@/config/subscription-config";
 
 type StripeFunnelEventName =
   | "trial_started"
@@ -25,6 +26,17 @@ function getPreviousSubscriptionStatus(event: Stripe.Event) {
   return eventData.previous_attributes?.status ?? null;
 }
 
+function getSubscriptionAttribution(subscription: Stripe.Subscription) {
+  const metadata = subscription.metadata ?? {};
+  return {
+    ...(metadata.billing_option
+      ? { billing_option: metadata.billing_option }
+      : {}),
+    ...(metadata.import_id ? { import_id: metadata.import_id } : {}),
+    source: metadata.source ?? "stripe-webhook",
+  };
+}
+
 export function getStripeFunnelEvents(
   event: Stripe.Event,
 ): StripeFunnelEvent[] {
@@ -49,24 +61,10 @@ export function getStripeFunnelEvents(
     funnelEvents.push({
       event: "trial_started",
       properties: {
-        source: "stripe-webhook",
+        ...getSubscriptionAttribution(subscription),
         trigger: event.type,
         subscription_status: subscriptionStatus,
         trial_end: subscription.trial_end,
-      },
-    });
-  }
-
-  if (
-    event.type === "customer.subscription.created" &&
-    subscriptionStatus === "active"
-  ) {
-    funnelEvents.push({
-      event: "paid_activated",
-      properties: {
-        source: "stripe-webhook",
-        trigger: event.type,
-        subscription_status: subscriptionStatus,
       },
     });
   }
@@ -79,7 +77,7 @@ export function getStripeFunnelEvents(
     funnelEvents.push({
       event: "paid_activated",
       properties: {
-        source: "stripe-webhook",
+        ...getSubscriptionAttribution(subscription),
         trigger: "trial_to_active",
         subscription_status: subscriptionStatus,
       },
@@ -94,7 +92,7 @@ export function getStripeFunnelEvents(
     funnelEvents.push({
       event: "trial_canceled",
       properties: {
-        source: "stripe-webhook",
+        ...getSubscriptionAttribution(subscription),
         trigger: "trial_to_terminal_status",
         subscription_status: subscriptionStatus,
       },
@@ -108,7 +106,7 @@ export function getStripeFunnelEvents(
     funnelEvents.push({
       event: "trial_canceled",
       properties: {
-        source: "stripe-webhook",
+        ...getSubscriptionAttribution(subscription),
         trigger: event.type,
         subscription_status: subscriptionStatus,
       },
@@ -116,4 +114,37 @@ export function getStripeFunnelEvents(
   }
 
   return funnelEvents;
+}
+
+export function getCheckoutPaidActivation({
+  billingOption,
+  session,
+  subscriptionStatus,
+}: {
+  billingOption: SubscriptionBillingOption;
+  session: Stripe.Checkout.Session;
+  subscriptionStatus: "none" | Stripe.Subscription.Status | null;
+}): StripeFunnelEvent | null {
+  if (subscriptionStatus !== "active") {
+    return null;
+  }
+
+  const subscriptionId =
+    typeof session.subscription === "string"
+      ? session.subscription
+      : session.subscription?.id;
+
+  return {
+    event: "paid_activated",
+    properties: {
+      $insert_id: `stripe:paid_activated:${subscriptionId ?? session.id}`,
+      billing_option: billingOption,
+      ...(session.metadata?.import_id
+        ? { import_id: session.metadata.import_id }
+        : {}),
+      source: session.metadata?.source ?? "stripe-checkout",
+      trigger: "checkout.session.completed",
+      subscription_status: subscriptionStatus,
+    },
+  };
 }

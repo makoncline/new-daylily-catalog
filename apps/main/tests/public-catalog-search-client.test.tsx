@@ -14,6 +14,12 @@ const mockToastSuccess = vi.hoisted(() => vi.fn());
 const mockReadSnapshot = vi.hoisted(() => vi.fn());
 const mockIsSnapshotUsable = vi.hoisted(() => vi.fn());
 const mockShouldRevalidateSnapshot = vi.hoisted(() => vi.fn());
+const mockRouterReplace = vi.hoisted(() => vi.fn());
+const mockRouterPush = vi.hoisted(() => vi.fn());
+const navigationState = vi.hoisted(() => ({
+  pathname: "/seeded-daylily/search",
+  query: "",
+}));
 const persistedSWRConfig = vi.hoisted(() => ({
   enabled: false,
   queryLimit: 500,
@@ -56,6 +62,12 @@ vi.mock("sonner", () => ({
   },
 }));
 
+vi.mock("next/navigation", () => ({
+  usePathname: () => navigationState.pathname,
+  useRouter: () => ({ push: mockRouterPush, replace: mockRouterReplace }),
+  useSearchParams: () => new URLSearchParams(navigationState.query),
+}));
+
 vi.mock(
   "@/components/public-catalog-search/public-catalog-search-content",
   () => ({
@@ -78,6 +90,10 @@ function getRenderedContentProps() {
   }
 
   return props as {
+    controller: {
+      mode: "basic" | "advanced";
+      setMode: (mode: "basic" | "advanced") => void;
+    };
     listings: Array<{ id: string; title: string }>;
     isRefreshingCatalogData: boolean;
     onRefreshCatalogData: (() => void) | undefined;
@@ -92,6 +108,9 @@ describe("PublicCatalogSearchClient", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     persistedSWRConfig.enabled = false;
+    navigationState.query = "";
+    mockRouterReplace.mockReset();
+    mockRouterPush.mockReset();
 
     mockUseInfiniteQuery.mockReturnValue({
       data: undefined,
@@ -130,6 +149,29 @@ describe("PublicCatalogSearchClient", () => {
       "listing-1",
       "listing-2",
     ]);
+  });
+
+  it("uses the URL mode and updates it through navigation", () => {
+    navigationState.query = "mode=advanced&price=true";
+
+    render(
+      <PublicCatalogSearchClient
+        userId="user-1"
+        userSlugOrId="seeded-daylily"
+        lists={[]}
+        initialListings={[]}
+        totalListingsCount={0}
+      />,
+    );
+
+    const { controller } = getRenderedContentProps();
+    expect(controller.mode).toBe("advanced");
+
+    act(() => controller.setMode("basic"));
+    expect(mockRouterReplace).toHaveBeenCalledWith(
+      "/seeded-daylily/search?price=true",
+      { scroll: false },
+    );
   });
 
   it("uses deduplicated/sorted query results when pages are available", () => {

@@ -206,8 +206,8 @@ test.describe("lists page features @local", () => {
     await dashboardLists.chooseRowActionEdit();
     await expect(dashboardLists.editDialog()).toBeVisible();
 
-    let releaseDeleteRequest = () => {};
-    let markDeleteRequestStarted = () => {};
+    let releaseDeleteRequest: () => void = () => undefined;
+    let markDeleteRequestStarted: () => void = () => undefined;
     const deleteRequestStarted = new Promise<void>((resolve) => {
       markDeleteRequestStarted = resolve;
     });
@@ -215,7 +215,7 @@ test.describe("lists page features @local", () => {
       releaseDeleteRequest = resolve;
     });
     await page.route("**/api/trpc/**", async (route) => {
-      if (route.request().url().includes("dashboardDb.list.delete")) {
+      if (route.request().url().includes("dashboardV2.list.delete")) {
         markDeleteRequestStarted();
         await deleteRequestBlocked;
       }
@@ -225,13 +225,23 @@ test.describe("lists page features @local", () => {
     await dashboardLists.surfaceDeleteButton().click();
     await dashboardLists.confirmDelete();
     await deleteRequestStarted;
+    await expect(dashboardLists.editDialog()).toBeVisible();
+    await expect(dashboardLists.surfaceDeleteButton()).toBeDisabled();
+    await expect(page).toHaveURL(/editing=/);
+    releaseDeleteRequest();
     await expect(
       page.getByRole("heading", { name: "Lists", exact: true }),
     ).toBeVisible();
     await expect(dashboardLists.editDialog()).toHaveCount(0);
     await expect(page.locator(".animate-pulse:visible")).toHaveCount(0);
     await expect(page).not.toHaveURL(/editing=/);
-    releaseDeleteRequest();
+    await expect(
+      page
+        .locator("[data-sonner-toast]")
+        .filter({ hasText: "Your list has been deleted successfully" })
+        .first(),
+    ).toBeVisible();
+    await page.reload();
 
     await expect(
       page.getByRole("heading", { name: "No lists found" }),

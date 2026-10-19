@@ -2,7 +2,6 @@
 
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TRPCInternalContext } from "@/server/api/trpc";
-import { getStripeTrialPeriodDays } from "@/config/subscription-config";
 
 process.env.SKIP_ENV_VALIDATION = "1";
 process.env.DATABASE_URL ??= "file:./tests/.tmp/stripe-router.sqlite";
@@ -10,7 +9,6 @@ process.env.CLERK_SECRET_KEY ??= "sk_test_clerk";
 process.env.CLERK_WEBHOOK_SECRET ??= "whsec_test_clerk";
 process.env.STRIPE_SECRET_KEY ??= "sk_test_stripe";
 process.env.STRIPE_WEBHOOK_SECRET ??= "whsec_test_stripe";
-process.env.STRIPE_PRICE_ID ??= "price_test_123";
 process.env.AWS_ACCESS_KEY_ID ??= "test";
 process.env.AWS_SECRET_ACCESS_KEY ??= "test";
 process.env.AWS_REGION ??= "us-east-1";
@@ -22,6 +20,7 @@ const stripeMocks = vi.hoisted(() => ({
   customersCreate: vi.fn(),
   checkoutCreate: vi.fn(),
   billingPortalCreate: vi.fn(),
+  pricesList: vi.fn(),
 }));
 
 const subscriptionMocks = vi.hoisted(() => ({
@@ -42,6 +41,9 @@ vi.mock("@/server/stripe/client", () => ({
       sessions: {
         create: stripeMocks.billingPortalCreate,
       },
+    },
+    prices: {
+      list: stripeMocks.pricesList,
     },
   }),
 }));
@@ -106,9 +108,26 @@ describe("stripe.generateCheckout", () => {
     stripeMocks.checkoutCreate.mockResolvedValue({
       url: "https://checkout.stripe.com/c/pay/test",
     });
+    stripeMocks.pricesList.mockResolvedValue({
+      data: [
+        {
+          id: "price_test_monthly",
+          active: true,
+          currency: "usd",
+          product: "prod_membership",
+          recurring: {
+            interval: "month",
+            interval_count: 1,
+          },
+          type: "recurring",
+          unit_amount: 1299,
+          unit_amount_decimal: null,
+        },
+      ],
+    });
   });
 
-  it("creates checkout with a trial period for an existing Stripe customer", async () => {
+  it("creates Stripe-hosted billing choice without a trial for an existing customer", async () => {
     const db = createMockDb();
     const caller = createCaller(db, {
       id: "user-1",
@@ -127,17 +146,32 @@ describe("stripe.generateCheckout", () => {
       expect.objectContaining({
         customer: "cus_existing",
         mode: "subscription",
-        line_items: [{ price: process.env.STRIPE_PRICE_ID, quantity: 1 }],
+        line_items: [{ price: "price_test_monthly", quantity: 1 }],
         subscription_data: {
-          trial_period_days: getStripeTrialPeriodDays(),
+          metadata: {
+            billing_choice: "stripe_checkout_upsell",
+            membership_currency: "usd",
+            membership_product_id: "prod_membership",
+            source: "dashboard",
+          },
+        },
+        metadata: {
+          userId: "user-1",
+          billing_choice: "stripe_checkout_upsell",
+          membership_currency: "usd",
+          membership_product_id: "prod_membership",
+          source: "dashboard",
         },
         success_url: "https://daylilycatalog.com/subscribe/success",
         cancel_url: "https://daylilycatalog.com/dashboard",
       }),
     );
+    expect(
+      stripeMocks.checkoutCreate.mock.calls[0]?.[0].subscription_data,
+    ).not.toHaveProperty("trial_period_days");
   });
 
-  it("creates a Stripe customer idempotently and still applies the trial period", async () => {
+  it("creates the same hosted checkout for a new Stripe customer", async () => {
     stripeMocks.customersCreate.mockResolvedValue({
       id: "cus_new",
     });
@@ -166,8 +200,14 @@ describe("stripe.generateCheckout", () => {
     expect(stripeMocks.checkoutCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         customer: "cus_new",
+        line_items: [{ price: "price_test_monthly", quantity: 1 }],
         subscription_data: {
-          trial_period_days: getStripeTrialPeriodDays(),
+          metadata: {
+            billing_choice: "stripe_checkout_upsell",
+            membership_currency: "usd",
+            membership_product_id: "prod_membership",
+            source: "dashboard",
+          },
         },
         success_url: "https://daylilycatalog.com/subscribe/success",
         cancel_url: "https://daylilycatalog.com/dashboard",
@@ -195,6 +235,21 @@ describe("stripe.generateCheckout", () => {
       expect.objectContaining({
         success_url: "https://daylilycatalog.com/subscribe/success",
         cancel_url: "https://daylilycatalog.com/dashboard",
+      }),
+    );
+  });
+
+  it("does not use client-supplied Stripe price IDs", async () => {
+    const caller = createCaller(createMockDb(), {
+      id: "user-4",
+      stripeCustomerId: "cus_existing",
+    });
+
+    await caller.generateCheckout({ priceId: "price_attacker" } as never);
+
+    expect(stripeMocks.checkoutCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        line_items: [{ price: "price_test_monthly", quantity: 1 }],
       }),
     );
   });

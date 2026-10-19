@@ -102,13 +102,11 @@ function CatalogImporterListingCard({
   highlighted = false,
   onOpen,
   openLabel,
-  priority = false,
   row,
 }: {
   highlighted?: boolean;
   onOpen: () => void;
   openLabel?: string;
-  priority?: boolean;
   row: CatalogImportRow;
 }) {
   const match = row.match;
@@ -135,7 +133,6 @@ function CatalogImporterListingCard({
         key={image?.url ?? "missing-image"}
         image={image}
         alt={`${match.displayName} — ${imageLabel ?? "Cultivar photo"}`}
-        priority={priority}
       >
         <CatalogListingCard.Price price={row.price} />
         <span className="bg-background/90 text-foreground absolute right-2 bottom-2 flex size-8 items-center justify-center rounded-full border shadow-sm backdrop-blur">
@@ -469,7 +466,7 @@ export function CatalogImporterCatalogPreview({
                 className="gap-3"
                 data-testid="catalog-preview-listings-grid"
               >
-                {visiblePreviewRows.map((row, index) => {
+                {visiblePreviewRows.map((row) => {
                   return (
                     <div
                       key={row.id}
@@ -478,7 +475,6 @@ export function CatalogImporterCatalogPreview({
                     >
                       <CatalogImporterListingCard
                         row={row}
-                        priority={index === 0}
                         highlighted={
                           controller.lastLinkAction?.rowId === row.id
                         }

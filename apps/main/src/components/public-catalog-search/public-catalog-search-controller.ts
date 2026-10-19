@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  type ColumnDef,
-  type Table,
-  useReactTable,
-} from "@tanstack/react-table";
+import { type Table } from "@tanstack/react-table";
 import {
   useEffect,
   useMemo,
@@ -14,7 +10,6 @@ import {
 } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { defaultTableConfig } from "@/lib/table-config";
 import { withPublicClientQueryCache } from "@/lib/cache/client-cache";
 import { api } from "@/trpc/react";
 import { useDataTable } from "@/hooks/use-data-table";
@@ -68,142 +63,6 @@ interface UsePublicCatalogSearchControllerArgs {
   lists: PublicCatalogLists;
   userId: string;
   userSlugOrId: string;
-}
-
-function usePublicCatalogSearchControllerTest({
-  initialListings,
-  lists,
-  userId,
-  userSlugOrId,
-}: UsePublicCatalogSearchControllerArgs): PublicCatalogSearchControllerState {
-  const utils = api.useUtils();
-  const [isRefreshingCatalogData, setIsRefreshingCatalogData] = useState(false);
-  const [panelCollapsed, setPanelCollapsed] = useState(false);
-
-  const queryInput = useMemo(
-    () => ({
-      userSlugOrId,
-      limit: PUBLIC_CATALOG_SEARCH_PERSISTED_SWR.queryLimit,
-    }),
-    [userSlugOrId],
-  );
-
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    api.public.getListings.useInfiniteQuery(
-      queryInput,
-      withPublicClientQueryCache({
-        getNextPageParam: (lastPage) => lastPage[lastPage.length - 1]?.id,
-        initialData: {
-          pages: [initialListings],
-          pageParams: [undefined],
-        },
-        retry: false,
-      }),
-    );
-
-  usePublicCatalogSearchSnapshotEffects({
-    data,
-    fetchNextPage,
-    queryInput,
-    userId,
-    userSlugOrId,
-    utils,
-    hasNextPage,
-    isFetchingNextPage,
-  });
-
-  const listings = getClientListings({
-    data,
-    initialListings,
-  });
-
-  const listOptions = useMemo(
-    () => buildPublicCatalogSearchListOptions(lists, listings),
-    [lists, listings],
-  );
-
-  const facetOptions = useMemo(
-    () => buildPublicCatalogSearchFacetOptions(listings),
-    [listings],
-  );
-
-  const table = useReactTable({
-    ...defaultTableConfig<PublicCatalogListing>(),
-    data: listings,
-    columns: publicCatalogSearchColumns as ColumnDef<
-      PublicCatalogListing,
-      unknown
-    >[],
-    autoResetPageIndex: false,
-    initialState: {
-      sorting: [],
-      pagination: {
-        pageIndex: 0,
-        pageSize: PUBLIC_CATALOG_SEARCH_PERSISTED_SWR.queryLimit,
-      },
-    },
-    meta: {
-      filterableColumns: [],
-      storageKey: "public-catalog-listings-table",
-      pinnedColumns: { left: [], right: [] },
-      getColumnLabel: (columnId) => columnId,
-    },
-  });
-
-  const mode = "basic" satisfies PublicCatalogSearchMode;
-
-  const setMode = () => undefined;
-
-  const scrollToResultsSummary = () => {
-    const target = document.getElementById("public-search-results-summary");
-    target?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-
-  const refreshCatalogData = async () => {
-    if (isRefreshingCatalogData) {
-      return;
-    }
-
-    setIsRefreshingCatalogData(true);
-
-    try {
-      const refreshedSnapshot =
-        await prefetchAndPersistPublicCatalogSearchSnapshot({
-          userId,
-          userSlugOrId,
-          force: true,
-        });
-
-      if (refreshedSnapshot) {
-        utils.public.getListings.setInfiniteData(queryInput, () =>
-          snapshotToInfiniteData(refreshedSnapshot),
-        );
-        toast.success("Catalog search data refreshed");
-        return;
-      }
-
-      toast.error("Unable to refresh catalog search data");
-    } catch {
-      toast.error("Unable to refresh catalog search data");
-    } finally {
-      setIsRefreshingCatalogData(false);
-    }
-  };
-
-  return {
-    facetOptions,
-    isFetchingNextPage,
-    isRefreshingCatalogData,
-    listOptions,
-    listings,
-    mode,
-    panelCollapsed,
-    refreshCatalogData,
-    scrollToResultsSummary,
-    setMode,
-    setPanelCollapsed,
-    table,
-  };
 }
 
 function usePublicCatalogSearchSnapshotEffects({
@@ -326,26 +185,6 @@ function getClientListings({
 }
 
 export function usePublicCatalogSearchController({
-  initialListings,
-  lists,
-  userId,
-  userSlugOrId,
-}: UsePublicCatalogSearchControllerArgs): PublicCatalogSearchControllerState {
-  const controller = (
-    process.env.NODE_ENV === "test"
-      ? usePublicCatalogSearchControllerTest
-      : usePublicCatalogSearchControllerProd
-  ) as typeof usePublicCatalogSearchControllerProd;
-
-  return controller({
-    initialListings,
-    lists,
-    userId,
-    userSlugOrId,
-  });
-}
-
-function usePublicCatalogSearchControllerProd({
   initialListings,
   lists,
   userId,

@@ -1,13 +1,13 @@
 import { expect, test } from "./fixtures";
 
-test("invalid profile URLs are validated before checking availability", async ({
+test("profile URLs normalize uppercase before validation and saving", async ({
   page,
 }) => {
   const availabilityRequests: string[] = [];
   page.on("request", (request) => {
     if (
       decodeURIComponent(request.url()).includes(
-        "dashboardDb.userProfile.checkSlug",
+        "dashboardV2.userProfile.checkSlug",
       )
     ) {
       availabilityRequests.push(request.url());
@@ -35,7 +35,8 @@ test("invalid profile URLs are validated before checking availability", async ({
     page.getByRole("button", { name: /Open issues overlay/i }),
   ).toHaveCount(0);
 
-  await slugInput.fill("available-profile");
+  await slugInput.fill("BookhordeGarden");
+  await expect(slugInput).toHaveValue("bookhordegarden");
   await expect.poll(() => availabilityRequests.length).toBe(1);
 
   await slugInput.fill("dashboard");
@@ -46,4 +47,17 @@ test("invalid profile URLs are validated before checking availability", async ({
   await expect(
     page.getByText("This URL is already taken. Please choose another one."),
   ).toBeVisible();
+
+  await slugInput.fill("bookgarden");
+  await slugInput.evaluate((input) =>
+    (input as HTMLInputElement).setSelectionRange(4, 4),
+  );
+  await slugInput.pressSequentially("Horde");
+  await expect(slugInput).toHaveValue("bookhordegarden");
+
+  await slugInput.fill("BOOKHORDEGARDEN");
+  await page.getByRole("button", { name: "Save Changes" }).click();
+  await expect(page.getByText("Changes saved", { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(slugInput).toHaveValue("bookhordegarden");
 });

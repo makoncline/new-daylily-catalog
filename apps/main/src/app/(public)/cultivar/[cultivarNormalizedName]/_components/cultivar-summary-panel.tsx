@@ -5,6 +5,7 @@ import { ArrowRight, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { H1, Muted } from "@/components/typography";
 import { type RouterOutputs } from "@/trpc/react";
+import { CultivarShareImageButton } from "@/components/cultivar-share-image-button";
 
 type CultivarPageOutput = NonNullable<
   RouterOutputs["public"]["getCultivarPage"]
@@ -13,9 +14,13 @@ type CultivarSummary = CultivarPageOutput["summary"];
 
 interface CultivarSummaryPanelProps {
   summary: CultivarSummary;
+  cultivarSegment: string;
 }
 
-export function CultivarSummaryPanel({ summary }: CultivarSummaryPanelProps) {
+export function CultivarSummaryPanel({
+  summary,
+  cultivarSegment,
+}: CultivarSummaryPanelProps) {
   const secondaryLineParts = [summary.hybridizer, summary.year].filter(Boolean);
 
   const onShare = async () => {
@@ -67,6 +72,11 @@ export function CultivarSummaryPanel({ summary }: CultivarSummaryPanelProps) {
           <Share2 className="size-4" />
           <span className="sr-only">Share cultivar page</span>
         </Button>
+        <CultivarShareImageButton
+          cultivarName={summary.name}
+          segment={cultivarSegment}
+          compact
+        />
       </div>
     </section>
   );

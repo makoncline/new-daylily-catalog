@@ -28,6 +28,7 @@ const mockGetActiveProUserIdsForUserIds = vi.hoisted(() => vi.fn());
 
 vi.mock("@/server/db", () => ({
   db: mockDb,
+  publicDb: mockDb,
   replicaDb: mockDb,
 }));
 
@@ -45,7 +46,7 @@ import {
   getPublicCultivarPage,
   getPublicOfferCultivarSitemapEntries,
   getPublicOfferCultivarSitemapEntryCount,
-} from "@/server/db/getPublicCultivars";
+} from "@/server/db/public-cultivar-read-model";
 import { applyWhereIn } from "./test-utils/apply-where-in";
 
 const originalCloudflareUrl = process.env.NEXT_PUBLIC_CLOUDFLARE_URL;

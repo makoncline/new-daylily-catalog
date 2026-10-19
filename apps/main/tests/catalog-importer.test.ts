@@ -14,7 +14,6 @@ import {
   getCatalogImportRowDisposition,
   getCatalogImportState,
   getSourceColumns,
-  isRecognizedCatalogImportSheet,
   suggestColumnMapping,
   prepareCatalogImportListing,
   type SpreadsheetCell,
@@ -183,7 +182,7 @@ describe("catalog importer normalization", () => {
     });
   });
 
-  it("treats common not-for-sale markers and zero as a blank price", () => {
+  it("keeps zero and decimal prices while treating not-for-sale markers as blank", () => {
     const importedRows = createCatalogImportRows({
       headerRowIndex: 0,
       mapping: {
@@ -212,10 +211,10 @@ describe("catalog importer normalization", () => {
     ).toEqual([
       { price: null, priceWarning: null },
       { price: null, priceWarning: null },
-      { price: null, priceWarning: null },
-      { price: null, priceWarning: null },
+      { price: 0, priceWarning: null },
+      { price: 0, priceWarning: null },
       { price: 12, priceWarning: null },
-      { price: null, priceWarning: "12.50" },
+      { price: 12.5, priceWarning: null },
     ]);
   });
 
@@ -365,8 +364,8 @@ describe("catalog importer normalization", () => {
         null,
         null,
         null,
-        "Spider, dark red",
-        "Back garden",
+        "Spider,   dark red",
+        "Back   garden",
         "https://example.com/daylily image.jpg",
         null,
         25,
@@ -498,33 +497,6 @@ describe("catalog importer normalization", () => {
       privateNote: 3,
       title: 0,
     });
-  });
-
-  it("recognizes only the downloadable template and catalog preview shapes", () => {
-    expect(
-      isRecognizedCatalogImportSheet([
-        ["name", "price", "description", "private note"],
-        ["A.W. Shucks", "25", "Purple bloom", "Back garden"],
-      ]),
-    ).toBe(true);
-    expect(
-      isRecognizedCatalogImportSheet([
-        [
-          "Name",
-          "Daylily Catalog ID",
-          "Price",
-          "Daylily Catalog Cultivar Name",
-          "Description",
-          "Daylily Catalog Cultivar URL",
-          "Private Note",
-        ],
-      ]),
-    ).toBe(true);
-    expect(
-      isRecognizedCatalogImportSheet([
-        ["Cultivar", "Cost", "Details", "Notes"],
-      ]),
-    ).toBe(false);
   });
 
   it("provides a ready-to-map sample catalog with review and issue examples", () => {

@@ -1,8 +1,18 @@
+import type * as SentryTypes from "@sentry/nextjs";
+import posthog from "posthog-js";
+import {
+  enrichSentryEvent,
+  enrichSentryLog,
+  installConsoleLogging,
+} from "./src/lib/telemetry";
+
+installConsoleLogging();
+
 // This file configures the initialization of client-side observability libraries.
 // Next.js 15.3+ loads this file automatically.
 
 const isProduction = process.env.NODE_ENV === "production";
-type SentryModule = typeof import("@sentry/nextjs");
+type SentryModule = typeof SentryTypes;
 type RouterTransitionStartArgs = Parameters<
   SentryModule["captureRouterTransitionStart"]
 >;
@@ -22,6 +32,8 @@ async function initializeSentry(runtimeConfig: RuntimeConfig) {
   }
 
   const Sentry = await import("@sentry/nextjs");
+  const { connectSentryLogging } = await import("./src/lib/sentry-telemetry");
+  connectSentryLogging();
   Sentry.init({
     dsn: runtimeConfig.sentry.dsn,
     environment: runtimeConfig.sentry.environment,
@@ -29,8 +41,9 @@ async function initializeSentry(runtimeConfig: RuntimeConfig) {
 
     integrations: [Sentry.replayIntegration()],
     enableLogs: true,
+    beforeSendLog: enrichSentryLog,
     tracesSampleRate: isProduction ? 0.1 : 1.0,
-    replaysSessionSampleRate: 0.1,
+    replaysSessionSampleRate: 0,
     replaysOnErrorSampleRate: 1.0,
     debug: false,
     ignoreErrors: [
@@ -45,7 +58,24 @@ async function initializeSentry(runtimeConfig: RuntimeConfig) {
       );
       const original = hint?.originalException as { name?: string } | undefined;
       const hasAbortName = original?.name === "AbortError";
-      return hasAbortType || hasAbortName ? null : event;
+      if (hasAbortType || hasAbortName) return null;
+      const enriched = enrichSentryEvent(event, hint);
+      const sessionId = posthog.get_session_id();
+      if (sessionId) {
+        enriched.tags = { ...enriched.tags, posthog_session_id: sessionId };
+        // This URL comes from the SDK. Keep its timestamp after general URL redaction.
+        enriched.contexts = {
+          ...enriched.contexts,
+          posthog: {
+            session_id: sessionId,
+            replay_url: posthog.get_session_replay_url({
+              withTimestamp: true,
+              timestampLookBack: 30,
+            }),
+          },
+        };
+      }
+      return enriched;
     },
   });
   return true;

@@ -1,0 +1,13 @@
+diff --git a/dist/compiled/@vercel/og/index.node.js b/dist/compiled/@vercel/og/index.node.js
+index 416de7e6420f1784f6cad3186d5b159f5097c382..e5e15420587fd3211586a1a6e67313f2aee154c2 100644
+--- a/dist/compiled/@vercel/og/index.node.js
++++ b/dist/compiled/@vercel/og/index.node.js
+@@ -21475,7 +21475,7 @@ var ImageResponse = class extends Response {
+         const result2 = await render(
+           satori,
+           resvg_wasm_exports,
+-          await getSharp(),
++          void 0,
+           options,
+           fonts,
+           element

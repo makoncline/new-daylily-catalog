@@ -1,32 +1,24 @@
 "use client";
 
-import { eq } from "@tanstack/react-db";
-import { DASHBOARD_DB_QUERY_KEYS } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-keys";
-import {
-  listsCollection,
-  type ListCollectionItem,
-} from "@/app/dashboard/_lib/dashboard-db/lists-collection";
-import { useSeededDashboardDbQuery } from "@/app/dashboard/_lib/dashboard-db/use-seeded-dashboard-db-query";
+import { eq, useLiveSuspenseQuery } from "@tanstack/react-db";
+import { type ListCollectionItem } from "@/app/dashboard/_lib/dashboard-db/collections";
+import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
 
 export interface UseListResourceResult {
-  isReady: boolean;
   list: ListCollectionItem | null;
 }
 
 export function useListResource(listId: string): UseListResourceResult {
-  const { data: lists = [], isReady } =
-    useSeededDashboardDbQuery<ListCollectionItem>({
-      deps: [listId],
-      query: (q) =>
-        q
-          .from({ list: listsCollection })
-          .where(({ list }) => eq(list.id, listId)),
-      queryKey: DASHBOARD_DB_QUERY_KEYS.lists,
-    });
-  const list = lists.find((candidate) => candidate.id === listId) ?? null;
+  const { listsCollection } = useDashboardDb();
+  const { data: lists } = useLiveSuspenseQuery({
+    query: (q) =>
+      q
+        .from({ list: listsCollection })
+        .where(({ list }) => eq(list.id, listId)),
+  });
+  const list = lists[0] ?? null;
 
   return {
-    isReady,
     list,
   };
 }

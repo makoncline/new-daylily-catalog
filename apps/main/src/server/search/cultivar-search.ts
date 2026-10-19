@@ -8,7 +8,6 @@ import {
 } from "@/server/search/public-parentage-index";
 import {
   ensurePublicSearchIndex,
-  getPublicSearchIndexPath,
   isPublicSearchIndexUsable,
   PublicSearchIndexUnavailableError,
 } from "@/server/search/public-search-index";
@@ -55,6 +54,7 @@ interface CultivarSearchArgs {
   priceMax?: number;
   priceMin?: number;
   q?: string;
+  rebloom?: boolean;
   scapeHeightMax?: number;
   scapeHeightMin?: number;
   sculptedType?: string;
@@ -602,14 +602,20 @@ async function getParentageTrees(args: {
   return parentageByCultivar;
 }
 
-export async function searchCultivars(args: CultivarSearchArgs) {
-  const searchIndexStatus = await ensurePublicSearchIndex();
-  if (!isPublicSearchIndexUsable(searchIndexStatus)) {
-    throw new PublicSearchIndexUnavailableError(searchIndexStatus);
+export async function searchCultivars(
+  args: CultivarSearchArgs,
+  indexPath?: string,
+) {
+  if (!indexPath) {
+    const searchIndexStatus = await ensurePublicSearchIndex();
+    if (!isPublicSearchIndexUsable(searchIndexStatus)) {
+      throw new PublicSearchIndexUnavailableError(searchIndexStatus);
+    }
+    indexPath = searchIndexStatus.path;
   }
 
   const client = createClient({
-    url: `file:${getPublicSearchIndexPath()}`,
+    url: `file:${indexPath}`,
   });
   const whereSql: string[] = [];
   const params: InValue[] = [];
@@ -662,7 +668,6 @@ export async function searchCultivars(args: CultivarSearchArgs) {
     columnSql: "i.bloomHabit",
     params,
     sql: whereSql,
-    specialClauses: { rebloom: "i.rebloom = 1" },
     value: args.bloomHabit,
   });
   addFacetFilter({
@@ -671,6 +676,9 @@ export async function searchCultivars(args: CultivarSearchArgs) {
     sql: whereSql,
     value: args.bloomSeason,
   });
+  if (args.rebloom) {
+    whereSql.push("i.rebloom = 1");
+  }
   addTextFilter({
     columnSql: "lower(i.color)",
     params,
@@ -1029,7 +1037,7 @@ export async function searchCultivarFacetValues(args: {
   }
 
   const client = createClient({
-    url: `file:${getPublicSearchIndexPath()}`,
+    url: `file:${searchIndexStatus.path}`,
   });
   const query = args.query?.trim().toLowerCase() ?? "";
   const limit = Math.min(Math.max(Math.trunc(args.limit ?? 50), 1), 100);

@@ -9,21 +9,20 @@ const mockSyncAhsName = vi.hoisted(() => vi.fn());
 const mockToastSuccess = vi.hoisted(() => vi.fn());
 const mockToastError = vi.hoisted(() => vi.fn());
 
-vi.mock("@/app/dashboard/_lib/dashboard-db/listings-collection", () => ({
-  linkAhs: mockLinkAhs,
-  unlinkAhs: mockUnlinkAhs,
-  syncAhsName: mockSyncAhsName,
-}));
+vi.mock("@/app/dashboard/_components/dashboard-db-provider", () => {
+  const state = {
+    linkAhs: mockLinkAhs,
+    unlinkAhs: mockUnlinkAhs,
+    syncAhsName: mockSyncAhsName,
+  };
+  return { useDashboardDb: () => state };
+});
 
 vi.mock("sonner", () => ({
   toast: {
     success: mockToastSuccess,
     error: mockToastError,
   },
-}));
-
-vi.mock("@/components/ahs-listing-display", () => ({
-  AhsListingDisplay: () => <div data-testid="ahs-listing-display" />,
 }));
 
 vi.mock("@/components/ahs-listing-select", () => ({
@@ -51,9 +50,9 @@ vi.mock("@/components/ahs-listing-select", () => ({
   ),
 }));
 
-type Listing = RouterOutputs["dashboardDb"]["listing"]["list"][number];
+type Listing = RouterOutputs["dashboardV2"]["listing"]["list"][number];
 type CultivarReferenceAhsListing = NonNullable<
-  RouterOutputs["dashboardDb"]["cultivarReference"]["listForUserListings"][number]["ahsListing"]
+  RouterOutputs["dashboardV2"]["bootstrap"]["catalog"]["cultivarReferences"][number]["ahsListing"]
 >;
 
 function createLinkedAhs(
@@ -106,6 +105,20 @@ function createListing(overrides: Partial<Listing> = {}): Listing {
 describe("AhsListingLink", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("opens the linked cultivar page from the database display", () => {
+    render(
+      <AhsListingLink
+        listing={createListing({ title: "Seller's custom listing name" })}
+        linkedAhs={createLinkedAhs()}
+        cultivarHref="/cultivar/coffee-frenzy"
+      />,
+    );
+
+    const link = screen.getByRole("link", { name: "Open cultivar page" });
+    expect(link.getAttribute("href")).toBe("/cultivar/coffee-frenzy");
+    expect(link.getAttribute("target")).toBe("_blank");
   });
 
   it("calls unlinkAhs when unlinking", async () => {

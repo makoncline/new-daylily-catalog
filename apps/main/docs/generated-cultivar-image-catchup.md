@@ -9,19 +9,9 @@ image assets for linked cultivars.
 
 ## Runtime State
 
-Runtime files are intentionally outside the repo:
-
-```text
-~/daylily-catalog-image-processing/
-  v2-ahs-images/
-  v2-ahs-image-review/
-    review.sqlite
-    edited/
-    codex-native-candidates/
-    debug/
-```
-
-Override the root with `V2_AHS_IMAGE_REVIEW_DATA_ROOT` if needed.
+The worker keeps source images, `review.sqlite`, generated files, and logs
+outside the repo. Its startup log prints the resolved data paths. Set
+`V2_AHS_IMAGE_REVIEW_DATA_ROOT` only when the default data root is unsuitable.
 
 ## 1. Refresh The Prod Copy
 
@@ -41,17 +31,20 @@ From a linked worktree, perform the [exceptional full-snapshot copy](./db-backup
 
 ## 2. Generate Images
 
-Use Codex-native image generation. Follow:
-
-```text
-apps/main/scripts/image-processing/v2-ahs-image-review/codex-native-image-generation.md
-```
-
-Run a bounded batch:
+Run a bounded Codex-native image generation batch:
 
 ```bash
-pnpm main exec node scripts/image-processing/v2-ahs-image-review/run-codex-native-worker.mjs --limit 20 --concurrency 10
+pnpm images:generate --limit 20 --concurrency 10
 ```
+
+The worker uses this prompt for a square output:
+
+```text
+generate an edited image (do not edit the original. do not reframe or crop original. do not use code execution to edit reference image). remove all text, zoom out slightly, improve quality, square aspect ratio.
+```
+
+Use `pnpm images:control status` to inspect a running worker. Use
+`pnpm images:control drain` to finish its active images and stop.
 
 The worker:
 
@@ -64,25 +57,11 @@ The worker:
 6. fills any remaining batch capacity from the alphabetical non-linked backlog
 
 Source images prefer V2 and fall back to legacy AHS when V2 is absent. Downloads
-and queue state stay under `~/daylily-catalog-image-processing/`.
+and queue state stay under the worker's data root.
 
-Generated candidates should be promoted into:
-
-```text
-~/daylily-catalog-image-processing/v2-ahs-image-review/edited/{cultivarReferenceId}.png
-```
-
-Rows should be marked `review` after promotion.
-
-Each run writes a readable log and raw Codex event stream under:
-
-```text
-~/daylily-catalog-image-processing/v2-ahs-image-review/codex-native-runs/
-```
-
-The readable log includes each thread/session outcome, whether an image was
-created, elapsed time, rolling success counts and percentages, and the model's
-text response when no image was produced.
+The worker promotes each generated image into the review queue and marks its
+row `review` only after the output files exist. It writes per-run logs under
+the review data root.
 
 ## 3. Spot-Check Generated Images
 
@@ -92,12 +71,7 @@ Start the local review UI:
 pnpm main exec node scripts/image-processing/v2-ahs-image-review/server.mjs
 ```
 
-Open:
-
-```text
-http://127.0.0.1:4310
-http://127.0.0.1:4310/gallery
-```
+Open the address that the server prints, then open its `/gallery` page.
 
 Use this UI to compare original and generated images side-by-side. A row with
 status `review` means the generated file exists and is importable; it does not
@@ -114,27 +88,20 @@ that are not safely importable by the current workflow are marked `legacy`.
 Use a fresh local prod copy or a deliberate rehearsal copy. Do not run this
 against production Turso.
 
-Dry-run:
+Dry-run from the repository root:
 
 ```bash
-cd apps/main
-
 DATABASE_URL=file:./prisma/local-prod-copy-daylily-catalog.db \
-  node scripts/image-assets/backfill-generated-cultivar-images-to-r2.mjs --dry-run
+  pnpm main exec node scripts/image-assets/backfill-generated-cultivar-images-to-r2.mjs --dry-run
 ```
 
-Approved write run:
+For an approved write run, use the local database and production R2
+credentials:
 
 ```bash
-cd apps/main
-
-set -a
-source ../../.env.production
-set +a
-
 DATABASE_URL=file:./prisma/local-prod-copy-daylily-catalog.db \
 IMAGE_ASSET_BACKFILL_CONCURRENCY=1 \
-  node scripts/image-assets/backfill-generated-cultivar-images-to-r2.mjs
+  pnpm env:prod node scripts/image-assets/backfill-generated-cultivar-images-to-r2.mjs
 ```
 
 The script:
@@ -178,67 +145,8 @@ Delete generated artifacts plus downloaded source originals for imported rows:
 pnpm main exec node scripts/image-processing/v2-ahs-image-review/cleanup-imported-artifacts.mjs --include-originals --apply
 ```
 
-The script leaves `review.sqlite` intact as the durable completion log and writes
-a cleanup manifest under:
-
-```text
-~/daylily-catalog-image-processing/v2-ahs-image-review/manifests/
-```
-
-## Import Record: 2026-06-20
-
-- Created Turso checkpoint branch `dlcat-pre-imgcatch-20260620t1743`.
-- Imported 526 generated cultivar `ImageAsset` rows to production.
-- Production ready cultivar assets after import: `8382`.
-- Verification passed: `PRAGMA foreign_key_check`, required URL/key presence,
-  and duplicate ready cultivar-reference scan.
-- Review queue was synced afterward; only 3 known `source_invalid` rows remain.
-- Imported a follow-up batch of 10 newly linked generated cultivar
-  `ImageAsset` rows later the same day.
-- Production ready cultivar assets after the follow-up import: `8392`.
-- The follow-up rows were synced to `imported` and local artifacts were cleaned
-  up with a manifest.
-
-## Import Record: 2026-06-26
-
-- Created Turso checkpoint branch
-  `daylily-catalog-pre-imgcatch-20260626-122931`.
-- Imported 39 generated cultivar `ImageAsset` rows to production.
-- Verification passed: 39 asset ids present, 39 ready cultivar assets, zero
-  duplicate ready cultivar-reference rows, and no foreign-key violations.
-- Review queue was synced afterward: 8712 `imported` rows and 3 known
-  `source_invalid` rows remain.
-- Cleaned imported generated/candidate artifacts, deleting 78 files and
-  reclaiming 167.1 MB. Source originals were intentionally left untouched.
-
-## Import Record: 2026-07-04
-
-- Created Turso checkpoint branch
-  `daylily-catalog-pre-imgcatch-20260704-0809`.
-- Imported 13 generated cultivar `ImageAsset` rows to production.
-- Verification passed: 13 asset ids present, 13 ready cultivar assets, zero
-  duplicate ready cultivar-reference rows, and no foreign-key violations.
-- Review queue was synced afterward: 8734 `imported` rows and 3 known
-  `source_invalid` rows remain.
-- After this run, checkpoint branches are considered optional for small,
-  additive-only generated cultivar image imports.
-
-## Optional Non-Linked Backlog
-
-Run a bounded generation batch:
-
-```bash
-pnpm main exec node scripts/image-processing/v2-ahs-image-review/run-codex-native-worker.mjs --limit 20 --concurrency 10
-```
-
-The worker attempts at most `--limit` retryable, linked catch-up, and
-alphabetical backlog rows per invocation. Already generated `review`,
-`approved`, and `imported` rows do not count against that run limit, so each run
-adds its successful results to the existing approval queue. New source rows are
-queued only as needed and backlog downloads happen in rolling chunks so
-generation resumes without waiting for the entire run's source set. The SQLite
-queue remains the durable recovery and review layer; it no longer requires
-separate catch-up or backlog queue commands.
+The script leaves `review.sqlite` intact as the durable completion log and
+writes a cleanup manifest under the review data root.
 
 ## Related V2 Data Refresh
 
@@ -247,7 +155,6 @@ workflow instead:
 
 ```text
 .codex/skills/v2-ahs-refresh/SKILL.md
-apps/main/docs/v2-ahs-cultivar-migration.md
 ```
 
 That process fetches daylilies.org data, builds `apps/main/cultivars.db`,

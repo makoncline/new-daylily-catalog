@@ -18,6 +18,8 @@ interface UseDataTableProps<TData> {
   data: TData[];
   columns: ColumnDef<TData, unknown>[];
   storageKey: string;
+  /** Disable for searches that can contain private text. */
+  syncUrl?: boolean;
   pinnedColumns?: {
     left?: string[];
     right?: string[];
@@ -31,6 +33,7 @@ export function useDataTable<TData>({
   data,
   columns,
   storageKey,
+  syncUrl = true,
   pinnedColumns = { left: [], right: [] },
   initialStateOverrides,
   config,
@@ -41,6 +44,7 @@ export function useDataTable<TData>({
   const persistedState = useInitialPersistedTableState({
     filterableColumnIds,
     storageKey,
+    syncUrl,
   });
   const columnVisibility = {
     ...initialStateOverrides?.columnVisibility,
@@ -72,7 +76,7 @@ export function useDataTable<TData>({
     ...config,
   });
 
-  useSyncPersistedTableState(table);
+  useSyncPersistedTableState(table, syncUrl);
 
   return table;
 }

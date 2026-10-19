@@ -3,6 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { EditListingSurface } from "@/app/dashboard/listings/_components/edit-listing-dialog";
 
 const saveChanges = vi.hoisted(() => vi.fn());
+const deleteIntent = vi.hoisted(() => ({ value: false, seen: vi.fn() }));
+
+vi.mock("next/navigation", () => ({
+  useSearchParams: () =>
+    new URLSearchParams(deleteIntent.value ? "intent=delete" : ""),
+}));
 
 vi.mock("@/components/forms/listing-form", async () => {
   const React = await import("react");
@@ -12,6 +18,7 @@ vi.mock("@/components/forms/listing-form", async () => {
       formRef,
       onSave,
       onPendingChangesChange,
+      openDeleteOnMount,
     }: {
       formRef: React.RefObject<{
         hasPendingChanges: () => boolean;
@@ -19,7 +26,9 @@ vi.mock("@/components/forms/listing-form", async () => {
       } | null>;
       onSave: () => void;
       onPendingChangesChange?: (hasPendingChanges: boolean) => void;
+      openDeleteOnMount?: boolean;
     }) => {
+      deleteIntent.seen(openDeleteOnMount);
       const [name, setName] = React.useState("Saved listing");
       const isDirty = name !== "Saved listing";
 
@@ -61,6 +70,8 @@ vi.mock("@/components/forms/listing-form-skeleton", () => ({
 describe("EditListingSurface", () => {
   beforeEach(() => {
     saveChanges.mockReset();
+    deleteIntent.value = false;
+    deleteIntent.seen.mockReset();
   });
 
   it("keeps changes local until the user explicitly saves or discards", async () => {
@@ -99,5 +110,12 @@ describe("EditListingSurface", () => {
     );
 
     expect(await screen.findByText("Unsaved listing")).toBeVisible();
+  });
+
+  it("passes deletion intent to the loaded listing form", () => {
+    deleteIntent.value = true;
+    render(<EditListingSurface listingId="listing-1" onClose={vi.fn()} />);
+    expect(deleteIntent.seen).toHaveBeenCalledWith(true);
+    expect(saveChanges).not.toHaveBeenCalled();
   });
 });

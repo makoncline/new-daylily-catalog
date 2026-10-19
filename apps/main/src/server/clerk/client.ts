@@ -1,3 +1,5 @@
+import "server-only";
+
 import { clerkClient } from "@clerk/nextjs/server";
 
 let clerkPromise: ReturnType<typeof clerkClient> | undefined;

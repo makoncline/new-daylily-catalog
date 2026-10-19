@@ -7,75 +7,33 @@ import { CatalogImporterCultivarSummary } from "@/app/(public)/catalog-importer/
 import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import type { CatalogImporterWorkbenchController } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
 import {
   prepareCatalogImportListing,
   type CatalogImportRow,
 } from "@/lib/catalog-importer";
 import { defaultTableConfig } from "@/lib/table-config";
-import { formatPrice } from "@/lib/utils";
-
-export type DashboardImportTableView =
-  | "all"
-  | "duplicates"
-  | "excluded"
-  | "ready"
-  | "review";
+import { cn, formatPrice } from "@/lib/utils";
 
 interface DashboardImportTableProps {
-  controller: CatalogImporterWorkbenchController;
-  existingDuplicateCounts: ReadonlyMap<string, number>;
-  onRowSelectionChange?: (rowId: string, selected: boolean) => void;
-  onRowsSelectionChange?: (rowIds: string[], selected: boolean) => void;
-  rowIds?: ReadonlySet<string>;
+  rows: CatalogImportRow[];
+  disabled: boolean;
+  onRowSelectionChange: (rowId: string, selected: boolean) => void;
+  onRowsSelectionChange: (rowIds: string[], selected: boolean) => void;
   selectionLimit: number;
-  selectedRowIds?: ReadonlySet<string>;
-  view: DashboardImportTableView;
-}
-
-function matchesView(
-  row: CatalogImportRow,
-  view: DashboardImportTableView,
-  existingDuplicateCount: number,
-) {
-  switch (view) {
-    case "duplicates":
-      return row.duplicateOfSourceRow !== null || existingDuplicateCount > 0;
-    case "excluded":
-      return row.outputState === "removed";
-    case "ready":
-      return row.outputState === "included" && row.priceWarning === null;
-    case "review":
-      return row.outputState === "included" && row.linkState === "pending";
-    default:
-      return true;
-  }
+  selectedRowIds: ReadonlySet<string>;
 }
 
 export function DashboardImportTable({
-  controller,
-  existingDuplicateCounts,
+  rows,
+  disabled,
   onRowSelectionChange,
   onRowsSelectionChange,
-  rowIds,
   selectionLimit,
   selectedRowIds,
-  view,
 }: DashboardImportTableProps) {
   const [visibleCount, setVisibleCount] = useState(selectionLimit);
   const [showReturnToTop, setShowReturnToTop] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const rows = useMemo(
-    () =>
-      (controller.matchedRows ?? []).filter(
-        (row) =>
-          row.rowKind === "listing" &&
-          (rowIds
-            ? rowIds.has(row.id)
-            : matchesView(row, view, existingDuplicateCounts.get(row.id) ?? 0)),
-      ),
-    [controller.matchedRows, existingDuplicateCounts, rowIds, view],
-  );
   const visibleRows = useMemo(
     () => rows.slice(0, visibleCount),
     [rows, visibleCount],
@@ -83,16 +41,11 @@ export function DashboardImportTable({
   const remainingRowCount = Math.max(0, rows.length - visibleRows.length);
   const nextLoadCount = Math.min(selectionLimit, remainingRowCount);
   const selectedVisibleRowCount = visibleRows.filter((row) =>
-    selectedRowIds
-      ? selectedRowIds.has(row.id)
-      : row.outputState === "included",
+    selectedRowIds.has(row.id),
   ).length;
   const allVisibleRowsIncluded =
     visibleRows.length > 0 &&
-    selectedVisibleRowCount ===
-      (selectedRowIds
-        ? Math.min(selectionLimit, visibleRows.length)
-        : visibleRows.length);
+    selectedVisibleRowCount === Math.min(selectionLimit, visibleRows.length);
   const someVisibleRowsIncluded = selectedVisibleRowCount > 0;
   const columns = useMemo(() => {
     const nextColumns: ColumnDef<CatalogImportRow, unknown>[] = [
@@ -107,39 +60,28 @@ export function DashboardImportTable({
                   ? "indeterminate"
                   : false
             }
+            disabled={disabled}
             aria-label={`Select up to ${selectionLimit.toLocaleString()} visible listings`}
             onCheckedChange={(checked) => {
               const visibleRowIds = visibleRows.map((row) => row.id);
-              if (onRowsSelectionChange) {
-                onRowsSelectionChange(visibleRowIds, checked === true);
-                return;
-              }
-              controller.setImportRowsIncluded(visibleRowIds, checked === true);
+              onRowsSelectionChange(visibleRowIds, checked === true);
             }}
           />
         ),
         cell: ({ row: tableRow }) => {
           const currentRow = tableRow.original;
           const importName = prepareCatalogImportListing(currentRow).title;
-          const selected = selectedRowIds
-            ? selectedRowIds.has(currentRow.id)
-            : currentRow.outputState === "included";
+          const selected = selectedRowIds.has(currentRow.id);
           const selectionLimitReached =
-            selectedRowIds !== undefined &&
-            !selected &&
-            selectedRowIds.size >= selectionLimit;
+            !selected && selectedRowIds.size >= selectionLimit;
           return (
             <Checkbox
               checked={selected}
-              disabled={selectionLimitReached}
+              disabled={disabled || selectionLimitReached}
               aria-label={`Include ${importName}`}
               onCheckedChange={(checked) => {
                 const nextSelected = checked === true;
-                if (onRowSelectionChange) {
-                  onRowSelectionChange(currentRow.id, nextSelected);
-                  return;
-                }
-                controller.setImportRowIncluded(currentRow.id, nextSelected);
+                onRowSelectionChange(currentRow.id, nextSelected);
               }}
             />
           );
@@ -151,26 +93,16 @@ export function DashboardImportTable({
         cell: ({ row: tableRow }) => {
           const currentRow = tableRow.original;
           const importName = prepareCatalogImportListing(currentRow).title;
-          const existingDuplicateCount =
-            existingDuplicateCounts.get(currentRow.id) ?? 0;
-          const selected = selectedRowIds
-            ? selectedRowIds.has(currentRow.id)
-            : currentRow.outputState === "included";
+          const selected = selectedRowIds.has(currentRow.id);
 
           return (
-            <div className={selected ? "min-w-0" : "min-w-0 opacity-55"}>
+            <div className={cn("min-w-0", !selected && "opacity-55")}>
               <span
                 className="line-clamp-2 font-medium whitespace-normal"
                 title={importName}
               >
                 {importName}
               </span>
-              {existingDuplicateCount > 0 ? (
-                <span className="text-muted-foreground mt-1 block text-xs">
-                  {existingDuplicateCount} existing listing
-                  {existingDuplicateCount === 1 ? "" : "s"}
-                </span>
-              ) : null}
             </div>
           );
         },
@@ -235,9 +167,8 @@ export function DashboardImportTable({
 
     return nextColumns;
   }, [
-    controller,
+    disabled,
     allVisibleRowsIncluded,
-    existingDuplicateCounts,
     onRowSelectionChange,
     onRowsSelectionChange,
     selectionLimit,
@@ -307,7 +238,7 @@ export function DashboardImportTable({
                 setShowReturnToTop(false);
               }}
             >
-              <ArrowUp />
+              <ArrowUp data-icon="inline-start" />
               Return to top
             </Button>
           </div>

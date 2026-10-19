@@ -1,7 +1,11 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import type { NextFetchEvent, NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { getHomeMarkdown, getRequestBaseUrl } from "@/lib/agent-readiness";
+import {
+  getHomeMarkdown,
+  getRequestBaseUrl,
+  MCP_RESOURCE_METADATA_PATH,
+} from "@/lib/agent-readiness";
 import {
   PUBLIC_CLOUDFLARE_CACHE_CONTROL,
   PUBLIC_CLOUDFLARE_CACHE_CONTROL_HEADER,
@@ -34,6 +38,7 @@ const publicAgentDiscoveryPaths = new Set([
   "/.well-known/oauth-authorization-server",
   "/.well-known/openid-configuration",
   "/.well-known/oauth-protected-resource",
+  MCP_RESOURCE_METADATA_PATH,
   "/.well-known/mcp/server-card.json",
   "/openapi.json",
   "/llms.txt",

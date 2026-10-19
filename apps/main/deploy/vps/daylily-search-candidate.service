@@ -1,0 +1,10 @@
+[Unit]
+Description=Build the Daylily search candidate through the running app
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/srv/stacks/daylilycatalog
+ExecStart=/usr/bin/docker compose exec -T app node --input-type=module -e 'const r = await fetch("http://127.0.0.1:3000/api/internal/search-candidate", { method: "POST", headers: { Authorization: "Bearer " + process.env.SEARCH_INDEX_CANDIDATE_TOKEN } }); console.log(r.status, await r.text()); if (!r.ok) process.exitCode = 1;'
+TimeoutStartSec=5min

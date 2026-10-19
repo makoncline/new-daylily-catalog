@@ -19,6 +19,7 @@ const mockDb = vi.hoisted(() => ({
 
 vi.mock("@/server/db", () => ({
   db: mockDb,
+  publicDb: mockDb,
   replicaDb: mockDb,
 }));
 

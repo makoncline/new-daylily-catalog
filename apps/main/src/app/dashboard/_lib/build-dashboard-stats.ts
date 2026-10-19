@@ -1,47 +1,18 @@
 import { STATUS } from "@/config/constants";
 import type { RouterOutputs } from "@/trpc/react";
 import type { DashboardStats } from "@/types/dashboard-stats-types";
+import { hasProfileContent } from "@/lib/profile-content";
 
-interface EditorBlock {
-  id: string;
-  type: string;
-  data: {
-    text?: string;
-    level?: number;
-  };
-}
-
-interface EditorContent {
-  time: number;
-  blocks?: EditorBlock[];
-  version: string;
-}
-
-type Listing = RouterOutputs["dashboardDb"]["listing"]["list"][number];
-type List = RouterOutputs["dashboardDb"]["list"]["list"][number];
-type Image = RouterOutputs["dashboardDb"]["image"]["list"][number];
-type UserProfile = RouterOutputs["dashboardDb"]["userProfile"]["get"];
+type Listing = RouterOutputs["dashboardV2"]["listing"]["list"][number];
+type List = RouterOutputs["dashboardV2"]["list"]["list"][number];
+type Image = RouterOutputs["dashboardV2"]["image"]["list"][number];
+type UserProfile = RouterOutputs["dashboardV2"]["userProfile"]["get"];
 
 interface BuildDashboardStatsArgs {
   listings: Listing[];
   lists: List[];
   images: Image[];
   profile: UserProfile | null | undefined;
-}
-
-function hasContent(content: string | null | undefined) {
-  if (!content) return false;
-
-  try {
-    const parsed = JSON.parse(content) as EditorContent;
-    if (!parsed.blocks || parsed.blocks.length === 0) return false;
-
-    return parsed.blocks.some((block) => {
-      return Boolean(block.data.text && block.data.text.trim().length > 0);
-    });
-  } catch {
-    return content.trim().length > 0;
-  }
 }
 
 function isPublished(status: string | null) {
@@ -101,9 +72,9 @@ export function buildDashboardStats({
   ] as const;
   const completedProfileFieldCount = [
     profileImageCount > 0,
-    hasContent(profile?.description),
-    hasContent(profile?.content),
-    hasContent(profile?.location),
+    hasProfileContent(profile?.description),
+    hasProfileContent(profile?.content),
+    hasProfileContent(profile?.location),
   ].filter(Boolean).length;
   const profileCompletionPercentage =
     (completedProfileFieldCount / profileFields.length) * 100;
@@ -126,9 +97,9 @@ export function buildDashboardStats({
       completionPercentage: profileCompletionPercentage,
       missingFields: [
         profileImageCount === 0 && "hasProfileImage",
-        !hasContent(profile?.description) && "description",
-        !hasContent(profile?.content) && "content",
-        !hasContent(profile?.location) && "location",
+        !hasProfileContent(profile?.description) && "description",
+        !hasProfileContent(profile?.content) && "content",
+        !hasProfileContent(profile?.location) && "location",
       ].filter((field): field is (typeof profileFields)[number] =>
         Boolean(field),
       ),

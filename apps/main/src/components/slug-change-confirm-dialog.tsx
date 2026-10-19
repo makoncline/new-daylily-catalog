@@ -8,7 +8,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { P, Muted, InlineCode } from "@/components/typography";
+import { InlineCode } from "@/components/typography";
 
 interface SlugChangeConfirmDialogProps {
   open: boolean;
@@ -17,6 +17,9 @@ interface SlugChangeConfirmDialogProps {
   onCancel: () => void;
   currentSlug: string;
   baseUrl: string;
+  onCloseAutoFocus?: React.ComponentProps<
+    typeof AlertDialogContent
+  >["onCloseAutoFocus"];
 }
 
 export function SlugChangeConfirmDialog({
@@ -26,32 +29,33 @@ export function SlugChangeConfirmDialog({
   onCancel,
   currentSlug,
   baseUrl,
+  onCloseAutoFocus,
 }: SlugChangeConfirmDialogProps) {
   const cleanBaseUrl = baseUrl.replace(/^https?:\/\//, "");
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
+      <AlertDialogContent onCloseAutoFocus={onCloseAutoFocus}>
         <AlertDialogHeader>
           <AlertDialogTitle>Before You Edit Your URL</AlertDialogTitle>
         </AlertDialogHeader>
 
-        <div className="space-y-4">
-          <AlertDialogDescription className="text-foreground leading-7">
+        <div className="flex flex-col gap-4">
+          <AlertDialogDescription>
             Changing your profile URL can break existing links to your profile,
             including links shared previously or indexed by search engines.
           </AlertDialogDescription>
           <div className="bg-muted rounded-md p-3">
-            <Muted>
+            <p className="text-muted-foreground text-sm">
               <span className="block">
                 <span className="font-medium">Current URL: </span>
                 <InlineCode>
                   {cleanBaseUrl}/{currentSlug}
                 </InlineCode>
               </span>
-            </Muted>
+            </p>
           </div>
-          <P>Do you want to unlock URL editing?</P>
+          <p>Do you want to unlock URL editing?</p>
         </div>
 
         <AlertDialogFooter>

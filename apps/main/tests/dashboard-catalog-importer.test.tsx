@@ -1,38 +1,30 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DashboardCatalogImporter } from "@/app/dashboard/imports/_components/dashboard-catalog-importer";
-import type { CatalogImporterWorkbenchController } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
+import type { CatalogImporterDraft } from "@/lib/catalog-importer-draft";
 import type { CatalogImportRow } from "@/lib/catalog-importer";
 
 const mocks = vi.hoisted(() => ({
   capturePosthogEvent: vi.fn(),
   importRows: vi.fn(),
-  revalidate: vi.fn(async () => undefined),
-  workbench: null as unknown as CatalogImporterWorkbenchController,
+  revalidate: vi.fn<() => Promise<void>>(),
+  draft: null as CatalogImporterDraft | null,
 }));
 
 vi.mock("@/lib/analytics/posthog", () => ({
   capturePosthogEvent: mocks.capturePosthogEvent,
 }));
 
-vi.mock(
-  "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench",
-  () => ({
-    useCatalogImporterWorkbench: () => mocks.workbench,
-  }),
-);
-
 vi.mock("@/app/dashboard/_components/dashboard-db-provider", () => ({
-  useDashboardDb: () => ({ userId: "user-1" }),
-}));
-
-vi.mock("@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence", () => ({
-  revalidateDashboardDbInBackground: mocks.revalidate,
+  useDashboardDb: () => ({
+    refreshDashboardCatalog: mocks.revalidate,
+    userId: "user-1",
+  }),
 }));
 
 vi.mock("@/trpc/react", () => ({
   api: {
-    dashboardDb: {
+    dashboardV2: {
       listing: {
         importRows: {
           useMutation: () => ({
@@ -125,16 +117,30 @@ describe("DashboardCatalogImporter", () => {
   beforeEach(() => {
     mocks.importRows.mockReset();
     mocks.capturePosthogEvent.mockReset();
-    mocks.revalidate.mockClear();
-    mocks.workbench = {
-      liveAnnouncement: "",
+    mocks.revalidate.mockReset();
+    mocks.revalidate.mockResolvedValue(undefined);
+    mocks.draft = {
+      version: 3,
+      activeReviewRowId: null,
+      headerRowIndex: null,
+      initialIssueCount: 0,
+      initialReviewCount: 0,
+      mapping: {
+        cultivarReferenceId: null,
+        description: null,
+        price: null,
+        privateNote: null,
+        title: null,
+      },
+      matchedRowsKey: "ready",
+      selectedSheetIndex: 0,
+      reviewedIssueActions: [],
       matchedRows: Array.from({ length: 201 }, (_, index) =>
         createReadyRow(index + 1),
       ),
       parsedSpreadsheet: null,
       projectId: "project-1",
-      resetImporter: vi.fn(),
-    } as unknown as CatalogImporterWorkbenchController;
+    };
   });
 
   it("selects the next import group after one import finishes", async () => {
@@ -144,7 +150,7 @@ describe("DashboardCatalogImporter", () => {
       skippedExactCount: 0,
     });
 
-    render(<DashboardCatalogImporter initialDraft={null} />);
+    render(<DashboardCatalogImporter initialDraft={mocks.draft} />);
 
     expect(
       screen.getByRole("heading", {
@@ -185,17 +191,14 @@ describe("DashboardCatalogImporter", () => {
   });
 
   it("records the completed catalog after the final database write", async () => {
-    mocks.workbench = {
-      ...mocks.workbench,
-      matchedRows: [createReadyRow(1)],
-    } as unknown as CatalogImporterWorkbenchController;
+    mocks.draft!.matchedRows = [createReadyRow(1)];
     mocks.importRows.mockResolvedValue({
       createdCount: 1,
       existingCount: 0,
       skippedExactCount: 0,
     });
 
-    render(<DashboardCatalogImporter initialDraft={null} />);
+    render(<DashboardCatalogImporter initialDraft={mocks.draft} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Import 1 listing" }));
     const confirm = screen.getByRole("button", { name: "Import listings" });
@@ -217,5 +220,55 @@ describe("DashboardCatalogImporter", () => {
         },
       );
     });
+  });
+
+  it("keeps saved import progress when refresh is canceled and retries only refresh", async () => {
+    mocks.importRows.mockResolvedValue({
+      createdCount: 100,
+      existingCount: 0,
+      skippedExactCount: 0,
+    });
+    mocks.revalidate
+      .mockRejectedValueOnce(new Error("Refresh failed"))
+      .mockResolvedValueOnce(undefined);
+
+    render(<DashboardCatalogImporter initialDraft={mocks.draft} />);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Import 100 listings" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Import listings" }));
+
+    await screen.findByText(
+      "Listings were saved. Dashboard refresh did not finish.",
+    );
+    expect(
+      screen.getByRole("heading", { name: "101 listings remain" }),
+    ).toBeVisible();
+    expect(screen.getByText("100 listings imported")).toBeVisible();
+    expect(screen.queryByText("Import did not finish")).not.toBeInTheDocument();
+    expect(mocks.importRows).toHaveBeenCalledOnce();
+    expect(mocks.importRows.mock.calls[0]?.[0].rows[0].importKey).toBe(
+      "project-1:source-row-1",
+    );
+    expect(mocks.capturePosthogEvent).not.toHaveBeenCalledWith(
+      "catalog_import_failed",
+      expect.anything(),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Retry refresh" }));
+    await waitFor(() => expect(mocks.revalidate).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(
+        screen.queryByText(
+          "Listings were saved. Dashboard refresh did not finish.",
+        ),
+      ).not.toBeInTheDocument(),
+    );
+    expect(mocks.revalidate).toHaveBeenNthCalledWith(1);
+    expect(mocks.revalidate).toHaveBeenNthCalledWith(2);
+    expect(mocks.importRows).toHaveBeenCalledOnce();
+    expect(
+      screen.getByRole("heading", { name: "101 listings remain" }),
+    ).toBeVisible();
   });
 });

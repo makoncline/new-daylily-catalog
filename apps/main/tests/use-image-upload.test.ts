@@ -16,7 +16,7 @@ const getErrorMessageMock = vi.hoisted(() =>
 
 vi.mock("@/trpc/react", () => ({
   api: {
-    dashboardDb: {
+    dashboardV2: {
       image: {
         getPresignedUrl: {
           useMutation: () => ({
@@ -33,9 +33,10 @@ vi.mock("@/trpc/react", () => ({
   },
 }));
 
-vi.mock("@/app/dashboard/_lib/dashboard-db/images-collection", () => ({
-  createImage: createImageMock,
-}));
+vi.mock("@/app/dashboard/_components/dashboard-db-provider", () => {
+  const state = { createImage: createImageMock };
+  return { useDashboardDb: () => state };
+});
 
 vi.mock("@/lib/utils", () => ({
   uploadFileWithProgress: uploadFileWithProgressMock,

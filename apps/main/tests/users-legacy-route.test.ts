@@ -7,7 +7,7 @@ const permanentRedirectMock = vi.hoisted(() => vi.fn());
 const notFoundMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/server/db", () => ({
-  db: {
+  publicDb: {
     user: {
       findUnique: findUniqueMock,
     },

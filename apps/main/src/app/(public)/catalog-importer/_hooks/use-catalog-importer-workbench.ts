@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { capturePosthogEvent } from "@/lib/analytics/posthog";
 import {
   CATALOG_IMPORT_MATCH_BATCH_SIZE,
@@ -11,17 +11,12 @@ import {
   appendCatalogImportOriginalPriceNote,
   assignCatalogImportDuplicateGroups,
   cellToText,
-  columnIndexToLabel,
-  createCatalogCleanSpreadsheet,
-  createCatalogEnrichedSpreadsheet,
   createCatalogImportRows,
   createCatalogImportSampleSpreadsheet,
   createCatalogImportTemplateCsv,
   detectHeaderRow,
   getAutomaticCultivarMatch,
   getCatalogImportDownloadSummary,
-  getCatalogImportMappedColumnLabel,
-  getCatalogImportOrderedColumnIndexes,
   getCatalogImportRowDisposition,
   getCatalogImportState,
   getSourceColumns,
@@ -34,40 +29,25 @@ import type {
   CultivarMatchCandidate,
   ParsedSpreadsheet,
 } from "@/lib/catalog-importer";
-import {
-  clearCatalogImporterDraft,
-  createCatalogImporterProjectId,
-  serializeCatalogImporterSession,
-  writeCatalogImporterDraft,
-} from "@/lib/catalog-importer-draft";
 import type {
   CatalogImporterDraft,
   CatalogImporterSession,
 } from "@/lib/catalog-importer-draft";
+import { parseCatalogImportFile } from "@/lib/catalog-importer-file";
 import {
-  downloadCatalogImportFile,
-  parseCatalogImportFile,
-} from "@/lib/catalog-importer-file";
+  EMPTY_CATALOG_IMPORT_MAPPING,
+  useCatalogImporterSession,
+} from "@/hooks/use-catalog-importer-session";
+import { useCatalogImporterDownloads } from "@/hooks/use-catalog-importer-downloads";
 import { requestCultivarMatches } from "@/lib/catalog-importer-match-client";
 import { logCatalogImporterSubmissionSample } from "@/lib/catalog-importer-submission-sample";
 import { getCultivarMatchConfidence } from "@/lib/cultivar-match-score";
 import { normalizeCultivarName } from "@/lib/utils/cultivar-utils";
-import {
-  getCatalogImporterDownloadFileName,
-  getErrorMessage,
-} from "@/app/(public)/catalog-importer/_lib/catalog-importer-presentation";
+import { getErrorMessage } from "@/app/(public)/catalog-importer/_lib/catalog-importer-presentation";
 import type {
   CatalogImporterCandidateResult,
   CatalogImporterMappingField,
 } from "@/app/(public)/catalog-importer/_lib/catalog-importer-presentation";
-
-const EMPTY_MAPPING: CatalogColumnMapping = {
-  cultivarReferenceId: null,
-  description: null,
-  price: null,
-  privateNote: null,
-  title: null,
-};
 
 const MANUAL_CATALOG_HEADERS = [
   "Name",
@@ -76,8 +56,6 @@ const MANUAL_CATALOG_HEADERS = [
   "Private Note",
   "Daylily Catalog ID",
 ];
-
-export type CatalogImporterSourceDestination = "prepare" | "preview";
 
 function getCatalogImportFileType(fileName: string) {
   const extension = fileName.split(".").pop()?.toLowerCase();
@@ -218,9 +196,16 @@ function getNextReviewedIssueActions({
 export function useCatalogImporterWorkbench(
   initialDraft: CatalogImporterDraft | null = null,
 ) {
-  const restoredImportState = getCatalogImportState(
-    initialDraft?.matchedRows ?? [],
-  );
+  const {
+    session,
+    sessionRef,
+    commitSession,
+    resetSession,
+    flushDraft,
+    storageWarning,
+    selectedSheet,
+    getSourceCellsForRow,
+  } = useCatalogImporterSession(initialDraft);
   const initialReviewRow =
     initialDraft?.matchedRows?.find(
       (row) =>
@@ -241,25 +226,6 @@ export function useCatalogImporterWorkbench(
     ) ??
     null;
   const initialReviewedIssueActions = initialDraft?.reviewedIssueActions ?? [];
-  const [session, setSession] = useState<CatalogImporterSession>(() => ({
-    activeReviewRowId: initialDraft?.activeReviewRowId ?? null,
-    headerRowIndex: initialDraft?.headerRowIndex ?? null,
-    initialIssueCount:
-      initialDraft?.initialIssueCount ??
-      restoredImportState.counts.issueCount +
-        restoredImportState.counts.warningCount,
-    initialReviewCount:
-      initialDraft?.initialReviewCount ??
-      restoredImportState.counts.reviewQueueCount,
-    mapping: initialDraft?.mapping ?? EMPTY_MAPPING,
-    matchedRows: initialDraft?.matchedRows ?? null,
-    matchedRowsKey: initialDraft?.matchedRowsKey ?? null,
-    parsedSpreadsheet: initialDraft?.parsedSpreadsheet ?? null,
-    projectId: initialDraft?.projectId ?? createCatalogImporterProjectId(),
-    reviewedIssueActions: initialReviewedIssueActions,
-    selectedSheetIndex: initialDraft?.selectedSheetIndex ?? 0,
-  }));
-  const sessionRef = useRef(session);
   const {
     activeReviewRowId,
     headerRowIndex,
@@ -275,10 +241,6 @@ export function useCatalogImporterWorkbench(
   } = session;
   const [fileError, setFileError] = useState<string | null>(null);
   const [readingFile, setReadingFile] = useState(false);
-  const [downloadingResults, setDownloadingResults] = useState<
-    "clean" | "enriched" | null
-  >(null);
-  const [downloadError, setDownloadError] = useState<string | null>(null);
   const [matchingProgress, setMatchingProgress] = useState<{
     processed: number;
     total: number;
@@ -304,8 +266,13 @@ export function useCatalogImporterWorkbench(
     );
   const [searchCandidateResult, setSearchCandidateResult] =
     useState<CatalogImporterCandidateResult | null>(null);
-  const [storageWarning, setStorageWarning] = useState<string | null>(null);
   const [liveAnnouncement, setLiveAnnouncement] = useState("");
+  const {
+    downloadResults,
+    downloadingResults,
+    downloadError,
+    setDownloadError,
+  } = useCatalogImporterDownloads(session, setLiveAnnouncement);
   const [lastLinkAction, setLastLinkAction] = useState<{
     displayName: string;
     kind: "added" | "changed" | "excluded" | "left-unmatched";
@@ -337,18 +304,36 @@ export function useCatalogImporterWorkbench(
       }
       return nextActions;
     },
-    [],
+    [sessionRef],
   );
+  const fileRequestId = useRef(0);
   const exactMatchRequestId = useRef(0);
   const exactMatchAbortController = useRef<AbortController | null>(null);
   const closeCandidateRequestId = useRef(0);
   const searchCandidateRequestId = useRef(0);
   const savedIdRematchRequestId = useRef(0);
   const savedIdRematchAbortController = useRef<AbortController | null>(null);
-  const draftWriteChain = useRef(Promise.resolve());
   const previewTracked = useRef(initialDraft?.matchedRows != null);
 
-  const selectedSheet = parsedSpreadsheet?.sheets[selectedSheetIndex] ?? null;
+  const cancelMatchRequests = useCallback(() => {
+    exactMatchRequestId.current += 1;
+    exactMatchAbortController.current?.abort();
+    exactMatchAbortController.current = null;
+    closeCandidateRequestId.current += 1;
+    searchCandidateRequestId.current += 1;
+    savedIdRematchRequestId.current += 1;
+    savedIdRematchAbortController.current?.abort();
+    savedIdRematchAbortController.current = null;
+  }, []);
+
+  useEffect(
+    () => () => {
+      fileRequestId.current += 1;
+      cancelMatchRequests();
+    },
+    [cancelMatchRequests],
+  );
+
   const sourceColumns = useMemo(
     () =>
       selectedSheet ? getSourceColumns(selectedSheet.rows, headerRowIndex) : [],
@@ -358,57 +343,6 @@ export function useCatalogImporterWorkbench(
     selectedSheet?.rows.slice(0, CATALOG_IMPORT_PREVIEW_ROW_COUNT) ?? [];
   const sourcePreviewColumnIndexes =
     getPopulatedColumnIndexes(sourcePreviewRows);
-  const populatedSourceColumnIndexes = useMemo(() => {
-    const indexes = new Set<number>();
-
-    for (const row of selectedSheet?.rows ?? []) {
-      for (let columnIndex = 0; columnIndex < row.length; columnIndex += 1) {
-        if (cellToText(row[columnIndex])) {
-          indexes.add(columnIndex);
-        }
-      }
-    }
-
-    return [...indexes].sort((left, right) => left - right);
-  }, [selectedSheet]);
-  const orderedSourceColumnIndexes = useMemo(
-    () =>
-      getCatalogImportOrderedColumnIndexes(
-        mapping,
-        populatedSourceColumnIndexes,
-      ),
-    [mapping, populatedSourceColumnIndexes],
-  );
-  const getSourceCellsForRow = useCallback(
-    (row: CatalogImportRow) => {
-      if (!selectedSheet) {
-        return [];
-      }
-
-      const sourceRow = selectedSheet.rows[row.sourceRow - 1] ?? [];
-      const headerRow =
-        headerRowIndex === null ? null : selectedSheet.rows[headerRowIndex];
-
-      return orderedSourceColumnIndexes.map((columnIndex) => {
-        const column = columnIndexToLabel(columnIndex);
-        const mappedLabel = getCatalogImportMappedColumnLabel(
-          mapping,
-          columnIndex,
-        );
-
-        return {
-          column,
-          mapped: mappedLabel !== null,
-          label:
-            mappedLabel ??
-            ((headerRow ? cellToText(headerRow[columnIndex]) : "") ||
-              `Column ${column}`),
-          value: cellToText(sourceRow[columnIndex]),
-        };
-      });
-    },
-    [headerRowIndex, mapping, orderedSourceColumnIndexes, selectedSheet],
-  );
   const importState = useMemo(
     () =>
       getCatalogImportState(matchedRows ?? [], selectedSheet?.rows.length ?? 0),
@@ -497,33 +431,6 @@ export function useCatalogImporterWorkbench(
     }
   }, []);
 
-  const commitSession = useCallback(
-    (updates: Partial<CatalogImporterSession> = {}) => {
-      const nextSession = { ...sessionRef.current, ...updates };
-      sessionRef.current = nextSession;
-      setSession(nextSession);
-      const draft = serializeCatalogImporterSession(nextSession);
-
-      draftWriteChain.current = draftWriteChain.current.then(async () => {
-        if (!draft.parsedSpreadsheet) {
-          await clearCatalogImporterDraft();
-          setStorageWarning(null);
-          return;
-        }
-
-        const result = await writeCatalogImporterDraft(draft);
-        setStorageWarning(
-          result === "unavailable"
-            ? "Browser progress could not be saved on this device."
-            : null,
-        );
-      });
-
-      return draftWriteChain.current;
-    },
-    [],
-  );
-
   const saveMatchedRows = useCallback(
     (
       nextRows: CatalogImportRow[],
@@ -594,7 +501,10 @@ export function useCatalogImporterWorkbench(
         rows: sheet.rows,
       });
       const rowsToMatch = rows.filter(
-        (row) => row.rowKind === "listing" && row.outputState === "included",
+        (row) =>
+          row.rowKind === "listing" &&
+          row.outputState === "included" &&
+          row.linkState !== "intentionally-unmatched",
       );
       if (rowsToMatch.length === 0) {
         const nextImportState = getCatalogImportState(rows);
@@ -838,7 +748,7 @@ export function useCatalogImporterWorkbench(
         return false;
       }
     },
-    [loadCandidates, commitSession],
+    [loadCandidates, commitSession, sessionRef],
   );
 
   const buildCatalogPreview = useCallback(async () => {
@@ -861,14 +771,7 @@ export function useCatalogImporterWorkbench(
   ]);
 
   const resetMatches = useCallback(() => {
-    exactMatchRequestId.current += 1;
-    exactMatchAbortController.current?.abort();
-    exactMatchAbortController.current = null;
-    closeCandidateRequestId.current += 1;
-    searchCandidateRequestId.current += 1;
-    savedIdRematchRequestId.current += 1;
-    savedIdRematchAbortController.current?.abort();
-    savedIdRematchAbortController.current = null;
+    cancelMatchRequests();
     setMatchingProgress(null);
     setProcessingStage(null);
     setMatchError(null);
@@ -876,31 +779,18 @@ export function useCatalogImporterWorkbench(
     setCandidateResult(null);
     setSearchCandidateResult(null);
     setLastLinkAction(null);
-  }, []);
+  }, [cancelMatchRequests]);
 
   const resetImporter = useCallback(() => {
-    const nextProjectId = createCatalogImporterProjectId();
-    void commitSession({
-      activeReviewRowId: null,
-      headerRowIndex: null,
-      initialIssueCount: 0,
-      initialReviewCount: 0,
-      mapping: EMPTY_MAPPING,
-      matchedRows: null,
-      matchedRowsKey: null,
-      parsedSpreadsheet: null,
-      projectId: nextProjectId,
-      reviewedIssueActions: [],
-      selectedSheetIndex: 0,
-    });
+    fileRequestId.current += 1;
+    resetSession();
     setFileError(null);
     setReadingFile(false);
     setDownloadError(null);
     resetMatches();
-    setStorageWarning(null);
     setLiveAnnouncement("Local progress cleared.");
     previewTracked.current = false;
-  }, [commitSession, resetMatches]);
+  }, [resetSession, resetMatches, setDownloadError]);
 
   const setImportRowsIncluded = useCallback(
     (rowIds: string[], included: boolean) => {
@@ -1005,6 +895,8 @@ export function useCatalogImporterWorkbench(
         return;
       }
 
+      fileRequestId.current += 1;
+      setReadingFile(false);
       const nextHeaderRowIndex = detectHeaderRow(sheet.rows);
       const nextColumns = getSourceColumns(sheet.rows, nextHeaderRowIndex);
       const nextMapping = suggestColumnMapping(
@@ -1032,36 +924,39 @@ export function useCatalogImporterWorkbench(
 
   const loadFile = useCallback(
     async (file: File) => {
+      let requestId = ++fileRequestId.current;
+      resetMatches();
       setReadingFile(true);
       setFileError(null);
 
       try {
         const spreadsheet = await parseCatalogImportFile(file);
+        if (fileRequestId.current !== requestId) {
+          return false;
+        }
         previewTracked.current = false;
         if (spreadsheet.sheets.length === 1) {
           const sheet = spreadsheet.sheets[0]!;
           if (isRecognizedCatalogImportSheet(sheet.rows)) {
-            const nextHeaderRowIndex = detectHeaderRow(sheet.rows);
-            const nextMapping = suggestColumnMapping(
-              sheet.rows,
-              nextHeaderRowIndex,
-            );
-            resetMatches();
             const previewBuilt = await matchSpreadsheet({
-              headerRowIndex: nextHeaderRowIndex,
-              mapping: nextMapping,
+              headerRowIndex: 0,
+              mapping: suggestColumnMapping(sheet.rows, 0),
               mappingSkipped: true,
               selectedSheetIndex: 0,
               spreadsheet,
             });
+            if (fileRequestId.current !== requestId) {
+              return false;
+            }
             setLiveAnnouncement(
               previewBuilt
                 ? `${spreadsheet.fileName} loaded. Catalog preview ready.`
                 : `${spreadsheet.fileName} loaded. Review the column mapping and try again.`,
             );
-            return previewBuilt ? "preview" : "prepare";
+            return previewBuilt ? ("preview" as const) : ("prepare" as const);
           }
           configureSheet(spreadsheet, 0);
+          requestId = fileRequestId.current;
         } else {
           resetMatches();
           await commitSession({
@@ -1069,7 +964,7 @@ export function useCatalogImporterWorkbench(
             headerRowIndex: null,
             initialIssueCount: 0,
             initialReviewCount: 0,
-            mapping: EMPTY_MAPPING,
+            mapping: EMPTY_CATALOG_IMPORT_MAPPING,
             matchedRows: null,
             matchedRowsKey: null,
             parsedSpreadsheet: spreadsheet,
@@ -1077,11 +972,17 @@ export function useCatalogImporterWorkbench(
             selectedSheetIndex: -1,
           });
         }
+        if (fileRequestId.current !== requestId) {
+          return false;
+        }
         setLiveAnnouncement(
           `${spreadsheet.fileName} loaded with ${spreadsheet.sheets.length.toLocaleString()} sheet${spreadsheet.sheets.length === 1 ? "" : "s"}.`,
         );
-        return "prepare";
+        return "prepare" as const;
       } catch (error) {
+        if (fileRequestId.current !== requestId) {
+          return false;
+        }
         setFileError(getErrorMessage(error));
         capturePosthogEvent("catalog_import_failed", {
           error_code: "file_parse_failed",
@@ -1091,10 +992,12 @@ export function useCatalogImporterWorkbench(
         });
         return false;
       } finally {
-        setReadingFile(false);
+        if (fileRequestId.current === requestId) {
+          setReadingFile(false);
+        }
       }
     },
-    [configureSheet, commitSession, matchSpreadsheet, resetMatches],
+    [configureSheet, commitSession, matchSpreadsheet, resetMatches, sessionRef],
   );
 
   const loadManualCatalog = useCallback(() => {
@@ -1951,7 +1854,7 @@ export function useCatalogImporterWorkbench(
       });
       setLiveAnnouncement(actionSummary);
     },
-    [createReviewedIssueActions, loadCandidates, saveMatchedRows],
+    [createReviewedIssueActions, loadCandidates, saveMatchedRows, sessionRef],
   );
 
   const undoReviewedIssueAction = useCallback(
@@ -1998,48 +1901,7 @@ export function useCatalogImporterWorkbench(
       });
       setLiveAnnouncement("Spreadsheet issue change undone.");
     },
-    [matchedRows, reviewedIssueActions, saveMatchedRows],
-  );
-
-  const downloadResults = useCallback(
-    async (kind: "clean" | "enriched" = "enriched") => {
-      if (!parsedSpreadsheet || !matchedRows) {
-        return;
-      }
-
-      setDownloadingResults(kind);
-      setDownloadError(null);
-      try {
-        const fileName = getCatalogImporterDownloadFileName(
-          parsedSpreadsheet.fileName,
-          kind,
-        );
-        const spreadsheet =
-          kind === "clean"
-            ? createCatalogCleanSpreadsheet({ matchedRows, parsedSpreadsheet })
-            : createCatalogEnrichedSpreadsheet({
-                headerRowIndex,
-                mapping,
-                matchedRows,
-                parsedSpreadsheet,
-                retainExcludedRows: true,
-                selectedSheetIndex,
-              });
-        await downloadCatalogImportFile({ fileName, spreadsheet });
-        setLiveAnnouncement(`${fileName} downloaded.`);
-      } catch (error) {
-        setDownloadError(getErrorMessage(error));
-      } finally {
-        setDownloadingResults(null);
-      }
-    },
-    [
-      headerRowIndex,
-      mapping,
-      matchedRows,
-      parsedSpreadsheet,
-      selectedSheetIndex,
-    ],
+    [matchedRows, reviewedIssueActions, saveMatchedRows, sessionRef],
   );
 
   const downloadTemplate = useCallback(() => {
@@ -2048,8 +1910,6 @@ export function useCatalogImporterWorkbench(
       fileName: "daylily-clean-list-template.csv",
     });
   }, []);
-
-  const flushDraft = useCallback(() => draftWriteChain.current, []);
 
   return {
     activeReviewRow,

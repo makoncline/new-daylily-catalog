@@ -1,11 +1,11 @@
-import { replicaDb } from "@/server/db";
+import { publicDb } from "@/server/db";
 
 export async function getListingOwnerWithSlugs(listingId: string): Promise<{
   userId: string;
   userSlug: string | null;
   listingSlug: string | null;
 } | null> {
-  const listing = await replicaDb.listing.findUnique({
+  const listing = await publicDb.listing.findUnique({
     where: { id: listingId },
     select: {
       userId: true,

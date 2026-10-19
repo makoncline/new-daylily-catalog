@@ -6,7 +6,7 @@ name = "new-daylily-catalog"
 script = '''
 ln -sfn "$(git worktree list --porcelain | awk '/^worktree /{print $2; exit}')/.env.development" .env.development
 pnpm install
-pnpm exec playwright install
+pnpm --filter @daylily-catalog/main exec playwright install
 pnpm db:seed:prepare
 '''
 

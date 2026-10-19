@@ -2,9 +2,11 @@ export const SOCIAL_CARD_SIZE = {
   width: 1200,
   height: 630,
 } as const;
+const CULTIVAR_SOCIAL_CARD_VERSION = "8";
 
 const SOCIAL_CARD_KINDS = [
   "catalog",
+  "cultivar",
   "for-sale",
   "list",
   "listing",
@@ -50,6 +52,17 @@ export function getSocialCardImageUrl({
   kind: SocialCardKind;
 }) {
   const url = new URL(`/api/og/${kind}/${encodeURIComponent(id)}`, baseUrl);
-  url.searchParams.set("v", "2");
+  url.searchParams.set(
+    "v",
+    kind === "cultivar" ? CULTIVAR_SOCIAL_CARD_VERSION : "2",
+  );
   return url.toString();
+}
+
+export function getCultivarShareImagePath(
+  segment: string,
+  variant: "share" | "print" = "share",
+) {
+  const path = `/api/og/cultivar/${encodeURIComponent(segment)}?v=${CULTIVAR_SOCIAL_CARD_VERSION}`;
+  return variant === "print" ? `${path}&variant=print` : path;
 }

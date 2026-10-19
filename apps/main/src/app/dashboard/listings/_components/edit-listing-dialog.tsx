@@ -1,15 +1,12 @@
 "use client";
 
-import {
-  ListingForm,
-  type ListingFormHandle,
-} from "@/components/forms/listing-form";
+import { ListingForm } from "@/components/forms/listing-form";
+import type { ListingFormHandle } from "@/components/forms/use-listing-form";
 import { ListingFormSkeleton } from "@/components/forms/listing-form-skeleton";
 import { ArrowLeft } from "lucide-react";
 import {
   Suspense,
   useCallback,
-  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -21,50 +18,31 @@ import { Button } from "@/components/ui/button";
 import { ErrorFallback } from "@/components/error-fallback";
 import { PageHeader } from "@/components/page-header";
 import { ListingSurfaceSaveBar } from "./listing-surface-save-bar";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
-/**
- * Custom hook for editing listings with URL-backed state.
- */
 export const useEditListing = () => {
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { setValue, value } = useQueryParamDialogState({
     history: "push",
     paramName: "editing",
     scroll: false,
   });
-  const [optimisticEditing, setOptimisticEditing] = useState<{
-    from: string | null;
-    to: string | null;
-  } | null>(null);
-
-  const editingId =
-    optimisticEditing?.from === value ? optimisticEditing.to : value;
-
-  useEffect(() => {
-    if (optimisticEditing?.to !== value) {
-      return;
-    }
-
-    const timeout = window.setTimeout(() => setOptimisticEditing(null), 0);
-    return () => window.clearTimeout(timeout);
-  }, [optimisticEditing, value]);
-
   return {
-    editListing: (id: string) => {
-      setOptimisticEditing({ from: value, to: id });
-      setValue(id);
-    },
+    editListing: (id: string) => setValue(id),
     closeEditListing: () => {
-      setOptimisticEditing({ from: editingId, to: null });
-      setValue(null, "replace");
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("editing");
+      params.delete("intent");
+      router.replace(params.size ? `${pathname}?${params}` : pathname, {
+        scroll: false,
+      });
     },
-    editingId,
+    editingId: value,
   };
 };
 
-/**
- * Full-page surface for editing a listing without modal viewport geometry.
- * Keeps edits local until the user explicitly saves or discards them.
- */
 export function EditListingSurface({
   listingId,
   onClose,
@@ -73,6 +51,7 @@ export function EditListingSurface({
   onClose: () => void;
 }) {
   const formRef = useRef<ListingFormHandle | null>(null);
+  const openDeleteOnMount = useSearchParams()?.get("intent") === "delete";
   const backButtonRef = useRef<HTMLButtonElement | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -123,8 +102,9 @@ export function EditListingSurface({
           type="button"
           variant="outline"
           onClick={handleBack}
+          disabled={isSaving}
         >
-          <ArrowLeft aria-hidden="true" />
+          <ArrowLeft aria-hidden="true" data-icon="inline-start" />
           Back to listings
         </Button>
       </PageHeader>
@@ -133,6 +113,7 @@ export function EditListingSurface({
         <Suspense fallback={<ListingFormSkeleton />}>
           <ListingForm
             listingId={listingId}
+            openDeleteOnMount={openDeleteOnMount}
             onDelete={onClose}
             onSave={onClose}
             formRef={formRef}

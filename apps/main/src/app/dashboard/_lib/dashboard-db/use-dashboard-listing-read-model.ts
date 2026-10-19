@@ -1,23 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 import type { RouterOutputs } from "@/trpc/react";
-import { listingsCollection } from "./listings-collection";
-import { listsCollection } from "./lists-collection";
-import {
-  imagesCollection,
-  type ImageCollectionItem,
-} from "./images-collection";
-import { cultivarReferencesCollection } from "./cultivar-references-collection";
-import { DASHBOARD_DB_QUERY_KEYS } from "./dashboard-db-keys";
-import { useSeededDashboardDbQuery } from "./use-seeded-dashboard-db-query";
-import type { ListingData } from "@/app/dashboard/listings/_components/columns";
-import { logDashboardTiming } from "@/app/dashboard/_lib/dashboard-timing";
+import { type ImageCollectionItem } from "@/app/dashboard/_lib/dashboard-db/collections";
 
-type List = RouterOutputs["dashboardDb"]["list"]["list"][number];
-type Listing = RouterOutputs["dashboardDb"]["listing"]["list"][number];
+import { useLiveSuspenseQuery } from "@tanstack/react-db";
+import type { ListingData } from "@/app/dashboard/listings/_components/columns";
+import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
+
+type List = RouterOutputs["dashboardV2"]["list"]["list"][number];
+type Listing = RouterOutputs["dashboardV2"]["listing"]["list"][number];
 type CultivarReference =
-  RouterOutputs["dashboardDb"]["cultivarReference"]["listForUserListings"][number];
+  RouterOutputs["dashboardV2"]["bootstrap"]["catalog"]["cultivarReferences"][number];
 
 export interface DashboardListingReadModel {
   images: ImageCollectionItem[];
@@ -91,38 +85,35 @@ function buildListingRows({
 }
 
 export function useDashboardListingReadModel(): DashboardListingReadModel {
-  const firstRowsLoggedRef = useRef(false);
-  const listingsQuery = useSeededDashboardDbQuery<Listing>({
-    debugLabel: "dashboard.listings",
+  const {
+    listingsCollection,
+    listsCollection,
+    imagesCollection,
+    cultivarReferencesCollection,
+  } = useDashboardDb();
+  const listingsQuery = useLiveSuspenseQuery({
     query: (q) =>
       q
         .from({ listing: listingsCollection })
         .orderBy(({ listing }) => listing.createdAt, "desc"),
-    queryKey: DASHBOARD_DB_QUERY_KEYS.listings,
   });
-  const listsQuery = useSeededDashboardDbQuery<List>({
-    debugLabel: "dashboard.lists",
+  const listsQuery = useLiveSuspenseQuery({
     query: (q) =>
       q
         .from({ list: listsCollection })
         .orderBy(({ list }) => list.createdAt, "desc"),
-    queryKey: DASHBOARD_DB_QUERY_KEYS.lists,
   });
-  const imagesQuery = useSeededDashboardDbQuery<ImageCollectionItem>({
-    debugLabel: "dashboard.images",
+  const imagesQuery = useLiveSuspenseQuery({
     query: (q) =>
       q
         .from({ img: imagesCollection })
         .orderBy(({ img }) => img.updatedAt, "asc"),
-    queryKey: DASHBOARD_DB_QUERY_KEYS.images,
   });
-  const cultivarReferencesQuery = useSeededDashboardDbQuery<CultivarReference>({
-    debugLabel: "dashboard.cultivarReferences",
+  const cultivarReferencesQuery = useLiveSuspenseQuery({
     query: (q) =>
       q
         .from({ ref: cultivarReferencesCollection })
         .orderBy(({ ref }) => ref.updatedAt, "asc"),
-    queryKey: DASHBOARD_DB_QUERY_KEYS.cultivarReferences,
   });
   const { data: listings = [] } = listingsQuery;
   const { data: lists = [] } = listsQuery;
@@ -152,33 +143,6 @@ export function useDashboardListingReadModel(): DashboardListingReadModel {
     () => new Map(listingRows.map((row) => [row.id, row])),
     [listingRows],
   );
-
-  useEffect(() => {
-    if (firstRowsLoggedRef.current || listingRows.length === 0) return;
-
-    firstRowsLoggedRef.current = true;
-    logDashboardTiming("listing-read-model.first-rows", {
-      listings: listings.length,
-      lists: lists.length,
-      images: images.length,
-      cultivarReferences: cultivarReferences.length,
-      listingRows: listingRows.length,
-      listingsReady: listingsQuery.isReady,
-      listsReady: listsQuery.isReady,
-      imagesReady: imagesQuery.isReady,
-      cultivarReferencesReady: cultivarReferencesQuery.isReady,
-    });
-  }, [
-    cultivarReferences.length,
-    cultivarReferencesQuery.isReady,
-    images.length,
-    imagesQuery.isReady,
-    listingRows.length,
-    listings.length,
-    listingsQuery.isReady,
-    lists.length,
-    listsQuery.isReady,
-  ]);
 
   return {
     images,

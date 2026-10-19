@@ -18,6 +18,7 @@ const mockGetProUserIds = vi.hoisted(() => vi.fn());
 
 vi.mock("@/server/db", () => ({
   db: mockDb,
+  publicDb: mockDb,
   replicaDb: mockDb,
 }));
 

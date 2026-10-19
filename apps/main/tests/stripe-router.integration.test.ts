@@ -8,11 +8,11 @@ process.env.SKIP_ENV_VALIDATION = "1";
 process.env.DATABASE_URL ??=
   "file:./tests/.tmp/stripe-router-integration.sqlite";
 process.env.STRIPE_SECRET_KEY ??= "sk_test_unit";
-process.env.STRIPE_PRICE_ID ??= "price_test_unit";
 
 const mockStripeCustomersCreate = vi.hoisted(() => vi.fn());
 const mockStripeCheckoutSessionsCreate = vi.hoisted(() => vi.fn());
 const mockStripeSubscriptionsList = vi.hoisted(() => vi.fn());
+const mockStripePricesList = vi.hoisted(() => vi.fn());
 
 vi.mock("@/server/stripe/client", () => ({
   getStripeClient: () => ({
@@ -26,6 +26,9 @@ vi.mock("@/server/stripe/client", () => ({
     },
     subscriptions: {
       list: mockStripeSubscriptionsList,
+    },
+    prices: {
+      list: mockStripePricesList,
     },
   }),
 }));
@@ -64,6 +67,23 @@ describe("stripe router integration", () => {
     mockStripeSubscriptionsList.mockResolvedValue({
       data: [],
     });
+    mockStripePricesList.mockResolvedValue({
+      data: [
+        {
+          id: "price_test_monthly",
+          active: true,
+          currency: "usd",
+          product: "prod_membership",
+          recurring: {
+            interval: "month",
+            interval_count: 1,
+          },
+          type: "recurring",
+          unit_amount: 1299,
+          unit_amount_decimal: null,
+        },
+      ],
+    });
   });
 
   it("generateCheckout creates a Stripe customer binding for first-time users", async () => {
@@ -89,7 +109,7 @@ describe("stripe router integration", () => {
           mode: "subscription",
           line_items: [
             {
-              price: process.env.STRIPE_PRICE_ID,
+              price: "price_test_monthly",
               quantity: 1,
             },
           ],

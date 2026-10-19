@@ -3,55 +3,21 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { PageHeader } from "@/components/page-header";
 import { normalizeError, reportError } from "@/lib/error-utils";
-import { insertList } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
-import { useQueryParamDialogState } from "@/hooks/use-dialog-search-param";
+
 import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
 import { ListingSurfaceSaveBar } from "../../listings/_components/listing-surface-save-bar";
-import { api } from "@/trpc/react";
-import { APP_CONFIG } from "@/config/constants";
-import { usePro } from "@/hooks/use-pro";
-
-export function useCreateList() {
-  const { setValue, value } = useQueryParamDialogState({
-    history: "push",
-    paramName: "creating",
-    scroll: false,
-  });
-  const pathname = usePathname();
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const { isPro, isLoading: isSubscriptionLoading } = usePro();
-  const { data: listCount, isLoading: isListCountLoading } =
-    api.dashboardDb.list.count.useQuery();
-  const isEligibilityLoading =
-    isSubscriptionLoading || isListCountLoading || listCount === undefined;
-  const canCreateList =
-    !isEligibilityLoading &&
-    (isPro || listCount < APP_CONFIG.LIST.FREE_TIER_MAX_LISTS);
-
-  return {
-    canCreateList,
-    closeCreateList: () => setValue(null, "replace"),
-    finishCreateList: (listId: string) => {
-      const params = new URLSearchParams(searchParams.toString());
-      params.delete("creating");
-      params.set("editing", listId);
-      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-    },
-    isCreateRequested: value === "true",
-    isEligibilityLoading,
-    isPro,
-    listCount,
-    openCreateList: () => setValue("true"),
-  };
-}
+import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
 
 export function CreateListSurface({
   onClose,
@@ -60,9 +26,13 @@ export function CreateListSurface({
   onClose: () => void;
   onCreated: (listId: string) => void;
 }) {
+  const { insertList } = useDashboardDb();
   const [title, setTitle] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const backButtonRef = useRef<HTMLButtonElement | null>(null);
+  const createRequestRef = useRef<Parameters<typeof insertList>[0] | null>(
+    null,
+  );
   const hasPendingChanges = () => Boolean(title.trim());
   const { confirmDiscard } = useUnsavedChangesGuard(hasPendingChanges);
 
@@ -71,6 +41,7 @@ export function CreateListSurface({
   }, []);
 
   const handleCreate = async () => {
+    if (isSaving) return;
     if (!title.trim()) {
       toast.error("Title required", {
         description: "Please enter a title for your list.",
@@ -80,10 +51,17 @@ export function CreateListSurface({
 
     setIsSaving(true);
     try {
-      const newList = await insertList({
-        title: title.trim(),
-        description: "",
-      });
+      const normalizedTitle = title.trim();
+      let request = createRequestRef.current;
+      if (request?.title !== normalizedTitle) {
+        request = {
+          title: normalizedTitle,
+          description: "",
+          requestId: crypto.randomUUID(),
+        };
+        createRequestRef.current = request;
+      }
+      const newList = await insertList(request);
 
       toast.success("List created", {
         description: `${newList.title} has been created.`,
@@ -94,7 +72,10 @@ export function CreateListSurface({
       toast.error("Failed to create list");
       reportError({
         error: normalizeError(error),
-        context: { source: "CreateListDialog" },
+        context: {
+          source: "CreateListDialog",
+          create_request_id: createRequestRef.current?.requestId,
+        },
       });
     } finally {
       setIsSaving(false);
@@ -108,10 +89,7 @@ export function CreateListSurface({
   };
 
   return (
-    <section
-      aria-label="Create list"
-      className="mx-auto w-full max-w-3xl pb-8"
-    >
+    <section aria-label="Create list" className="mx-auto w-full max-w-3xl pb-8">
       {hasPendingChanges() ? (
         <ListingSurfaceSaveBar
           title="Unsaved list"
@@ -134,35 +112,40 @@ export function CreateListSurface({
           onClick={handleBack}
           disabled={isSaving}
         >
-          <ArrowLeft aria-hidden="true" />
+          <ArrowLeft data-icon="inline-start" aria-hidden="true" />
           Back to lists
         </Button>
       </PageHeader>
 
-      <div className="space-y-6 pb-16">
-        <div className="space-y-2">
-          <Label htmlFor="title">
-            List Title <span className="text-destructive">*</span>
-          </Label>
-          <Input
-            id="title"
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            placeholder="Enter a title"
-            disabled={isSaving}
-            required
-          />
-        </div>
-
+      <form
+        className="space-y-6 pb-16"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void handleCreate();
+        }}
+      >
+        <FieldGroup>
+          <Field data-disabled={isSaving}>
+            <FieldLabel htmlFor="title">List Title (required)</FieldLabel>
+            <Input
+              id="title"
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder="Enter a title"
+              disabled={isSaving}
+              required
+              aria-describedby="list-title-help"
+            />
+            <FieldDescription id="list-title-help">
+              Use a name that helps you find this collection.
+            </FieldDescription>
+          </Field>
+        </FieldGroup>
         <div className="flex justify-end">
-          <Button
-            type="button"
-            onClick={() => void handleCreate()}
-            disabled={isSaving || !title.trim()}
-          >
+          <Button type="submit" disabled={isSaving || !title.trim()}>
             {isSaving ? (
               <>
-                <Spinner aria-hidden="true" />
+                <Spinner data-icon="inline-start" aria-hidden="true" />
                 Creating…
               </>
             ) : (
@@ -170,7 +153,7 @@ export function CreateListSurface({
             )}
           </Button>
         </div>
-      </div>
+      </form>
     </section>
   );
 }

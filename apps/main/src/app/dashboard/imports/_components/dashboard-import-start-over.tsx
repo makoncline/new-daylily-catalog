@@ -12,7 +12,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 
 export function DashboardImportStartOver({
   disabled = false,
@@ -29,7 +29,7 @@ export function DashboardImportStartOver({
           Start over
         </Button>
       </AlertDialogTrigger>
-      <AlertDialogContent className="sm:max-w-sm">
+      <AlertDialogContent className="max-w-sm">
         <AlertDialogHeader>
           <AlertDialogTitle>Discard this import?</AlertDialogTitle>
           <AlertDialogDescription>
@@ -40,10 +40,7 @@ export function DashboardImportStartOver({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            className={buttonVariants({ variant: "destructive" })}
-            onClick={onStartOver}
-          >
+          <AlertDialogAction variant="destructive" onClick={onStartOver}>
             Discard import
           </AlertDialogAction>
         </AlertDialogFooter>

@@ -1,70 +1,37 @@
 "use client";
 
-import React from "react";
-import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import type { ComponentProps } from "react";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 
-export interface CurrencyInputProps
-  extends Omit<
-    React.InputHTMLAttributes<HTMLInputElement>,
-    "onChange" | "value"
-  > {
+interface CurrencyInputProps
+  extends Omit<ComponentProps<"input">, "onChange" | "value"> {
   value: number | null | undefined;
   onChange: (value: number | null) => void;
-  onValueBlur?: (value: number | null) => void;
-  currency?: string;
-  className?: string;
 }
 
-/**
- * Simple currency input that handles formatting and only accepts whole numbers
- */
 export function CurrencyInput({
   value,
   onChange,
-  onValueBlur,
-  currency = "$",
-  className,
   ...props
 }: CurrencyInputProps) {
-  // Handle display formatting
-  const displayValue = value ? value.toString() : "";
-
-  // Clean and parse input
-  const updateCurrencyValue = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const cleanValue = e.target.value.replace(/\D/g, "");
-    const numValue = cleanValue ? parseInt(cleanValue, 10) : null;
-    onChange(numValue);
-  };
-
-  // Format on blur and trigger save if needed
-  const commitCurrencyValue = (e: React.FocusEvent<HTMLInputElement>) => {
-    if (value !== null && value !== undefined) {
-      e.target.value = value.toLocaleString();
-    }
-
-    if (onValueBlur) {
-      onValueBlur(value ?? null);
-    }
-  };
-
   return (
-    <div className="relative">
-      <span className="text-muted-foreground absolute top-1/2 left-3 -translate-y-1/2">
-        {currency}
-      </span>
-      <Input
+    <InputGroup data-disabled={props.disabled}>
+      <InputGroupAddon aria-hidden="true">$</InputGroupAddon>
+      <InputGroupInput
         type="text"
         inputMode="numeric"
         pattern="[0-9]*"
-        className={cn("pl-7", className)}
-        value={displayValue}
-        onChange={updateCurrencyValue}
-        onBlur={commitCurrencyValue}
+        value={value == null ? "" : String(value)}
+        onChange={(event) => {
+          const digits = event.target.value.replace(/\D/g, "");
+          onChange(digits ? Number.parseInt(digits, 10) : null);
+        }}
         {...props}
       />
-    </div>
+    </InputGroup>
   );
 }
-
-CurrencyInput.displayName = "CurrencyInput";

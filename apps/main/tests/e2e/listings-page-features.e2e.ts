@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { withTempE2EDb } from "../../src/lib/test-utils/e2e-db";
 import { test, expect } from "./fixtures/app-fixtures";
 import { signInTestUser } from "./utils/auth";
@@ -18,6 +19,7 @@ test.describe("listings page features @local", () => {
   test("user can use listings table search filters sorting row actions and pagination", async ({
     page,
     dashboardListings,
+    editListingDialog,
   }) => {
     test.slow();
 
@@ -139,6 +141,24 @@ test.describe("listings page features @local", () => {
     );
     await expectPageIndicator(1, seedMeta.expectedPageCount);
 
+    const returnTrigger = page
+      .getByTestId("listing-row-actions-trigger")
+      .nth(9);
+    await returnTrigger.scrollIntoViewIfNeeded();
+    await returnTrigger.focus();
+    const returnScrollY = await page.evaluate(() => window.scrollY);
+    expect(returnScrollY).toBeGreaterThan(0);
+    await returnTrigger.press("Enter");
+    await page.getByTestId("listing-row-action-edit").click();
+    await editListingDialog.isReady();
+    await editListingDialog.close();
+    await expectUrlParam("editing", null);
+    await expect(returnTrigger).toBeFocused();
+    await expect
+      .poll(() => page.evaluate(() => window.scrollY))
+      .toBe(returnScrollY);
+    await expectBaselineUrlParams();
+
     const firstPageFirstTitle = await dashboardListings.firstRowTitle();
 
     await dashboardListings.goToNextPage();
@@ -223,6 +243,13 @@ test.describe("listings page features @local", () => {
     await expectFilteredCount(3, seedMeta.totalListings);
     await expect(dashboardListings.rows()).toHaveCount(3);
     await expectUrlParam("query", seedMeta.sortToken);
+    const downloadPromise = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Download CSV" }).click();
+    const download = await downloadPromise;
+    const downloadPath = await download.path();
+    if (!downloadPath) throw new Error("CSV download is missing");
+    const csv = await readFile(downloadPath, "utf8");
+    expect(csv.split("\n")).toHaveLength(seedMeta.totalListings + 1);
 
     await expectFirstRowTitle(seedMeta.sortExpectations.titleAscFirst);
     await assertSortTogglesBetween(
@@ -259,6 +286,13 @@ test.describe("listings page features @local", () => {
     await dashboardListings.openFirstVisibleRowActions();
     await dashboardListings.chooseRowActionDelete();
     await dashboardListings.confirmDelete();
+    await expect(
+      page
+        .locator("[data-sonner-toast]")
+        .filter({ hasText: "Listing deleted successfully" })
+        .first(),
+    ).toBeVisible();
+    await page.reload();
 
     await expect(
       page.getByRole("heading", { name: "No listings found" }),

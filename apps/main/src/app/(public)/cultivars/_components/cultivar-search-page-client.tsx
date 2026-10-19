@@ -61,75 +61,22 @@ import {
 import { getCultivarSearchTelemetryProperties } from "@/lib/analytics/cultivar-search-telemetry";
 import { capturePosthogEvent } from "@/lib/analytics/posthog";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { hasAdvancedCultivarSearchState } from "../_lib/cultivar-search-url";
+import {
+  DEFAULT_CULTIVAR_SORT,
+  EMPTY_FILTERS,
+  SORT_OPTIONS,
+  getCultivarSearchControls,
+  parseCultivarSearchUrl,
+  serializeCultivarSearchUrl,
+  type CultivarSearchFilters,
+  type CultivarSort,
+  type InitialCultivarSearchState,
+} from "../_lib/cultivar-search-url";
 
 const PAGE_SIZE = 24;
 const RESTORATION_STORAGE_KEY = "cultivar-search:return-snapshot:v1";
 const HISTORY_ENTRY_KEY = "cultivarSearchEntryId";
 const RESTORATION_MAX_AGE_MS = 2 * 60 * 60 * 1000;
-
-type CultivarSort = "relevance" | "name" | "newest" | "oldest" | "mostListed";
-
-interface InitialCultivarSearchState {
-  advanced?: boolean;
-  award?: string;
-  bloomHabit?: string;
-  bloomSizeMax?: string;
-  bloomSizeMin?: string;
-  bloomSeason?: string;
-  branchesMax?: string;
-  branchesMin?: string;
-  budCountMax?: string;
-  budCountMin?: string;
-  color?: string;
-  cultivarName?: string;
-  foliageType?: string;
-  flowerShow?: string;
-  form?: string;
-  fragrance?: string;
-  hasCultivarPhoto: boolean;
-  hasForSaleListings: boolean;
-  hasListings: boolean;
-  hybridizer?: string;
-  parentage?: string;
-  ploidy?: string;
-  q: string;
-  scapeHeightMax?: string;
-  scapeHeightMin?: string;
-  sculptedType?: string;
-  sort?: string;
-  yearMax?: string;
-  yearMin?: string;
-}
-
-interface CultivarSearchFilters {
-  award: string;
-  bloomHabit: string;
-  bloomSizeMax: string;
-  bloomSizeMin: string;
-  bloomSeason: string;
-  branchesMax: string;
-  branchesMin: string;
-  budCountMax: string;
-  budCountMin: string;
-  color: string;
-  cultivarName: string;
-  foliageType: string;
-  flowerShow: string;
-  form: string;
-  fragrance: string;
-  hasCultivarPhoto: boolean;
-  hasForSaleListings: boolean;
-  hasListings: boolean;
-  hybridizer: string;
-  parentage: string;
-  ploidy: string;
-  scapeHeightMax: string;
-  scapeHeightMin: string;
-  sculptedType: string;
-  yearMax: string;
-  yearMin: string;
-}
 
 interface CultivarSearchResult {
   canonicalUrl: string | null;
@@ -218,42 +165,6 @@ interface CultivarSearchReturnSnapshot {
   version: 2;
 }
 
-const EMPTY_FILTERS: CultivarSearchFilters = {
-  award: "",
-  bloomHabit: "",
-  bloomSizeMax: "",
-  bloomSizeMin: "",
-  bloomSeason: "",
-  branchesMax: "",
-  branchesMin: "",
-  budCountMax: "",
-  budCountMin: "",
-  color: "",
-  cultivarName: "",
-  foliageType: "",
-  flowerShow: "",
-  form: "",
-  fragrance: "",
-  hasCultivarPhoto: false,
-  hasForSaleListings: false,
-  hasListings: true,
-  hybridizer: "",
-  parentage: "",
-  ploidy: "",
-  scapeHeightMax: "",
-  scapeHeightMin: "",
-  sculptedType: "",
-  yearMax: "",
-  yearMin: "",
-};
-
-const SORT_OPTIONS: Array<{ label: string; value: CultivarSort }> = [
-  { label: "Name A–Z", value: "name" },
-  { label: "Best match", value: "relevance" },
-  { label: "Newest introductions", value: "newest" },
-  { label: "Most listed", value: "mostListed" },
-];
-
 function roundTelemetryDuration(durationMs: number) {
   return Math.round(durationMs * 10) / 10;
 }
@@ -312,6 +223,7 @@ const BOOLEAN_FILTER_CHIPS = [
   { key: "hasListings", label: "In catalogs" },
   { key: "hasCultivarPhoto", label: "With photos" },
   { key: "hasForSaleListings", label: "For sale" },
+  { key: "rebloom", label: "Rebloomers only" },
 ] as const satisfies ReadonlyArray<{
   key: keyof CultivarSearchFilters;
   label: string;
@@ -400,10 +312,6 @@ function formatRangeChipLabel({
   return `${label}: Up to ${formatValue(max)}`;
 }
 
-function isCultivarSort(value: string | undefined): value is CultivarSort {
-  return SORT_OPTIONS.some((option) => option.value === value);
-}
-
 function getCurrentUrl() {
   return `${window.location.pathname}${window.location.search}`;
 }
@@ -480,110 +388,6 @@ function getScrollAnchor() {
     return { cultivarReferenceId, viewportOffset: rect.top };
   }
   return null;
-}
-
-function getInitialFilters(
-  initialState: InitialCultivarSearchState,
-): CultivarSearchFilters {
-  return {
-    award: initialState.award ?? "",
-    bloomHabit: initialState.bloomHabit ?? "",
-    bloomSizeMax: initialState.bloomSizeMax ?? "",
-    bloomSizeMin: initialState.bloomSizeMin ?? "",
-    bloomSeason: initialState.bloomSeason ?? "",
-    branchesMax: initialState.branchesMax ?? "",
-    branchesMin: initialState.branchesMin ?? "",
-    budCountMax: initialState.budCountMax ?? "",
-    budCountMin: initialState.budCountMin ?? "",
-    color: initialState.color ?? "",
-    cultivarName: initialState.cultivarName ?? "",
-    foliageType: initialState.foliageType ?? "",
-    flowerShow: initialState.flowerShow ?? "",
-    form: initialState.form ?? "",
-    fragrance: initialState.fragrance ?? "",
-    hasCultivarPhoto: initialState.hasCultivarPhoto,
-    hasForSaleListings: initialState.hasForSaleListings,
-    hasListings: initialState.hasListings,
-    hybridizer: initialState.hybridizer ?? "",
-    parentage: initialState.parentage ?? "",
-    ploidy: initialState.ploidy ?? "",
-    scapeHeightMax: initialState.scapeHeightMax ?? "",
-    scapeHeightMin: initialState.scapeHeightMin ?? "",
-    sculptedType: initialState.sculptedType ?? "",
-    yearMax: initialState.yearMax ?? "",
-    yearMin: initialState.yearMin ?? "",
-  };
-}
-
-function readControlStateFromUrl() {
-  const params = new URLSearchParams(window.location.search);
-  const urlState: InitialCultivarSearchState = {
-    advanced:
-      params.get("advanced") === "true" ||
-      hasAdvancedCultivarSearchState((key) => params.has(key)),
-    award: params.get("award") ?? undefined,
-    bloomHabit: params.get("bloomHabit") ?? undefined,
-    bloomSizeMax: params.get("bloomSizeMax") ?? undefined,
-    bloomSizeMin: params.get("bloomSizeMin") ?? undefined,
-    bloomSeason: params.get("bloomSeason") ?? undefined,
-    branchesMax: params.get("branchesMax") ?? undefined,
-    branchesMin: params.get("branchesMin") ?? undefined,
-    budCountMax: params.get("budCountMax") ?? undefined,
-    budCountMin: params.get("budCountMin") ?? undefined,
-    color: params.get("color") ?? undefined,
-    cultivarName: params.get("cultivarName") ?? undefined,
-    foliageType: params.get("foliageType") ?? undefined,
-    flowerShow: params.get("flowerShow") ?? undefined,
-    form: params.get("form") ?? undefined,
-    fragrance: params.get("fragrance") ?? undefined,
-    hasCultivarPhoto: params.get("hasCultivarPhoto") === "true",
-    hasForSaleListings: params.get("hasForSaleListings") === "true",
-    hasListings: params.get("hasListings") !== "false",
-    hybridizer: params.get("hybridizer") ?? undefined,
-    parentage: params.get("parentage") ?? undefined,
-    ploidy: params.get("ploidy") ?? undefined,
-    q: params.get("q") ?? "",
-    scapeHeightMax: params.get("scapeHeightMax") ?? undefined,
-    scapeHeightMin: params.get("scapeHeightMin") ?? undefined,
-    sculptedType: params.get("sculptedType") ?? undefined,
-    sort: params.get("sort") ?? undefined,
-    yearMax: params.get("yearMax") ?? undefined,
-    yearMin: params.get("yearMin") ?? undefined,
-  };
-
-  return {
-    advanced: urlState.advanced ?? false,
-    filters: getInitialFilters(urlState),
-    query: urlState.q,
-    sort: isCultivarSort(urlState.sort) ? urlState.sort : "name",
-  };
-}
-
-function addParam(
-  params: URLSearchParams,
-  key: string,
-  value: boolean | string | undefined,
-) {
-  if (typeof value === "boolean") {
-    if (value) params.set(key, "true");
-    return;
-  }
-  if (value?.trim()) params.set(key, value.trim());
-}
-
-function addFacetParam(params: URLSearchParams, key: string, value: string) {
-  const canonicalValue = [
-    ...new Set(
-      value
-        .split("|")
-        .map((item) => item.trim())
-        .filter(Boolean),
-    ),
-  ]
-    .sort((left, right) => left.localeCompare(right))
-    .join("|");
-
-  addParam(params, key, canonicalValue);
 }
 
 function getSharedFilter(id: string): PublicCatalogSearchFilterDefinition {
@@ -1012,6 +816,7 @@ function AdvancedFilters({
           [
             filters.bloomHabit,
             filters.bloomSeason,
+            filters.rebloom,
             filters.scapeHeightMin || filters.scapeHeightMax,
             filters.bloomSizeMin || filters.bloomSizeMax,
             filters.budCountMin || filters.budCountMax,
@@ -1024,7 +829,7 @@ function AdvancedFilters({
             <CultivarFacetFilter
               definitionId="bloomHabit"
               value={filters.bloomHabit}
-              options={["Diurnal", "Nocturnal", "Extended", "Rebloom"]}
+              options={["Diurnal", "Nocturnal", "Extended"]}
               onChange={(bloomHabit) => updateImmediately({ bloomHabit })}
             />
             <CultivarFacetFilter
@@ -1040,6 +845,13 @@ function AdvancedFilters({
                 "Very Late",
               ]}
               onChange={(bloomSeason) => updateImmediately({ bloomSeason })}
+            />
+            <CultivarBooleanFilter
+              active={filters.rebloom}
+              definitionId="bloomSeason"
+              label="Rebloomers only"
+              testId="cultivar-filter-rebloom"
+              onToggle={() => updateImmediately({ rebloom: !filters.rebloom })}
             />
           </div>
           <CultivarRangeFilter
@@ -1213,15 +1025,12 @@ function CultivarDetailsPopover({
     { label: "Seedling", value: traits.seedlingNumber },
     {
       label: "Rebloom",
-      value:
-        traits.rebloom === null ? null : traits.rebloom ? "Yes" : "No",
+      value: traits.rebloom === null ? null : traits.rebloom ? "Yes" : "No",
     },
     {
       label: "Double",
       value:
-        traits.doublePercentage === null
-          ? null
-          : `${traits.doublePercentage}%`,
+        traits.doublePercentage === null ? null : `${traits.doublePercentage}%`,
     },
     {
       label: "Polymerous",
@@ -1232,8 +1041,7 @@ function CultivarDetailsPopover({
     },
     {
       label: "Spider ratio",
-      value:
-        traits.spiderRatio === null ? null : `${traits.spiderRatio}:1`,
+      value: traits.spiderRatio === null ? null : `${traits.spiderRatio}:1`,
     },
     {
       label: "Petal",
@@ -1343,7 +1151,7 @@ function CultivarCard({
     .join(", ");
 
   const content = (
-    <article className="group relative isolate flex min-h-[19rem] overflow-hidden rounded-3xl border border-[#dbe3d5] bg-[#173126] text-white shadow-[0_24px_80px_-58px_rgba(24,50,32,0.9)] transition-transform duration-300 hover:-translate-y-1">
+    <article className="group relative isolate flex min-h-76 overflow-hidden rounded-3xl border border-[#dbe3d5] bg-[#173126] text-white shadow-[0_24px_80px_-58px_rgba(24,50,32,0.9)] transition-transform duration-300 hover:-translate-y-1">
       {result.imageUrl ? (
         <OptimizedImage
           alt={`${result.name} daylily`}
@@ -1365,7 +1173,7 @@ function CultivarCard({
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_35%_30%,#6b8f63,#173126_62%)]" />
       )}
 
-      <div className="relative z-10 flex min-h-[19rem] w-full flex-col justify-end p-5 pr-16">
+      <div className="relative z-10 flex min-h-76 w-full flex-col justify-end p-5 pr-16">
         <div className="max-w-full">
           <h2 className="text-2xl leading-tight font-semibold text-white [text-shadow:0_2px_3px_rgba(0,0,0,0.98),0_0_10px_rgba(0,0,0,0.95),0_0_24px_rgba(0,0,0,0.8)]">
             {result.name}
@@ -1415,7 +1223,7 @@ function ResultsSkeleton() {
       {Array.from({ length: 6 }, (_, index) => (
         <div
           key={index}
-          className="min-h-[19rem] animate-pulse rounded-3xl bg-[#dfe5d9]"
+          className="min-h-76 animate-pulse rounded-3xl bg-[#dfe5d9]"
         />
       ))}
     </div>
@@ -1429,25 +1237,24 @@ export function CultivarSearchPageClient({
   initialResponse?: CultivarSearchResponse;
   initialState: InitialCultivarSearchState;
 }) {
+  const initialControls = getCultivarSearchControls(initialState);
   const initialResponseMatchesState = Boolean(
     initialResponse &&
       initialState.q === "" &&
-      (!initialState.sort || initialState.sort === "name") &&
-      Object.entries(getInitialFilters(initialState)).every(
+      (!initialState.sort || initialState.sort === DEFAULT_CULTIVAR_SORT) &&
+      Object.entries(initialControls.filters).every(
         ([key, value]) =>
           value === EMPTY_FILTERS[key as keyof CultivarSearchFilters],
       ),
   );
   const [query, setQuery] = useState(initialState.q);
   const [debouncedQuery, setDebouncedQuery] = useState(initialState.q);
-  const [filters, setFilters] = useState(() => getInitialFilters(initialState));
-  const [requestFilters, setRequestFilters] = useState(() =>
-    getInitialFilters(initialState),
+  const [filters, setFilters] = useState(initialControls.filters);
+  const [requestFilters, setRequestFilters] = useState(
+    () => initialControls.filters,
   );
-  const [sort, setSort] = useState<CultivarSort>(() =>
-    isCultivarSort(initialState.sort) ? initialState.sort : "name",
-  );
-  const [advanced, setAdvanced] = useState(initialState.advanced ?? false);
+  const [sort, setSort] = useState<CultivarSort>(initialControls.sort);
+  const [advanced, setAdvanced] = useState(initialControls.advanced);
   const [results, setResults] = useState<CultivarSearchResult[]>(
     () => initialResponse?.results ?? [],
   );
@@ -1469,7 +1276,10 @@ export function CultivarSearchPageClient({
   const retryPendingRef = useRef(false);
 
   useEffect(() => {
-    const urlState = readControlStateFromUrl();
+    const params = new URLSearchParams(window.location.search);
+    const urlState = getCultivarSearchControls(
+      parseCultivarSearchUrl((key) => params.get(key)),
+    );
     setQuery(urlState.query);
     setDebouncedQuery(urlState.query);
     setFilters(urlState.filters);
@@ -1509,46 +1319,26 @@ export function CultivarSearchPageClient({
     return () => window.clearTimeout(timeout);
   }, [filters.color, filters.cultivarName, filters.parentage]);
 
-  const shareParams = useMemo(() => {
-    const params = new URLSearchParams();
-    addFacetParam(params, "award", requestFilters.award);
-    addParam(params, "q", debouncedQuery);
-    addFacetParam(params, "bloomHabit", requestFilters.bloomHabit);
-    addParam(params, "bloomSizeMax", requestFilters.bloomSizeMax);
-    addParam(params, "bloomSizeMin", requestFilters.bloomSizeMin);
-    addFacetParam(params, "bloomSeason", requestFilters.bloomSeason);
-    addParam(params, "branchesMax", requestFilters.branchesMax);
-    addParam(params, "branchesMin", requestFilters.branchesMin);
-    addParam(params, "budCountMax", requestFilters.budCountMax);
-    addParam(params, "budCountMin", requestFilters.budCountMin);
-    addParam(params, "color", requestFilters.color);
-    addParam(params, "cultivarName", requestFilters.cultivarName);
-    addFacetParam(params, "foliageType", requestFilters.foliageType);
-    addFacetParam(params, "flowerShow", requestFilters.flowerShow);
-    addFacetParam(params, "form", requestFilters.form);
-    addFacetParam(params, "fragrance", requestFilters.fragrance);
-    addParam(params, "hasCultivarPhoto", requestFilters.hasCultivarPhoto);
-    addParam(params, "hasForSaleListings", requestFilters.hasForSaleListings);
-    if (!requestFilters.hasListings) params.set("hasListings", "false");
-    addFacetParam(params, "hybridizer", requestFilters.hybridizer);
-    addParam(params, "parentage", requestFilters.parentage);
-    addFacetParam(params, "ploidy", requestFilters.ploidy);
-    addParam(params, "scapeHeightMax", requestFilters.scapeHeightMax);
-    addParam(params, "scapeHeightMin", requestFilters.scapeHeightMin);
-    addFacetParam(params, "sculptedType", requestFilters.sculptedType);
-    addParam(params, "yearMax", requestFilters.yearMax);
-    addParam(params, "yearMin", requestFilters.yearMin);
-    if (sort !== "name") params.set("sort", sort);
-    params.sort();
-    return params.toString();
-  }, [debouncedQuery, requestFilters, sort]);
+  const shareParams = useMemo(
+    () =>
+      serializeCultivarSearchUrl({
+        filters: requestFilters,
+        query: debouncedQuery,
+        sort,
+      }),
+    [debouncedQuery, requestFilters, sort],
+  );
 
-  const urlParams = useMemo(() => {
-    const params = new URLSearchParams(shareParams);
-    if (advanced) params.set("advanced", "true");
-    params.sort();
-    return params.toString();
-  }, [advanced, shareParams]);
+  const urlParams = useMemo(
+    () =>
+      serializeCultivarSearchUrl({
+        advanced,
+        filters: requestFilters,
+        query: debouncedQuery,
+        sort,
+      }),
+    [advanced, debouncedQuery, requestFilters, sort],
+  );
 
   const buildRequestParams = useCallback(
     (offset: number) => {
@@ -1806,7 +1596,7 @@ export function CultivarSearchPageClient({
     setDebouncedQuery("");
     setFilters(EMPTY_FILTERS);
     setRequestFilters(EMPTY_FILTERS);
-    setSort("name");
+    setSort(DEFAULT_CULTIVAR_SORT);
     setAdvanced(false);
   };
 
@@ -1816,7 +1606,7 @@ export function CultivarSearchPageClient({
         ([key, value]) =>
           value !== EMPTY_FILTERS[key as keyof CultivarSearchFilters],
       ) ||
-      sort !== "name" ||
+      sort !== DEFAULT_CULTIVAR_SORT ||
       advanced,
   );
 

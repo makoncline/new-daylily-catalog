@@ -9,10 +9,43 @@ import {
 test.describe("create/edit listing flow @local", () => {
   let seedMeta: CreateEditListingSeedMeta;
 
-  test.beforeAll(async () => {
+  test.beforeEach(async () => {
     await withTempE2EDb(async (db) => {
       seedMeta = await seedCreateEditListingData({ db });
     });
+  });
+
+  test("member can add and save the first listing from the dashboard", async ({
+    page,
+    dashboardHome,
+    dashboardListings,
+    createListingDialog,
+    editListingDialog,
+  }) => {
+    test.slow();
+
+    await signInTestUser(page);
+    await dashboardHome.isReady();
+    await page.waitForLoadState("load");
+    await page.getByRole("link", { name: "Add Your First Listing" }).click();
+    await expect(page).toHaveURL(/\/dashboard\/listings\?creating=true$/);
+    await createListingDialog.isReady();
+
+    const title = "First Dashboard Daylily";
+    await createListingDialog.changeTitle(title);
+    await createListingDialog.createListing();
+    await editListingDialog.isReady();
+    await expect(editListingDialog.titleInput).toHaveValue(title);
+    await editListingDialog.close();
+    await page.reload();
+    await dashboardListings.isReady();
+    await expect(dashboardListings.listingRow(title)).toBeVisible();
+
+    const listings = await withTempE2EDb(
+      (db) => db.listing.findMany({ select: { title: true } }),
+      { clearFirst: false },
+    );
+    expect(listings).toEqual([{ title }]);
   });
 
   test("user can complete full create and edit listing workflow", async ({
@@ -79,7 +112,15 @@ test.describe("create/edit listing flow @local", () => {
     await createListingDialog.isReady();
     await captureCheckpoint("create-dialog-initial");
 
-    await expect(createListingDialog.createButton).toBeDisabled();
+    await expect(createListingDialog.createButton).toBeEnabled();
+    await createListingDialog.createListing();
+    await editListingDialog.isReady();
+    await expect(editListingDialog.titleInput).toHaveValue("New Listing");
+    await editListingDialog.clickDeleteListing();
+    await editListingDialog.confirmDeleteListing();
+    await expectUrlParam("editing", null);
+    await dashboardListings.createListingButton.click();
+    await createListingDialog.isReady();
 
     await createListingDialog.searchAndSelectAhsListing(
       seedMeta.createAhsSearch,
@@ -120,6 +161,60 @@ test.describe("create/edit listing flow @local", () => {
     const createdEditingId = await editListingDialog.getEditingParamFromUrl();
     expect(createdEditingId).not.toBeNull();
     await expectUrlParam("editing", createdEditingId);
+
+    // Required-name validation and zero/empty prices use the real saved listing.
+    await editListingDialog.titleInput.fill("");
+    await editListingDialog.saveChangesButton.click();
+    await expect(editListingDialog.titleInput).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    await expect(editListingDialog.titleInput).toBeFocused();
+    await expect(editListingDialog.titleInput).toHaveAccessibleDescription(
+      /Name is required/,
+    );
+    await expect(
+      page.getByRole("alert").filter({ hasText: "Name is required" }),
+    ).toBeVisible();
+    await editListingDialog.fillTitle(seedMeta.createCustomTitle);
+    await editListingDialog.fillPrice(0);
+    await expect(editListingDialog.priceInput).toHaveValue("0");
+    await editListingDialog.clickSaveChanges();
+    await expectUrlParam("editing", null);
+    await expect(dashboardListings.createListingButton).toBeFocused();
+    await dashboardListings.openFirstVisibleRowEdit();
+    await editListingDialog.isReady();
+    await expect(editListingDialog.priceInput).toHaveValue("0");
+    await editListingDialog.priceInput.clear();
+    await editListingDialog.priceInput.blur();
+    await editListingDialog.clickSaveChanges();
+    await expectUrlParam("editing", null);
+    await expect(
+      page.getByTestId("listing-row-actions-trigger").first(),
+    ).toBeFocused();
+    await dashboardListings.openFirstVisibleRowEdit();
+    await editListingDialog.isReady();
+    await expect(editListingDialog.priceInput).toHaveValue("");
+
+    // Reject navigation, then explicitly discard the field draft.
+    await editListingDialog.fillTitle("Discard this draft");
+    page.once("dialog", (dialog) => void dialog.dismiss());
+    await editListingDialog.dialog
+      .getByRole("button", { name: "Back to listings" })
+      .click();
+    await expectUrlParam("editing", createdEditingId);
+    await editListingDialog.dialog
+      .getByRole("button", { name: "Discard", exact: true })
+      .click();
+    await expectUrlParam("editing", null);
+    await expect(
+      page.getByTestId("listing-row-actions-trigger").first(),
+    ).toBeFocused();
+    await dashboardListings.openFirstVisibleRowEdit();
+    await editListingDialog.isReady();
+    await expect(editListingDialog.titleInput).toHaveValue(
+      seedMeta.createCustomTitle,
+    );
 
     // Phase C: full non-image edit UX
     const editedDescription = `Edited description ${seedMeta.descriptionToken}`;
@@ -260,7 +355,7 @@ test.describe("create/edit listing flow @local", () => {
     await dashboardListings.toggleListFilterOption(seedMeta.listAName);
     await page.keyboard.press("Escape");
     await expect(
-      page.getByRole("heading", { name: "No listings" }),
+      page.getByRole("heading", { name: "No listings found", exact: true }),
     ).toBeVisible();
     await dashboardListings.openListsFilter();
     await dashboardListings.clearListsFilterInPopover();
@@ -281,8 +376,8 @@ test.describe("create/edit listing flow @local", () => {
     await editListingDialog.isReady();
     await expect(page).toHaveURL(/editing=/);
 
-    let releaseDeleteRequest = () => {};
-    let markDeleteRequestStarted = () => {};
+    let releaseDeleteRequest: () => void = () => undefined;
+    let markDeleteRequestStarted: () => void = () => undefined;
     const deleteRequestStarted = new Promise<void>((resolve) => {
       markDeleteRequestStarted = resolve;
     });
@@ -290,7 +385,7 @@ test.describe("create/edit listing flow @local", () => {
       releaseDeleteRequest = resolve;
     });
     await page.route("**/api/trpc/**", async (route) => {
-      if (route.request().url().includes("dashboardDb.listing.delete")) {
+      if (route.request().url().includes("dashboardV2.listing.delete")) {
         markDeleteRequestStarted();
         await deleteRequestBlocked;
       }
@@ -300,6 +395,9 @@ test.describe("create/edit listing flow @local", () => {
     await editListingDialog.clickDeleteListing();
     await editListingDialog.confirmDeleteListing();
     await deleteRequestStarted;
+    await expect(editListingDialog.dialog).toBeVisible();
+    await expect(page).toHaveURL(/editing=/);
+    releaseDeleteRequest();
     await expect(
       page.getByRole("heading", { name: "Listings", exact: true }),
     ).toBeVisible();
@@ -308,11 +406,15 @@ test.describe("create/edit listing flow @local", () => {
     ).toHaveCount(0);
     await expect(page.locator(".animate-pulse:visible")).toHaveCount(0);
     await expectUrlParam("editing", null);
-    releaseDeleteRequest();
+    await expect(
+      page.locator('[tabindex="-1"]').filter({
+        has: page.getByTestId("listings-dashboard"),
+      }),
+    ).toBeFocused();
     await expectToast("Listing deleted successfully");
 
     await expect(
-      page.getByRole("heading", { name: "No listings" }),
+      page.getByRole("heading", { name: "No listings", exact: true }),
     ).toBeVisible();
     await expect(
       dashboardListings.listingRow(seedMeta.relinkAhsName),

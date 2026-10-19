@@ -6,46 +6,36 @@ import { APP_CONFIG, PRO_FEATURES } from "@/config/constants";
 import { usePro } from "@/hooks/use-pro";
 import { CheckoutButton } from "@/components/checkout-button";
 import { TierLimitedCreateAction } from "@/app/dashboard/_components/tier-limited-create-action";
-import { useCreateListing } from "./create-listing-dialog";
 import { logDashboardTiming } from "@/app/dashboard/_lib/dashboard-timing";
-import { listingsCollection } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
-import { DASHBOARD_DB_QUERY_KEYS } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-keys";
-import { useSeededDashboardDbQuery } from "@/app/dashboard/_lib/dashboard-db/use-seeded-dashboard-db-query";
+
+import { useLiveSuspenseQuery } from "@tanstack/react-db";
 import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
-import type { RouterOutputs } from "@/trpc/react";
+import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
 
-type Listing = RouterOutputs["dashboardDb"]["listing"]["list"][number];
-
-/**
- * Button component that launches the create listing dialog.
- * Handles subscription tier checks and upgrade prompts for free tier users.
- */
-export function CreateListingButton() {
+export function CreateListingButton({ onCreate }: { onCreate: () => void }) {
+  const { listingsCollection } = useDashboardDb();
   const { isPro, isLoading: isSubscriptionLoading } = usePro();
-  const { openCreateListing } = useCreateListing();
-  const listingsQuery = useSeededDashboardDbQuery<Listing>({
+  const listingsQuery = useLiveSuspenseQuery({
     query: (q) => q.from({ listing: listingsCollection }),
-    queryKey: DASHBOARD_DB_QUERY_KEYS.listings,
   });
   const listingCount = listingsQuery.data.length;
 
   useEffect(() => {
     logDashboardTiming("create-listing-button.count-state", {
       listingCount,
-      listingsReady: listingsQuery.isReady,
       isPro,
     });
-  }, [isPro, listingCount, listingsQuery.isReady]);
+  }, [isPro, listingCount]);
 
   return (
     <TierLimitedCreateAction
       buttonLabel="Create Listing"
       buttonTestId="create-listing-button"
       currentCount={listingCount}
-      disabled={isSubscriptionLoading || !listingsQuery.isReady}
+      disabled={isSubscriptionLoading}
       freeTierLimit={APP_CONFIG.LISTING.FREE_TIER_MAX_LISTINGS}
       isPro={isPro}
-      onCreate={openCreateListing}
+      onCreate={onCreate}
       upgradeDialogTitle="Upgrade Required"
       upgradeDialogDescription={
         <>
@@ -55,7 +45,7 @@ export function CreateListingButton() {
         </>
       }
       upgradeDialogBody={
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           <H3 className="text-center">
             {SUBSCRIPTION_CONFIG.COPY.CTA.UPGRADE_TO_PRO}
           </H3>
@@ -63,7 +53,7 @@ export function CreateListingButton() {
             Upgrade to a Pro account to create unlimited listings and unlock
             other premium features.
           </p>
-          <ul className="space-y-2 text-sm">
+          <ul className="flex flex-col gap-2 text-sm">
             {PRO_FEATURES.map((feature) => {
               const Icon = feature.icon;
               return (

@@ -9,29 +9,55 @@ const stateFor =
     description,
     capture: `${id}.png`,
     captureSpec,
-    reproductionCommand: atlasFlowId
-      ? `node apps/main/scripts/run-atlas-flow.mjs ${atlasFlowId} --output=local/atlas/reproduce`
-      : `ATLAS_OUTPUT_DIR=local/atlas/reproduce ATLAS_CAPTURE_DIR=local/atlas/reproduce/screenshots pnpm main exec playwright test -c playwright.atlas.config.ts ${captureSpec} --grep "${title}"`,
+    reproductionCommand: `node apps/main/scripts/run-atlas-flow.mjs ${atlasFlowId} --output=local/atlas/reproduce`,
     url,
     urlReproducible,
   });
-const publicState = stateFor("tests/atlas/public-catalog.atlas.ts");
-const cultivarState = stateFor("tests/atlas/cultivar-search.atlas.ts");
-const importerState = stateFor("tests/atlas/catalog-importer.atlas.ts");
+const publicState = stateFor(
+  "tests/atlas/public-catalog.atlas.ts",
+  "public-catalog",
+);
+const cultivarState = stateFor(
+  "tests/atlas/cultivar-search.atlas.ts",
+  "cultivar-search",
+);
+const importerState = stateFor(
+  "tests/atlas/catalog-importer.atlas.ts",
+  "catalog-importer",
+);
 const dashboardImporterState = stateFor(
   "tests/atlas/dashboard-catalog-importer.atlas.ts",
+  "dashboard-catalog-importer",
 );
-const onboardingState = stateFor("tests/atlas/onboarding-membership.atlas.ts");
+const onboardingState = stateFor(
+  "tests/atlas/onboarding-membership.atlas.ts",
+  "onboarding-membership",
+);
 const dashboardHomeState = stateFor(
   "tests/atlas/dashboard-home.atlas.ts",
   "dashboard-home",
 );
-const listingState = stateFor("tests/atlas/listing-management.atlas.ts");
-const listingMediaState = stateFor("tests/atlas/listing-media.atlas.ts");
-const listState = stateFor("tests/atlas/list-management.atlas.ts");
-const tagState = stateFor("tests/atlas/tag-printing.atlas.ts");
-const buyerState = stateFor("tests/atlas/buyer-inquiry.atlas.ts");
-const profileState = stateFor("tests/atlas/profile-management.atlas.ts");
+const listingState = stateFor(
+  "tests/atlas/listing-management.atlas.ts",
+  "listing-management",
+);
+const listingMediaState = stateFor(
+  "tests/atlas/listing-media.atlas.ts",
+  "listing-media",
+);
+const listState = stateFor(
+  "tests/atlas/list-management.atlas.ts",
+  "list-management",
+);
+const tagState = stateFor("tests/atlas/tag-printing.atlas.ts", "tag-printing");
+const buyerState = stateFor(
+  "tests/atlas/buyer-inquiry.atlas.ts",
+  "buyer-inquiry",
+);
+const profileState = stateFor(
+  "tests/atlas/profile-management.atlas.ts",
+  "profile-management",
+);
 const testRef = (layer, file) => ({
   path: file,
   runner: layer === "e2e" ? "e2e" : "vitest",
@@ -44,6 +70,11 @@ const fullAppIntegrationRef = (file) => ({
   path: file,
   runner: "full-app-integration",
   command: `node apps/main/scripts/run-integration-local.mjs ${file}`,
+  ...(file === "tests/integration/editor-save.integration.ts"
+    ? {
+        evidenceCommand: `node apps/main/scripts/run-integration-local.mjs --evidence ${file}`,
+      }
+    : {}),
 });
 export const ATLAS_FLOWS = [
   {
@@ -52,9 +83,50 @@ export const ATLAS_FLOWS = [
     title: "Browse a public catalog",
     description:
       "Find a grower, search a production-sized catalog, and inspect a listing.",
+    implementation: {
+      entryPoints: [
+        {
+          label: "Profile page data",
+          path: "src/app/(public)/[userSlugOrId]/_lib/public-profile-route.ts",
+        },
+        {
+          label: "Published listing reads",
+          path: "src/server/db/public-listing-read-model.ts",
+        },
+        {
+          label: "Public profile count links",
+          path: "src/app/(public)/[userSlugOrId]/_components/profile-section.tsx",
+        },
+        {
+          label: "Public catalog section links",
+          path: "src/app/(public)/[userSlugOrId]/_components/catalog-nav.tsx",
+        },
+        {
+          label: "Social image rendering",
+          path: "src/app/api/og/[kind]/[id]/route.tsx",
+        },
+        {
+          label: "Social image font and emoji assets",
+          path: "src/server/social-card-assets.ts",
+        },
+        {
+          label: "Production social image smoke test",
+          path: "scripts/smoke-social-images-local.mjs",
+          command:
+            "pnpm main exec node scripts/smoke-social-images-local.mjs <image>",
+        },
+      ],
+      invariants: [
+        "Read public data through the replica and apply published-listing filters.",
+        "Keep profile data and listing cards in the first HTML response.",
+        "Link profile counts to their sections. Both Lists links must return to the first catalog page, where list summaries are available.",
+        "Keep public page navigation responsive during social image generation. Check the built container with a warm Next image optimizer.",
+      ],
+    },
     tests: {
       unit: [],
       integration: [
+        testRef("integration", "tests/public-profile-route.test.ts"),
         testRef("integration", "tests/get-public-listings.test.ts"),
         testRef(
           "integration",
@@ -154,9 +226,38 @@ export const ATLAS_FLOWS = [
     title: "Search and inspect registered cultivars",
     description:
       "Search the production-shaped cultivar registry, refine the results, and inspect a cultivar at mobile and desktop sizes.",
+    implementation: {
+      entryPoints: [
+        {
+          label: "Browser URL controls, defaults, and canonicalization",
+          path: "src/app/(public)/cultivars/_lib/cultivar-search-url.ts",
+        },
+        {
+          label: "Server-rendered browser controls",
+          path: "src/app/(public)/cultivars/page.tsx",
+        },
+        {
+          label: "Browser controls and history-entry result restoration",
+          path: "src/app/(public)/cultivars/_components/cultivar-search-page-client.tsx",
+        },
+        {
+          label: "Search request correlation and response headers",
+          path: "src/app/api/v1/cultivars/search/route.ts",
+        },
+      ],
+      invariants: [
+        "Parse shareable controls through cultivar-search-url on the server and from the current URL on mount. Keep first repeated values, literal Booleans, and existing canonicalization.",
+        "A consumed snapshot restores only the same history entry's results, pagination, and scroll anchor. It must not replace URL controls or add result depth to shared URLs.",
+        "Use one correlation ID for each search request and its logs. Return that ID on errors, but keep it off cached success responses.",
+      ],
+    },
     tests: {
       unit: [],
       integration: [
+        testRef("integration", "tests/cultivar-search-url.test.ts"),
+        fullAppIntegrationRef(
+          "tests/integration/cultivar-url-controls.integration.ts",
+        ),
         testRef("integration", "tests/cultivar-search-page-client.test.tsx"),
         testRef("integration", "tests/cultivar-search-route.test.ts"),
         testRef("integration", "tests/cultivar-search-facets-route.test.ts"),
@@ -273,13 +374,17 @@ export const ATLAS_FLOWS = [
     audience: "public",
     title: "Prepare a daylily catalog spreadsheet",
     description:
-      "Start from a spreadsheet, link registered cultivars, resolve catalog issues, preview the catalog, and download the prepared workbook.",
+      "Recognized single-sheet templates and catalog exports open Preview. Prepare other spreadsheets, link registered cultivars, resolve issues, and download the workbook.",
     tests: {
       unit: [],
       integration: [
+        testRef("integration", "tests/cultivar-name-match.integration.test.ts"),
+        testRef("integration", "tests/cultivar-match-route.test.ts"),
         testRef("integration", "tests/catalog-importer.test.ts"),
+        testRef("integration", "tests/temp-list.test.ts"),
         testRef("integration", "tests/catalog-importer-draft.test.ts"),
         testRef("integration", "tests/catalog-importer-workbench.test.tsx"),
+        testRef("integration", "tests/catalog-importer-session.test.tsx"),
       ],
       e2e: [testRef("e2e", "tests/e2e/catalog-importer.e2e.ts")],
     },
@@ -328,7 +433,7 @@ export const ATLAS_FLOWS = [
           importerState(
             "catalog-importer-desktop-results",
             "Desktop catalog results",
-            "The exact Daylily Catalog template opened directly in the personalized results workspace.",
+            "The personalized enrichment reveal, preparation status, and complete results workspace.",
             "/catalog-importer",
             false,
           ),
@@ -446,15 +551,46 @@ export const ATLAS_FLOWS = [
     title: "Create listings from a prepared catalog",
     description:
       "Build one browser-local import, select its eligible listings, and create new catalog listings.",
+    implementation: {
+      entryPoints: [
+        {
+          label: "Prepared import view",
+          path: "src/app/dashboard/imports/_components/dashboard-catalog-importer.tsx",
+        },
+        {
+          label: "Import writes and refresh",
+          path: "src/app/dashboard/imports/_components/use-dashboard-catalog-import.ts",
+        },
+        {
+          label: "Import server validation",
+          path: "src/server/api/routers/dashboard-db/listing.ts",
+        },
+      ],
+      invariants: [
+        "Keep the prepared draft and source rows across reloads and rejected writes.",
+        "Create eligible, selected rows in batches of at most 100 and prevent duplicate writes.",
+        "Keep native temp-list names, prices, notes, and explicit cultivar links through import.",
+        "Save an optional named list atomically with its listings and reuse exact owned matches.",
+        "Advance the saved list version for each import batch so incremental sync includes its membership.",
+        "After a saved write, retry a failed dashboard refresh without writing the rows again.",
+      ],
+    },
     tests: {
       unit: [],
       integration: [
         testRef("integration", "tests/dashboard-import-table.test.tsx"),
         testRef(
           "integration",
+          "tests/dashboard-db-listing-entitlements.integration.test.ts",
+        ),
+        testRef(
+          "integration",
           "tests/dashboard-import-existing-listings.test.tsx",
         ),
         testRef("integration", "tests/dashboard-import-start-over.test.tsx"),
+        fullAppIntegrationRef(
+          "tests/integration/dashboard-imports.integration.ts",
+        ),
       ],
       e2e: [testRef("e2e", "tests/e2e/catalog-importer.e2e.ts")],
     },
@@ -562,18 +698,43 @@ export const ATLAS_FLOWS = [
     audience: "member",
     title: "Create a catalog and start membership",
     description:
-      "Understand the grower offer, transform an existing catalog, and reach the trial handoff.",
+      "Understand the grower offer, transform an existing catalog, and continue to Stripe-hosted membership checkout.",
+    implementation: {
+      entryPoints: [
+        {
+          label: "Importer finish membership offer",
+          path: "src/app/(public)/catalog-importer/_components/catalog-importer-publish-actions.tsx",
+        },
+        {
+          label: "Optional Pro feedback",
+          path: "src/components/pro-membership-feedback.tsx",
+        },
+        {
+          label: "Pro survey contract",
+          path: "src/lib/analytics/pro-membership-feedback.ts",
+        },
+      ],
+      invariants: [
+        "Offer feedback at the importer finish step, after the prepared catalog. Open it only on an explicit click. Keep downloads and checkout independent of the answer.",
+        "Use the active PostHog API survey and existing SDK identity. Keep support available when feedback is unavailable.",
+      ],
+    },
     tests: {
       unit: [
         testRef("unit", "tests/catalog-importer-draft.test.ts"),
         testRef("unit", "tests/catalog-importer-file.test.ts"),
       ],
       integration: [
+        testRef("integration", "tests/pro-membership-feedback.test.tsx"),
+        fullAppIntegrationRef(
+          "tests/integration/pro-membership-feedback.integration.ts",
+        ),
         testRef("integration", "tests/catalog-importer-workbench.test.tsx"),
         testRef(
           "integration",
           "tests/catalog-importer-checkout-router.test.ts",
         ),
+        testRef("integration", "tests/use-pro.test.tsx"),
         fullAppIntegrationRef(
           "tests/integration/catalog-importer-checkout-provider-boundaries.integration.ts",
         ),
@@ -627,18 +788,6 @@ export const ATLAS_FLOWS = [
           ),
         ],
       },
-      {
-        title: "Start the trial",
-        states: [
-          onboardingState(
-            "onboarding-importer-checkout",
-            "Importer checkout",
-            "The account email and exact trial terms immediately before Stripe.",
-            "/catalog-importer/checkout?import_id=12a94b5f-3da4-4d28-b6df-76f8f4bc8392&entry=catalog_importer&return_to=%2Fcatalog-importer",
-            false,
-          ),
-        ],
-      },
     ],
   },
   {
@@ -647,14 +796,35 @@ export const ATLAS_FLOWS = [
     title: "Choose the next catalog action",
     description:
       "Orient on the dashboard across setup, membership, billing, and established Pro states without multiplying partial-state permutations.",
+    implementation: {
+      entryPoints: [
+        {
+          label: "Membership action",
+          path: "src/components/pro-membership-action.tsx",
+        },
+        {
+          label: "Optional Pro feedback",
+          path: "src/components/pro-membership-feedback.tsx",
+        },
+      ],
+      invariants: [
+        "Offer feedback beside checkout. Omit it during loading, for active Pro members, and for billing recovery.",
+      ],
+    },
     tests: {
       unit: [testRef("unit", "tests/build-dashboard-stats.test.ts")],
       integration: [
         testRef("integration", "tests/pro-membership-card.test.tsx"),
+        testRef("integration", "tests/pro-membership-feedback.test.tsx"),
+        fullAppIntegrationRef(
+          "tests/integration/pro-membership-feedback.integration.ts",
+        ),
         testRef("integration", "tests/persisted-subscription-query.test.ts"),
       ],
       e2e: [
+        testRef("e2e", "tests/e2e/preview-sign-in.e2e.ts"),
         testRef("e2e", "tests/e2e/new-user-journey.e2e.ts"),
+        testRef("e2e", "tests/e2e/create-edit-listing-flow.e2e.ts"),
         testRef("e2e", "tests/e2e/catalog-importer-onboarding.e2e.ts"),
       ],
     },
@@ -743,10 +913,98 @@ export const ATLAS_FLOWS = [
     title: "Manage a grower profile",
     description:
       "Review realistic grower details, prepare profile edits, and inspect profile media at mobile and iPad sizes without saving changes.",
+    implementation: {
+      entryPoints: [
+        {
+          label: "API/MCP usage evidence",
+          path: "src/server/observability/api-usage.ts",
+        },
+        {
+          label: "Managed disposable media fixtures",
+          path: "scripts/atlas-media-fixtures.mjs",
+        },
+        {
+          label: "Profile capture assertions",
+          path: "tests/atlas/profile-management.atlas.ts",
+        },
+        {
+          label: "Profile sections",
+          path: "src/components/forms/profile-form.tsx",
+        },
+        {
+          label: "Profile save and draft state",
+          path: "src/hooks/use-profile-form.ts",
+        },
+        {
+          label: "Structured editor conflict classification",
+          path: "src/trpc/is-conflict-error.ts",
+        },
+        {
+          label: "Profile image actions",
+          path: "src/app/dashboard/profile/_components/profile-image-manager.tsx",
+        },
+        {
+          label: "Remote MCP member authentication",
+          path: "src/server/mcp/read-only-mcp.ts",
+        },
+        {
+          label: "Production MCP proxy smoke test",
+          path: "scripts/smoke-mcp-keepalive-local.mjs",
+        },
+        {
+          label: "Member API authentication and account tier",
+          path: "src/server/api/member-http.ts",
+        },
+        {
+          label: "MCP OAuth resource discovery",
+          path: "src/app/.well-known/oauth-protected-resource/api/mcp/server/route.ts",
+        },
+        {
+          label: "Plugin submission package",
+          path: "scripts/build-plugin.mjs",
+        },
+        {
+          label: "Plugin review cases",
+          path: "../../plugins/daylily-catalog/review-cases.json",
+        },
+      ],
+      invariants: [
+        "Use five reserved local image records on the realistic profile in a runner-owned disposable snapshot. Refuse attach and explicit database modes.",
+        "Keep field and content drafts during refresh and failed navigation saves.",
+        "Include child content and media changes in the parent commit.",
+        "Ignore late URL validation results and keep drafts after rejected writes.",
+        "Convert uppercase profile URL input to lowercase before validation and saving.",
+        "Reject member MCP requests before database reads when the token, scope, or client is not allowed.",
+        "Keep known MCP domain errors actionable; report unexpected read/write failures on the server and return a generic INTERNAL_ERROR.",
+        "Record bounded API/MCP use with verified account provenance, logical call counts and persisted mutation results. Treat proxy and retention gaps as limits.",
+        "Allow confirmed non-Pro remote writes within dashboard limits; reject unconfirmed billing and keep destructive MCP actions in dashboard approval.",
+        "Publish MCP endpoint resource metadata and complete tool-level OAuth challenges.",
+        "Keep the app idle timeout above Caddy's 120 seconds. Verify real MCP requests through Caddy in Docker image CI.",
+        "Build the complete plugin with a reviewer video URL kept outside public source. Reuse sample records on repeated review runs.",
+        "Store member versions as integer milliseconds and preserve stale-write rejection.",
+        "Classify editor save conflicts by the tRPC code; keep drafts and load the latest version only on explicit recovery.",
+      ],
+    },
     tests: {
       unit: [testRef("unit", "tests/profile-slug-rules.test.ts")],
       integration: [
+        testRef("integration", "tests/atlas-media-fixtures.test.ts"),
+        testRef("integration", "tests/atlas-browser-diagnostics.test.ts"),
+        testRef("integration", "tests/oauth-metadata.test.ts"),
+        testRef("integration", "tests/mcp-read-only.test.ts"),
+        fullAppIntegrationRef("tests/integration/api-usage.integration.ts"),
+        fullAppIntegrationRef("tests/integration/mcp-errors.integration.ts"),
+        testRef(
+          "integration",
+          "tests/member-version-storage.integration.test.ts",
+        ),
+        testRef("integration", "tests/daylily-plugin-package.test.ts"),
+        testRef(
+          "integration",
+          "tests/member-non-pro-access.integration.test.ts",
+        ),
         testRef("integration", "tests/slug-change-confirm-dialog.test.tsx"),
+        testRef("integration", "tests/profile-form-content-rebase.test.tsx"),
         testRef(
           "integration",
           "tests/dashboard-db-user-profile-router.test.ts",
@@ -759,6 +1017,12 @@ export const ATLAS_FLOWS = [
         fullAppIntegrationRef(
           "tests/integration/profile-slug-validation.integration.ts",
         ),
+        fullAppIntegrationRef(
+          "tests/integration/profile-workflow.integration.ts",
+        ),
+        fullAppIntegrationRef(
+          "tests/integration/editor-conflict.integration.ts",
+        ),
       ],
       e2e: [testRef("e2e", "tests/e2e/new-user-journey.e2e.ts")],
     },
@@ -769,7 +1033,7 @@ export const ATLAS_FLOWS = [
           profileState(
             "profile-management-desktop-populated",
             "Desktop populated profile",
-            "Realistic grower details, five profile images, and catalog content at the supported iPad width.",
+            "Realistic grower details, five local fixture images, and catalog content at the supported iPad width.",
             "/dashboard/profile",
           ),
           profileState(
@@ -833,7 +1097,7 @@ export const ATLAS_FLOWS = [
           profileState(
             "profile-management-desktop-preview",
             "Desktop profile image preview",
-            "A seeded profile image opened in the complete gallery preview.",
+            "A local fixture profile image opened in the complete gallery preview.",
             "/dashboard/profile",
             false,
           ),
@@ -854,19 +1118,99 @@ export const ATLAS_FLOWS = [
     title: "Find, create, and edit listings",
     description:
       "Manage a production-shaped catalog through the same dashboard controls members use.",
+    implementation: {
+      entryPoints: [
+        {
+          label: "Dashboard collection lifetime",
+          path: "src/app/dashboard/_components/dashboard-db-provider.tsx",
+        },
+        {
+          label: "Native catalog collections and confirmed writes",
+          path: "src/app/dashboard/_lib/dashboard-db/collections.ts",
+        },
+        {
+          label: "Listing creation and retry identity",
+          path: "src/app/dashboard/listings/_components/create-listing-dialog.tsx",
+        },
+        {
+          label: "Listing mutations",
+          path: "src/server/api/routers/dashboard-db/listing.ts",
+        },
+        {
+          label: "Remote member write adapter",
+          path: "src/server/mcp/member-write-mcp.ts",
+        },
+        {
+          label: "Listing edit form",
+          path: "src/components/forms/listing-form.tsx",
+        },
+        {
+          label: "Listing save and draft state",
+          path: "src/components/forms/use-listing-form.ts",
+        },
+        {
+          label: "Structured editor conflict classification",
+          path: "src/trpc/is-conflict-error.ts",
+        },
+        {
+          label: "Listing editor history",
+          path: "src/app/dashboard/listings/_components/edit-listing-dialog.tsx",
+        },
+      ],
+      invariants: [
+        "Keep dashboard collections active while the provider is ready, including idle editors.",
+        "The dashboard renders the member's saved catalog before refresh completes. Old refreshes must not replace confirmed writes; successful refreshes reconcile additions and deletions.",
+        "Copied listing links use the listing owner ID until the profile URL loads. Loading the profile must not close an open row menu.",
+        "Reject old dashboard API routes before writing data. Show reload instructions and keep the unsaved form open.",
+        "Bind dashboard requests to the member that opened the session. Reject a changed or missing member identity before reads or writes.",
+        "Store member versions as integer milliseconds and preserve stale-write rejection.",
+        "Classify editor save conflicts by the tRPC code; keep drafts and load the latest version only on explicit recovery.",
+        "Reuse the same create request ID for the same draft after lost create confirmation. Keep one saved listing after retry and include that ID in the failure report.",
+        "Scope listing writes to the authenticated user on the server.",
+        "Enforce the same non-Pro create cap for dashboard, member API, and MCP callers. Reuse the confirmed tier within each remote request.",
+        "Validate before save and keep the form open when save fails.",
+        "Save listing fields through the editor; write media and membership changes at once and mark the parent for commit.",
+        "Keep drafts after rejected saves and canceled browser history changes.",
+        "Confirm saved values after a new page load.",
+      ],
+    },
     tests: {
       unit: [testRef("unit", "tests/listings-search-normalization.test.tsx")],
       integration: [
         testRef(
           "integration",
-          "tests/dashboard-listing-filter-toolbar.test.ts",
+          "tests/member-version-storage.integration.test.ts",
+        ),
+        testRef("integration", "tests/daylily-plugin-package.test.ts"),
+        testRef(
+          "integration",
+          "tests/dashboard-db-listing-entitlements.integration.test.ts",
+        ),
+        testRef(
+          "integration",
+          "tests/member-non-pro-access.integration.test.ts",
         ),
         testRef("integration", "tests/listings-table-filter-columns.test.tsx"),
         testRef("integration", "tests/create-listing-dialog.test.tsx"),
         testRef("integration", "tests/listing-dialog-query-state.test.tsx"),
+        testRef(
+          "integration",
+          "tests/listing-form-refresh.integration.test.tsx",
+        ),
+        testRef("integration", "tests/listing-form-side-mutation.test.tsx"),
         testRef("integration", "tests/edit-listing-dialog-url-sync.test.tsx"),
         fullAppIntegrationRef(
           "tests/integration/create-edit-listing.integration.ts",
+        ),
+        fullAppIntegrationRef(
+          "tests/integration/dashboard-cache.integration.ts",
+        ),
+        fullAppIntegrationRef("tests/integration/editor-save.integration.ts"),
+        fullAppIntegrationRef(
+          "tests/integration/editor-conflict.integration.ts",
+        ),
+        fullAppIntegrationRef(
+          "tests/integration/surface-history.integration.ts",
         ),
       ],
       e2e: [
@@ -1005,12 +1349,46 @@ export const ATLAS_FLOWS = [
     title: "Create and print plant tags",
     description:
       "Choose a useful tag preset or create a custom template from real listing fields.",
+    implementation: {
+      entryPoints: [
+        {
+          label: "Tag search and selection",
+          path: "src/app/dashboard/tags/_components/tag-print-table.tsx",
+        },
+        {
+          label: "Tag design and output actions",
+          path: "src/app/dashboard/tags/_components/use-tag-designer-controller.ts",
+        },
+        {
+          label: "Print document geometry",
+          path: "src/app/dashboard/tags/_components/tag-designer-html.ts",
+        },
+        {
+          label: "Atlas app readiness",
+          path: "scripts/atlas-app-readiness.mjs",
+        },
+        {
+          label: "Atlas member workspace readiness",
+          path: "tests/atlas/atlas-member-readiness.ts",
+        },
+      ],
+      invariants: [
+        "Keep selected listings for output when search filters change.",
+        "Keep private search text in the browser and out of shared URLs.",
+        "Preserve physical tag and sheet dimensions in preview, print, and downloads.",
+      ],
+    },
     tests: {
       unit: [testRef("unit", "tests/tag-designer-model.test.ts")],
       integration: [
         testRef("integration", "tests/tag-designer-panel.test.tsx"),
         testRef("integration", "tests/tag-print-table.test.ts"),
+        testRef("integration", "tests/atlas-app-readiness.test.ts"),
+        fullAppIntegrationRef(
+          "tests/integration/atlas-member-readiness.integration.ts",
+        ),
         fullAppIntegrationRef("tests/integration/tag-printing.integration.ts"),
+        fullAppIntegrationRef("tests/integration/tags-search.integration.ts"),
       ],
       e2e: [],
     },
@@ -1019,9 +1397,51 @@ export const ATLAS_FLOWS = [
         title: "Choose tag content",
         states: [
           tagState(
+            "tag-printing-unselected",
+            "No listing selected",
+            "Sample preview and disabled output controls before selecting listings.",
+            "/dashboard/tags",
+            false,
+          ),
+          tagState(
+            "tag-printing-no-results",
+            "No listing matches the filter",
+            "A filtered table with no matching rows.",
+            "/dashboard/tags",
+            false,
+          ),
+          tagState(
             "tag-printing-garden-id",
             "Garden ID tags",
             "The compact default preset across eight listings with long, short, complete, and incomplete data.",
+            "/dashboard/tags",
+            false,
+          ),
+          tagState(
+            "tag-printing-output-menu",
+            "Output menu",
+            "Available tag downloads for selected listings.",
+            "/dashboard/tags",
+            false,
+          ),
+          tagState(
+            "tag-printing-qr-off",
+            "QR code off",
+            "Selected tags with QR codes disabled.",
+            "/dashboard/tags",
+            false,
+          ),
+          tagState(
+            "tag-printing-invalid-size",
+            "Invalid custom tag size",
+            "Validation keeps the last valid physical tag width.",
+            "/dashboard/tags",
+            false,
+          ),
+          tagState(
+            "tag-printing-custom-size",
+            "Custom tag size",
+            "A valid user-defined physical tag width.",
             "/dashboard/tags",
             false,
           ),
@@ -1067,6 +1487,90 @@ export const ATLAS_FLOWS = [
             "/dashboard/tags",
             false,
           ),
+          tagState(
+            "tag-printing-sheet-quantity",
+            "Sheet quantity",
+            "Two copies of each selected label in the sheet preview.",
+            "/dashboard/tags",
+            false,
+          ),
+          tagState(
+            "tag-printing-sheet-invalid",
+            "Sheet cannot fit tags",
+            "Invalid sheet geometry blocks print and download controls.",
+            "/dashboard/tags",
+            false,
+          ),
+          tagState(
+            "tag-printing-mobile-garden-id",
+            "Garden ID tags on mobile",
+            "The selected listing, template, preview, output controls, and table at a phone width.",
+            "/dashboard/tags",
+            false,
+          ),
+          tagState(
+            "tag-printing-mobile-sheet",
+            "Sheet creator on mobile",
+            "The sheet settings, preview, and actions at a phone width.",
+            "/dashboard/tags",
+            false,
+          ),
+          tagState(
+            "tag-printing-dark-garden-id",
+            "Garden ID tags in dark theme",
+            "Dark app controls around a paper-accurate light tag preview.",
+            "/dashboard/tags",
+            false,
+          ),
+          tagState(
+            "tag-printing-saved-template",
+            "Saved template",
+            "A browser-local tag template appears in the template picker.",
+            "/dashboard/tags",
+            false,
+          ),
+          tagState(
+            "tag-printing-delete-confirmation",
+            "Delete template confirmation",
+            "The destructive action asks for confirmation before removing a saved template.",
+            "/dashboard/tags",
+            false,
+          ),
+          tagState(
+            "tag-printing-mobile-saved-template",
+            "Saved template on mobile",
+            "The browser-local template choice remains usable at a phone width.",
+            "/dashboard/tags",
+            false,
+          ),
+          tagState(
+            "tag-printing-mobile-delete-confirmation",
+            "Delete template confirmation on mobile",
+            "The confirmation and destructive action remain readable at a phone width.",
+            "/dashboard/tags",
+            false,
+          ),
+          tagState(
+            "tag-printing-template-errors",
+            "Custom template errors",
+            "The editor links unknown-field and layout validation messages to its instructions.",
+            "/dashboard/tags",
+            false,
+          ),
+          tagState(
+            "tag-printing-ai-manual-copy",
+            "Manual AI instructions copy",
+            "Clipboard rejection selects the complete prompt and gives manual copy instructions.",
+            "/dashboard/tags",
+            false,
+          ),
+          tagState(
+            "tag-printing-mobile-ai-manual-copy",
+            "Manual AI instructions copy on mobile",
+            "An unavailable clipboard selects the prompt and shows manual copy feedback at a phone width.",
+            "/dashboard/tags",
+            false,
+          ),
         ],
       },
     ],
@@ -1077,9 +1581,30 @@ export const ATLAS_FLOWS = [
     title: "Manage listing images",
     description:
       "Review, preview, reorder, remove, and prepare listing photos without sending an upload.",
+    implementation: {
+      entryPoints: [
+        {
+          label: "Managed disposable media fixtures",
+          path: "scripts/atlas-media-fixtures.mjs",
+        },
+        { label: "Managed Atlas runner", path: "scripts/run-atlas-flow.mjs" },
+        {
+          label: "Listing media capture assertions",
+          path: "tests/atlas/listing-media.atlas.ts",
+        },
+      ],
+      invariants: [
+        "Use two reserved synthetic listings with nine local images and zero images. Keep the surrounding realistic catalog.",
+        "Create media fixtures only in a runner-owned disposable snapshot. Refuse BASE_URL, DATABASE_URL, and ATLAS_DATABASE_URL overrides before any write.",
+        "Keep populated, empty, preview, crop, reorder, and delete-confirmation assertions. Do not send an upload.",
+        "Delete only the selected image. Keep survivor order values; apply the full canonical image set after a reorder, including images absent from the browser.",
+      ],
+    },
     tests: {
       unit: [testRef("unit", "tests/use-image-upload.test.ts")],
       integration: [
+        testRef("integration", "tests/atlas-media-fixtures.test.ts"),
+        testRef("integration", "tests/atlas-browser-diagnostics.test.ts"),
         testRef("integration", "tests/image-upload.test.tsx"),
         testRef("integration", "tests/dashboard-db-image-router.test.ts"),
         fullAppIntegrationRef("tests/integration/listing-media.integration.ts"),
@@ -1093,29 +1618,29 @@ export const ATLAS_FLOWS = [
           listingMediaState(
             "listing-media-desktop-populated",
             "Desktop populated image grid",
-            "Nine real listing photos in the four-column desktop manager.",
-            "/dashboard/listings?size=10&query=18-33",
+            "Nine local fixture photos in the four-column desktop manager.",
+            "/dashboard/listings?size=10&query=Atlas%20Media%20Populated",
             false,
           ),
           listingMediaState(
             "listing-media-mobile-populated",
             "Mobile populated image grid",
             "The same listing photos in the two-column mobile manager.",
-            "/dashboard/listings?size=10&query=18-33",
+            "/dashboard/listings?size=10&query=Atlas%20Media%20Populated",
             false,
           ),
           listingMediaState(
             "listing-media-desktop-empty",
             "Desktop empty image manager",
             "A listing with no owned photos and its available upload dropzone.",
-            "/dashboard/listings?size=10&query=Bee-ba-tized",
+            "/dashboard/listings?size=10&query=Atlas%20Media%20Empty",
             false,
           ),
           listingMediaState(
             "listing-media-mobile-empty",
             "Mobile empty image manager",
             "The empty owned-photo state and upload dropzone on a phone.",
-            "/dashboard/listings?size=10&query=Bee-ba-tized",
+            "/dashboard/listings?size=10&query=Atlas%20Media%20Empty",
             false,
           ),
         ],
@@ -1127,14 +1652,14 @@ export const ATLAS_FLOWS = [
             "listing-media-desktop-preview",
             "Desktop full-size preview",
             "A listing photo opened in the real gallery preview.",
-            "/dashboard/listings?size=10&query=18-33",
+            "/dashboard/listings?size=10&query=Atlas%20Media%20Populated",
             false,
           ),
           listingMediaState(
             "listing-media-mobile-preview",
             "Mobile full-size preview",
             "The same gallery preview at the phone viewport.",
-            "/dashboard/listings?size=10&query=18-33",
+            "/dashboard/listings?size=10&query=Atlas%20Media%20Populated",
             false,
           ),
         ],
@@ -1146,28 +1671,28 @@ export const ATLAS_FLOWS = [
             "listing-media-delete-confirmation",
             "Delete image confirmation",
             "The destructive confirmation before any listing photo is removed.",
-            "/dashboard/listings?size=10&query=18-33",
+            "/dashboard/listings?size=10&query=Atlas%20Media%20Populated",
             false,
           ),
           listingMediaState(
             "listing-media-reorder-active",
             "Pointer reorder target",
             "The first photo held between the first two slots with the sortable control active, before dropping.",
-            "/dashboard/listings?size=10&query=18-33",
+            "/dashboard/listings?size=10&query=Atlas%20Media%20Populated",
             false,
           ),
           listingMediaState(
             "listing-media-desktop-crop",
             "Desktop selected-file crop",
             "A local image selected for cropping before any upload request.",
-            "/dashboard/listings?size=10&query=Bee-ba-tized",
+            "/dashboard/listings?size=10&query=Atlas%20Media%20Empty",
             false,
           ),
           listingMediaState(
             "listing-media-mobile-crop",
             "Mobile selected-file crop",
             "The same pre-upload crop controls on a phone.",
-            "/dashboard/listings?size=10&query=Bee-ba-tized",
+            "/dashboard/listings?size=10&query=Atlas%20Media%20Empty",
             false,
           ),
         ],
@@ -1180,22 +1705,105 @@ export const ATLAS_FLOWS = [
     title: "Organize catalog listings into a list",
     description:
       "Review real catalog lists, start a collection, and manage listing membership at mobile and desktop sizes.",
+    implementation: {
+      entryPoints: [
+        {
+          label: "First-list dashboard action",
+          path: "src/app/dashboard/_components/stats-card.tsx",
+        },
+        {
+          label: "List creation and retry identity",
+          path: "src/app/dashboard/lists/_components/create-list-dialog.tsx",
+        },
+        {
+          label: "List picker creation and retry identity",
+          path: "src/components/multi-list-select.tsx",
+        },
+        {
+          label: "Lists overview",
+          path: "src/app/dashboard/lists/_components/lists-table.tsx",
+        },
+        {
+          label: "List mutations and account limits",
+          path: "src/server/api/routers/dashboard-db/list.ts",
+        },
+        {
+          label: "List editor save and draft state",
+          path: "src/components/forms/list-form.tsx",
+        },
+        {
+          label: "Structured editor conflict classification",
+          path: "src/trpc/is-conflict-error.ts",
+        },
+        {
+          label: "List membership and navigation",
+          path: "src/app/dashboard/lists/[listId]/page.tsx",
+        },
+        {
+          label: "List editor history",
+          path: "src/app/dashboard/lists/_hooks/use-list-surface-state.ts",
+        },
+        {
+          label: "Server request correlation",
+          path: "src/server/observability/log-context.ts",
+        },
+        {
+          label: "Browser request correlation",
+          path: "src/trpc/correlated-fetch.ts",
+        },
+        {
+          label: "Browser request logs",
+          path: "src/trpc/client-links.ts",
+        },
+        {
+          label: "Structured logs and safe attributes",
+          path: "src/lib/telemetry.ts",
+        },
+      ],
+      invariants: [
+        "Open the first-list editor at /dashboard/lists?creating=true and preserve Save, reopen, and reload behavior.",
+        "Keep the same request identity when a list form or picker retries unchanged create data after lost confirmation. Use a new identity for changed create data or a new form operation.",
+        "Store member versions as integer milliseconds and preserve stale-write rejection.",
+        "Classify editor save conflicts by the tRPC code; keep drafts and load the latest version only on explicit recovery.",
+        "Save list fields through the editor; write membership changes at once and mark the parent for commit.",
+        "Keep confirmed list membership current when commands overlap, including after a reload with catalog reads unavailable.",
+        "Order targeted reads with writes so a delayed response cannot replace a later confirmed edit.",
+        "Keep queued commands bound to their original member and reject them if authentication changes before dispatch.",
+        "Enforce the same non-Pro list cap for dashboard, member API, and MCP callers, including safe create retries.",
+        "Keep drafts after rejected saves and canceled browser history changes.",
+        "Keep title and actions pinned in the overview; keep selection and title pinned in Manage List.",
+        "Use the same correlation ID in request headers, responses, browser logs, and server logs for successful requests and rejected deletions.",
+        "Keep the verified Clerk identity on procedure failures before member lookup. Isolate concurrent members and ignore browser-supplied identities.",
+        "Keep list descriptions out of diagnostic logs.",
+      ],
+    },
     tests: {
       unit: [testRef("unit", "tests/manage-list-columns.test.ts")],
       integration: [
+        testRef(
+          "integration",
+          "tests/member-version-storage.integration.test.ts",
+        ),
+        testRef("integration", "tests/daylily-plugin-package.test.ts"),
         testRef("integration", "tests/add-listings-combobox.test.tsx"),
         testRef(
           "integration",
-          "tests/dashboard-db-list-membership-sync.test.tsx",
+          "tests/member-non-pro-access.integration.test.ts",
         ),
         testRef("integration", "tests/list-form-boundary-save.test.tsx"),
         testRef(
           "integration",
           "tests/manage-list-page-membership-commit.test.tsx",
         ),
-        testRef("integration", "tests/use-list-resource.test.tsx"),
         fullAppIntegrationRef(
           "tests/integration/list-management.integration.ts",
+        ),
+        fullAppIntegrationRef("tests/integration/editor-save.integration.ts"),
+        fullAppIntegrationRef(
+          "tests/integration/editor-conflict.integration.ts",
+        ),
+        fullAppIntegrationRef(
+          "tests/integration/surface-history.integration.ts",
         ),
       ],
       e2e: [
@@ -1310,6 +1918,7 @@ export const ATLAS_FLOWS = [
         testRef("integration", "tests/floating-cart-button.test.tsx"),
         testRef("integration", "tests/public-inquiry.test.ts"),
         testRef("integration", "tests/public-inquiry-rate-limit.test.ts"),
+        testRef("integration", "tests/atlas-app-readiness.test.ts"),
         testRef("integration", "tests/public-router-send-message.test.ts"),
         fullAppIntegrationRef(
           "tests/integration/buyer-inquiry-email.integration.ts",
@@ -1436,6 +2045,14 @@ export function validateAtlasFlows({ flows = ATLAS_FLOWS, appRoot }) {
   const captures = new Set();
   const allowedLayers = new Set(["unit", "integration", "e2e"]);
   for (const flow of flows) {
+    if (flow.implementation) {
+      for (const entryPoint of flow.implementation.entryPoints) {
+        if (!existsSync(path.resolve(appRoot, entryPoint.path)))
+          throw new Error(
+            `Missing implementation entry point: ${entryPoint.path}`,
+          );
+      }
+    }
     for (const layer of Object.keys(flow.tests)) {
       if (!allowedLayers.has(layer))
         throw new Error(`Invalid test layer: ${layer}`);

@@ -100,7 +100,11 @@ export function applyAutomaticCultivarMatches({
   const nextRows: CatalogImportRow[] = [];
 
   for (const row of rows) {
-    if (row.rowKind === "ignored" || row.outputState === "removed") {
+    if (
+      row.rowKind === "ignored" ||
+      row.outputState === "removed" ||
+      row.linkState === "intentionally-unmatched"
+    ) {
       nextRows.push(row);
       continue;
     }
@@ -179,6 +183,7 @@ export interface CatalogImportRow {
   duplicateOfSourceRow: number | null;
   id: string;
   identityReviewed?: boolean;
+  preserveTitle?: boolean;
   linkProvenance: CatalogImportLinkProvenance | null;
   linkState: CatalogImportLinkState;
   match: CultivarMatchCandidate | null;
@@ -262,7 +267,9 @@ export function prepareCatalogImportListing(
         ? appendCatalogImportOriginalPriceNote(row.privateNote, row.sourcePrice)
         : row.privateNote
       ).trim() || null,
-    title: row.match?.displayName ?? row.title,
+    title: row.preserveTitle
+      ? row.title
+      : (row.match?.displayName ?? row.title),
   };
 }
 
@@ -576,17 +583,14 @@ export function cellToText(cell: SpreadsheetCell | undefined): string {
 }
 
 export function isRecognizedCatalogImportSheet(rows: SpreadsheetCell[][]) {
-  const headers = (rows[0] ?? []).map(cellToText);
-  const isExactTemplate =
-    headers.length === CATALOG_IMPORT_TEMPLATE_HEADERS.length &&
-    CATALOG_IMPORT_TEMPLATE_HEADERS.every(
-      (header, columnIndex) => headers[columnIndex] === header,
-    );
-  const isCatalogPreview =
-    headers.length === CATALOG_PREVIEW_HEADERS.length &&
-    CATALOG_PREVIEW_HEADERS.every((header) => headers.includes(header));
-
-  return isExactTemplate || isCatalogPreview;
+  const headers = rows[0] ?? [];
+  return (
+    [CATALOG_IMPORT_TEMPLATE_HEADERS, CATALOG_PREVIEW_HEADERS].some(
+      (knownHeaders) =>
+        headers.length === knownHeaders.length &&
+        knownHeaders.every((header, index) => headers[index] === header),
+    ) && rows.every((row) => row.length <= headers.length)
+  );
 }
 
 function getHeaderLabel(
@@ -728,11 +732,11 @@ function parsePriceValue(value: SpreadsheetCell | undefined) {
   }
 
   if (typeof value === "number") {
-    if (!Number.isFinite(value) || value < 0 || !Number.isInteger(value)) {
+    if (!Number.isFinite(value) || value < 0) {
       return { price: null, source, warning: source };
     }
 
-    return { price: value === 0 ? null : value, source, warning: null };
+    return { price: value, source, warning: null };
   }
 
   if (
@@ -749,11 +753,11 @@ function parsePriceValue(value: SpreadsheetCell | undefined) {
   }
 
   const price = Number(normalized);
-  if (!Number.isFinite(price) || price < 0 || !Number.isInteger(price)) {
+  if (!Number.isFinite(price) || price < 0) {
     return { price: null, source, warning: source };
   }
 
-  return { price: price === 0 ? null : price, source, warning: null };
+  return { price, source, warning: null };
 }
 
 function getHeaderMatchScore(
@@ -904,6 +908,19 @@ export function createCatalogImportRows({
 
   const dataStart = headerRowIndex === null ? 0 : headerRowIndex + 1;
   const result: CatalogImportRow[] = [];
+  // Native exports contain explicit listing names and cultivar links.
+  const preserveTitle =
+    headerRowIndex !== null &&
+    [
+      "Cultivar name",
+      "Price",
+      "Description",
+      "Private note",
+      "Cultivar reference ID",
+      "Registered name",
+    ].every((header, index) => rows[headerRowIndex]?.[index] === header) &&
+    mapping.title === 0 &&
+    mapping.cultivarReferenceId === 4;
 
   for (let rowIndex = dataStart; rowIndex < rows.length; rowIndex += 1) {
     const row = rows[rowIndex] ?? [];
@@ -912,7 +929,9 @@ export function createCatalogImportRows({
       continue;
     }
 
-    const title = cleanCultivarTitle(sourceTitle);
+    const title = preserveTitle
+      ? String(row[mapping.title] ?? "").trim()
+      : cleanCultivarTitle(sourceTitle);
     if (!title) {
       continue;
     }
@@ -921,9 +940,13 @@ export function createCatalogImportRows({
       mapping.price === null ? undefined : row[mapping.price],
     );
     const description =
-      mapping.description === null ? "" : cellToText(row[mapping.description]);
+      mapping.description === null
+        ? ""
+        : String(row[mapping.description] ?? "").trim();
     const sourcePrivateNote =
-      mapping.privateNote === null ? "" : cellToText(row[mapping.privateNote]);
+      mapping.privateNote === null
+        ? ""
+        : String(row[mapping.privateNote] ?? "").trim();
     const sourceCultivarReferenceId =
       mapping.cultivarReferenceId === null
         ? ""
@@ -934,7 +957,7 @@ export function createCatalogImportRows({
       price.source || description || sourcePrivateNote,
     );
     const rowKind =
-      SECTION_HEADING_PATTERN.test(title) && !hasMappedDetails
+      !preserveTitle && SECTION_HEADING_PATTERN.test(title) && !hasMappedDetails
         ? "ignored"
         : "listing";
 
@@ -944,8 +967,12 @@ export function createCatalogImportRows({
       duplicateAccepted: false,
       duplicateOfSourceRow: null,
       id: `source-row-${sourceRow}`,
+      ...(preserveTitle ? { preserveTitle: true } : {}),
       linkProvenance: null,
-      linkState: "pending",
+      linkState:
+        preserveTitle && !sourceCultivarReferenceId
+          ? "intentionally-unmatched"
+          : "pending",
       match: null,
       outputState: "included",
       price: price.price,
@@ -1158,7 +1185,7 @@ export function createCatalogEnrichedSpreadsheet({
     originalRows[outputRowIndex] = outputRow;
 
     if (mapping.title !== null && row.match) {
-      outputRow[mapping.title] = row.match.displayName;
+      outputRow[mapping.title] = prepareCatalogImportListing(row).title;
     }
     if (mapping.price !== null && row.priceWarning === null) {
       outputRow[mapping.price] = row.price ?? "";
@@ -1206,7 +1233,7 @@ export function createCatalogCleanSpreadsheet({
       (row) => row.rowKind === "listing" && row.outputState === "included",
     )
     .map((row) => [
-      row.match?.displayName ?? row.title,
+      prepareCatalogImportListing(row).title,
       row.priceWarning === null ? (row.price ?? "") : row.sourcePrice,
       row.description,
       row.privateNote,

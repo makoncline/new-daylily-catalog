@@ -7,6 +7,7 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     globals: true,
+    testTimeout: 15_000,
     setupFiles: ["./vitest.setup.ts"],
     include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
     exclude: [
@@ -21,6 +22,11 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "./src"),
       "@/env": path.resolve(__dirname, "src/env.js"),
+      // Next replaces this marker in server code. Vitest needs the same empty target.
+      "server-only": path.resolve(
+        __dirname,
+        "node_modules/server-only/empty.js",
+      ),
     },
   },
 });

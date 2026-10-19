@@ -17,7 +17,7 @@ describe("posthog browser analytics", () => {
   let fetchMock: MockInstance<typeof fetch>;
 
   beforeEach(() => {
-    initMock.mockClear();
+    initMock.mockReset();
     captureMock.mockClear();
     previousNodeEnv = process.env.NODE_ENV;
     mutableEnv.NODE_ENV = "production";
@@ -26,6 +26,7 @@ describe("posthog browser analytics", () => {
 
   afterEach(() => {
     fetchMock.mockRestore();
+    vi.useRealTimers();
 
     if (previousNodeEnv === undefined) {
       delete mutableEnv.NODE_ENV;
@@ -55,7 +56,21 @@ describe("posthog browser analytics", () => {
     expect(captureMock).not.toHaveBeenCalled();
   });
 
-  it("enables PostHog surveys when browser analytics is available", async () => {
+  it("keeps replay links on US PostHog when ingestion uses a proxy", async () => {
+    vi.useFakeTimers();
+    const { PostHog } =
+      await vi.importActual<typeof import("posthog-js")>("posthog-js");
+    const client = new PostHog();
+    initMock.mockImplementation((key, options) =>
+      client.init(key, {
+        ...options,
+        advanced_disable_flags: true,
+        disable_external_dependency_loading: true,
+        opt_out_capturing_by_default: true,
+        persistence: "memory",
+        bootstrap: { distinctID: "proxy-replay-test" },
+      }),
+    );
     fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -80,10 +95,23 @@ describe("posthog browser analytics", () => {
       expect(initMock).toHaveBeenCalledWith("phc_test", {
         advanced_enable_surveys: true,
         api_host: "https://analytics.example.com",
+        ui_host: "https://us.posthog.com",
         defaults: "2026-01-30",
         person_profiles: "identified_only",
       });
     });
+    const sessionId = client.get_session_id();
+    expect(sessionId).not.toBe("");
+    vi.setSystemTime(Date.now() + 65_000);
+    const replayUrl = new URL(
+      client.get_session_replay_url({
+        withTimestamp: true,
+        timestampLookBack: 30,
+      }),
+    );
+    expect(replayUrl.origin).toBe("https://us.posthog.com");
+    expect(replayUrl.pathname).toBe(`/project/phc_test/replay/${sessionId}`);
+    expect(replayUrl.searchParams.get("t")).toBe("35");
     expect(captureMock).toHaveBeenCalledWith("checkout_started", {
       source_page: "/",
     });

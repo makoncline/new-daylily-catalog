@@ -17,7 +17,7 @@ export const metadata = buildPublicPageMetadata({
   title: PAGE_TITLE,
 });
 
-const updatedAt = "July 29, 2026";
+const updatedAt = "October 4, 2026";
 
 function Section({
   children,
@@ -77,6 +77,13 @@ export default function PrivacyPage() {
             handles full card details, not Daylily Catalog.
           </p>
           <p>
+            Photo safety checks: when image moderation is enabled, we send a
+            resized copy of the selected photo to OpenAI to check for unsafe
+            content. Diagnostic logs can include the check result, category
+            scores, file size, image type, and record identifiers. Some check
+            events and errors also go to our analytics and error providers.
+          </p>
+          <p>
             Site health and product usage data: page views, search terms and
             filters, button clicks, upload events, request metadata, browser or
             device information, error reports, performance information, and
@@ -99,44 +106,73 @@ export default function PrivacyPage() {
           </p>
         </Section>
 
-        <Section title="ChatGPT App">
+        <Section title="AI Plugins And Remote MCP">
           <p>
-            The Daylily Catalog ChatGPT app is read-only. It does not create,
-            update, delete, publish, send messages, upload files, or change
-            catalog records through ChatGPT.
+            Our plugin lets an AI client, such as ChatGPT or Codex, read public
+            catalogs. If you connect your account, it can also read your own
+            catalog. An active member who grants write access can create and
+            edit listings and lists, add one listing to a list, link a cultivar,
+            change basic profile fields, and reorder existing photos. A listing
+            can become public when you ask the client to publish it.
           </p>
           <p>
-            Public ChatGPT tools may receive search text and filters such as
-            cultivar name, hybridizer, color, parentage, seller slug, listing
-            ID, listing slug, list ID, price filters, photo filters, cursor, and
-            limit. They return public catalog, listing, image, list, seller,
-            price, count, cultivar, and Daylily Catalog URL data.
+            Public tools may receive search text and filters such as cultivar
+            name, hybridizer, color, parentage, seller slug, listing ID, listing
+            slug, list ID, price filters, photo filters, cursor, and limit. They
+            return public catalog, listing, image, list, seller, price, count,
+            cultivar, and Daylily Catalog URL data.
           </p>
           <p>
-            Authenticated ChatGPT tools require the user to connect their
-            Daylily Catalog account. Those tools may receive IDs, cursor and
-            limit values, and catalog filters like title, description, status,
-            list ID, price, photo availability, cultivar name, hybridizer, year,
-            color, parentage, bloom habit, bloom season, foliage type, form,
-            fragrance, ploidy, and broad search text. Broad owner searches can
-            search private notes.
+            Member tools require the user to connect their Daylily Catalog
+            account. Those tools may receive IDs, cursor and limit values, and
+            catalog filters like title, description, status, list ID, price,
+            photo availability, cultivar name, hybridizer, year, color,
+            parentage, bloom habit, bloom season, foliage type, form, fragrance,
+            ploidy, and broad search text. Broad owner searches can search
+            private notes.
           </p>
           <p>
-            Authenticated ChatGPT tools may return data from the connected user
-            account, including profile title, slug, logo URL, description, rich
-            profile content, location, created and updated timestamps, list IDs,
-            list titles, list descriptions, list statuses, listing IDs in lists,
-            listing titles, listing slugs, listing prices, listing descriptions,
-            private notes, listing statuses, cultivar reference IDs, listing
-            created and updated timestamps, linked cultivar names and traits,
-            image IDs, image URLs, image order, image status, and list
-            membership.
+            Member tools may return data from the connected user account,
+            including profile title, slug, description, rich profile content,
+            location, record version timestamps, list IDs, list titles, list
+            descriptions, list statuses, listing IDs in lists, listing titles,
+            listing slugs, listing prices, listing descriptions, private notes,
+            listing statuses, cultivar reference IDs, listing version
+            timestamps, linked cultivar names and traits, image IDs, image URLs,
+            image order, image status, and list membership.
           </p>
           <p>
-            When a user uses the ChatGPT app, tool inputs and tool outputs are
-            sent to OpenAI so ChatGPT can answer. Daylily Catalog does not get
-            the full ChatGPT conversation unless ChatGPT sends a tool request to
-            our server.
+            Write tools receive the fields you ask to change. These can include
+            titles, descriptions, prices, private notes, visibility, profile
+            location, list and cultivar IDs, image IDs and order, a request ID
+            for retry protection, and the current record version. Results return
+            the saved record identifiers, changed catalog fields, record
+            version, and dashboard links. OAuth client identifiers and granted
+            permissions are used to check access. Tool results do not return
+            sign-in identifiers, account emails, billing records, authentication
+            tokens, or internal request logs.
+          </p>
+          <p>
+            Deletion, removal from a list, photo removal, and cultivar unlinking
+            require review in the dashboard. Adding photos, changing the profile
+            URL, and editing the profile story also use the dashboard. The
+            client can receive a link with the relevant record IDs and screen
+            location. Opening that link does not make the change. Remote tools
+            do not send buyer messages, process payments, or upload image files.
+          </p>
+          <p>
+            Tool inputs and outputs go to the AI client you choose. OpenAI
+            receives them when you use ChatGPT or Codex. Your client provider
+            applies its own data controls and retention rules to those copies.
+            Daylily Catalog receives the tool requests sent to our server, not
+            your full conversation history or ChatGPT memories. We use these
+            requests to complete your authorized catalog work.
+          </p>
+          <p>
+            To prevent duplicate creates, we store a hashed record identifier
+            and a fingerprint of the create input. This receipt does not contain
+            the full input. It has no automatic expiry. Deleting the created
+            record does not delete its retry receipt.
           </p>
         </Section>
 
@@ -145,12 +181,12 @@ export default function PrivacyPage() {
             We use data to sign users in, run dashboards, publish public catalog
             pages, let buyers contact sellers, process memberships and billing,
             send transactional emails, prevent abuse, keep the site secure,
-            understand product usage, fix errors, and answer read-only ChatGPT
-            app requests.
+            understand product usage, fix errors, and complete authorized AI
+            tool requests.
           </p>
           <p>
-            We do not sell personal data. We do not use private catalog data
-            from the ChatGPT app to create or modify catalog records.
+            We do not sell personal data. AI tools can use private catalog data
+            only for the connected account and the operations you authorize.
           </p>
         </Section>
 
@@ -158,9 +194,12 @@ export default function PrivacyPage() {
           <p>
             We use service providers to run the site: Clerk for sign-in, Stripe
             for billing, AWS SES for email, PostHog for analytics when enabled,
-            Sentry for error reports when enabled, Cloudflare and media storage
-            providers for web and image delivery, database and hosting providers
-            for app operation, and OpenAI when a user invokes the ChatGPT app.
+            Sentry for error reports when enabled, Cloudflare for web delivery
+            and R2 image storage, AWS S3 for older photos and database backups,
+            Turso for databases, and our hosting providers for app operation.
+            OpenAI processes photo safety checks when enabled. The AI client
+            provider you connect also receives tool data, including OpenAI when
+            you use ChatGPT or Codex.
           </p>
           <p>
             Buyer inquiries are emailed to the selected seller and may also be
@@ -176,9 +215,11 @@ export default function PrivacyPage() {
         <Section title="Retention">
           <p>
             We keep account, profile, list, listing, image, and catalog data
-            while the account or catalog is active, unless the user edits,
-            hides, deletes, or asks us to remove it. Public pages and caches can
-            take a short time to update.
+            until the user deletes it or asks us to remove it. Hiding a record
+            removes it from the public catalog but keeps it in the account.
+            Public pages and caches can take a short time to update. Deleted
+            data can remain in database backups until those backups are removed.
+            Create-request retry receipts have no automatic expiry.
           </p>
           <p>
             Billing records are retained for operational, tax, accounting, and
@@ -203,8 +244,10 @@ export default function PrivacyPage() {
           <p>
             Users can manage billing through the Stripe billing portal. Users
             can disconnect or revoke ChatGPT app access from their ChatGPT or
-            connected-app settings. Users can contact us for help with access,
-            correction, export, deletion, or account closure.
+            connected-app settings. Disconnecting stops future tool access; it
+            does not delete copies already held by the AI client provider. Users
+            can contact us for help with access, correction, export, deletion,
+            or account closure.
           </p>
         </Section>
 

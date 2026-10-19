@@ -1,13 +1,6 @@
 // @vitest-environment node
 
-import {
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TRPCInternalContext } from "@/server/api/trpc";
 
 process.env.SKIP_ENV_VALIDATION = "1";
@@ -42,12 +35,13 @@ function createCaller(db: MockDb, replicaDb = db) {
   return dashboardDbAhsRouter.createCaller({
     db: db as unknown as TRPCInternalContext["db"],
     replicaDb: replicaDb as unknown as TRPCInternalContext["replicaDb"],
+    hasReplicaDb: true,
     _authUser: { id: "user-1" } as unknown as TRPCInternalContext["_authUser"],
     headers: new Headers(),
   });
 }
 
-describe("dashboardDb.ahs", () => {
+describe("dashboardV2.ahs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });

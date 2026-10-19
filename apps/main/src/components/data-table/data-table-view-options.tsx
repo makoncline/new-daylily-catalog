@@ -66,13 +66,8 @@ function SortableItem({ id, children, className }: SortableItemProps) {
     >
       <div className="flex w-full rounded-md">
         <div className="flex w-full items-center">
-          <div
-            className="px-2"
-            {...attributes}
-            {...listeners}
-            style={{ touchAction: "none" }}
-          >
-            <DragHandleDots2Icon className="size-4 cursor-grab" />
+          <div {...attributes} {...listeners} className="touch-none px-2">
+            <DragHandleDots2Icon className="size-4" />
           </div>
           {children}
         </div>
@@ -177,12 +172,12 @@ export function DataTableViewOptions<TData>({
       />
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger asChild>
-          <Button variant="outline" size="sm" className="ml-auto flex h-8">
-            <MixerHorizontalIcon className="mr-2 size-4" />
+          <Button variant="outline" size="sm" className="ml-auto">
+            <MixerHorizontalIcon aria-hidden="true" data-icon="inline-start" />
             Table Options
           </Button>
         </SheetTrigger>
-        <SheetContent>
+        <SheetContent className="flex flex-col">
           <SheetHeader>
             <SheetTitle>Customize Columns</SheetTitle>
             <SheetDescription>
@@ -190,24 +185,24 @@ export function DataTableViewOptions<TData>({
             </SheetDescription>
           </SheetHeader>
 
-          <div className="flex h-[calc(100vh-4rem)] flex-col gap-y-6 pt-6">
+          <div className="flex min-h-0 flex-1 flex-col gap-6">
             <Button
               variant="ghost"
               size="sm"
-              className="flex w-full justify-start px-2"
+              className="w-full justify-start"
               onClick={(e) => {
                 e.preventDefault();
                 setShowResetConfirm(true);
               }}
             >
-              <ResetIcon className="mr-2 size-4" />
+              <ResetIcon aria-hidden="true" data-icon="inline-start" />
               Reset to default
             </Button>
 
             <Separator />
 
-            <ScrollArea className="flex-1">
-              <div className="space-y-3">
+            <ScrollArea className="min-h-0 flex-1">
+              <div className="flex flex-col gap-3">
                 <DndContext
                   sensors={sensors}
                   collisionDetection={closestCenter}
@@ -229,12 +224,16 @@ export function DataTableViewOptions<TData>({
                         >
                           <div className="flex flex-1 items-center gap-x-3">
                             <Checkbox
+                              id={`table-column-${column.id}`}
                               checked={column.getIsVisible()}
                               onCheckedChange={(value) => {
                                 column.toggleVisibility(!!value);
                               }}
                             />
-                            <label className="flex-1 cursor-pointer">
+                            <label
+                              htmlFor={`table-column-${column.id}`}
+                              className="flex-1 cursor-pointer"
+                            >
                               {table.options.meta?.getColumnLabel?.(
                                 column.id,
                               ) ?? column.id}

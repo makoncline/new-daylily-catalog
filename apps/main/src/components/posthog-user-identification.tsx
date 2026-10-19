@@ -2,6 +2,7 @@
 
 import { useUser } from "@clerk/nextjs";
 import { useEffect } from "react";
+import { clearUser, setUser } from "@/lib/sentry";
 import {
   identifyPosthogUser,
   preloadPosthog,
@@ -23,10 +24,12 @@ export function PosthogUserIdentification() {
     }
 
     if (!isSignedIn || !userId) {
+      clearUser();
       resetPosthogUserIfIdentified();
       return;
     }
 
+    setUser({ id: userId });
     identifyPosthogUser({
       id: userId,
       email: userEmail,

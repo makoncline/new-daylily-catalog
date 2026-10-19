@@ -1,5 +1,5 @@
 import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
-import { replicaDb } from "@/server/db";
+import { publicDb } from "@/server/db";
 
 interface StripeSubscriptionCache {
   status?: string | null;
@@ -15,7 +15,7 @@ interface SubscriptionLookupUser {
 
 export async function getProUserIdSet(
   users: SubscriptionLookupUser[],
-  database: typeof replicaDb = replicaDb,
+  database: typeof publicDb = publicDb,
 ): Promise<Set<string>> {
   const usersWithCustomerId = users.filter(
     (user): user is SubscriptionLookupUser & { stripeCustomerId: string } =>

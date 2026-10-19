@@ -13,7 +13,7 @@ const mockOnCreated = vi.hoisted(() => vi.fn());
 
 vi.mock("@/trpc/react", () => ({
   api: {
-    dashboardDb: {
+    dashboardV2: {
       ahs: {
         get: {
           useQuery: () => ({ data: null }),
@@ -23,17 +23,20 @@ vi.mock("@/trpc/react", () => ({
   },
 }));
 
-vi.mock("@/app/dashboard/_lib/dashboard-db/listings-collection", () => ({
-  insertListing: async (input: {
-    title: string;
-    cultivarReferenceId: string | null;
-  }) => {
-    return mockInsertListing(input) as Promise<{
-      id: string;
+vi.mock("@/app/dashboard/_components/dashboard-db-provider", () => {
+  const state = {
+    insertListing: async (input: {
       title: string;
-    }>;
-  },
-}));
+      cultivarReferenceId: string | null;
+    }) => {
+      return mockInsertListing(input) as Promise<{
+        id: string;
+        title: string;
+      }>;
+    },
+  };
+  return { useDashboardDb: () => state };
+});
 
 vi.mock("@/components/ahs-listing-select", () => ({
   AhsListingSelect: ({
@@ -166,6 +169,7 @@ describe("CreateListingSurface", () => {
       expect(mockInsertListing).toHaveBeenCalledWith({
         title: "Coffee Two",
         cultivarReferenceId: "cr-ahs-2",
+        requestId: expect.any(String),
       });
     });
   });

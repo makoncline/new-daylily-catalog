@@ -9,15 +9,20 @@ type CultivarPageOutput = NonNullable<
 
 interface CultivarHeroSectionProps {
   cultivarPage: CultivarPageOutput;
+  cultivarSegment: string;
 }
 
 export function CultivarHeroSection({
   cultivarPage,
+  cultivarSegment,
 }: CultivarHeroSectionProps) {
   return (
     <section className="grid gap-6 lg:grid-cols-12">
       <div className="grid gap-6 lg:col-span-6">
-        <CultivarSummaryPanel summary={cultivarPage.summary} />
+        <CultivarSummaryPanel
+          summary={cultivarPage.summary}
+          cultivarSegment={cultivarSegment}
+        />
         <CultivarGallery
           images={cultivarPage.heroImages}
           cultivarName={cultivarPage.summary.name}

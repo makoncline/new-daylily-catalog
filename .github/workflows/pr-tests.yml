@@ -23,15 +23,8 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm fetch
       - run: pnpm install --frozen-lockfile --prefer-offline
-      - name: Restore ESLint cache
-        uses: actions/cache@v4
-        with:
-          path: apps/main/local/eslint/.eslintcache
-          key: eslint-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
-          restore-keys: |
-            eslint-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
       - name: Lint
-        run: pnpm main exec eslint src --cache --cache-location local/eslint/.eslintcache --cache-strategy content
+        run: pnpm main lint
       - name: Typecheck
         run: pnpm typecheck
 
@@ -57,8 +50,12 @@ jobs:
         run: pnpm main exec vitest run --shard=${{ matrix.shard }}/2
 
   full-app-integration:
-    name: Full-app integration tests
+    name: Full-app integration tests (shard ${{ matrix.shard }}/3)
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     steps:
       - name: Enable corepack
         run: corepack enable
@@ -82,13 +79,15 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: pnpm main exec playwright install chromium
       - name: Run full-app integration tests
-        run: node apps/main/scripts/run-integration-local.mjs
+        run: node apps/main/scripts/run-integration-local.mjs --shard=${{ matrix.shard }}/3
       - name: Upload Playwright artifacts
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: full-app-integration-artifacts
-          path: apps/main/tests/.tmp/integration-results
+          name: full-app-integration-artifacts-${{ matrix.shard }}-of-3
+          path: |
+            apps/main/tests/.tmp/integration-results
+            apps/main/tests/.tmp/integration-server.log
 
   e2e:
     name: Connected E2E tests (group ${{ matrix.group }}/3)
@@ -106,7 +105,6 @@ jobs:
       CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
       STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
-      STRIPE_PRICE_ID: ${{ vars.STRIPE_PRICE_ID }}
       STRIPE_WEBHOOK_SECRET: "whsec_test_placeholder"
       CLERK_WEBHOOK_SECRET: "whsec_test_placeholder"
       AWS_ACCESS_KEY_ID: "placeholder"
@@ -148,3 +146,19 @@ jobs:
           path: |
             apps/main/test-results
             apps/main/playwright-report
+
+  verify-pr:
+    name: Verify PR
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [quality, vitest, full-app-integration, e2e]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check required results
+        env:
+          QUALITY_RESULT: ${{ needs.quality.result }}
+          VITEST_RESULT: ${{ needs.vitest.result }}
+          FULL_APP_INTEGRATION_RESULT: ${{ needs['full-app-integration'].result }}
+          E2E_RESULT: ${{ needs.e2e.result }}
+          PR_IS_FORK: ${{ github.event.pull_request.head.repo.fork == true }}
+        run: node apps/main/scripts/verify-pr-results.mjs

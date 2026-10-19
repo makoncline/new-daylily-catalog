@@ -17,7 +17,7 @@ export function CatalogNav({
   const sections = [
     { name: "Images", href: "#images" },
     { name: "About", href: "#about" },
-    { name: "Lists", href: "#lists" },
+    { name: "Lists", href: `/${canonicalUserSlug}#lists` },
     { name: "Listings", href: "#listings" },
     { name: "Search/filter", href: searchHref },
   ] as const;

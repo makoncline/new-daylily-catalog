@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+} from "react";
+import { EditorHistoryContext } from "./editor-history-context";
 
 const LEAVE_MESSAGE =
   "You have unsaved changes. Leave this page and discard them?";
@@ -10,10 +17,16 @@ export function useUnsavedChangesGuard(
   enabled = true,
 ) {
   const hasPendingChangesRef = useRef(hasPendingChanges);
+  const editorHistory = useContext(EditorHistoryContext);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     hasPendingChangesRef.current = hasPendingChanges;
   }, [hasPendingChanges]);
+  useLayoutEffect(
+    () =>
+      editorHistory?.register(() => enabled && hasPendingChangesRef.current()),
+    [editorHistory, enabled],
+  );
 
   const confirmDiscard = useCallback(() => {
     return (
@@ -27,8 +40,6 @@ export function useUnsavedChangesGuard(
     if (!enabled) {
       return;
     }
-
-    let isRestoringHistory = false;
 
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
       if (!hasPendingChangesRef.current()) {
@@ -79,27 +90,11 @@ export function useUnsavedChangesGuard(
       }
     };
 
-    const onPopState = () => {
-      if (isRestoringHistory) {
-        isRestoringHistory = false;
-        return;
-      }
-
-      if (!hasPendingChangesRef.current() || window.confirm(LEAVE_MESSAGE)) {
-        return;
-      }
-
-      isRestoringHistory = true;
-      window.history.forward();
-    };
-
     window.addEventListener("beforeunload", onBeforeUnload);
-    window.addEventListener("popstate", onPopState);
     document.addEventListener("click", onClick, true);
 
     return () => {
       window.removeEventListener("beforeunload", onBeforeUnload);
-      window.removeEventListener("popstate", onPopState);
       document.removeEventListener("click", onClick, true);
     };
   }, [confirmDiscard, enabled]);

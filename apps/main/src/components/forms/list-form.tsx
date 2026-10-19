@@ -1,25 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { flushSync } from "react-dom";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useManagedFormSave } from "@/hooks/use-managed-form-save";
 import { useParentCommitFlag } from "@/hooks/use-parent-commit-flag";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { listFormSchema, type ListFormData } from "@/types/schemas/list";
+import { type ListCollectionItem } from "@/app/dashboard/_lib/dashboard-db/collections";
+import { Controller, useWatch } from "react-hook-form";
 import {
-  deleteList,
-  updateList,
-  type ListCollectionItem,
-} from "@/app/dashboard/_lib/dashboard-db/lists-collection";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
+import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
@@ -27,10 +22,15 @@ import { Button } from "@/components/ui/button";
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
 import { ListFormSkeleton } from "@/components/forms/list-form-skeleton";
 import { useListResource } from "@/app/dashboard/_lib/dashboard-db/use-list-resource";
+import { ListMissingState } from "@/components/list-missing-state";
 import { useConfirmableAsyncAction } from "@/hooks/use-confirmable-async-action";
+import { getErrorMessage } from "@/lib/error-utils";
+import { isConflictError } from "@/trpc/is-conflict-error";
+import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
 
 interface ListFormProps {
   listId: string;
+  openDeleteOnMount?: boolean;
   onDelete?: () => void;
   onSave?: () => void;
   onPendingChangesChange?: (hasPendingChanges: boolean) => void;
@@ -45,7 +45,9 @@ export interface ListFormHandle {
   markNeedsCommit: () => void;
 }
 
-function toFormValues(list: ListCollectionItem): ListFormData {
+function toFormValues(
+  list: Pick<ListCollectionItem, "title" | "description">,
+): ListFormData {
   return {
     title: list.title,
     description: list.description ?? undefined,
@@ -59,6 +61,7 @@ function areListValuesEqual(a: ListFormData, b: ListFormData): boolean {
 function ListFormInner({
   list,
   listId,
+  openDeleteOnMount,
   onDelete,
   onSave,
   onPendingChangesChange,
@@ -66,13 +69,19 @@ function ListFormInner({
 }: {
   list: ListCollectionItem;
   listId: string;
+  openDeleteOnMount?: boolean;
   onDelete?: () => void;
   onSave?: () => void;
   onPendingChangesChange?: (hasPendingChanges: boolean) => void;
   formRef?: React.RefObject<ListFormHandle | null>;
 }) {
+  const { deleteList, updateList, loadMissingList, listsCollection } =
+    useDashboardDb();
+  const fieldId = useId();
   const [isSaving, setIsSaving] = useState(false);
+  const [hasRemoteChange, setHasRemoteChange] = useState(false);
   const committedValuesRef = useRef<ListFormData>(toFormValues(list));
+  const committedUpdatedAtRef = useRef(list.updatedAt);
   const {
     markNeedsParentCommit,
     needsParentCommit,
@@ -84,6 +93,13 @@ function ListFormInner({
     schema: listFormSchema,
     defaultValues: toFormValues(list),
   });
+  const [title, description] = useWatch({
+    control: form.control,
+    name: ["title", "description"],
+  });
+  const hasDraftChanges =
+    !areListValuesEqual({ title, description }, committedValuesRef.current) ||
+    needsParentCommit;
   const {
     isDialogOpen: isDeleteDialogOpen,
     isPending: isDeletePending,
@@ -92,30 +108,33 @@ function ListFormInner({
     setIsDialogOpen: setIsDeleteDialogOpen,
   } = useConfirmableAsyncAction({
     action: async () => {
-      flushSync(() => onDelete?.());
       await deleteList({ id: listId });
+      onDelete?.();
     },
     onSuccess: () => {
       toast.success("List deleted", {
         description: "Your list has been deleted successfully",
       });
     },
-    onError: () => {
+    onError: (error) => {
       toast.error("Failed to delete list", {
-        description: "An error occurred while deleting your list",
+        description: getErrorMessage(error),
       });
     },
   });
+  useEffect(() => {
+    if (openDeleteOnMount) openDeleteDialog();
+  }, [openDeleteOnMount, openDeleteDialog]);
   const isBusy = isSaving || isDeletePending;
 
   const hasPendingChanges = useCallback(() => {
     const values = form.getValues();
-    const committedValues = toFormValues(list);
+    const committedValues = committedValuesRef.current;
     return (
       !areListValuesEqual(values, committedValues) ||
       needsParentCommitRef.current
     );
-  }, [form, list, needsParentCommitRef]);
+  }, [form, needsParentCommitRef]);
 
   const { saveChanges } = useManagedFormSave<
     ListFormSaveReason,
@@ -125,12 +144,29 @@ function ListFormInner({
     hasPendingChanges,
     save: async (reason) => {
       const values = form.getValues();
-      const committedValues = toFormValues(list);
+      const committedValues = committedValuesRef.current;
       const hasFieldPending = !areListValuesEqual(values, committedValues);
       const shouldCommitParent =
         hasFieldPending || needsParentCommitRef.current;
 
       if (!shouldCommitParent) {
+        return true;
+      }
+      if (!hasFieldPending) {
+        if (
+          new Date(list.updatedAt).getTime() >
+          new Date(committedUpdatedAtRef.current).getTime()
+        ) {
+          committedValuesRef.current = toFormValues(list);
+          committedUpdatedAtRef.current = list.updatedAt;
+          form.reset(toFormValues(list), { keepIsValid: true });
+        }
+        resetNeedsParentCommit();
+        setHasRemoteChange(false);
+        if (reason === "manual") {
+          toast.success("List updated");
+          onSave?.();
+        }
         return true;
       }
 
@@ -151,13 +187,19 @@ function ListFormInner({
         setIsSaving(true);
       }
       try {
-        await updateList({
+        const updated = await updateList({
           id: listId,
+          expectedUpdatedAt: new Date(
+            committedUpdatedAtRef.current,
+          ).toISOString(),
           data: {
             title: values.title,
             description: values.description ?? undefined,
           },
         });
+        committedValuesRef.current = toFormValues(updated);
+        committedUpdatedAtRef.current = updated.updatedAt;
+        setHasRemoteChange(false);
         resetNeedsParentCommit();
         if (shouldUpdateUi) {
           form.reset(values, { keepIsValid: true });
@@ -169,10 +211,13 @@ function ListFormInner({
           onSave?.();
         }
         return true;
-      } catch {
+      } catch (error) {
+        if (isConflictError(error)) {
+          setHasRemoteChange(true);
+        }
         if (shouldUpdateUi) {
           toast.error("Failed to update list", {
-            description: "An error occurred while updating your list",
+            description: getErrorMessage(error),
           });
         }
         return false;
@@ -199,6 +244,15 @@ function ListFormInner({
   }, [form, hasPendingChanges, needsParentCommit, onPendingChangesChange]);
 
   useEffect(() => {
+    // Keep the saved baseline while the collection holds an optimistic write.
+    if (isSaving) return;
+
+    if (
+      new Date(list.updatedAt).getTime() <=
+      new Date(committedUpdatedAtRef.current).getTime()
+    ) {
+      return;
+    }
     const nextCommittedValues = toFormValues(list);
     const previousCommittedValues = committedValuesRef.current;
     const currentValues = form.getValues();
@@ -207,69 +261,128 @@ function ListFormInner({
       previousCommittedValues,
     );
 
-    committedValuesRef.current = nextCommittedValues;
-
-    if (hasLocalFieldChanges || needsParentCommitRef.current) {
+    if (areListValuesEqual(nextCommittedValues, previousCommittedValues)) {
+      // Membership changes advance the list version without changing form fields.
+      committedUpdatedAtRef.current = list.updatedAt;
+      setHasRemoteChange(false);
       return;
     }
 
+    if (hasLocalFieldChanges || needsParentCommitRef.current) {
+      setHasRemoteChange(true);
+      return;
+    }
+
+    committedValuesRef.current = nextCommittedValues;
+    committedUpdatedAtRef.current = list.updatedAt;
+    setHasRemoteChange(false);
     if (!areListValuesEqual(currentValues, nextCommittedValues)) {
       form.reset(nextCommittedValues, { keepIsValid: true });
     }
-  }, [form, list, needsParentCommitRef]);
+  }, [form, isSaving, list, needsParentCommitRef]);
+
+  async function discardDraftAndLoadLatest() {
+    setIsSaving(true);
+    try {
+      await loadMissingList(listId);
+      const latest = listsCollection.get(listId);
+      if (!latest) throw new Error("List not found.");
+      committedValuesRef.current = toFormValues(latest);
+      committedUpdatedAtRef.current = latest.updatedAt;
+      form.reset(toFormValues(latest), { keepIsValid: true });
+      resetNeedsParentCommit();
+      setHasRemoteChange(false);
+    } catch (error) {
+      toast.error("Failed to load the latest list", {
+        description: getErrorMessage(error),
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  }
 
   async function onSubmit() {
     await saveChanges("manual");
   }
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <FormField
-          control={form.control}
-          name="title"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Title</FormLabel>
-              <FormControl>
-                <Input {...field} value={field.value ?? ""} disabled={isBusy} />
-              </FormControl>
-              <FormDescription>
-                Required: Add a name for your list.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Description</FormLabel>
-              <FormControl>
-                <Textarea
+    <>
+      <form className="space-y-6" onSubmit={form.handleSubmit(onSubmit)}>
+        {hasRemoteChange && (
+          <div role="status" className="text-sm">
+            <p>
+              The list changed elsewhere. Your unsaved fields are still here.
+            </p>
+            <button
+              type="button"
+              className="mt-2 underline"
+              disabled={isBusy}
+              onClick={() => void discardDraftAndLoadLatest()}
+            >
+              Discard this draft and load the latest list
+            </button>
+          </div>
+        )}
+        <FieldGroup>
+          <Controller
+            control={form.control}
+            name="title"
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid} data-disabled={isBusy}>
+                <FieldLabel htmlFor={`${fieldId}-title`}>Title</FieldLabel>
+                <Input
                   {...field}
+                  id={`${fieldId}-title`}
                   value={field.value ?? ""}
-                  placeholder="Add a description for your list..."
+                  aria-invalid={fieldState.invalid}
+                  aria-describedby={`${fieldId}-title-help${fieldState.invalid ? ` ${fieldId}-title-error` : ""}`}
                   disabled={isBusy}
                 />
-              </FormControl>
-              <FormDescription>
-                Optional: Add a description for your list.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="flex justify-end gap-4">
-          <Button
-            type="button"
-            onClick={() => void onSubmit()}
-            disabled={isBusy || !hasPendingChanges()}
-          >
+                <FieldDescription id={`${fieldId}-title-help`}>
+                  Required: Add a name for your list.
+                </FieldDescription>
+                {fieldState.invalid && (
+                  <FieldError
+                    id={`${fieldId}-title-error`}
+                    errors={[fieldState.error]}
+                  />
+                )}
+              </Field>
+            )}
+          />
+          <Controller
+            control={form.control}
+            name="description"
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid} data-disabled={isBusy}>
+                <FieldLabel htmlFor={`${fieldId}-description`}>
+                  Description
+                </FieldLabel>
+                <Textarea
+                  {...field}
+                  id={`${fieldId}-description`}
+                  value={field.value ?? ""}
+                  placeholder="Add a description for your list..."
+                  aria-invalid={fieldState.invalid}
+                  aria-describedby={`${fieldId}-description-help${fieldState.invalid ? ` ${fieldId}-description-error` : ""}`}
+                  disabled={isBusy}
+                />
+                <FieldDescription id={`${fieldId}-description-help`}>
+                  Optional: Add a description for your list.
+                </FieldDescription>
+                {fieldState.invalid && (
+                  <FieldError
+                    id={`${fieldId}-description-error`}
+                    errors={[fieldState.error]}
+                  />
+                )}
+              </Field>
+            )}
+          />
+        </FieldGroup>
+        <div className="flex flex-wrap justify-end gap-3">
+          <Button type="submit" disabled={isBusy || !hasDraftChanges}>
+            {isSaving && <Spinner data-icon="inline-start" />}
             Save Changes
           </Button>
           {onDelete && (
@@ -290,23 +403,51 @@ function ListFormInner({
         onOpenChange={setIsDeleteDialogOpen}
         onConfirm={() => void confirmDelete()}
         title="Delete List"
-        description="Are you sure you want to delete this list? This action cannot be undone."
+        description={`Delete ${list.title}? This action cannot be undone.`}
       />
-    </Form>
+    </>
   );
 }
 
 function ListFormLive({
   listId,
+  openDeleteOnMount,
   onDelete,
   onSave,
   onPendingChangesChange,
   formRef,
 }: ListFormProps) {
-  const { isReady, list } = useListResource(listId);
+  const { loadMissingList } = useDashboardDb();
+  const [unavailableId, setUnavailableId] = useState<string | null>(null);
+  const [freshReviewId, setFreshReviewId] = useState<string | null>(null);
+  const { list } = useListResource(listId);
+  const needsPrimaryFetch = openDeleteOnMount === true || list === null;
 
-  if (!isReady || !list) {
+  useEffect(() => {
+    if (!needsPrimaryFetch) return;
+    let active = true;
+    void loadMissingList(listId)
+      .then(() => {
+        if (active) setFreshReviewId(listId);
+      })
+      .catch(() => {
+        if (active) setUnavailableId(listId);
+      });
+    return () => {
+      active = false;
+    };
+  }, [loadMissingList, needsPrimaryFetch, listId]);
+
+  if (
+    (openDeleteOnMount &&
+      freshReviewId !== listId &&
+      unavailableId !== listId) ||
+    (!list && unavailableId !== listId)
+  ) {
     return <ListFormSkeleton />;
+  }
+  if (!list || unavailableId === listId) {
+    return <ListMissingState />;
   }
 
   return (
@@ -314,6 +455,7 @@ function ListFormLive({
       key={listId}
       list={list}
       listId={listId}
+      openDeleteOnMount={openDeleteOnMount}
       onDelete={onDelete}
       onSave={onSave}
       onPendingChangesChange={onPendingChangesChange}

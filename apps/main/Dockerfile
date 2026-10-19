@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM node:20-bullseye-slim AS base
+FROM node:20-bookworm-slim AS base
 
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PNPM_HOME=/pnpm
@@ -16,6 +16,7 @@ FROM base AS deps
 WORKDIR /app
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY patches ./patches
 COPY apps/main/package.json ./apps/main/package.json
 COPY packages/standalone-runtime/package.json ./packages/standalone-runtime/package.json
 COPY apps/main/prisma ./apps/main/prisma
@@ -65,6 +66,8 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
+# Caddy keeps upstream connections idle for 120 seconds.
+ENV KEEP_ALIVE_TIMEOUT=130000
 ENV SENTRY_RELEASE=$GIT_COMMIT_SHA
 
 WORKDIR /app
@@ -75,8 +78,10 @@ RUN groupadd --system --gid 1001 nodejs \
     && chown -R nextjs:nodejs /app /data
 
 COPY --from=builder --chown=nextjs:nodejs /app/apps/main/public ./apps/main/public
-COPY --from=builder --chown=nextjs:nodejs /app/apps/main/scripts/build-public-search-index.mjs ./apps/main/scripts/build-public-search-index.mjs
-COPY --from=builder --chown=nextjs:nodejs /app/apps/main/scripts/sync-public-search-source-replica.mjs ./apps/main/scripts/sync-public-search-source-replica.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/apps/main/scripts/public-search-index-sql.mjs ./apps/main/scripts/public-search-index-sql.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/apps/main/scripts/build-public-search-index-target.mjs ./apps/main/scripts/build-public-search-index-target.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/apps/main/src/server/search/build-public-search-index.js ./apps/main/src/server/search/build-public-search-index.js
+COPY --from=builder --chown=nextjs:nodejs /app/apps/main/src/server/target-worker-stream.js ./apps/main/src/server/target-worker-stream.js
 COPY --from=builder --chown=nextjs:nodejs /app/apps/main/scripts/build-public-parentage-index.mjs ./apps/main/scripts/build-public-parentage-index.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/apps/main/scripts/set-feature-flag.mjs ./apps/main/scripts/set-feature-flag.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/apps/main/.next/standalone ./

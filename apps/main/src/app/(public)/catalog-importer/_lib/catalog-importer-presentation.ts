@@ -35,7 +35,7 @@ export const CATALOG_IMPORTER_MAPPING_FIELDS: CatalogImporterMappingFieldDefinit
     {
       field: "price",
       label: "Price",
-      description: "A whole number. Currency symbols are cleaned.",
+      description: "A nonnegative number. Currency symbols are cleaned.",
     },
     {
       field: "description",
@@ -193,20 +193,4 @@ export function getDownloadFileName(fileName: string) {
       .toLowerCase() || "daylily-catalog";
 
   return `${safeName}-daylily-catalog-prepared.${extension}`;
-}
-
-export function getCatalogImporterDownloadFileName(
-  fileName: string,
-  kind: "clean" | "enriched",
-) {
-  const extension = fileName.toLowerCase().endsWith(".csv") ? "csv" : "xlsx";
-  const baseName = fileName.replace(/\.[^.]+$/, "");
-  const safeName =
-    baseName
-      .trim()
-      .replace(/[^a-zA-Z0-9_-]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .toLowerCase() || "daylily-catalog";
-
-  return `${safeName}-${kind === "clean" ? "catalog-preview" : "updated-spreadsheet"}.${extension}`;
 }

@@ -275,13 +275,15 @@ describe("public surface cache safety", () => {
   });
 
   it("keeps the dashboard wrapped in authenticated app providers", () => {
-    const dashboardLayout = readSource("src/app/dashboard/layout.tsx");
+    const dashboardWorkspace = readSource(
+      "src/app/dashboard/dashboard-workspace.tsx",
+    );
     const authProviders = readSource("src/components/auth-providers.tsx");
     const dashboardProviders = readSource(
       "src/components/dashboard-providers.tsx",
     );
 
-    expect(dashboardLayout).toContain("<DashboardProviders>");
+    expect(dashboardWorkspace).toContain("<DashboardProviders>");
     expect(authProviders).toContain("ClerkProvider");
     expect(authProviders).toContain(
       "signInUrl={SUBSCRIPTION_CONFIG.PATHS.DASHBOARD_SIGN_IN}",

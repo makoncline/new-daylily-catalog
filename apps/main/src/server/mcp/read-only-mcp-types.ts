@@ -20,6 +20,7 @@ export interface McpTool {
     readOnlyHint?: boolean;
     openWorldHint?: boolean;
     destructiveHint?: boolean;
+    idempotentHint?: boolean;
   };
   _meta?: Record<string, unknown>;
 }
@@ -27,5 +28,7 @@ export interface McpTool {
 export interface McpContext {
   baseUrl: string;
   request: Request;
-  readDb: typeof db;
+  publicDb: typeof db;
+  memberDb: typeof db;
+  hasLocalPublicReadDb: boolean;
 }

@@ -1,9 +1,11 @@
 import { z } from "zod";
 
-export const nullableText = () =>
+export const nullableText = (maxLength?: number) =>
   z.preprocess(
     (v: string | null | undefined) => (v === "" ? null : v),
-    z.string().optional().nullable(),
+    (maxLength === undefined ? z.string() : z.string().max(maxLength))
+      .optional()
+      .nullable(),
   );
 
 export const nullableSlug = (

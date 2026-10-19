@@ -1,3 +1,4 @@
+import { logEvent } from "@/lib/telemetry";
 import { getOptionalRuntimePosthogConfig } from "@/lib/observability-env";
 
 interface CaptureServerPosthogEventInput {
@@ -27,6 +28,7 @@ export async function captureServerPosthogEvent({
   try {
     const response = await fetch(`${config.host}/capture/`, {
       method: "POST",
+      signal: AbortSignal.timeout(2000),
       headers: {
         "Content-Type": "application/json",
       },
@@ -39,11 +41,15 @@ export async function captureServerPosthogEvent({
     });
 
     if (!response.ok) {
-      console.error(
-        `PostHog server capture failed for ${event}: ${response.status}`,
-      );
+      logEvent("error", "posthog_capture_failed", {
+        analytics_event: event,
+        http_status: response.status,
+      });
     }
-  } catch (error) {
-    console.error(`PostHog server capture error for ${event}:`, error);
+  } catch {
+    logEvent("error", "posthog_capture_failed", {
+      analytics_event: event,
+      reason: "network_or_timeout",
+    });
   }
 }

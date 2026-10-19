@@ -1,11 +1,16 @@
+import { withRequestLogging } from "@/server/observability/log-context";
 import { NextResponse } from "next/server";
 import { env, requireEnv } from "@/env";
 import type Stripe from "stripe";
 import { syncStripeSubscriptionToKV } from "@/server/stripe/sync-subscription";
 import { db } from "@/server/db";
 import { captureServerPosthogEvent } from "@/server/analytics/posthog-server";
-import { getStripeFunnelEvents } from "@/server/stripe/stripe-funnel-events";
+import {
+  getCheckoutPaidActivation,
+  getStripeFunnelEvents,
+} from "@/server/stripe/stripe-funnel-events";
 import { getStripeClient } from "@/server/stripe/client";
+import { finalizeMembershipCheckoutSession } from "@/server/stripe/membership-checkout-price";
 
 const relevantEvents = new Set<Stripe.Event.Type>([
   "checkout.session.completed",
@@ -29,6 +34,10 @@ const relevantEvents = new Set<Stripe.Event.Type>([
 ]);
 
 export async function POST(req: Request) {
+  return withRequestLogging(req, () => handleWebhook(req));
+}
+
+async function handleWebhook(req: Request) {
   const body = await req.text();
   const signature = req.headers.get("stripe-signature");
   const stripe = getStripeClient();
@@ -55,6 +64,10 @@ export async function POST(req: Request) {
 
   if (relevantEvents.has(event.type)) {
     try {
+      const completedBillingOption =
+        event.type === "checkout.session.completed"
+          ? await finalizeMembershipCheckoutSession(event.data.object)
+          : null;
       const customerId = getCustomerIdFromEvent(event);
       if (customerId) {
         const stripeSubscription = await syncStripeSubscriptionToKV(customerId);
@@ -66,6 +79,17 @@ export async function POST(req: Request) {
         const clerkUserId = user?.clerkUserId;
         if (clerkUserId) {
           const funnelEvents = getStripeFunnelEvents(event);
+          if (
+            event.type === "checkout.session.completed" &&
+            completedBillingOption
+          ) {
+            const activation = getCheckoutPaidActivation({
+              billingOption: completedBillingOption,
+              session: event.data.object,
+              subscriptionStatus: stripeSubscription.status,
+            });
+            if (activation) funnelEvents.push(activation);
+          }
           const sourceAttribution = getSourceAttributionFromEvent(event);
           await Promise.all(
             funnelEvents.map((funnelEvent) =>

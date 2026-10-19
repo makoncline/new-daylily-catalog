@@ -13,10 +13,6 @@ const TEMPLATE_DB_PATH = path.join(
   TMP_DIR,
   `prisma-schema-template-${process.pid}.sqlite`,
 );
-const TEMP_SCHEMA_PATH = path.join(
-  TMP_DIR,
-  `prisma-schema-test-${process.pid}.prisma`,
-);
 
 let hasPreparedTemplateDb = false;
 let tempAppDbQueue = Promise.resolve();
@@ -24,43 +20,6 @@ let tempAppDbQueue = Promise.resolve();
 function prismaBinPath() {
   const bin = process.platform === "win32" ? "prisma.cmd" : "prisma";
   return path.join(process.cwd(), "node_modules", ".bin", bin);
-}
-
-function getPrismaCliMajorVersion() {
-  try {
-    const prismaPackageJson = JSON.parse(
-      fs.readFileSync(
-        path.join(process.cwd(), "node_modules", "prisma", "package.json"),
-        "utf8",
-      ),
-    ) as { version?: string };
-
-    return Number.parseInt(prismaPackageJson.version?.split(".")[0] ?? "0", 10);
-  } catch {
-    return 0;
-  }
-}
-
-function getCliSchemaPath() {
-  const schemaPath = path.join(process.cwd(), "prisma", "schema.prisma");
-  const schema = fs.readFileSync(schemaPath, "utf8");
-
-  if (getPrismaCliMajorVersion() >= 7) {
-    return schemaPath;
-  }
-
-  if (/\bdatasource\s+\w+\s*\{[\s\S]*?\burl\s*=/.test(schema)) {
-    return schemaPath;
-  }
-
-  const patchedSchema = schema.replace(
-    /(datasource\s+\w+\s*\{[\s\S]*?\bprovider\s*=\s*"[^"]+")/,
-    `$1\n  url      = env("DATABASE_URL")`,
-  );
-
-  fs.mkdirSync(TMP_DIR, { recursive: true });
-  fs.writeFileSync(TEMP_SCHEMA_PATH, patchedSchema, "utf8");
-  return TEMP_SCHEMA_PATH;
 }
 
 function createTempSqliteUrl() {
@@ -105,7 +64,12 @@ function prismaDbPush(sqliteUrl: string) {
 
   const res = spawnSync(
     prismaBinPath(),
-    ["db", "push", "--schema", getCliSchemaPath()],
+    [
+      "db",
+      "push",
+      "--schema",
+      path.join(process.cwd(), "prisma", "schema.prisma"),
+    ],
     {
       env: {
         ...process.env,
@@ -227,6 +191,8 @@ export async function withTempAppDb<T>(
     const caller = createCaller(async () => {
       return {
         db,
+        replicaDb: db,
+        hasReplicaDb: true,
         headers: new Headers(),
         _authUser: {
           id: user.id,
@@ -241,9 +207,6 @@ export async function withTempAppDb<T>(
     const { setTestTrpcClient } = await import("@/trpc/client");
     setTestTrpcClient(clientLike);
 
-    const { setCurrentUserId } = await import("@/lib/utils/cursor");
-    setCurrentUserId(user.id);
-
     return await fn({ user: { id: user.id } });
   } finally {
     cleanup();
@@ -251,13 +214,6 @@ export async function withTempAppDb<T>(
     try {
       const { resetQueryClient } = await import("@/trpc/query-client");
       await resetQueryClient();
-    } catch {
-      // ignore
-    }
-
-    try {
-      const { setCurrentUserId } = await import("@/lib/utils/cursor");
-      setCurrentUserId(null);
     } catch {
       // ignore
     }

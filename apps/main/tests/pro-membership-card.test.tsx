@@ -28,6 +28,21 @@ vi.mock("@/components/checkout-button", () => ({
 }));
 
 describe("ProMembershipCard", () => {
+  it.each([
+    { isPro: true, isLoading: false },
+    { isPro: false, isLoading: true },
+  ])("omits checkout and feedback for %o", (state) => {
+    mocks.usePro.mockReturnValue({
+      ...state,
+      subscriptionStatus: state.isPro ? "active" : null,
+    });
+    render(<ProMembershipCard />);
+    expect(
+      screen.queryByRole("button", {
+        name: /Not ready for Pro|Upgrade to Pro/,
+      }),
+    ).not.toBeInTheDocument();
+  });
   it("shows checkout for free users without a billing issue", () => {
     mocks.usePro.mockReturnValue({
       isPro: false,
@@ -40,6 +55,9 @@ describe("ProMembershipCard", () => {
     expect(
       screen.getByRole("button", { name: "Upgrade to Pro" }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Not ready for Pro/ }),
+    ).toBeVisible();
     expect(
       screen.queryByRole("button", { name: "Update billing" }),
     ).not.toBeInTheDocument();
@@ -57,6 +75,9 @@ describe("ProMembershipCard", () => {
     fireEvent.click(screen.getByRole("button", { name: "Update billing" }));
 
     expect(mocks.openStripePortal).toHaveBeenCalledTimes(1);
+    expect(
+      screen.queryByRole("button", { name: /Not ready for Pro/ }),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Upgrade to Pro" }),
     ).not.toBeInTheDocument();

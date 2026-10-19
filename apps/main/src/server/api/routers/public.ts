@@ -13,6 +13,11 @@ import {
   getUserIdFromSlugOrId,
 } from "@/server/db/public-seller-read-model";
 import { sendPublicInquiry } from "@/server/services/public-inquiry";
+import {
+  publicListingSearchSchema,
+  searchPublicListings,
+} from "@/server/services/public-listing-search";
+import { publicDb } from "@/server/db";
 import { cartItemSchema } from "@/types";
 
 const publicInquiryCartItemSchema = cartItemSchema.extend({
@@ -36,6 +41,12 @@ const publicInquiryInputSchema = z.object({
 export const publicRouter = createTRPCRouter({
   getPublicProfiles: publicProcedure.query(() => getPublicProfiles()),
 
+  searchListings: publicProcedure
+    .input(publicListingSearchSchema)
+    .query(({ input }) =>
+      searchPublicListings({ database: publicDb, input }),
+    ),
+
   getProfile: publicProcedure
     .input(z.object({ userSlugOrId: z.string() }))
     .query(({ input }) => getPublicProfile(input.userSlugOrId)),
@@ -44,7 +55,7 @@ export const publicRouter = createTRPCRouter({
     .input(
       z.object({
         userSlugOrId: z.string(),
-        limit: z.number().min(1).default(36),
+        limit: z.number().int().min(1).max(500).default(36),
         cursor: z.string().optional(),
       }),
     )

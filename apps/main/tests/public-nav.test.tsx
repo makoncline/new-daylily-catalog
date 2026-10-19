@@ -73,7 +73,7 @@ describe("PublicHeader", () => {
   });
 
   it("renders enabled cultivar search in the mobile navigation", () => {
-    navigationState.pathname = "/catalog-importer/checkout";
+    navigationState.pathname = "/catalog-importer";
     featureState.catalogImporterDiscovery = true;
     featureState.publicCultivarSearch = true;
     render(<PublicHeader />);

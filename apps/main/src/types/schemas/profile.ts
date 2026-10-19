@@ -11,9 +11,9 @@ export const slugSchema = nullableSlug(
 );
 
 export const profileFormSchema = z.object({
-  title: nullableText(),
+  title: nullableText(200),
   slug: slugSchema,
-  description: nullableText(),
-  location: nullableText(),
-  logoUrl: nullableText(),
+  description: nullableText(10_000),
+  location: nullableText(200),
+  logoUrl: nullableText(2_048),
 });

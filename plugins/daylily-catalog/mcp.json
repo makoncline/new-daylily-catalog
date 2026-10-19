@@ -1,0 +1,9 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "daylily-catalog": {
+      "type": "streamable-http",
+      "url": "https://daylilycatalog.com/api/mcp/server"
+    }
+  }
+}

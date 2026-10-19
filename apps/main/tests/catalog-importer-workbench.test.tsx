@@ -4,22 +4,31 @@ import {
   act,
   fireEvent,
   render,
+  renderHook,
   screen,
   waitFor,
   within,
 } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useCatalogImporterWorkbench } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
 import { CatalogImporterWorkbench as CatalogImporterWorkbenchComponent } from "@/app/(public)/catalog-importer/_components/catalog-importer-workbench";
 import {
+  createCatalogCleanSpreadsheet,
   createCatalogImportRows,
+  createCatalogImportTemplateCsv,
+  createSpreadsheetCsv,
   createCatalogImportSampleSpreadsheet,
   type CatalogColumnMapping,
   type CultivarMatchCandidate,
   type CultivarNameMatchResult,
 } from "@/lib/catalog-importer";
+import { parseCatalogImportFile } from "@/lib/catalog-importer-file";
+import type * as CatalogImporterFileModule from "@/lib/catalog-importer-file";
+import type * as CatalogImporterDraftModule from "@/lib/catalog-importer-draft";
 import {
   clearCatalogImporterDraft,
   readCatalogImporterDraft,
+  writeCatalogImporterDraft,
   type CatalogImporterDraft,
 } from "@/lib/catalog-importer-draft";
 import type {
@@ -27,9 +36,20 @@ import type {
   CatalogImporterViewerState,
 } from "@/lib/catalog-importer-membership";
 
+type FileLoad = ReturnType<
+  ReturnType<typeof useCatalogImporterWorkbench>["loadFile"]
+>;
+
+function uploadCsv(contents: string) {
+  const file = new File([contents], "catalog.csv", { type: "text/csv" });
+  Object.defineProperty(file, "text", { value: async () => contents });
+  fireEvent.change(document.querySelector('input[type="file"]')!, {
+    target: { files: [file] },
+  });
+}
+
 const capturePosthogEventMock = vi.hoisted(() => vi.fn());
 const downloadCatalogImportFileMock = vi.hoisted(() => vi.fn());
-const parseCatalogImportFileMock = vi.hoisted(() => vi.fn());
 const requestCultivarMatchesMock = vi.hoisted(() => vi.fn());
 const routerPushMock = vi.hoisted(() => vi.fn());
 
@@ -145,17 +165,29 @@ async function openPreview() {
 
 vi.mock("@/lib/analytics/posthog", () => ({
   capturePosthogEvent: capturePosthogEventMock,
+  getPosthogClient: async () => null,
 }));
 
 vi.mock("@/lib/catalog-importer-match-client", () => ({
   requestCultivarMatches: requestCultivarMatchesMock,
 }));
 
-vi.mock("@/lib/catalog-importer-file", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/catalog-importer-file")>()),
-  downloadCatalogImportFile: downloadCatalogImportFileMock,
-  parseCatalogImportFile: parseCatalogImportFileMock,
-}));
+vi.mock("@/lib/catalog-importer-file", async (importOriginal) => {
+  const original = await importOriginal<typeof CatalogImporterFileModule>();
+  return {
+    ...original,
+    downloadCatalogImportFile: downloadCatalogImportFileMock,
+    parseCatalogImportFile: vi.fn(original.parseCatalogImportFile),
+  };
+});
+
+vi.mock("@/lib/catalog-importer-draft", async (importOriginal) => {
+  const original = await importOriginal<typeof CatalogImporterDraftModule>();
+  return {
+    ...original,
+    writeCatalogImporterDraft: vi.fn(original.writeCatalogImporterDraft),
+  };
+});
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: routerPushMock }),
@@ -191,10 +223,10 @@ describe("CatalogImporterWorkbench", () => {
     window.sessionStorage.clear();
     window.history.replaceState(null, "", "/catalog-importer");
     await clearCatalogImporterDraft();
+    vi.mocked(writeCatalogImporterDraft).mockClear();
     capturePosthogEventMock.mockClear();
     downloadCatalogImportFileMock.mockReset();
     downloadCatalogImportFileMock.mockResolvedValue(undefined);
-    parseCatalogImportFileMock.mockReset();
     requestCultivarMatchesMock.mockReset();
     requestCultivarMatchesMock.mockResolvedValue([]);
     routerPushMock.mockReset();
@@ -223,75 +255,6 @@ describe("CatalogImporterWorkbench", () => {
       screen.queryByText("Prepare a spreadsheet that imports perfectly"),
     ).not.toBeInTheDocument();
     expect(screen.queryByText(/MVP imports/)).not.toBeInTheDocument();
-  });
-
-  it("skips mapping for the exact template and tracks the shortcut", async () => {
-    parseCatalogImportFileMock.mockResolvedValue({
-      fileName: "daylily-clean-list-template.csv",
-      source: "upload",
-      sheets: [
-        {
-          name: "CSV",
-          rows: [
-            ["name", "price", "description", "private note"],
-            ["A.W. Shucks", "25", "Purple bloom", "Back garden"],
-          ],
-        },
-      ],
-    });
-    render(<CatalogImporterWorkbench />);
-
-    fireEvent.change(document.querySelector('input[type="file"]')!, {
-      target: {
-        files: [
-          new File(["template"], "daylily-clean-list-template.csv", {
-            type: "text/csv",
-          }),
-        ],
-      },
-    });
-
-    expect(await openPreview()).toBeVisible();
-    expect(
-      screen.queryByRole("heading", { name: "Map your columns" }),
-    ).not.toBeInTheDocument();
-    expect(capturePosthogEventMock).toHaveBeenCalledWith(
-      "catalog_import_previewed",
-      expect.objectContaining({
-        mapping_skipped: true,
-        source: "upload",
-      }),
-    );
-  });
-
-  it("keeps mapping for an ordinary spreadsheet with similar headings", async () => {
-    parseCatalogImportFileMock.mockResolvedValue({
-      fileName: "seller-catalog.csv",
-      source: "upload",
-      sheets: [
-        {
-          name: "CSV",
-          rows: [
-            ["Cultivar", "Cost", "Details", "Notes"],
-            ["A.W. Shucks", "25", "Purple bloom", "Back garden"],
-          ],
-        },
-      ],
-    });
-    render(<CatalogImporterWorkbench />);
-
-    fireEvent.change(document.querySelector('input[type="file"]')!, {
-      target: {
-        files: [
-          new File(["catalog"], "seller-catalog.csv", { type: "text/csv" }),
-        ],
-      },
-    });
-
-    expect(
-      await screen.findByRole("heading", { name: "Map your columns" }),
-    ).toBeVisible();
-    expect(requestCultivarMatchesMock).not.toHaveBeenCalled();
   });
 
   it("builds the same preview from a manually entered listing", async () => {
@@ -646,7 +609,6 @@ describe("CatalogImporterWorkbench", () => {
           file_type: "csv",
           issue_count: 1,
           matched_count: 0,
-          mapping_skipped: false,
           ready_count: 0,
           review_count: 10,
           row_count: 10,
@@ -664,6 +626,350 @@ describe("CatalogImporterWorkbench", () => {
       screen.queryByRole("button", { name: "Start over with this file" }),
     ).not.toBeInTheDocument();
   });
+
+  it.each(["template", "catalog export"])(
+    "opens Preview for a recognized %s and keeps Prepare available",
+    async (format) => {
+      const template = `${createCatalogImportTemplateCsv().split(/\r?\n/)[0]}\nA.W. Shucks,12.50,Purple bloom,Back bed`;
+      const spreadsheet = createCatalogCleanSpreadsheet({
+        parsedSpreadsheet: { fileName: "catalog.csv", sheets: [] },
+        matchedRows: createCatalogImportRows({
+          headerRowIndex: 0,
+          mapping: {
+            title: 0,
+            price: 1,
+            description: 2,
+            privateNote: 3,
+            cultivarReferenceId: null,
+          },
+          rows: [
+            ["name", "price", "description", "private note"],
+            ["A.W. Shucks", "12.50", "Purple bloom", "Back bed"],
+          ],
+        }),
+      });
+      requestCultivarMatchesMock.mockResolvedValue(createSavedIdMatchResults());
+      render(<CatalogImporterWorkbench />);
+      uploadCsv(
+        format === "template"
+          ? template
+          : createSpreadsheetCsv(spreadsheet.sheets[0]!.rows),
+      );
+      await openPreview();
+      expect(
+        screen.queryByRole("heading", { name: "Map your columns" }),
+      ).not.toBeInTheDocument();
+      expect(capturePosthogEventMock).toHaveBeenCalledWith(
+        "catalog_import_previewed",
+        expect.objectContaining({ mapping_skipped: true }),
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Prepare" }));
+      expect(
+        screen.getByRole("heading", { name: "Map your columns" }),
+      ).toBeVisible();
+      expect(
+        screen.getByLabelText("Private note", { exact: true }),
+      ).toHaveTextContent(/private note.*Back bed/i);
+    },
+  );
+
+  it.each([
+    "name,price\nA.W. Shucks,12",
+    "name,price,description,private note,quantity\nA.W. Shucks,12,Purple,Back bed,3",
+    "name,price,description,private note\nA.W. Shucks,12,Purple,Back bed,extra data",
+    "name,price,description,name\nA.W. Shucks,12,Purple,Other name",
+  ])("keeps ordinary or ambiguous columns on Prepare: %s", async (csv) => {
+    render(<CatalogImporterWorkbench />);
+    uploadCsv(csv);
+    expect(
+      await screen.findByRole("heading", { name: "Map your columns" }),
+    ).toBeVisible();
+    expect(requestCultivarMatchesMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps multi-sheet files on Prepare even when each sheet is recognized", async () => {
+    vi.mocked(parseCatalogImportFile).mockResolvedValueOnce({
+      fileName: "multi.xlsx",
+      sheets: ["First", "Second"].map((name) => ({
+        name,
+        rows: [
+          ["name", "price", "description", "private note"],
+          ["A.W. Shucks", 12, "", ""],
+        ],
+      })),
+    });
+    render(<CatalogImporterWorkbench />);
+    uploadCsv("");
+    await waitFor(() =>
+      expect(screen.getByLabelText("Spreadsheet sheet")).toBeVisible(),
+    );
+    expect(requestCultivarMatchesMock).not.toHaveBeenCalled();
+  });
+
+  it("retains the recognized file and mapping when matching fails, then retries", async () => {
+    requestCultivarMatchesMock.mockRejectedValueOnce(
+      new Error("Matching unavailable"),
+    );
+    render(<CatalogImporterWorkbench />);
+    uploadCsv(
+      `${createCatalogImportTemplateCsv().split(/\r?\n/)[0]}\nA.W. Shucks,12,Purple bloom,Back bed`,
+    );
+    expect(
+      await screen.findByRole("heading", { name: "Map your columns" }),
+    ).toBeVisible();
+    expect(screen.getByText("Matching unavailable")).toBeVisible();
+    expect(screen.getByText("catalog.csv", { exact: true })).toBeVisible();
+    requestCultivarMatchesMock.mockResolvedValue(createSavedIdMatchResults());
+    fireEvent.click(
+      screen.getByRole("button", { name: "Build catalog preview" }),
+    );
+    await openPreview();
+  });
+
+  it.each(["reset", "replacement"])(
+    "does not publish stale recognized matches after %s",
+    async (action) => {
+      let finishMatching!: (results: CultivarNameMatchResult[]) => void;
+      requestCultivarMatchesMock.mockReturnValueOnce(
+        new Promise<CultivarNameMatchResult[]>((resolve) => {
+          finishMatching = resolve;
+        }),
+      );
+      const editor = renderHook(() => useCatalogImporterWorkbench());
+      const file = new File([""], "template.csv");
+      Object.defineProperty(file, "text", {
+        value: async () =>
+          `${createCatalogImportTemplateCsv().split(/\r?\n/)[0]}\nA.W. Shucks,12,Purple,Back bed`,
+      });
+      let loaded!: FileLoad;
+      act(() => {
+        loaded = editor.result.current.loadFile(file);
+      });
+      await waitFor(() =>
+        expect(requestCultivarMatchesMock).toHaveBeenCalledOnce(),
+      );
+      const signal = requestCultivarMatchesMock.mock.calls[0]![0]
+        .signal as AbortSignal;
+      if (action === "reset") {
+        act(() => editor.result.current.resetImporter());
+      } else {
+        const replacement = new File([""], "replacement.csv");
+        Object.defineProperty(replacement, "text", {
+          value: async () => "name,price\nKeep New Bloom,23",
+        });
+        await act(async () => {
+          expect(await editor.result.current.loadFile(replacement)).toBe(
+            "prepare",
+          );
+        });
+      }
+      expect(signal.aborted).toBe(true);
+      await act(async () => {
+        finishMatching(createSavedIdMatchResults());
+        expect(await loaded).toBe(false);
+        await editor.result.current.flushDraft();
+      });
+      const draft = await readCatalogImporterDraft();
+      expect(draft?.matchedRows ?? null).toBeNull();
+      expect(draft?.parsedSpreadsheet?.fileName ?? null).toBe(
+        action === "reset" ? null : "replacement.csv",
+      );
+    },
+  );
+
+  it.each(["success", "error"])(
+    "keeps a newer manual source when an old file parse ends with %s",
+    async (outcome) => {
+      let finishReading!: () => void;
+      const file = new File([""], "obsolete.csv", { type: "text/csv" });
+      Object.defineProperty(file, "text", {
+        value: () =>
+          new Promise<string>((resolve, reject) => {
+            finishReading = () =>
+              outcome === "success"
+                ? resolve("name,price\nObsolete Bloom,19")
+                : reject(new Error("Obsolete parse failure"));
+          }),
+      });
+      const editor = renderHook(() => useCatalogImporterWorkbench());
+      let loaded!: FileLoad;
+      act(() => {
+        loaded = editor.result.current.loadFile(file);
+      });
+      expect(editor.result.current.readingFile).toBe(true);
+      act(() => editor.result.current.loadManualCatalog());
+      act(() =>
+        editor.result.current.addManualCatalogRow({
+          name: "Keep Manual Bloom",
+        }),
+      );
+      await act(() => editor.result.current.flushDraft());
+      const savedManual = await readCatalogImporterDraft();
+      expect(savedManual?.parsedSpreadsheet?.source).toBe("manual");
+      expect(savedManual?.parsedSpreadsheet?.sheets[0]?.rows[1]?.[0]).toBe(
+        "Keep Manual Bloom",
+      );
+      let oldResult!: Awaited<FileLoad>;
+      await act(async () => {
+        finishReading();
+        oldResult = await loaded;
+        await editor.result.current.flushDraft();
+      });
+      expect(await readCatalogImporterDraft()).toEqual(savedManual);
+      expect(editor.result.current.parsedSpreadsheet?.source).toBe("manual");
+      expect(editor.result.current.fileError).toBeNull();
+      expect(oldResult).toBe(false);
+    },
+  );
+
+  it("keeps reading a replacement file when the obsolete parse finishes", async () => {
+    let finishOld!: (contents: string) => void;
+    let finishNew!: (contents: string) => void;
+    const oldFile = new File([""], "old.csv");
+    const newFile = new File([""], "new.csv");
+    Object.defineProperty(oldFile, "text", {
+      value: () =>
+        new Promise<string>((resolve) => {
+          finishOld = resolve;
+        }),
+    });
+    Object.defineProperty(newFile, "text", {
+      value: () =>
+        new Promise<string>((resolve) => {
+          finishNew = resolve;
+        }),
+    });
+    const editor = renderHook(() => useCatalogImporterWorkbench());
+    let oldLoad!: FileLoad;
+    let newLoad!: FileLoad;
+    act(() => {
+      oldLoad = editor.result.current.loadFile(oldFile);
+    });
+    act(() => editor.result.current.loadManualCatalog());
+    act(() => editor.result.current.resetImporter());
+    act(() => {
+      newLoad = editor.result.current.loadFile(newFile);
+    });
+    await act(async () => {
+      finishOld("name,price\nObsolete Bloom,19");
+      expect(await oldLoad).toBe(false);
+    });
+    expect(editor.result.current.readingFile).toBe(true);
+    expect(editor.result.current.parsedSpreadsheet).toBeNull();
+    await act(async () => {
+      finishNew("name,price\nKeep New Bloom,23");
+      expect(await newLoad).toBe("prepare");
+      await editor.result.current.flushDraft();
+    });
+    expect(editor.result.current.readingFile).toBe(false);
+    expect(
+      (await readCatalogImporterDraft())?.parsedSpreadsheet?.fileName,
+    ).toBe("new.csv");
+  });
+
+  it("does not advance a cleared multi-sheet upload after its pending save finishes", async () => {
+    vi.mocked(parseCatalogImportFile).mockResolvedValueOnce({
+      fileName: "multi.xlsx",
+      sheets: [
+        { name: "First", rows: [["name"], ["First Bloom"]] },
+        { name: "Second", rows: [["name"], ["Second Bloom"]] },
+      ],
+    });
+    const original = await vi.importActual<typeof CatalogImporterDraftModule>(
+      "@/lib/catalog-importer-draft",
+    );
+    let finishSave!: () => void;
+    const heldSave = new Promise<void>((resolve) => {
+      finishSave = resolve;
+    });
+    vi.mocked(writeCatalogImporterDraft).mockImplementationOnce(
+      async (draft) => {
+        await heldSave;
+        return original.writeCatalogImporterDraft(draft);
+      },
+    );
+    const editor = renderHook(() => useCatalogImporterWorkbench());
+    let loaded!: FileLoad;
+    act(() => {
+      loaded = editor.result.current.loadFile(new File([""], "multi.xlsx"));
+    });
+    await waitFor(() =>
+      expect(editor.result.current.parsedSpreadsheet?.fileName).toBe(
+        "multi.xlsx",
+      ),
+    );
+    act(() => editor.result.current.resetImporter());
+    await act(async () => {
+      finishSave();
+      expect(await loaded).toBe(false);
+      await editor.result.current.flushDraft();
+    });
+    expect(editor.result.current.liveAnnouncement).toBe(
+      "Local progress cleared.",
+    );
+    expect(await readCatalogImporterDraft()).toBeNull();
+  });
+
+  it.each(["preview", "saved ID rematch"] as const)(
+    "keeps a newer mounted draft after an old %s completes",
+    async (operation) => {
+      let finishMatching!: (results: CultivarNameMatchResult[]) => void;
+      requestCultivarMatchesMock.mockReturnValue(
+        new Promise<CultivarNameMatchResult[]>((resolve) => {
+          finishMatching = resolve;
+        }),
+      );
+      const initialDraft = createSavedIdDraft();
+      await writeCatalogImporterDraft(initialDraft);
+      const oldEditor = renderHook(() =>
+        useCatalogImporterWorkbench(initialDraft),
+      );
+      let oldOperation!: Promise<unknown>;
+      act(() => {
+        oldOperation =
+          operation === "preview"
+            ? oldEditor.result.current.buildCatalogPreview()
+            : oldEditor.result.current.clearCultivarReferenceIdIssues([
+                "source-row-2",
+              ]);
+      });
+      await waitFor(() =>
+        expect(requestCultivarMatchesMock).toHaveBeenCalledOnce(),
+      );
+      await oldEditor.result.current.flushDraft();
+      const sourceBeforeMatch = await readCatalogImporterDraft();
+      expect(sourceBeforeMatch?.parsedSpreadsheet?.fileName).toBe(
+        "saved-id.csv",
+      );
+      if (operation === "preview") {
+        expect(sourceBeforeMatch?.matchedRows).toBeNull();
+      }
+      oldEditor.unmount();
+      const newEditor = renderHook(() =>
+        useCatalogImporterWorkbench(sourceBeforeMatch),
+      );
+      act(() => newEditor.result.current.resetImporter());
+      act(() => newEditor.result.current.loadManualCatalog());
+      act(() =>
+        newEditor.result.current.addManualCatalogRow({
+          name: "New Mount Bloom",
+        }),
+      );
+      await act(() => newEditor.result.current.flushDraft());
+      const savedManual = await readCatalogImporterDraft();
+      expect(savedManual?.parsedSpreadsheet?.source).toBe("manual");
+      expect(savedManual?.parsedSpreadsheet?.sheets[0]?.rows[1]?.[0]).toBe(
+        "New Mount Bloom",
+      );
+      await act(async () => {
+        finishMatching(createSavedIdMatchResults());
+        await oldOperation;
+        await oldEditor.result.current.flushDraft();
+      });
+      expect(await readCatalogImporterDraft()).toEqual(savedManual);
+      expect(newEditor.result.current.parsedSpreadsheet?.source).toBe("manual");
+    },
+  );
 
   it("saves the spreadsheet before cultivar matching finishes", async () => {
     let finishMatching!: (value: []) => void;
@@ -922,7 +1228,7 @@ describe("CatalogImporterWorkbench", () => {
     await openPreview();
     fireEvent.click(screen.getByRole("button", { name: "Finish" }));
     const downloadButton = screen.getByRole("button", {
-      name: "Download updated original spreadsheet",
+      name: "Download enhanced original",
     });
 
     fireEvent.click(downloadButton);
@@ -1002,6 +1308,9 @@ describe("CatalogImporterWorkbench", () => {
       screen.getByRole("link", { name: "Continue to import" }),
     ).toHaveAttribute("href", "/dashboard/imports");
     expect(
+      screen.queryByRole("button", { name: "Not ready for Pro? Tell us why" }),
+    ).not.toBeInTheDocument();
+    expect(
       screen.queryByRole("heading", {
         name: "Publish with Daylily Catalog Pro",
       }),
@@ -1021,6 +1330,10 @@ describe("CatalogImporterWorkbench", () => {
     expect(
       screen.getByRole("button", { name: "Reload account status" }),
     ).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Finish" }));
+    expect(
+      screen.queryByRole("button", { name: "Not ready for Pro? Tell us why" }),
+    ).not.toBeInTheDocument();
   });
 
   it("does not reload an in-memory catalog when browser storage is unavailable", async () => {
@@ -1366,10 +1679,13 @@ describe("CatalogImporterWorkbench", () => {
       name: "Publish this catalog with Pro",
     });
     expect(
-      screen.getByRole("button", { name: /Start.*trial/i }),
+      screen.queryByRole("button", { name: "Not ready for Pro? Tell us why" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Continue to secure checkout" }),
     ).toHaveAttribute(
       "data-ph-capture-attribute-action",
-      "start-pro-checkout",
+      "start-stripe-checkout",
     );
     expect(
       screen.getByRole("link", { name: "See Pro details" }),
@@ -1502,13 +1818,11 @@ describe("CatalogImporterWorkbench", () => {
     fireEvent.click(screen.getByRole("button", { name: "Continue to finish" }));
     expect(
       screen.getByRole("button", {
-        name: "Download catalog preview spreadsheet",
+        name: "Download prepared import file",
       }),
     ).toBeVisible();
     expect(
-      screen.getByRole("button", {
-        name: "Download updated original spreadsheet",
-      }),
+      screen.getByRole("button", { name: "Download enhanced original" }),
     ).toBeVisible();
     expect(
       screen.getByRole("heading", {
@@ -1528,6 +1842,22 @@ describe("CatalogImporterWorkbench", () => {
       name: "Publish your catalog",
     });
     expect(downloadMembership).toBeVisible();
+    const draftBeforeFeedback = await readCatalogImporterDraft();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Not ready for Pro? Tell us why" }),
+    );
+    expect(
+      await screen.findByText(/This feedback question is not available/),
+    ).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(await readCatalogImporterDraft()).toEqual(draftBeforeFeedback);
+    expect(
+      screen.getByRole("button", { name: "Continue to secure checkout" }),
+    ).toBeEnabled();
+    expect(
+      screen.getByRole("button", { name: "Download prepared import file" }),
+    ).toBeEnabled();
     const signInButton = screen.getByRole("button", {
       name: "Sign in instead",
     });
@@ -1535,7 +1865,7 @@ describe("CatalogImporterWorkbench", () => {
     expect(
       downloadMembership.compareDocumentPosition(
         screen.getByRole("button", {
-          name: "Download catalog preview spreadsheet",
+          name: "Download prepared import file",
         }),
       ) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();

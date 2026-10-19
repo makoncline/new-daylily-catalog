@@ -24,7 +24,8 @@ interface MockDb {
   };
   userProfile: {
     findFirst: ReturnType<typeof vi.fn>;
-    upsert: ReturnType<typeof vi.fn>;
+    create: ReturnType<typeof vi.fn>;
+    updateMany: ReturnType<typeof vi.fn>;
   };
 }
 
@@ -35,7 +36,8 @@ function createMockDb(): MockDb {
     },
     userProfile: {
       findFirst: vi.fn(),
-      upsert: vi.fn(),
+      create: vi.fn(),
+      updateMany: vi.fn(),
     },
   };
 }
@@ -48,7 +50,7 @@ function createCaller(db: MockDb) {
   });
 }
 
-describe("dashboardDb.userProfile slug namespace", () => {
+describe("dashboardV2.userProfile slug namespace", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -96,6 +98,9 @@ describe("dashboardDb.userProfile slug namespace", () => {
     ).resolves.toEqual({
       available: false,
     });
+    await expect(caller.checkSlug({ slug: "temp-list" })).resolves.toEqual({
+      available: false,
+    });
     expect(db.userProfile.findFirst).not.toHaveBeenCalled();
     expect(db.user.findFirst).not.toHaveBeenCalled();
   });
@@ -108,8 +113,12 @@ describe("dashboardDb.userProfile slug namespace", () => {
     const caller = createCaller(db);
 
     await expect(
-      caller.update({ data: { slug: "other-user-id" } }),
+      caller.update({
+        expectedUpdatedAt: null,
+        data: { slug: "other-user-id" },
+      }),
     ).rejects.toBeInstanceOf(TRPCError);
-    expect(db.userProfile.upsert).not.toHaveBeenCalled();
+    expect(db.userProfile.create).not.toHaveBeenCalled();
+    expect(db.userProfile.updateMany).not.toHaveBeenCalled();
   });
 });

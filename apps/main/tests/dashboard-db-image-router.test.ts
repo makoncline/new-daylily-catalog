@@ -1,14 +1,6 @@
 // @vitest-environment node
 
-import {
-  afterEach,
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TRPCInternalContext } from "@/server/api/trpc";
 
 process.env.SKIP_ENV_VALIDATION = "1";
@@ -20,12 +12,20 @@ process.env.AWS_BUCKET_NAME ??= "daylily-catalog-images-test";
 
 const s3Mocks = vi.hoisted(() => ({
   putObjectCommand: vi.fn((input: unknown) => ({ input })),
+  headObjectCommand: vi.fn((input: unknown) => ({ input })),
   getSignedUrl: vi.fn(),
+  send: vi.fn(async (command: { input: { Key: string } }) => ({
+    ContentLength: 1234,
+    ContentType: command.input.Key.endsWith(".png")
+      ? "image/png"
+      : "image/jpeg",
+  })),
 }));
 
 vi.mock("@aws-sdk/client-s3", () => ({
-  S3Client: vi.fn(),
+  S3Client: vi.fn(() => ({ send: s3Mocks.send })),
   PutObjectCommand: s3Mocks.putObjectCommand,
+  HeadObjectCommand: s3Mocks.headObjectCommand,
 }));
 
 vi.mock("@aws-sdk/s3-request-presigner", () => ({
@@ -42,13 +42,14 @@ beforeAll(async () => {
 });
 
 interface MockDb {
+  $executeRaw: ReturnType<typeof vi.fn>;
   $queryRaw: ReturnType<typeof vi.fn>;
   $transaction: ReturnType<typeof vi.fn>;
   image: {
-    count: ReturnType<typeof vi.fn>;
     create: ReturnType<typeof vi.fn>;
     deleteMany: ReturnType<typeof vi.fn>;
     findUnique: ReturnType<typeof vi.fn>;
+    findFirst: ReturnType<typeof vi.fn>;
     findMany: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
   };
@@ -68,12 +69,13 @@ interface MockDb {
 }
 
 function createMockDb(): MockDb {
+  const $executeRaw = vi.fn().mockResolvedValue(0);
   const image = {
-    count: vi.fn(),
     create: vi.fn(),
     deleteMany: vi.fn(),
     findUnique: vi.fn(),
-    findMany: vi.fn(),
+    findFirst: vi.fn(),
+    findMany: vi.fn().mockResolvedValue([]),
     update: vi.fn(),
   };
   const imageAsset = {
@@ -82,10 +84,11 @@ function createMockDb(): MockDb {
     updateMany: vi.fn(),
   };
   return {
+    $executeRaw,
     $queryRaw: vi.fn(),
     $transaction: vi.fn(async (arg) =>
       typeof arg === "function"
-        ? await arg({ image, imageAsset })
+        ? await arg({ $executeRaw, image, imageAsset })
         : await Promise.all(arg),
     ),
     image,
@@ -109,7 +112,7 @@ function createCaller(db: MockDb) {
   });
 }
 
-describe("dashboardDb.image", () => {
+describe("dashboardV2.image", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     s3Mocks.getSignedUrl.mockResolvedValue("https://upload-url.example");
@@ -159,7 +162,7 @@ describe("dashboardDb.image", () => {
   it("saves only owned upload keys that match the expected S3 URL", async () => {
     const db = createMockDb();
     db.listing.findFirst.mockResolvedValue({ id: "listing-1" });
-    db.image.count.mockResolvedValue(0);
+    db.image.findFirst.mockResolvedValue(null);
     db.image.create.mockImplementation(async (args) => ({
       id: "image-1",
       url: args.data.url,
@@ -234,108 +237,6 @@ describe("dashboardDb.image", () => {
     expect(db.image.create).not.toHaveBeenCalled();
   });
 
-  it("sync filters images through direct owner foreign keys", async () => {
-    const db = createMockDb();
-    db.$queryRaw.mockResolvedValueOnce([
-      {
-        id: "image-1",
-        url: "https://example.com/image.jpg",
-        order: 1,
-        listingId: "listing-1",
-        userProfileId: null,
-        createdAt: "2026-01-01T00:00:00.000Z",
-        updatedAt: "2026-01-02T00:00:00.000Z",
-        status: null,
-      },
-    ]);
-
-    const caller = createCaller(db);
-    const result = await caller.sync({
-      since: "2026-01-01T00:00:00.000Z",
-      cursor: { id: "image-0" },
-      limit: 50,
-    });
-
-    expect(result).toEqual([
-      {
-        id: "image-1",
-        url: "https://example.com/image.jpg",
-        order: 1,
-        listingId: "listing-1",
-        userProfileId: null,
-        createdAt: new Date("2026-01-01T00:00:00.000Z"),
-        updatedAt: new Date("2026-01-02T00:00:00.000Z"),
-        status: null,
-      },
-    ]);
-    expect(db.$queryRaw).toHaveBeenCalledTimes(1);
-    expect(db.listing.findMany).not.toHaveBeenCalled();
-    expect(db.userProfile.findUnique).not.toHaveBeenCalled();
-    expect(db.image.findMany).not.toHaveBeenCalled();
-  });
-
-  it("sync returns dashboard thumb URLs with ImageAsset metadata", async () => {
-    const db = createMockDb();
-    db.$queryRaw.mockResolvedValueOnce([
-      {
-        id: "image-1",
-        url: "https://daylily-catalog-images.s3.amazonaws.com/listing/image-1.jpg",
-        order: 1,
-        listingId: "listing-1",
-        userProfileId: null,
-        createdAt: "2026-01-01T00:00:00.000Z",
-        updatedAt: "2026-01-02T00:00:00.000Z",
-        status: null,
-      },
-    ]);
-    db.imageAsset.findMany.mockResolvedValueOnce([
-      {
-        id: "asset-1",
-        legacyImageId: "image-1",
-        status: "ready",
-        originalUrl: "https://media.example/image-1/original.jpg",
-        displayUrl: "https://media.example/image-1/display-800.webp",
-        thumbUrl: "https://media.example/image-1/thumb-200.webp",
-        blurUrl: "https://media.example/image-1/blur-20.webp",
-      },
-    ]);
-
-    const caller = createCaller(db);
-    const result = await caller.sync({ since: null });
-
-    expect(result[0]).toMatchObject({
-      id: "image-1",
-      url: "https://media.example/image-1/thumb-200.webp",
-      imageAsset: {
-        id: "asset-1",
-        displayUrl: "https://media.example/image-1/display-800.webp",
-        thumbUrl: "https://media.example/image-1/thumb-200.webp",
-        blurUrl: "https://media.example/image-1/blur-20.webp",
-      },
-    });
-    expect(db.imageAsset.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          legacyImageId: { in: ["image-1"] },
-        },
-      }),
-    );
-  });
-
-  it("sync returns an empty page when the owner-checked query has no rows", async () => {
-    const db = createMockDb();
-    db.$queryRaw.mockResolvedValueOnce([]);
-
-    const caller = createCaller(db);
-    const result = await caller.sync({ since: null });
-
-    expect(result).toEqual([]);
-    expect(db.$queryRaw).toHaveBeenCalledTimes(1);
-    expect(db.listing.findMany).not.toHaveBeenCalled();
-    expect(db.userProfile.findUnique).not.toHaveBeenCalled();
-    expect(db.image.findMany).not.toHaveBeenCalled();
-  });
-
   it("list fetches images with owner-checked SQL instead of materialized listing ids", async () => {
     const db = createMockDb();
     db.listing.findMany.mockResolvedValue(
@@ -378,44 +279,6 @@ describe("dashboardDb.image", () => {
     expect(db.image.findMany).not.toHaveBeenCalled();
   });
 
-  it("listByListingIds fetches image chunks with indexed owner-checked queries", async () => {
-    const db = createMockDb();
-    db.$queryRaw.mockResolvedValueOnce([
-      {
-        id: "image-1",
-        url: "https://example.com/image.jpg",
-        order: 1,
-        listingId: "listing-1",
-        userProfileId: null,
-        createdAt: "2026-01-01T00:00:00.000Z",
-        updatedAt: "2026-01-02T00:00:00.000Z",
-        status: null,
-      },
-    ]);
-
-    const caller = createCaller(db);
-    const result = await caller.listByListingIds({
-      listingIds: ["listing-1", "listing-1"],
-    });
-
-    expect(result).toEqual([
-      {
-        id: "image-1",
-        url: "https://example.com/image.jpg",
-        order: 1,
-        listingId: "listing-1",
-        userProfileId: null,
-        createdAt: new Date("2026-01-01T00:00:00.000Z"),
-        updatedAt: new Date("2026-01-02T00:00:00.000Z"),
-        status: null,
-      },
-    ]);
-    expect(db.$queryRaw).toHaveBeenCalledTimes(1);
-    expect(db.listing.findMany).not.toHaveBeenCalled();
-    expect(db.userProfile.findUnique).not.toHaveBeenCalled();
-    expect(db.image.findMany).not.toHaveBeenCalled();
-  });
-
   it("delete only removes an image that belongs to the owned target", async () => {
     const db = createMockDb();
     db.listing.findFirst.mockResolvedValueOnce({ id: "listing-1" });
@@ -435,35 +298,6 @@ describe("dashboardDb.image", () => {
       where: { id: "victim-image", listingId: "listing-1" },
     });
     expect(db.image.findMany).not.toHaveBeenCalled();
-  });
-
-  it("delete renumbers remaining images after deleting an owned image", async () => {
-    const db = createMockDb();
-    db.listing.findFirst.mockResolvedValueOnce({ id: "listing-1" });
-    db.image.deleteMany.mockResolvedValueOnce({ count: 1 });
-    db.image.findMany.mockResolvedValueOnce([
-      { id: "image-2" },
-      { id: "image-3" },
-    ]);
-    db.image.update.mockResolvedValue({});
-
-    const caller = createCaller(db);
-    const result = await caller.delete({
-      type: "listing",
-      referenceId: "listing-1",
-      imageId: "image-1",
-    });
-
-    expect(result).toEqual({ success: true });
-    expect(db.image.update).toHaveBeenCalledTimes(2);
-    expect(db.image.update).toHaveBeenNthCalledWith(1, {
-      where: { id: "image-2" },
-      data: { order: 0 },
-    });
-    expect(db.image.update).toHaveBeenNthCalledWith(2, {
-      where: { id: "image-3" },
-      data: { order: 1 },
-    });
   });
 
   it("reorder rejects image ids outside the owned target set", async () => {
@@ -497,6 +331,7 @@ describe("dashboardDb.image", () => {
       { id: "image-3" },
     ]);
     db.image.update.mockResolvedValue({});
+    db.image.findMany.mockResolvedValueOnce([]);
 
     const caller = createCaller(db);
     const result = await caller.reorder({
@@ -508,19 +343,64 @@ describe("dashboardDb.image", () => {
       ],
     });
 
-    expect(result).toEqual({ success: true });
+    expect(result).toEqual({ success: true, images: [] });
     expect(db.image.update).toHaveBeenCalledTimes(3);
     expect(db.image.update).toHaveBeenNthCalledWith(1, {
-      where: { id: "image-3" },
+      where: { id: "image-3", userProfileId: "profile-1" },
       data: { order: 0 },
     });
     expect(db.image.update).toHaveBeenNthCalledWith(2, {
-      where: { id: "image-1" },
+      where: { id: "image-1", userProfileId: "profile-1" },
       data: { order: 1 },
     });
     expect(db.image.update).toHaveBeenNthCalledWith(3, {
-      where: { id: "image-2" },
+      where: { id: "image-2", userProfileId: "profile-1" },
       data: { order: 2 },
     });
+  });
+
+  it("bounds image reorder before loading or updating a large target", async () => {
+    const db = createMockDb();
+    db.listing.findFirst.mockResolvedValue({ id: "listing-1" });
+    db.image.findMany.mockResolvedValueOnce(
+      Array.from({ length: 101 }, (_, index) => ({ id: `image-${index}` })),
+    );
+    const caller = createCaller(db);
+
+    await expect(
+      caller.reorder({
+        type: "listing",
+        referenceId: "listing-1",
+        images: [{ id: "image-1", order: 0 }],
+      }),
+    ).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
+    expect(db.image.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ take: 101 }),
+    );
+    expect(db.image.update).not.toHaveBeenCalled();
+
+    await expect(
+      caller.reorder({
+        type: "listing",
+        referenceId: "listing-1",
+        images: Array.from({ length: 101 }, (_, index) => ({
+          id: `image-${index}`,
+          order: index,
+        })),
+      }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(db.image.findMany).toHaveBeenCalledTimes(1);
+
+    await expect(
+      caller.reorder({
+        type: "listing",
+        referenceId: "listing-1",
+        images: [
+          { id: "image-1", order: 0 },
+          { id: "image-1", order: 1 },
+        ],
+      }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(db.image.findMany).toHaveBeenCalledTimes(1);
   });
 });

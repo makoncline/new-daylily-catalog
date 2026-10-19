@@ -1,3 +1,4 @@
+import { withRequestLogging } from "@/server/observability/log-context";
 import { Webhook } from "svix";
 import type { WebhookEvent } from "@clerk/nextjs/server";
 import { db } from "@/server/db";
@@ -35,6 +36,10 @@ function getUserIdFromEvent(evt: WebhookEvent): string | null {
 }
 
 export async function POST(req: Request) {
+  return withRequestLogging(req, () => handleWebhook(req));
+}
+
+async function handleWebhook(req: Request) {
   const headerPayload = await headers();
   const svix_id = headerPayload.get("svix-id");
   const svix_timestamp = headerPayload.get("svix-timestamp");
@@ -96,14 +101,13 @@ export async function POST(req: Request) {
       });
 
       // Then sync their data to KV store
-      const clerkUserData = await syncClerkUserToKV(clerkUserId);
+      await syncClerkUserToKV(clerkUserId);
 
       if (evt.type === "user.created" || evt.type === "session.created") {
         logUserAuth({
           action: evt.type === "user.created" ? "signup" : "signin",
           appUserId: user.id,
           clerkUserId,
-          email: clerkUserData?.email,
           source: "clerk-webhook",
         });
       }

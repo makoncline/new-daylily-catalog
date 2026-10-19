@@ -9,10 +9,6 @@ interface DataTableGlobalFilterProps<TData> {
   placeholder?: string;
 }
 
-/**
- * A global filter input for the data table with debounced filtering.
- * Updates the input immediately but debounces the actual filtering operation.
- */
 export function DataTableGlobalFilter<TData>({
   table,
   placeholder = "Filter...",

@@ -1,7 +1,6 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { DashboardImportTable } from "@/app/dashboard/imports/_components/dashboard-import-table";
-import type { CatalogImporterWorkbenchController } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
 import type { CatalogImportRow } from "@/lib/catalog-importer";
 
 const row: CatalogImportRow = {
@@ -32,14 +31,23 @@ describe("DashboardImportTable", () => {
       matchedRows: [row],
       setImportRowIncluded: vi.fn(),
       setImportRowsIncluded: vi.fn(),
-    } as unknown as CatalogImporterWorkbenchController;
+    };
 
     render(
       <DashboardImportTable
-        controller={controller}
-        existingDuplicateCounts={new Map()}
+        rows={controller.matchedRows}
+        disabled={false}
+        onRowsSelectionChange={controller.setImportRowsIncluded}
+        onRowSelectionChange={controller.setImportRowIncluded}
         selectionLimit={100}
-        view="all"
+        selectedRowIds={
+          new Set(
+            controller.matchedRows
+              .filter((row) => row.outputState === "included")
+              .slice(0, 100)
+              .map((row) => row.id),
+          )
+        }
       />,
     );
 
@@ -112,14 +120,23 @@ describe("DashboardImportTable", () => {
       matchedRows: [linkedRow],
       setImportRowIncluded: vi.fn(),
       setImportRowsIncluded: vi.fn(),
-    } as unknown as CatalogImporterWorkbenchController;
+    };
 
     render(
       <DashboardImportTable
-        controller={controller}
-        existingDuplicateCounts={new Map()}
+        rows={controller.matchedRows}
+        disabled={false}
+        onRowsSelectionChange={controller.setImportRowsIncluded}
+        onRowSelectionChange={controller.setImportRowIncluded}
         selectionLimit={100}
-        view="all"
+        selectedRowIds={
+          new Set(
+            controller.matchedRows
+              .filter((row) => row.outputState === "included")
+              .slice(0, 100)
+              .map((row) => row.id),
+          )
+        }
       />,
     );
 
@@ -130,9 +147,7 @@ describe("DashboardImportTable", () => {
     expect(screen.getByText(/Stamile · 2017/)).toBeVisible();
     expect(screen.getByText(/Orchid red/)).toBeVisible();
     expect(
-      document.querySelector(
-        '[data-slot="catalog-importer-cultivar-summary"]',
-      ),
+      document.querySelector('[data-slot="catalog-importer-cultivar-summary"]'),
     ).toHaveClass("w-max", "max-w-96");
     expect(screen.queryByText("Vanguard 2")).not.toBeInTheDocument();
   });
@@ -151,14 +166,16 @@ describe("DashboardImportTable", () => {
       matchedRows: excludedRows,
       setImportRowIncluded: vi.fn(),
       setImportRowsIncluded,
-    } as unknown as CatalogImporterWorkbenchController;
+    };
 
     render(
       <DashboardImportTable
-        controller={controller}
-        existingDuplicateCounts={new Map()}
+        rows={controller.matchedRows}
+        disabled={false}
+        onRowsSelectionChange={controller.setImportRowsIncluded}
+        onRowSelectionChange={controller.setImportRowIncluded}
         selectionLimit={100}
-        view="all"
+        selectedRowIds={new Set()}
       />,
     );
 
@@ -180,17 +197,16 @@ describe("DashboardImportTable", () => {
       matchedRows: [row],
       setImportRowIncluded: vi.fn(),
       setImportRowsIncluded: vi.fn(),
-    } as unknown as CatalogImporterWorkbenchController;
+    };
 
     render(
       <DashboardImportTable
-        controller={controller}
-        existingDuplicateCounts={new Map()}
+        rows={controller.matchedRows}
+        disabled={false}
+        onRowsSelectionChange={controller.setImportRowsIncluded}
         onRowSelectionChange={onRowSelectionChange}
-        rowIds={new Set([row.id])}
         selectionLimit={100}
         selectedRowIds={new Set()}
-        view="all"
       />,
     );
 
@@ -200,34 +216,6 @@ describe("DashboardImportTable", () => {
 
     expect(onRowSelectionChange).toHaveBeenCalledWith(row.id, true);
     expect(controller.setImportRowIncluded).not.toHaveBeenCalled();
-  });
-
-  it("shows only rows in the selected import view", () => {
-    const linkedRow = {
-      ...row,
-      id: "source-row-10",
-      linkState: "linked" as const,
-      sourceRow: 10,
-      sourceTitle: "Already linked",
-      title: "Already linked",
-    };
-    const controller = {
-      matchedRows: [row, linkedRow],
-      setImportRowIncluded: vi.fn(),
-      setImportRowsIncluded: vi.fn(),
-    } as unknown as CatalogImporterWorkbenchController;
-
-    render(
-      <DashboardImportTable
-        controller={controller}
-        existingDuplicateCounts={new Map()}
-        selectionLimit={100}
-        view="review"
-      />,
-    );
-
-    expect(screen.getByText("Vanguard 2")).toBeVisible();
-    expect(screen.queryByText("Already linked")).not.toBeInTheDocument();
   });
 
   it("appends the next rows with Show more", () => {
@@ -242,13 +230,22 @@ describe("DashboardImportTable", () => {
       matchedRows: rows,
       setImportRowIncluded: vi.fn(),
       setImportRowsIncluded: vi.fn(),
-    } as unknown as CatalogImporterWorkbenchController;
+    };
     render(
       <DashboardImportTable
-        controller={controller}
-        existingDuplicateCounts={new Map()}
+        rows={controller.matchedRows}
+        disabled={false}
+        onRowsSelectionChange={controller.setImportRowsIncluded}
+        onRowSelectionChange={controller.setImportRowIncluded}
         selectionLimit={100}
-        view="all"
+        selectedRowIds={
+          new Set(
+            controller.matchedRows
+              .filter((row) => row.outputState === "included")
+              .slice(0, 100)
+              .map((row) => row.id),
+          )
+        }
       />,
     );
 
@@ -284,37 +281,42 @@ describe("DashboardImportTable", () => {
       matchedRows: rows,
       setImportRowIncluded: vi.fn(),
       setImportRowsIncluded: vi.fn(),
-    } as unknown as CatalogImporterWorkbenchController;
+    };
 
     const { rerender } = render(
       <DashboardImportTable
-        controller={controller}
-        existingDuplicateCounts={new Map()}
+        rows={controller.matchedRows}
+        disabled={false}
+        onRowsSelectionChange={controller.setImportRowsIncluded}
+        onRowSelectionChange={controller.setImportRowIncluded}
         selectionLimit={100}
         selectedRowIds={new Set(rows.slice(0, 100).map((item) => item.id))}
-        view="all"
       />,
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Show 1 more" }));
 
-    expect(screen.getByRole("checkbox", { name: "Include Listing 1" }))
-      .toBeChecked();
-    expect(screen.getByRole("checkbox", { name: "Include Listing 101" }))
-      .toBeDisabled();
+    expect(
+      screen.getByRole("checkbox", { name: "Include Listing 1" }),
+    ).toBeChecked();
+    expect(
+      screen.getByRole("checkbox", { name: "Include Listing 101" }),
+    ).toBeDisabled();
 
     rerender(
       <DashboardImportTable
-        controller={controller}
-        existingDuplicateCounts={new Map()}
+        rows={controller.matchedRows}
+        disabled={false}
+        onRowsSelectionChange={controller.setImportRowsIncluded}
+        onRowSelectionChange={controller.setImportRowIncluded}
         selectionLimit={100}
         selectedRowIds={new Set(rows.slice(0, 99).map((item) => item.id))}
-        view="all"
       />,
     );
 
-    expect(screen.getByRole("checkbox", { name: "Include Listing 101" }))
-      .toBeEnabled();
+    expect(
+      screen.getByRole("checkbox", { name: "Include Listing 101" }),
+    ).toBeEnabled();
   });
 
   it("returns the bounded listing area to the top", () => {
@@ -329,14 +331,23 @@ describe("DashboardImportTable", () => {
       matchedRows: rows,
       setImportRowIncluded: vi.fn(),
       setImportRowsIncluded: vi.fn(),
-    } as unknown as CatalogImporterWorkbenchController;
+    };
 
     render(
       <DashboardImportTable
-        controller={controller}
-        existingDuplicateCounts={new Map()}
+        rows={controller.matchedRows}
+        disabled={false}
+        onRowsSelectionChange={controller.setImportRowsIncluded}
+        onRowSelectionChange={controller.setImportRowIncluded}
         selectionLimit={100}
-        view="all"
+        selectedRowIds={
+          new Set(
+            controller.matchedRows
+              .filter((row) => row.outputState === "included")
+              .slice(0, 100)
+              .map((row) => row.id),
+          )
+        }
       />,
     );
 

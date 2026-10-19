@@ -4,6 +4,11 @@ import type { ComponentProps, ReactNode } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -62,21 +67,37 @@ function Query({
       data-testid="search-query-form"
     >
       {showSearchIcon ? (
-        <Search
-          aria-hidden="true"
-          className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 z-10 size-4 -translate-y-1/2"
+        <InputGroup>
+          {showSearchIcon && (
+            <InputGroupAddon>
+              <Search aria-hidden="true" />
+            </InputGroupAddon>
+          )}
+          <InputGroupInput
+            aria-label={placeholder}
+            placeholder={placeholder}
+            value={value}
+            className={inputClassName}
+            data-testid="search-all-fields-input"
+            onChange={(event) => onChange(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") onSubmit?.();
+            }}
+          />
+        </InputGroup>
+      ) : (
+        <Input
+          aria-label={placeholder}
+          placeholder={placeholder}
+          value={value}
+          className={inputClassName}
+          data-testid="search-all-fields-input"
+          onChange={(event) => onChange(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") onSubmit?.();
+          }}
         />
-      ) : null}
-      <Input
-        placeholder={placeholder}
-        value={value}
-        className={cn("h-10", showSearchIcon && "pl-9", inputClassName)}
-        data-testid="search-all-fields-input"
-        onChange={(event) => onChange(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") onSubmit?.();
-        }}
-      />
+      )}
     </div>
   );
 }
