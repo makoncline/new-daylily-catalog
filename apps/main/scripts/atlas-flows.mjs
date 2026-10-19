@@ -121,6 +121,7 @@ export const ATLAS_FLOWS = [
         "Keep profile data and listing cards in the first HTML response.",
         "Link profile counts to their sections. Both Lists links must return to the first catalog page, where list summaries are available.",
         "Keep public page navigation responsive during social image generation. Check the built container with a warm Next image optimizer.",
+        "Fetch social-card source photos through their CDN without persisting copies in Next's fetch cache. Preserve generated-card cache headers.",
       ],
     },
     tests: {
