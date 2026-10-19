@@ -1145,6 +1145,18 @@ export const ATLAS_FLOWS = [
           path: "src/components/forms/listing-form.tsx",
         },
         {
+          label: "Bulk listing actions",
+          path: "src/app/dashboard/listings/_components/listing-bulk-actions.tsx",
+        },
+        {
+          label: "Shared list picker and creation",
+          path: "src/components/multi-list-select.tsx",
+        },
+        {
+          label: "Confirmation dialog primitives",
+          path: "src/components/ui/alert-dialog.tsx",
+        },
+        {
           label: "Listing save and draft state",
           path: "src/components/forms/use-listing-form.ts",
         },
@@ -1167,6 +1179,8 @@ export const ATLAS_FLOWS = [
         "Classify editor save conflicts by the tRPC code; keep drafts and load the latest version only on explicit recovery.",
         "Reuse the same create request ID for the same draft after lost create confirmation. Keep one saved listing after retry and include that ID in the failure report.",
         "Scope listing writes to the authenticated user on the server.",
+        "The Bulk actions menu uses the full selection across pages and filters. Confirm every title and warn when filters hide selected listings. View selected bypasses filters without changing them; Back to results restores the search. Keep Clear selection beside the menu; it or the last deselection leaves the review view. Deletion warns about listing images and requires typing DELETE; long selections scroll without hiding the confirmation controls. Add to list can select or create a destination through the shared picker, including the member's first list. Creation alone does not add listings; confirm the batch before changing memberships. Preserve other memberships and visibility. Preserve write conflicts and stop on the first failure with the confirmed count.",
+        "Start confirmed bulk listing actions on the first results page so deletions and filter changes cannot leave an empty page with no navigation.",
         "Enforce the same non-Pro create cap for dashboard, member API, and MCP callers. Reuse the confirmed tier within each remote request.",
         "Validate before save and keep the form open when save fails.",
         "Save listing fields through the editor; write media and membership changes at once and mark the parent for commit.",
@@ -1201,6 +1215,9 @@ export const ATLAS_FLOWS = [
         testRef("integration", "tests/edit-listing-dialog-url-sync.test.tsx"),
         fullAppIntegrationRef(
           "tests/integration/create-edit-listing.integration.ts",
+        ),
+        fullAppIntegrationRef(
+          "tests/integration/bulk-listing-actions.integration.ts",
         ),
         fullAppIntegrationRef(
           "tests/integration/dashboard-cache.integration.ts",
