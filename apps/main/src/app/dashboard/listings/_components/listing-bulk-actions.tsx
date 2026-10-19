@@ -82,6 +82,7 @@ export function ListingBulkActions({
       action: async () => {
         if (!request || (request.action === "Add to list" && !targetList))
           return;
+        table.firstPage();
         let confirmed = 0;
         try {
           for (const row of request.rows) {

@@ -102,6 +102,7 @@ test("seller hides, publishes, and deletes selected listings without changing ot
     { clearFirst: false },
   );
 
+  await dashboardListings.pagerNextButton.click();
   await select("Bulk Bloom 21").check();
   await dashboardListings.setGlobalSearch("Bulk Bloom 00");
   await select("Bulk Bloom 00").check();
@@ -215,6 +216,9 @@ test("seller hides, publishes, and deletes selected listings without changing ot
     },
     { clearFirst: false },
   );
+  await dashboardListings.setGlobalSearch("Bulk Bloom");
+  await dashboardListings.pagerNextButton.click();
+  await expect(dashboardListings.pageIndicator()).toHaveText("Page 2 of 2");
   await openBulkAction(page, "Delete");
   await expect(confirmation).toHaveValue("");
   await expect(deleteButton).toBeDisabled();
@@ -222,8 +226,10 @@ test("seller hides, publishes, and deletes selected listings without changing ot
   await deleteButton.click();
   await expect(
     page.getByText("20 listings deleted", { exact: true }),
-  ).toBeVisible();
-  await dashboardListings.setGlobalSearch("Bulk Bloom");
+  ).toBeVisible({ timeout: 15_000 });
+  await expect(dashboardListings.pageIndicator()).toHaveText("Page 1 of 1");
+  await expect(dashboardListings.listingRow("Bulk Bloom 20")).toBeVisible();
+  await expect(dashboardListings.listingRow("Bulk Bloom 21")).toBeVisible();
   await expect(page).toHaveURL(
     (url) => url.searchParams.get("query") === "Bulk Bloom",
   );
