@@ -123,7 +123,6 @@ async function prepareListings(page: Page, csv = sampleCsv()) {
     mimeType: "text/csv",
     buffer: Buffer.from(csv),
   });
-  await page.getByRole("button", { name: "Build catalog preview" }).click();
   await expect(
     page.getByRole("heading", { name: "Your catalog preview" }),
   ).toBeVisible({ timeout: 30_000 });

@@ -374,7 +374,7 @@ export const ATLAS_FLOWS = [
     audience: "public",
     title: "Prepare a daylily catalog spreadsheet",
     description:
-      "Start from a spreadsheet, link registered cultivars, resolve catalog issues, preview the catalog, and download the prepared workbook.",
+      "Recognized single-sheet templates and catalog exports show matching progress, then open Preview. Prepare other spreadsheets, link registered cultivars, resolve issues, and download the workbook.",
     tests: {
       unit: [],
       integration: [

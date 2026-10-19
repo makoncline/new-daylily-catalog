@@ -46,7 +46,7 @@ interface CatalogImporterUploadProps {
   controller: CatalogImporterWorkbenchController;
   onClear?: () => void;
   onEditMapping?: () => void;
-  onSourceReady?: () => void;
+  onSourceReady?: (destination: "prepare" | "preview") => void;
   showClear?: boolean;
 }
 
@@ -74,7 +74,7 @@ export function CatalogImporterUpload({
       if (file) {
         void controller
           .loadFile(file)
-          .then((loaded) => loaded && onSourceReady?.());
+          .then((destination) => destination && onSourceReady?.(destination));
       }
     },
     [controller, onSourceReady],
@@ -274,7 +274,7 @@ export function CatalogImporterUpload({
             data-ph-capture-attribute-source="sample"
             onClick={() => {
               controller.loadSampleCatalog();
-              onSourceReady?.();
+              onSourceReady?.("prepare");
             }}
           >
             <Sparkles className="size-4" />
@@ -287,7 +287,7 @@ export function CatalogImporterUpload({
             data-ph-capture-attribute-source="manual"
             onClick={() => {
               controller.loadManualCatalog();
-              onSourceReady?.();
+              onSourceReady?.("prepare");
             }}
           >
             <ListFilter className="size-4" />

@@ -223,7 +223,6 @@ async function loadSpreadsheet(page: Page, csv = sampleCsv()) {
 
 async function uploadSpreadsheet(page: Page) {
   await loadSpreadsheet(page);
-  await page.getByRole("button", { name: "Build catalog preview" }).click();
   await expect(
     page.getByRole("region", { name: "Catalog preview ready" }),
   ).toBeVisible();
@@ -248,7 +247,7 @@ test("Mobile importer upload", async ({ page }) => {
 
 test("Desktop importer column mapping", async ({ page }) => {
   await openCleaner(page, desktop);
-  await loadSpreadsheet(page);
+  await loadSpreadsheet(page, sampleCsv().replace("name,", "cultivar,"));
   await expect(
     page.getByRole("button", { name: "Build catalog preview" }),
   ).toBeVisible();

@@ -5,6 +5,8 @@ import { setStripeSubscriptionStatus } from "./utils/stripe";
 import type { Page } from "@playwright/test";
 import { expect, previewTest as test } from "../../e2e/test-setup";
 import { readFile } from "node:fs/promises";
+import writeExcelFile from "write-excel-file/node";
+import readExcelFile from "read-excel-file/node";
 import { mockCultivarMatches } from "./utils/catalog-importer";
 
 async function readSavedDraft(page: Page) {
@@ -66,6 +68,74 @@ async function uploadSample(page: Page, rowCount = 25) {
 }
 
 test.describe("catalog importer", () => {
+  test("opens recognized workbooks and their clean exports in Preview", async ({
+    page,
+  }) => {
+    await mockCultivarMatches(page);
+    await page.goto("/catalog-importer");
+    const buffer = await writeExcelFile([
+      ["name", "price", "description", "private note"],
+      ["Daylily 1", 12.5, "Synthetic flower", "Synthetic bed"],
+    ]).toBuffer();
+    await page.locator('input[type="file"]').setInputFiles({
+      name: "template.xlsx",
+      mimeType:
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      buffer,
+    });
+    await expect(
+      page.getByRole("region", { name: "Catalog preview ready" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Map your columns" }),
+    ).toHaveCount(0);
+    await page.getByRole("button", { name: "Prepare", exact: true }).click();
+    await expect(
+      page.getByRole("heading", { name: "Map your columns" }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Preview", exact: true }).click();
+    await page.getByRole("button", { name: "Finish", exact: true }).click();
+    const downloadPromise = page.waitForEvent("download");
+    await page
+      .getByRole("button", {
+        name: "Download prepared import file",
+        exact: true,
+      })
+      .click();
+    const download = await downloadPromise;
+    const exportedPath = await download.path();
+    if (!exportedPath) throw new Error("Expected the clean export.");
+    const [sheet] = await readExcelFile(exportedPath);
+    expect(sheet?.data[1]?.slice(0, 4)).toEqual([
+      "Daylily 1",
+      12.5,
+      "Synthetic flower",
+      "Synthetic bed",
+    ]);
+    await page.getByRole("button", { name: "Start", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Clear local progress", exact: true })
+      .click();
+    await page
+      .getByRole("alertdialog")
+      .getByRole("button", { name: "Clear local progress", exact: true })
+      .click();
+    await page
+      .locator('input[type="file"]')
+      .setInputFiles({
+        name: download.suggestedFilename(),
+        mimeType:
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        buffer: await readFile(exportedPath),
+      });
+    await expect(
+      page.getByRole("region", { name: "Catalog preview ready" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Map your columns" }),
+    ).toHaveCount(0);
+  });
+
   test("centers the importer content on desktop", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/catalog-importer");

@@ -169,9 +169,6 @@ async function prepare(page: Page, count = 3, extra: string[] = []) {
     mimeType: "text/csv",
     buffer: Buffer.from(csv),
   });
-  await page
-    .getByRole("button", { name: "Build catalog preview", exact: true })
-    .click();
   await expect(
     page.getByRole("heading", { name: "Your catalog preview", exact: true }),
   ).toBeVisible();
@@ -785,7 +782,7 @@ test("public preparation restores an interrupted match and clear rejects its lat
       name: "interrupted.csv",
       mimeType: "text/csv",
       buffer: Buffer.from(
-        "name,price,description,private note\nIntegration Bloom,15,Rose flower,West bed",
+        "cultivar,price,description,private note\nIntegration Bloom,15,Rose flower,West bed",
       ),
     });
     await capture(page, "public-mapping");
