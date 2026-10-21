@@ -41,7 +41,12 @@
       "@tanstack/query-core": "5.104.3",
       "@types/react": "19.2.18",
       "@types/react-dom": "19.2.4",
-      "eslint-plugin-react-hooks": "7.0.1"
+      "eslint-plugin-react-hooks": "7.0.1",
+      "tar@>=7.0.0 <7.5.21": "7.5.21",
+      "proxy-addr@>=2.0.0 <2.0.8": "2.0.8",
+      "fast-uri@>=3.0.0 <3.1.8": "3.1.8",
+      "source-map-js@>=1.0.0 <1.2.2": "1.2.2",
+      "shell-quote@>=1.0.0 <1.12.0": "1.12.0"
     },
     "patchedDependencies": {
       "next@16.4.1": "patches/next@16.4.1.patch"
