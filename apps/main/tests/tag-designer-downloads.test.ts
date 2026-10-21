@@ -31,20 +31,24 @@ vi.mock("html2canvas", () => ({
 }));
 
 vi.mock("jspdf", () => ({
-  jsPDF: vi.fn().mockImplementation(() => ({
-    addImage: pdfAddImageMock,
-    addPage: vi.fn(),
-    save: pdfSaveMock,
-  })),
+  jsPDF: vi.fn().mockImplementation(function () {
+    return {
+      addImage: pdfAddImageMock,
+      addPage: vi.fn(),
+      save: pdfSaveMock,
+    };
+  }),
 }));
 
 vi.mock("jszip", () => ({
-  default: vi.fn().mockImplementation(() => ({
-    folder: vi.fn(() => ({
-      file: zipFileMock,
-    })),
-    generateAsync: zipGenerateAsyncMock,
-  })),
+  default: vi.fn().mockImplementation(function () {
+    return {
+      folder: vi.fn(() => ({
+        file: zipFileMock,
+      })),
+      generateAsync: zipGenerateAsyncMock,
+    };
+  }),
 }));
 
 const tag: TagPreviewData = {
