@@ -11,8 +11,12 @@ process.env.AWS_REGION ??= "us-east-1";
 process.env.AWS_BUCKET_NAME ??= "daylily-catalog-images-test";
 
 const s3Mocks = vi.hoisted(() => ({
-  putObjectCommand: vi.fn((input: unknown) => ({ input })),
-  headObjectCommand: vi.fn((input: unknown) => ({ input })),
+  putObjectCommand: vi.fn(function (input: unknown) {
+    return { input };
+  }),
+  headObjectCommand: vi.fn(function (input: unknown) {
+    return { input };
+  }),
   getSignedUrl: vi.fn(),
   send: vi.fn(async (command: { input: { Key: string } }) => ({
     ContentLength: 1234,
@@ -23,7 +27,9 @@ const s3Mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@aws-sdk/client-s3", () => ({
-  S3Client: vi.fn(() => ({ send: s3Mocks.send })),
+  S3Client: vi.fn(function () {
+    return { send: s3Mocks.send };
+  }),
   PutObjectCommand: s3Mocks.putObjectCommand,
   HeadObjectCommand: s3Mocks.headObjectCommand,
 }));

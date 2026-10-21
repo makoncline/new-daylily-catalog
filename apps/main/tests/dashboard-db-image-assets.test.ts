@@ -27,8 +27,12 @@ const SAFE_IMAGE_SIZE = Buffer.from(
 
 const s3Mocks = vi.hoisted(() => ({
   getSignedUrl: vi.fn(),
-  putObjectCommand: vi.fn((input: unknown) => ({ input })),
-  headObjectCommand: vi.fn((input: unknown) => ({ input })),
+  putObjectCommand: vi.fn(function (input: unknown) {
+    return { input };
+  }),
+  headObjectCommand: vi.fn(function (input: unknown) {
+    return { input };
+  }),
   send: vi.fn(async (command: { input: { Key: string } }) => ({
     ContentLength: 1234,
     ContentType: command.input.Key.endsWith(".png")
@@ -49,7 +53,9 @@ const consoleInfoMock = vi
 vi.stubGlobal("fetch", fetchMock);
 
 vi.mock("@aws-sdk/client-s3", () => ({
-  S3Client: vi.fn(() => ({ send: s3Mocks.send })),
+  S3Client: vi.fn(function () {
+    return { send: s3Mocks.send };
+  }),
   PutObjectCommand: s3Mocks.putObjectCommand,
   HeadObjectCommand: s3Mocks.headObjectCommand,
 }));

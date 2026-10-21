@@ -40,10 +40,34 @@
     "overrides": {
       "@tanstack/query-core": "5.104.3",
       "@types/react": "19.2.18",
-      "@types/react-dom": "19.2.4"
+      "@types/react-dom": "19.2.4",
+      "eslint-plugin-react-hooks": "7.0.1",
+      "tar@>=7.0.0 <7.5.21": "7.5.21",
+      "proxy-addr@>=2.0.0 <2.0.8": "2.0.8",
+      "fast-uri@>=3.0.0 <3.1.8": "3.1.8",
+      "source-map-js@>=1.0.0 <1.2.2": "1.2.2",
+      "shell-quote@>=1.0.0 <1.12.0": "1.12.0",
+      "hono@>=4.0.0 <4.12.25": "4.12.25",
+      "js-yaml@>=4.0.0 <4.3.2": "4.3.2",
+      "ws@>=8.0.0 <8.21.0": "8.21.0",
+      "postcss@>=8.0.0 <8.5.31": "8.5.31",
+      "browserslist@>=4.0.0 <4.28.7": "4.28.7",
+      "flatted@>=3.0.0 <3.4.2": "3.4.2",
+      "minimatch@>=3.0.0 <3.1.4": "3.1.4",
+      "minimatch@>=9.0.0 <9.0.7": "9.0.7",
+      "picomatch@>=2.0.0 <2.3.2": "2.3.2",
+      "picomatch@>=4.0.0 <4.0.4": "4.0.4",
+      "rollup@>=4.0.0 <4.59.0": "4.59.0",
+      "vite@>=7.0.0 <7.3.7": "7.3.7",
+      "brace-expansion@>=1.0.0 <1.1.21": "1.1.21",
+      "brace-expansion@>=2.0.0 <2.1.7": "2.1.7",
+      "lodash@>=4.0.0 <4.18.1": "4.18.1"
     },
     "patchedDependencies": {
-      "next@16.3.0": "patches/next@16.3.0.patch"
+      "next@16.4.1": "patches/next@16.4.1.patch"
     }
+  },
+  "engines": {
+    "node": "^24.22.1"
   }
 }

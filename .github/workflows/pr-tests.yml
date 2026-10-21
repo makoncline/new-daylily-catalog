@@ -16,9 +16,9 @@ jobs:
       - name: Enable corepack
         run: corepack enable
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7.1.0
         with:
-          node-version: 24
+          node-version: 24.22.1
           cache: "pnpm"
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm fetch
@@ -39,9 +39,9 @@ jobs:
       - name: Enable corepack
         run: corepack enable
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7.1.0
         with:
-          node-version: 24
+          node-version: 24.22.1
           cache: "pnpm"
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm fetch
@@ -60,9 +60,9 @@ jobs:
       - name: Enable corepack
         run: corepack enable
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7.1.0
         with:
-          node-version: 24
+          node-version: 24.22.1
           cache: "pnpm"
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm fetch
@@ -116,9 +116,9 @@ jobs:
       - name: Enable corepack
         run: corepack enable
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7.1.0
         with:
-          node-version: 20
+          node-version: 24.22.1
           cache: "pnpm"
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm fetch
@@ -154,6 +154,9 @@ jobs:
     needs: [quality, vitest, full-app-integration, e2e]
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 24.22.1
       - name: Check required results
         env:
           QUALITY_RESULT: ${{ needs.quality.result }}
