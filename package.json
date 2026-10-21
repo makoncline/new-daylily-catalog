@@ -40,10 +40,11 @@
     "overrides": {
       "@tanstack/query-core": "5.104.3",
       "@types/react": "19.2.18",
-      "@types/react-dom": "19.2.4"
+      "@types/react-dom": "19.2.4",
+      "eslint-plugin-react-hooks": "7.0.1"
     },
     "patchedDependencies": {
-      "next@16.3.0": "patches/next@16.3.0.patch"
+      "next@16.4.1": "patches/next@16.4.1.patch"
     }
   }
 }
