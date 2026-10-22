@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM node:20-bookworm-slim AS base
+FROM node:24.22.1-bookworm-slim AS base
 
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PNPM_HOME=/pnpm
@@ -59,6 +59,9 @@ RUN --mount=type=secret,id=app_env \
     && pnpm --filter @daylily-catalog/main exec next build
 
 FROM base AS runner
+
+RUN --mount=type=bind,source=apps/main/scripts/node-runtime.test.mjs,target=/tmp/node-runtime.test.mjs \
+    node --test /tmp/node-runtime.test.mjs
 
 ARG GIT_COMMIT_SHA
 
