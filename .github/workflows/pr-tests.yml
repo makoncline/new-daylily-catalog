@@ -27,6 +27,8 @@ jobs:
       - run: pnpm install --frozen-lockfile --prefer-offline
       - name: Lint
         run: pnpm main lint
+      - name: Check native image runtime
+        run: node --test apps/main/scripts/next-image-runtime.test.mjs
       - name: Typecheck
         run: pnpm typecheck
 

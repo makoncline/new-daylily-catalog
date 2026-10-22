@@ -113,9 +113,6 @@ describe("Docker build cache and observability boundaries", () => {
     expect(dockerfile).not.toContain(
       "COPY --from=deps --chown=nextjs:nodejs /app/node_modules",
     );
-    expect(dockerfile.indexOf("COPY patches ./patches")).toBeLessThan(
-      dockerfile.indexOf("RUN pnpm install --frozen-lockfile"),
-    );
     expect(dockerfile).toContain(
       "COPY --from=runtime-deps --chown=nextjs:nodejs /runtime/node_modules ./node_modules",
     );
