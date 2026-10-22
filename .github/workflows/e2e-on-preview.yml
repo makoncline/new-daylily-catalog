@@ -65,7 +65,11 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
 
+      - name: Use Ubuntu package archive
+        run: printf '%s\n' 'https://archive.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt
+
       - name: Install Playwright system dependencies
+        timeout-minutes: 10
         run: pnpm main exec playwright install-deps chromium
 
       - name: Install Playwright browser
