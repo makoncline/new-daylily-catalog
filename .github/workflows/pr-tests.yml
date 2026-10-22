@@ -27,6 +27,8 @@ jobs:
       - run: pnpm install --frozen-lockfile --prefer-offline
       - name: Lint
         run: pnpm main lint
+      - name: Check native image runtime
+        run: node --test apps/main/scripts/next-image-runtime.test.mjs
       - name: Typecheck
         run: pnpm typecheck
 
@@ -75,7 +77,10 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Use Ubuntu package archive
+        run: printf '%s\n' 'https://archive.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt
       - name: Install Playwright system dependencies
+        timeout-minutes: 10
         run: pnpm main exec playwright install-deps chromium
       - name: Install Playwright browser
         if: steps.playwright-cache.outputs.cache-hit != 'true'
@@ -131,7 +136,10 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Use Ubuntu package archive
+        run: printf '%s\n' 'https://archive.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt
       - name: Install Playwright system dependencies
+        timeout-minutes: 10
         run: pnpm main exec playwright install-deps chromium
       - name: Install Playwright browser
         if: steps.playwright-cache.outputs.cache-hit != 'true'
