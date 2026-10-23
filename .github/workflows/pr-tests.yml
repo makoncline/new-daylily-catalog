@@ -16,15 +16,19 @@ jobs:
       - name: Enable corepack
         run: corepack enable
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7.1.0
         with:
-          node-version: 24
+          node-version: 24.22.1
           cache: "pnpm"
           cache-dependency-path: pnpm-lock.yaml
+      - name: Check patched Node runtime
+        run: node --test apps/main/scripts/node-runtime.test.mjs
       - run: pnpm fetch
       - run: pnpm install --frozen-lockfile --prefer-offline
       - name: Lint
         run: pnpm main lint
+      - name: Check native image runtime
+        run: node --test apps/main/scripts/next-image-runtime.test.mjs
       - name: Typecheck
         run: pnpm typecheck
 
@@ -39,9 +43,9 @@ jobs:
       - name: Enable corepack
         run: corepack enable
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7.1.0
         with:
-          node-version: 24
+          node-version: 24.22.1
           cache: "pnpm"
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm fetch
@@ -60,9 +64,9 @@ jobs:
       - name: Enable corepack
         run: corepack enable
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7.1.0
         with:
-          node-version: 24
+          node-version: 24.22.1
           cache: "pnpm"
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm fetch
@@ -73,7 +77,10 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Use Ubuntu package archive
+        run: printf '%s\n' 'https://archive.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt
       - name: Install Playwright system dependencies
+        timeout-minutes: 10
         run: pnpm main exec playwright install-deps chromium
       - name: Install Playwright browser
         if: steps.playwright-cache.outputs.cache-hit != 'true'
@@ -116,9 +123,9 @@ jobs:
       - name: Enable corepack
         run: corepack enable
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7.1.0
         with:
-          node-version: 20
+          node-version: 24.22.1
           cache: "pnpm"
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm fetch
@@ -129,7 +136,10 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Use Ubuntu package archive
+        run: printf '%s\n' 'https://archive.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt
       - name: Install Playwright system dependencies
+        timeout-minutes: 10
         run: pnpm main exec playwright install-deps chromium
       - name: Install Playwright browser
         if: steps.playwright-cache.outputs.cache-hit != 'true'

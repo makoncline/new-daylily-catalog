@@ -121,6 +121,7 @@ export const ATLAS_FLOWS = [
         "Keep profile data and listing cards in the first HTML response.",
         "Link profile counts to their sections. Both Lists links must return to the first catalog page, where list summaries are available.",
         "Keep public page navigation responsive during social image generation. Check the built container with a warm Next image optimizer.",
+        "Fetch social-card source photos through their CDN without persisting copies in Next's fetch cache. Preserve generated-card cache headers.",
       ],
     },
     tests: {
@@ -1185,6 +1186,7 @@ export const ATLAS_FLOWS = [
         "Scope listing writes to the authenticated user on the server.",
         "The Bulk actions menu uses the full selection across pages and filters. Confirm every title and warn when filters hide selected listings. View selected bypasses filters without changing them; Back to results restores the search. Keep Clear selection beside the menu; it or the last deselection leaves the review view. Deletion warns about listing images and requires typing DELETE; long selections scroll without hiding the confirmation controls. Add to list can select or create a destination through the shared picker, including the member's first list. Creation alone does not add listings; confirm the batch before changing memberships. Preserve other memberships and visibility. Preserve write conflicts and stop on the first failure with the confirmed count.",
         "Start confirmed bulk listing actions on the first results page so deletions and filter changes cannot leave an empty page with no navigation.",
+        "Deleting an owned listing removes its Image and ImageAsset database records in the same transaction. Keep other listings' image records and retain stored image files.",
         "Enforce the same non-Pro create cap for dashboard, member API, and MCP callers. Reuse the confirmed tier within each remote request.",
         "Validate before save and keep the form open when save fails.",
         "Save listing fields through the editor; write media and membership changes at once and mark the parent for commit.",

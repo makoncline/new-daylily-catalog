@@ -27,6 +27,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 24.22.1
+      - name: Enable corepack
+        run: corepack enable
 
       - name: Compute image metadata
         id: meta
@@ -169,14 +174,12 @@ jobs:
       - name: Check MCP after an idle proxy connection
         run: node apps/main/scripts/smoke-mcp-keepalive-local.mjs '${{ steps.meta.outputs.image_repo }}:${{ steps.meta.outputs.immutable_tag }}'
 
-      - name: Enable corepack
-        run: corepack enable
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: pnpm
       - run: pnpm install --frozen-lockfile --prefer-offline
-      - run: pnpm main exec playwright install --with-deps chromium
+      - name: Use Ubuntu package archive
+        run: printf '%s\n' 'https://archive.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt
+      - name: Install Playwright Chromium
+        timeout-minutes: 10
+        run: pnpm main exec playwright install --with-deps chromium
       - name: Check page navigation during social image generation
         run: pnpm main exec node scripts/smoke-social-images-local.mjs '${{ steps.meta.outputs.image_repo }}:${{ steps.meta.outputs.immutable_tag }}'
 
