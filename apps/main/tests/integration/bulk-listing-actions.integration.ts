@@ -364,6 +364,14 @@ test("seller reviews all selected listings and adds them to a list without repla
     { name: "small-mobile", width: 360, height: 568 },
   ]) {
     await page.setViewportSize(viewport);
+    await expect(
+      dashboardListings.listingsTable.locator("th").first(),
+    ).toHaveCSS("width", "32px");
+    await expect(
+      dashboardListings.listingRow("Bulk Add 00").locator("td").first(),
+    ).toHaveCSS("width", "32px");
+    await expect(select("Bulk Add 00")).toHaveCSS("width", "16px");
+    await expect(select("Bulk Add 00")).toBeChecked();
     await page.screenshot({
       path: test.info().outputPath(`bulk-review-${viewport.name}.png`),
       animations: "disabled",
