@@ -238,5 +238,28 @@ test("standalone loading honors app-local overrides and test mode without contac
     );
     expect(result.status, result.stderr).toBe(0);
   }
+  const repeated = spawnSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      `
+    import {loadAppEnv} from ${JSON.stringify(path.join(f.app, "scripts/load-env.mjs"))};
+    import assert from 'node:assert/strict';
+    loadAppEnv('development');
+    process.env.DATABASE_URL='file:playwright-created.sqlite';
+    process.env.CLERK_TESTING_TOKEN='synthetic-testing-token';
+    loadAppEnv('development');
+    assert.equal(process.env.DATABASE_URL,'file:playwright-created.sqlite');
+    assert.equal(process.env.CLERK_TESTING_TOKEN,'synthetic-testing-token');
+  `,
+    ],
+    {
+      cwd: f.app,
+      env: { ...f.baseEnv, NODE_ENV: "development" },
+      encoding: "utf8",
+    },
+  );
+  expect(repeated.status, repeated.stderr).toBe(0);
   expect(existsSync(path.join(f.dir, "op-called"))).toBe(false);
 });

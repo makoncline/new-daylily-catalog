@@ -14,7 +14,7 @@ export function loadAppEnv(stage = process.env.NODE_ENV ?? "development") {
     // Production file delivery remains on its current path until its separate cutover.
     const root =
       stage === "production" ? path.resolve(appRoot, "../..") : appRoot;
-    nextEnv.loadEnvConfig(root, stage === "development", console, true);
+    nextEnv.loadEnvConfig(root, stage === "development");
   } finally {
     if (runtimeMode === undefined) delete environment.NODE_ENV;
     else environment.NODE_ENV = runtimeMode;

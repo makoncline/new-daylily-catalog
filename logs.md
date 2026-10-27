@@ -225,3 +225,5 @@ check current code before applying them.
 - [2026-10-27] 1Password MCP connection: Plugin installation alone does not establish a live desktop connection. The installed `1password-mcp` command starts a stdio MCP server, including with `--help`. For Environment setup, initialize the MCP connection, read its tool schemas, and authenticate before using metadata tools. Do not infer access from installation status.
 
 - [2026-10-27] Synthetic member teardown: A mounted alternate-member dashboard recreated its deleted user during a late read. The next test then failed on the unique Clerk ID. Clear cookies and close that page before deleting its fixture user.
+
+- [2026-10-27] Next env reload: `@next/env` force reload restores its first process snapshot. In Playwright global setup, that removed the temporary database URL set by its config. Use the normal cached load so later runtime values remain intact.
