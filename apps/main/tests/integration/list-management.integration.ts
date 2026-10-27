@@ -591,6 +591,17 @@ for (const [device, viewport] of [
     const editedTitle = `Integration Managed List ${device}`;
     const description = "A list saved through the real application.";
     const listingTitle = "Existing Bloom";
+    const otherList = await withTempE2EDb(
+      (db) =>
+        db.list.create({
+          data: {
+            title: `Preserved membership ${device}`,
+            userId: "integration-user",
+            listings: { connect: { id: "integration-existing-listing" } },
+          },
+        }),
+      { clearFirst: false },
+    );
     const lists = new DashboardLists(page);
     const manageList = new ManageListPage(page);
     const toast = (message: string) =>
@@ -704,19 +715,75 @@ for (const [device, viewport] of [
       "Saved on navigation",
     );
 
-    // The server rejects populated deletion and restores the optimistic row.
+    // Both deletion entry points guide the member to remove memberships first.
     await page
       .getByRole("link", { name: "Back to lists", exact: true })
       .click();
     await lists.setGlobalSearch(editedTitle);
     await lists.openFirstVisibleRowActions();
     await lists.chooseRowActionDelete();
+    const deleteDialog = page.getByRole("alertdialog");
+    await expect(deleteDialog).toContainText("Remove listings first");
+    await expect(deleteDialog).toContainText(navigatedTitle);
+    await expect(deleteDialog).toContainText(
+      "Your listings and photos will stay in your catalog and other lists.",
+    );
+    await expect(
+      deleteDialog.getByRole("button", { name: "Delete", exact: true }),
+    ).toHaveCount(0);
+    await expect(
+      deleteDialog.getByRole("link", { name: "Manage list" }),
+    ).toHaveAttribute("href", manageHref!);
+    await test.info().attach(`populated-list-delete-${device}`, {
+      body: await page.screenshot({ animations: "disabled" }),
+      contentType: "image/png",
+    });
+    await deleteDialog.getByRole("button", { name: "Cancel" }).click();
+    await lists.openFirstVisibleRowActions();
+    await lists.chooseRowActionEdit();
+    await lists.surfaceDeleteButton().click();
+    await expect(deleteDialog).toContainText("Remove listings first");
+    await deleteDialog.getByRole("link", { name: "Manage list" }).click();
+    await expect(page).toHaveURL(manageHref!);
+    await expect(deleteDialog).toBeHidden();
+    await expect(manageList.listingRow(listingTitle)).toBeVisible();
+
+    // Another session adds a membership after the browser reviews an empty list.
+    // The real server still rejects deletion and restores the optimistic row.
+    await withTempE2EDb(
+      (db) =>
+        db.list.update({
+          where: { id: editingId! },
+          data: {
+            listings: { disconnect: { id: "integration-existing-listing" } },
+          },
+        }),
+      { clearFirst: false },
+    );
+    await page.goto("/dashboard/lists");
+    await page.reload();
+    await lists.setGlobalSearch(editedTitle);
+    await lists.openFirstVisibleRowActions();
+    await lists.chooseRowActionDelete();
+    await expect(
+      deleteDialog.getByRole("button", { name: "Delete", exact: true }),
+    ).toBeVisible();
+    await withTempE2EDb(
+      (db) =>
+        db.list.update({
+          where: { id: editingId! },
+          data: {
+            listings: { connect: { id: "integration-existing-listing" } },
+          },
+        }),
+      { clearFirst: false },
+    );
     const rejectedResponse = page.waitForResponse((response) =>
       response.url().includes("dashboardV2.list.delete"),
     );
     await lists.confirmDelete();
     await expect(toast("Failed to delete list")).toContainText(
-      "Cannot delete list with associated listings",
+      "Remove all listings from this list before deleting it.",
     );
     const rejected = await rejectedResponse;
     const rejectedId = await rejected.headerValue("x-correlation-id");
@@ -841,6 +908,19 @@ for (const [device, viewport] of [
     ).toContainText("List not found", { timeout: 15_000 });
     await page.goto("/dashboard/listings");
     await expect(page.getByTestId("listing-table")).toContainText(listingTitle);
+    await withTempE2EDb(
+      async (db) => {
+        const preserved = await db.list.findUniqueOrThrow({
+          where: { id: otherList.id },
+          include: { listings: true },
+        });
+        expect(preserved.listings.map((listing) => listing.id)).toEqual([
+          "integration-existing-listing",
+        ]);
+        await db.list.delete({ where: { id: otherList.id } });
+      },
+      { clearFirst: false },
+    );
   });
 }
 
