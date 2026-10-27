@@ -12,6 +12,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { createServer } from "node:net";
 import { afterEach, expect, test } from "vitest";
 
 const appRoot = path.resolve(import.meta.dirname, "..");
@@ -305,8 +306,8 @@ test("shutdown forwards the received signal and stops the owned command tree", a
       "-e",
       `
     const {spawn}=require('node:child_process');
-    const grandchild=spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'inherit'});
-    console.log('RUNNING '+grandchild.pid);setInterval(()=>{},1000);
+    spawn(process.execPath,['-e','const server=require("node:net").createServer();server.listen(0,"127.0.0.1",()=>console.log("RUNNING "+server.address().port));'],{stdio:'inherit'});
+    setInterval(()=>{},1000);
   `,
     ],
     { cwd: f.dir, env: f.baseEnv, stdio: ["ignore", "pipe", "pipe"] },
@@ -327,18 +328,18 @@ test("shutdown forwards the received signal and stops the owned command tree", a
     child.kill("SIGTERM");
     expect(await closed).toEqual({ code: null, signal: "SIGTERM" });
   }
-  const pid = Number(/RUNNING (\d+)/.exec(stdout)?.[1]);
+  const port = Number(/RUNNING (\d+)/.exec(stdout)?.[1]);
   await expect
     .poll(
-      () => {
-        try {
-          process.kill(pid, 0);
-          return true;
-        } catch {
-          return false;
-        }
-      },
+      () =>
+        new Promise<boolean>((resolve) => {
+          const server = createServer();
+          server.once("error", () => resolve(false));
+          server.listen(port, "127.0.0.1", () =>
+            server.close(() => resolve(true)),
+          );
+        }),
       { timeout: 5000 },
     )
-    .toBe(false);
+    .toBe(true);
 });
