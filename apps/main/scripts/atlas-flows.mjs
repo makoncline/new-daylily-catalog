@@ -1150,6 +1150,10 @@ export const ATLAS_FLOWS = [
           path: "src/app/dashboard/listings/_components/listing-bulk-actions.tsx",
         },
         {
+          label: "Compact pinned selection column",
+          path: "src/components/data-table/data-table.tsx",
+        },
+        {
           label: "Shared list picker and creation",
           path: "src/components/multi-list-select.tsx",
         },

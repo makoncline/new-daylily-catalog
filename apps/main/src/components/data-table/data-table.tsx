@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { cn } from "@/lib/utils";
 import {
   flexRender,
   type FilterFn,
@@ -101,7 +102,10 @@ export function DataTable<TData>({
                         <TableHead
                           key={header.id}
                           colSpan={header.colSpan}
-                          className={headerClassName}
+                          className={cn(
+                            headerClassName,
+                            header.column.id === "select" && "w-8",
+                          )}
                         >
                           {header.isPlaceholder ? null : (
                             <div
@@ -137,7 +141,11 @@ export function DataTable<TData>({
                       leftPinnedColumnIds.has(cell.column.id) ? (
                         <TableCell
                           key={cell.id}
-                          className={pinnedCellClassName}
+                          className={cn(
+                            pinnedCellClassName,
+                            cell.column.id === "select" &&
+                              "w-8 max-w-8 min-w-8",
+                          )}
                         >
                           <div className={cellContentClassName}>
                             {flexRender(
