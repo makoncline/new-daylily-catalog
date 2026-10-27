@@ -92,6 +92,8 @@ fs.writeFileSync('op-called','yes');if(process.env.FAKE_FAILURE)process.exit(23)
 assert.equal(process.env.OP_SERVICE_ACCOUNT_TOKEN,'dummy-bootstrap');
 const result=spawnSync(process.argv[6],process.argv.slice(7),{stdio:'inherit',env:{...process.env,CLERK_SECRET_KEY:process.env.FAKE_CLERK??'sk_test_clerk',STRIPE_SECRET_KEY:'sk_test_stripe'}});process.exit(result.status??1);`;
   writeFileSync(path.join(dir, "bin/op"), op, { mode: 0o755 });
+  mkdirSync(path.join(dir, ".tmp/tools"), { recursive: true });
+  symlinkSync(path.join(dir, "bin/op"), path.join(dir, ".tmp/tools/op"));
   const baseEnv: NodeJS.ProcessEnv = {
     ...process.env,
     PATH: `${path.join(dir, "bin")}:${process.env.PATH}`,

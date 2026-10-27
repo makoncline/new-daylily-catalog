@@ -81,10 +81,13 @@ providers. Use a free `INTEGRATION_PORT` if the default pair is occupied.
 
 Create a private environment for this repository. Provision the declared Node
 and pnpm versions. Set its Install script to `pnpm setup:cloud`. This checks the
-versions, installs the frozen lockfile and locked Chromium browser with Linux
-dependencies, and installs CLI 2.41.1 from a SHA-256 checked official archive.
-The Linux image needs `unzip`, `install`, and permission to write `/usr/local/bin`
-or non-interactive `sudo`. Setup does not fetch application secrets.
+versions, installs the frozen lockfile and locked Chromium browser, and installs CLI 2.41.1 from a SHA-256 checked official
+archive into `.tmp/tools/op`. The Linux launcher uses that fixed path.
+Setup needs `unzip` and the Playwright Linux system libraries in the image.
+It requires no write access to `/usr/local/bin`. The final headless Chromium
+probe checks the image's browser support. If libraries are missing, provision
+them with the cloud image's supported system-package tools, then rerun setup.
+Setup does not fetch application secrets.
 
 Set the Start skill to read this guide, run `pnpm setup:local` after a branch or
 lockfile change, and run `pnpm dev:local` when an app is needed. Wait for

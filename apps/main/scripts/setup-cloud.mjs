@@ -1,15 +1,18 @@
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import {
-  accessSync,
-  constants,
+  chmodSync,
+  copyFileSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
+  renameSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { createRequire } from "node:module";
 
 const config = JSON.parse(
   readFileSync(
@@ -49,21 +52,17 @@ try {
   const archivePath = path.join(directory, "op.zip");
   writeFileSync(archivePath, archive);
   run("unzip", ["-q", archivePath, "-d", directory]);
-  let writable = true;
-  try {
-    accessSync("/usr/local/bin", constants.W_OK);
-  } catch {
-    writable = false;
-  }
-  const installArgs = [
-    "-m",
-    "0755",
-    path.join(directory, "op"),
-    "/usr/local/bin/op",
-  ];
-  if (writable) run("install", installArgs);
-  else run("sudo", ["-n", "install", ...installArgs]);
-  run("/usr/local/bin/op", ["--version"]);
+  const toolPath = path.resolve(import.meta.dirname, "../../../.tmp/tools/op");
+  mkdirSync(path.dirname(toolPath), { recursive: true });
+  copyFileSync(path.join(directory, "op"), `${toolPath}.new`);
+  chmodSync(`${toolPath}.new`, 0o755);
+  renameSync(`${toolPath}.new`, toolPath);
+  run(toolPath, ["--version"]);
+  const require = createRequire(new URL("../package.json", import.meta.url));
+  const { chromium } = require("@playwright/test");
+  const browser = await chromium.launch({ headless: true, env });
+  await browser.close();
+  console.log("Cloud Chromium probe passed.");
 } finally {
   rmSync(directory, { recursive: true, force: true });
 }

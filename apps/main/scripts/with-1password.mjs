@@ -9,6 +9,10 @@ const config = JSON.parse(
     "utf8",
   ),
 );
+const cli =
+  process.platform === "linux"
+    ? path.resolve(import.meta.dirname, "../../../.tmp/tools/op")
+    : "op";
 const args = process.argv.slice(2);
 const injected = args[0] === "--injected";
 if (injected) args.shift();
@@ -40,7 +44,7 @@ if (injected) {
     throw new Error(
       "Set the Daylily — Development Environment ID in scripts/1password-development.json. See docs/development.md.",
     );
-  const version = spawnSync("op", ["--version"], { encoding: "utf8" });
+  const version = spawnSync(cli, ["--version"], { encoding: "utf8" });
   const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version.stdout?.trim() ?? "");
   if (
     version.status !== 0 ||
@@ -52,7 +56,7 @@ if (injected) {
       `Install stable 1Password CLI ${config.cliVersion} or newer.`,
     );
   }
-  command = "op";
+  command = cli;
   commandArgs = [
     "run",
     "--environment",

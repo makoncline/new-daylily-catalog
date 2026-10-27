@@ -16,14 +16,7 @@ const env = { ...process.env };
 delete env.OP_SERVICE_ACCOUNT_TOKEN;
 for (const args of [
   ["install", "--frozen-lockfile"],
-  [
-    "main",
-    "exec",
-    "playwright",
-    "install",
-    ...(process.platform === "linux" ? ["--with-deps"] : []),
-    "chromium",
-  ],
+  ["main", "exec", "playwright", "install", "chromium"],
 ]) {
   const result = spawnSync("pnpm", args, {
     cwd: repoRoot,
