@@ -612,6 +612,8 @@ test("seller creates a first list from bulk selection before confirming its memb
       { clearFirst: false },
     );
   } finally {
+    await context.clearCookies();
+    await page.close();
     await withTempE2EDb(
       async (db) => {
         await db.list.deleteMany({ where: { userId: "bulk-new-list-member" } });
