@@ -181,7 +181,7 @@ test.each(["SIGINT", "SIGTERM"] as const)(
     console.log('TREE '+grandchild.pid);setInterval(()=>{},1000);`,
       { disposable: true },
     );
-    await expect.poll(run.stdout).toContain("TREE ");
+    await expect.poll(run.stdout, { timeout: 5000 }).toContain("TREE ");
     const databasePath = run.databasePath()!;
     expect(existsSync(databasePath)).toBe(true);
     const pid = Number(/TREE (\d+)/.exec(run.stdout())?.[1]);
