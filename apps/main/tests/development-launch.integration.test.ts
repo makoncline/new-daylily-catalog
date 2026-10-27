@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import {
   copyFileSync,
   existsSync,
@@ -191,6 +191,36 @@ console.log('PROBE PASSED');process.exitCode=7;`,
   );
   expect(result.stdout + result.stderr).toContain("PROBE PASSED");
   expect(result.status).toBe(7);
+  const hash = (settings: Record<string, string>) => {
+    const dry = spawnSync(
+      "pnpm",
+      [
+        "exec",
+        "turbo",
+        "run",
+        "probe",
+        "--filter=@daylily-catalog/main",
+        "--dry=json",
+      ],
+      {
+        cwd: f.dir,
+        env: {
+          ...f.baseEnv,
+          DAYLILY_SECRET_STAGE: "development",
+          R2_PUBLIC_BASE_URL: "https://media-a.example.test",
+          ...settings,
+        },
+        encoding: "utf8",
+      },
+    );
+    expect(dry.status, dry.stderr).toBe(0);
+    return JSON.parse(dry.stdout).tasks[0].hash;
+  };
+  const initialHash = hash({});
+  expect(hash({ R2_PUBLIC_BASE_URL: "https://media-b.example.test" })).not.toBe(
+    initialHash,
+  );
+  expect(hash({ DAYLILY_SECRET_STAGE: "other-stage" })).not.toBe(initialHash);
 }, 30000);
 
 test("failed fetch, unstable CLI, and live credentials prevent the target command", () => {
@@ -262,4 +292,53 @@ test("standalone loading honors app-local overrides and test mode without contac
   );
   expect(repeated.status, repeated.stderr).toBe(0);
   expect(existsSync(path.join(f.dir, "op-called"))).toBe(false);
+});
+
+test("shutdown forwards the received signal and stops the owned command tree", async () => {
+  const f = fixture();
+  const child = spawn(
+    process.execPath,
+    [
+      path.join(f.app, "scripts/with-1password.mjs"),
+      "--",
+      process.execPath,
+      "-e",
+      `
+    const {spawn}=require('node:child_process');
+    const grandchild=spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'inherit'});
+    console.log('RUNNING '+grandchild.pid);setInterval(()=>{},1000);
+  `,
+    ],
+    { cwd: f.dir, env: f.baseEnv, stdio: ["ignore", "pipe", "pipe"] },
+  );
+  let stdout = "";
+  child.stdout.on("data", (chunk) => {
+    stdout += chunk.toString();
+  });
+  const closed = new Promise<{
+    code: number | null;
+    signal: NodeJS.Signals | null;
+  }>((resolve) =>
+    child.once("close", (code, signal) => resolve({ code, signal })),
+  );
+  try {
+    await expect.poll(() => stdout, { timeout: 5000 }).toContain("RUNNING ");
+  } finally {
+    child.kill("SIGTERM");
+    expect(await closed).toEqual({ code: null, signal: "SIGTERM" });
+  }
+  const pid = Number(/RUNNING (\d+)/.exec(stdout)?.[1]);
+  await expect
+    .poll(
+      () => {
+        try {
+          process.kill(pid, 0);
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      { timeout: 5000 },
+    )
+    .toBe(false);
 });

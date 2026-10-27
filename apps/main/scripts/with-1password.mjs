@@ -81,9 +81,11 @@ const child = spawn(command, commandArgs, {
   env: childEnv,
   stdio: "inherit",
 });
+let forwardedSignal;
 const handlers = new Map();
 for (const signal of ["SIGINT", "SIGTERM"]) {
   const handler = () => {
+    forwardedSignal ??= signal;
     try {
       if (ownsGroup) process.kill(-child.pid, signal);
       else child.kill(signal);
@@ -99,5 +101,6 @@ const result = await new Promise((resolve, reject) => {
   child.once("close", (code, signal) => resolve({ code, signal }));
 });
 for (const [signal, handler] of handlers) process.off(signal, handler);
-if (result.signal) process.kill(process.pid, result.signal);
+if (forwardedSignal || result.signal)
+  process.kill(process.pid, forwardedSignal ?? result.signal);
 else process.exitCode = result.code ?? 1;
