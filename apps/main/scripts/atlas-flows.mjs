@@ -1755,6 +1755,10 @@ export const ATLAS_FLOWS = [
           path: "src/components/forms/list-form.tsx",
         },
         {
+          label: "List deletion guidance",
+          path: "src/components/list-delete-dialog.tsx",
+        },
+        {
           label: "Structured editor conflict classification",
           path: "src/trpc/is-conflict-error.ts",
         },
@@ -1795,6 +1799,7 @@ export const ATLAS_FLOWS = [
         "Enforce the same non-Pro list cap for dashboard, member API, and MCP callers, including safe create retries.",
         "Keep drafts after rejected saves and canceled browser history changes.",
         "Keep title and actions pinned in the overview; keep selection and title pinned in Manage List.",
+        "Explain populated-list deletion in both entry points and link to Manage list. Keep catalog listings, photos, and other memberships when removing a list membership. Reject deletion if another session adds a listing after the empty-list review.",
         "Use the same correlation ID in request headers, responses, browser logs, and server logs for successful requests and rejected deletions.",
         "Keep the verified Clerk identity on procedure failures before member lookup. Isolate concurrent members and ignore browser-supplied identities.",
         "Keep list descriptions out of diagnostic logs.",
