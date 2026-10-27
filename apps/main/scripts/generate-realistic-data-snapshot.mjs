@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 
 import { createClerkClient } from "@clerk/backend";
-import * as dotenv from "dotenv";
+import { loadAppEnv } from "./load-env.mjs";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import Stripe from "stripe";
+import { requireTestKey } from "./development-keys.mjs";
 
 import { REALISTIC_DATA_PERSONAS } from "./realistic-data-personas.mjs";
 import {
@@ -26,22 +27,7 @@ const searchIndexPath = path.join(
   "search",
   "public-search-candidate.sqlite",
 );
-for (const envPath of [
-  path.join(repoRoot, ".env.development"),
-  path.join(appRoot, ".env.development"),
-]) {
-  if (existsSync(envPath)) dotenv.config({ path: envPath, quiet: true });
-}
-
-function requireTestKey(name, prefix) {
-  const value = process.env[name] ?? "";
-  if (!value.startsWith(prefix)) {
-    throw new Error(
-      `${name} must be a test-mode key beginning with ${prefix}.`,
-    );
-  }
-  return value;
-}
+loadAppEnv("development");
 
 function resolveSourcePath() {
   const gitCommonDirectory = execFileSync(

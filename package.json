@@ -6,7 +6,7 @@
   "packageManager": "pnpm@9.12.0",
   "scripts": {
     "main": "pnpm --filter @daylily-catalog/main",
-    "dev": "TURBO_CACHE_DIR=.turbo turbo run dev --filter=@daylily-catalog/main",
+    "dev": "node apps/main/scripts/with-1password.mjs --seeded-database-default -- pnpm exec turbo run dev --filter=@daylily-catalog/main",
     "build": "TURBO_CACHE_DIR=.turbo turbo run build --filter=@daylily-catalog/main",
     "build:next": "TURBO_CACHE_DIR=.turbo turbo run build:next --filter=@daylily-catalog/main",
     "lint": "TURBO_CACHE_DIR=.turbo turbo run lint --filter=@daylily-catalog/main",
@@ -19,7 +19,7 @@
     "start": "TURBO_CACHE_DIR=.turbo turbo run start --filter=@daylily-catalog/main",
     "start:standalone": "TURBO_CACHE_DIR=.turbo turbo run start:standalone --filter=@daylily-catalog/main",
     "start-tunnel": "TURBO_CACHE_DIR=.turbo turbo run start-tunnel --filter=@daylily-catalog/main",
-    "env:dev": "pnpm --filter @daylily-catalog/main env:dev",
+    "env:dev": "node apps/main/scripts/with-env.mjs --env development",
     "env:prod": "pnpm --filter @daylily-catalog/main env:prod",
     "db:push": "TURBO_CACHE_DIR=.turbo turbo run db:push --filter=@daylily-catalog/main",
     "db:generate": "TURBO_CACHE_DIR=.turbo turbo run db:generate --filter=@daylily-catalog/main",
@@ -31,7 +31,11 @@
     "migrate:generate": "TURBO_CACHE_DIR=.turbo turbo run migrate:generate --filter=@daylily-catalog/main",
     "browser-tools-server": "TURBO_CACHE_DIR=.turbo turbo run browser-tools-server --filter=@daylily-catalog/main",
     "profile:queries": "TURBO_CACHE_DIR=.turbo turbo run profile:queries --filter=@daylily-catalog/main",
-    "plugin:build": "pnpm --filter @daylily-catalog/main plugin:build"
+    "plugin:build": "pnpm --filter @daylily-catalog/main plugin:build",
+    "secrets:dev": "node apps/main/scripts/with-1password.mjs",
+    "dev:local": "node apps/main/scripts/dev-local.mjs",
+    "setup:local": "node apps/main/scripts/setup-local.mjs",
+    "setup:cloud": "node apps/main/scripts/setup-cloud.mjs"
   },
   "devDependencies": {
     "turbo": "^2.9.6"

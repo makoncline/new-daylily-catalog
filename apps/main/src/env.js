@@ -1,21 +1,5 @@
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
-import * as dotenv from "dotenv";
-import path from "path";
-import { fileURLToPath } from "url";
-
-const appRoot = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "..",
-);
-const repoRoot = path.resolve(appRoot, "../..");
-const envFile =
-  process.env.NODE_ENV === "production"
-    ? ".env.production"
-    : ".env.development";
-dotenv.config({ path: path.resolve(repoRoot, envFile), quiet: true });
-dotenv.config({ path: path.resolve(appRoot, envFile), quiet: true });
-
 export const env = createEnv({
   server: {
     APP_BASE_URL: z.string().url().optional(),

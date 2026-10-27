@@ -6,7 +6,7 @@
   "scripts": {
     "build": "next build",
     "build:next": "next build",
-    "dev": "node scripts/with-env.mjs --env development --seeded-database-default -- next dev",
+    "dev": "next dev",
     "postinstall": "prisma generate",
     "lint": "eslint src",
     "start": "next start",
@@ -147,7 +147,8 @@
     "uuid": "^11.1.0",
     "vaul": "^1.1.2",
     "write-excel-file": "^4.1.1",
-    "zod": "^4.1.5"
+    "zod": "^4.1.5",
+    "@next/env": "16.4.1"
   },
   "devDependencies": {
     "@clerk/backend": "^2.33.5",
@@ -170,7 +171,6 @@
     "@typescript-eslint/parser": "^8.42.0",
     "@vitejs/plugin-react": "^5.1.2",
     "concurrently": "^9.2.1",
-    "dotenv": "^17.2.2",
     "eslint": "^9.35.0",
     "eslint-config-next": "16.3.0",
     "fake-indexeddb": "^6.2.5",
