@@ -104,6 +104,7 @@ apps/*/test-results/
 apps/*/playwright-report/
 apps/*/blob-report/
 apps/*/playwright/.cache/
+apps/*/playwright/.auth/
 # Sentry Config File
 .env.sentry-build-plugin
 
