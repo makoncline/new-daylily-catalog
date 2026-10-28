@@ -48,6 +48,7 @@ export function createIntegrationRuntime({
     TMPDIR: process.env.TMPDIR,
     CI: process.env.CI,
     TERM: process.env.TERM,
+    PLAYWRIGHT_BROWSERS_PATH: process.env.PLAYWRIGHT_BROWSERS_PATH,
     NODE_ENV: "development",
     INTEGRATION_MODE: "1",
     INTEGRATION_NETWORK_GUARD: "1",

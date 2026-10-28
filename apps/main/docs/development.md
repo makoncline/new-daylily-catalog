@@ -89,6 +89,11 @@ probe checks the image's browser support. If libraries are missing, provision
 them with the cloud image's supported system-package tools, then rerun setup.
 Setup does not fetch application secrets.
 
+For a Cloud image with an inherited HTTP proxy, set `NODE_USE_ENV_PROXY=1`
+before setup. Node's native download client must use that proxy. Keep
+`PLAYWRIGHT_BROWSERS_PATH` set when the image uses a custom browser cache.
+The local runtime passes this path to its browser-test child process.
+
 Set the Start skill to read this guide, run `pnpm setup:local` after a branch or
 lockfile change, and run `pnpm dev:local` when an app is needed. Wait for
 `Local app ready` before browser work. Use `pnpm verify` for normal checks.

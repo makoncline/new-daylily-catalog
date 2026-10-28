@@ -227,3 +227,9 @@ check current code before applying them.
 - [2026-10-27] Synthetic member teardown: A mounted alternate-member dashboard recreated its deleted user during a late read. The next test then failed on the unique Clerk ID. Clear cookies and close that page before deleting its fixture user.
 
 - [2026-10-27] Next env reload: `@next/env` force reload restores its first process snapshot. In Playwright global setup, that removed the temporary database URL set by its config. Use the normal cached load so later runtime values remain intact.
+
+- [2026-10-27] Cloud proxy diagnosis: A CONNECT 403 can hide a useful response body. This Cloud runtime returned `Domain forbidden` for `binaries.prisma.sh` and allowed `registry.npmjs.org` through the same inherited proxy. When a saved domain remains blocked, inspect the sanitized CONNECT response body and compare an allowed host. A saved draft or empty pending requirements does not prove that the runtime uses that policy.
+
+- [2026-10-27] Cloud download clients: After the saved domain rule applied, Prisma's normal downloader worked, but a Python urllib probe received Cloudflare 1010. Do not use that probe as an install gate. Node 24 native fetch needed `NODE_USE_ENV_PROXY=1` for the 1Password CLI download through Cloud's inherited proxy. Keep that activation in the Cloud install instructions and preserve certificate and checksum checks.
+
+- [2026-10-27] Cloud browser cache: A standalone Chromium probe can pass while integration tests fail to find the browser. The local-provider runtime uses an explicit child environment. Pass `PLAYWRIGHT_BROWSERS_PATH` through that boundary when Cloud stores browsers outside the default cache.
