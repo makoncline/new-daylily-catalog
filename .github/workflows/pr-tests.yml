@@ -98,6 +98,8 @@ jobs:
 
   e2e:
     name: Connected E2E tests (group ${{ matrix.group }}/3)
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     if: github.event.pull_request.head.repo.fork != true
     environment: preview
@@ -109,9 +111,7 @@ jobs:
       SKIP_ENV_VALIDATION: "1"
       DATABASE_URL: "file:./prisma/local-dev.sqlite"
       E2E_PORT: "3100"
-      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-      STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
       STRIPE_WEBHOOK_SECRET: "whsec_test_placeholder"
       CLERK_WEBHOOK_SECRET: "whsec_test_placeholder"
       AWS_ACCESS_KEY_ID: "placeholder"
@@ -146,8 +146,27 @@ jobs:
         run: pnpm main exec playwright install chromium
       - name: Install sqlite3
         run: sudo apt-get update && sudo apt-get install -y sqlite3
+      - name: Install pinned 1Password CLI
+        if: github.event_name == 'workflow_dispatch' && matrix.group == 1
+        uses: 1password/install-cli-action@9a0c9dd934086b7ab1d90115d455bda1c53c2bdb # v2
+        with:
+          version: "2.41.1"
+      - name: Set repository CLI path
+        if: github.event_name == 'workflow_dispatch' && matrix.group == 1
+        run: |
+          mkdir -p .tmp/tools
+          ln -s "$(command -v op)" .tmp/tools/op
       - name: Run connected E2E group
+        if: github.event_name != 'workflow_dispatch' || matrix.group != 1
+        env:
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
         run: node apps/main/scripts/run-e2e-ci-group.mjs ${{ matrix.group }}
+      - name: Run trusted Development E2E group
+        if: github.event_name == 'workflow_dispatch' && matrix.group == 1
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+        run: pnpm secrets:dev -- node apps/main/scripts/run-e2e-ci-group.mjs 1
       - name: Upload Playwright artifacts
         if: always()
         uses: actions/upload-artifact@v4

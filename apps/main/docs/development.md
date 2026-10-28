@@ -123,3 +123,22 @@ If connected access fails, use `dev:local` and normal checks. Keep the old
 credential files until real delivery is verified. Remove only migrated secret
 entries after that check. GitHub, production, backup, and deployment changes
 require their separate rollout.
+
+## Trusted CI trial
+
+The existing `Preview` GitHub environment requires approval from `makoncline`
+before connected jobs start. Review the workflow and checked-out commit before
+approving a run. A same-repository branch can change the code that reads secrets.
+
+For manual `PR Tests` runs, E2E group 1 uses a separate read-only
+**Daylily — CI Development** service account. Store its token as the `Preview`
+environment secret `OP_SERVICE_ACCOUNT_TOKEN`. Give that account Development
+read access only, with no Production or vault grant. Do not reuse the Cloud token.
+The job installs pinned CLI 2.41.1 without the token. Only its connected test
+step receives the token and calls `pnpm secrets:dev`; the launcher removes the
+token before the application starts.
+
+Ordinary PR checks and the other connected groups keep their narrow GitHub
+provider secrets. Fork checks fetch no 1Password values. The trial does not
+remove existing provider secrets or change `Verify PR` result rules. To stop
+the trial, remove its CI token and revert the manual group 1 step.
