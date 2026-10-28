@@ -14,7 +14,8 @@ test("publishes member state only after the dashboard workspace loads", async ({
     await page.route("http://atlas.test/**", (route) =>
       route.fulfill({
         contentType: "text/html",
-        body: '<h1 data-testid="dashboard-heading">Dashboard</h1>',
+        body: `<style>body { font-family: "Liberation Sans", Arial, sans-serif; }</style>
+          <h1 data-testid="dashboard-heading">Dashboard</h1>`,
       }),
     );
     await page.goto("http://atlas.test/dashboard");

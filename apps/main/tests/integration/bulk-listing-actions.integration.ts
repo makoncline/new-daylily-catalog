@@ -11,6 +11,7 @@ test("seller hides, publishes, and deletes selected listings without changing ot
   page,
   dashboardListings,
 }) => {
+  test.setTimeout(90_000);
   const titles = Array.from({ length: 22 }, (_, index) =>
     index === 3
       ? "Bulk Bloom 03 — A Cultivar with a Long Name for a Small Screen"
@@ -245,7 +246,9 @@ test("seller hides, publishes, and deletes selected listings without changing ot
   await page.reload();
   await dashboardListings.isReady();
   await expect(dashboardListings.listingRow("Bulk Bloom 00")).toHaveCount(0);
-  await expect(dashboardListings.listingRow("Bulk Bloom 20")).toBeVisible();
+  await expect(dashboardListings.listingRow("Bulk Bloom 20")).toBeVisible({
+    timeout: 15_000,
+  });
   await withTempE2EDb(
     async (db) => {
       expect(

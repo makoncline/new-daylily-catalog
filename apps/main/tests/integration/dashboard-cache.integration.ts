@@ -29,6 +29,10 @@ test("saved listing links stay usable as the profile loads", async ({
   const delivery = new Promise<void>((resolve) => {
     release = resolve;
   });
+  let completeProfileDelivery: () => void = () => undefined;
+  const profileDelivered = new Promise<void>((resolve) => {
+    completeProfileDelivery = resolve;
+  });
   try {
     await page.goto("/dashboard/listings");
     await expect(dashboardListings.listingRow(listingTitle)).toBeVisible();
@@ -43,6 +47,7 @@ test("saved listing links stay usable as the profile loads", async ({
       profileHeld = true;
       await delivery;
       await route.fulfill({ response });
+      completeProfileDelivery();
     });
     await page.reload();
     await expect.poll(() => profileHeld).toBe(true);
@@ -70,11 +75,8 @@ test("saved listing links stay usable as the profile loads", async ({
     await expect(
       page.getByRole("menuitem", { name: "Copy link" }),
     ).toBeVisible();
-    const profileResponse = page.waitForResponse((response) =>
-      response.url().includes("dashboardV2.userProfile.get"),
-    );
     release();
-    await (await profileResponse).finished();
+    await profileDelivered;
     // Let React paint the completed profile request before using the open menu.
     await page.evaluate(
       () =>
