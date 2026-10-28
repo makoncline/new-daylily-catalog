@@ -102,7 +102,7 @@ jobs:
       contents: read
     runs-on: ubuntu-latest
     if: github.event.pull_request.head.repo.fork != true
-    environment: ${{ matrix.group == 1 && 'Development CI' || 'preview' }}
+    environment: ${{ github.event.number == 483 && matrix.group == 1 && 'Development CI' || 'preview' }}
     strategy:
       fail-fast: false
       matrix:
@@ -147,23 +147,23 @@ jobs:
       - name: Install sqlite3
         run: sudo apt-get update && sudo apt-get install -y sqlite3
       - name: Install pinned 1Password CLI
-        if: matrix.group == 1
+        if: github.event.number == 483 && matrix.group == 1
         uses: 1password/install-cli-action@9a0c9dd934086b7ab1d90115d455bda1c53c2bdb # v2
         with:
           version: "2.41.1"
       - name: Set repository CLI path
-        if: matrix.group == 1
+        if: github.event.number == 483 && matrix.group == 1
         run: |
           mkdir -p .tmp/tools
           ln -s "$(command -v op)" .tmp/tools/op
       - name: Run connected E2E group
-        if: matrix.group != 1
+        if: github.event.number != 483 || matrix.group != 1
         env:
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
         run: node apps/main/scripts/run-e2e-ci-group.mjs ${{ matrix.group }}
       - name: Run trusted Development E2E group
-        if: matrix.group == 1
+        if: github.event.number == 483 && matrix.group == 1
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
         run: pnpm secrets:dev -- node apps/main/scripts/run-e2e-ci-group.mjs 1
