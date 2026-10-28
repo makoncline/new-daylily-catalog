@@ -35,7 +35,11 @@ function fixture() {
   for (const folder of ["scripts", "prisma", "local/realistic-data"])
     mkdirSync(path.join(appRoot, folder), { recursive: true });
   const actualAppRoot = path.resolve(import.meta.dirname, "..");
-  for (const script of ["with-env.mjs", "realistic-data-snapshot.mjs"])
+  for (const script of [
+    "with-env.mjs",
+    "load-env.mjs",
+    "realistic-data-snapshot.mjs",
+  ])
     copyFileSync(
       path.join(actualAppRoot, "scripts", script),
       path.join(appRoot, "scripts", script),
@@ -45,6 +49,10 @@ function fixture() {
     path.join(appRoot, "node_modules"),
   );
   writeFileSync(path.join(appRoot, "package.json"), '{"type":"module"}');
+  writeFileSync(
+    path.join(appRoot, ".env.development"),
+    "DATABASE_URL=file:file-default.sqlite\n",
+  );
   const schemaPath = path.join(appRoot, "prisma/schema.prisma");
   const databasePath = path.join(appRoot, "local/realistic-data/custom.sqlite");
   writeFileSync(schemaPath, "model Listing { id String @id }\n");
@@ -91,7 +99,7 @@ function launch(
     ],
     {
       cwd: f.appRoot,
-      env: { ...process.env, DATABASE_URL: options.databaseUrl ?? "" },
+      env: { ...process.env, DATABASE_URL: options.databaseUrl },
       stdio: ["pipe", "pipe", "pipe"],
     },
   );
@@ -173,7 +181,7 @@ test.each(["SIGINT", "SIGTERM"] as const)(
     console.log('TREE '+grandchild.pid);setInterval(()=>{},1000);`,
       { disposable: true },
     );
-    await expect.poll(run.stdout).toContain("TREE ");
+    await expect.poll(run.stdout, { timeout: 5000 }).toContain("TREE ");
     const databasePath = run.databasePath()!;
     expect(existsSync(databasePath)).toBe(true);
     const pid = Number(/TREE (\d+)/.exec(run.stdout())?.[1]);

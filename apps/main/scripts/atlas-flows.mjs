@@ -1177,7 +1177,7 @@ export const ATLAS_FLOWS = [
       invariants: [
         "Keep dashboard collections active while the provider is ready, including idle editors.",
         "The dashboard renders the member's saved catalog before refresh completes. Old refreshes must not replace confirmed writes; successful refreshes reconcile additions and deletions.",
-        "Copied listing links use the listing owner ID until the profile URL loads. Loading the profile must not close an open row menu.",
+        "Copied listing links use the listing owner ID until the profile URL loads, then use the loaded profile slug. Keep an open row menu usable across that delivery.",
         "Reject old dashboard API routes before writing data. Show reload instructions and keep the unsaved form open.",
         "Bind dashboard requests to the member that opened the session. Reject a changed or missing member identity before reads or writes.",
         "Store member versions as integer milliseconds and preserve stale-write rejection.",
@@ -1186,6 +1186,7 @@ export const ATLAS_FLOWS = [
         "Scope listing writes to the authenticated user on the server.",
         "The Bulk actions menu uses the full selection across pages and filters. Confirm every title and warn when filters hide selected listings. View selected bypasses filters without changing them; Back to results restores the search. Keep Clear selection beside the menu; it or the last deselection leaves the review view. Deletion warns about listing images and requires typing DELETE; long selections scroll without hiding the confirmation controls. Add to list can select or create a destination through the shared picker, including the member's first list. Creation alone does not add listings; confirm the batch before changing memberships. Preserve other memberships and visibility. Preserve write conflicts and stop on the first failure with the confirmed count.",
         "Start confirmed bulk listing actions on the first results page so deletions and filter changes cannot leave an empty page with no navigation.",
+        "Close the alternate-member browser page and clear its cookies before deleting that integration fixture. Late refreshes must not recreate its user.",
         "Deleting an owned listing removes its Image and ImageAsset database records in the same transaction. Keep other listings' image records and retain stored image files.",
         "Enforce the same non-Pro create cap for dashboard, member API, and MCP callers. Reuse the confirmed tier within each remote request.",
         "Validate before save and keep the form open when save fails.",
@@ -1397,6 +1398,7 @@ export const ATLAS_FLOWS = [
       ],
       invariants: [
         "Keep selected listings for output when search filters change.",
+        "Publish Atlas member state only after the dashboard heading and workspace are visible and its refresh action is enabled.",
         "Keep private search text in the browser and out of shared URLs.",
         "Preserve physical tag and sheet dimensions in preview, print, and downloads.",
       ],

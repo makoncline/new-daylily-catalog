@@ -70,6 +70,9 @@ importers:
       '@libsql/client':
         specifier: ^0.17.3
         version: 0.17.3
+      '@next/env':
+        specifier: 16.4.1
+        version: 16.4.1
       '@prisma/adapter-better-sqlite3':
         specifier: 7.8.0
         version: 7.8.0
@@ -422,9 +425,6 @@ importers:
       concurrently:
         specifier: ^9.2.1
         version: 9.2.1
-      dotenv:
-        specifier: ^17.2.2
-        version: 17.4.2
       eslint:
         specifier: ^9.35.0
         version: 9.39.5(jiti@2.6.1)

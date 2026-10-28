@@ -79,6 +79,47 @@ function runWithGuard(
 }
 
 describe("offline integration runtime", () => {
+  it("passes a custom browser cache to child commands without service credentials", () => {
+    const runtimeUrl = pathToFileURL(
+      path.join(appRoot, "scripts/integration-runtime.mjs"),
+    ).href;
+    const result = spawnSync(
+      process.execPath,
+      [
+        "--input-type=module",
+        "--eval",
+        `
+          import { createIntegrationRuntime } from ${JSON.stringify(runtimeUrl)};
+          const runtime = createIntegrationRuntime();
+          try {
+            process.exitCode = await runtime.run(process.execPath, ["-e", \`
+              const assert = require("node:assert/strict");
+              assert.equal(process.env.PLAYWRIGHT_BROWSERS_PATH, "/tmp/daylily-browser-cache");
+              assert.equal(process.env.OP_SERVICE_ACCOUNT_TOKEN, "");
+              assert.equal(process.env.CLERK_SECRET_KEY, "sk_test_integration");
+              console.log("CHILD PASSED");
+            \`]);
+          } finally {
+            await runtime.cleanup();
+          }
+        `,
+      ],
+      {
+        cwd: appRoot,
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          NODE_ENV: "test",
+          PLAYWRIGHT_BROWSERS_PATH: "/tmp/daylily-browser-cache",
+          OP_SERVICE_ACCOUNT_TOKEN: "dummy-bootstrap",
+          CLERK_SECRET_KEY: "dummy-inherited-key",
+        },
+      },
+    );
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain("CHILD PASSED");
+  });
+
   it("accepts only an explicit loopback runtime with a disposable database", () => {
     expect(() => validateIntegrationRuntime(safeRuntime)).not.toThrow();
 

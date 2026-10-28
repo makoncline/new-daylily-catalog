@@ -221,3 +221,19 @@ check current code before applying them.
 - [2026-10-18] Pinned table test rows: The listing table renders pinned titles and list memberships in separate table rows. For browser assertions across those columns, check the membership cells and verify exact listing IDs in the disposable database. Do not expect the title row to contain every column.
 - [2026-10-22] Browser CI archive: GitHub's Ubuntu runners use /etc/apt/apt-mirrors.txt and can stay on a slow Azure mirror for more than 20 minutes. Before browser system dependency installation, select the official Ubuntu archive in that mirror file and keep installation failure fatal. The CI tests remain required.
 - [2026-10-22] Browser verification dependencies: Docker release and Vercel preview workflows also install Playwright system dependencies. Apply the same Ubuntu archive selection there as in PR Tests. A fix only in PR Tests leaves the other browser checks exposed to the same slow mirror.
+
+- [2026-10-27] 1Password MCP connection: Plugin installation alone does not establish a live desktop connection. The installed `1password-mcp` command starts a stdio MCP server, including with `--help`. For Environment setup, initialize the MCP connection, read its tool schemas, and authenticate before using metadata tools. Do not infer access from installation status.
+
+- [2026-10-27] Synthetic member teardown: A mounted alternate-member dashboard recreated its deleted user during a late read. The next test then failed on the unique Clerk ID. Clear cookies and close that page before deleting its fixture user.
+
+- [2026-10-27] Next env reload: `@next/env` force reload restores its first process snapshot. In Playwright global setup, that removed the temporary database URL set by its config. Use the normal cached load so later runtime values remain intact.
+
+- [2026-10-27] Cloud proxy diagnosis: A CONNECT 403 can hide a useful response body. This Cloud runtime returned `Domain forbidden` for `binaries.prisma.sh` and allowed `registry.npmjs.org` through the same inherited proxy. When a saved domain remains blocked, inspect the sanitized CONNECT response body and compare an allowed host. A saved draft or empty pending requirements does not prove that the runtime uses that policy.
+
+- [2026-10-27] Cloud download clients: After the saved domain rule applied, Prisma's normal downloader worked, but a Python urllib probe received Cloudflare 1010. Do not use that probe as an install gate. Node 24 native fetch needed `NODE_USE_ENV_PROXY=1` for the 1Password CLI download through Cloud's inherited proxy. Keep that activation in the Cloud install instructions and preserve certificate and checksum checks.
+
+- [2026-10-27] Cloud browser cache: A standalone Chromium probe can pass while integration tests fail to find the browser. The local-provider runtime uses an explicit child environment. Pass `PLAYWRIGHT_BROWSERS_PATH` through that boundary when Cloud stores browsers outside the default cache.
+
+- [2026-10-27] Cloud browser fixtures: This Cloud image gives bare HTML zero-height text for Chromium's generic serif and monospace fonts. Installed Liberation fonts render correctly. Use a named system-font stack in synthetic HTML visibility fixtures; do not infer application rendering from that fixture defect.
+
+- [2026-10-27] Held Playwright responses: In Cloud, a fulfilled routed response emitted its response event but its `finished()` promise did not resolve. For a test-controlled response, await completion of the route handler and then assert the visible application result. Do not use network completion as the only proof that the UI updated.
