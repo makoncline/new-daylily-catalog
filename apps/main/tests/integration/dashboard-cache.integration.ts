@@ -725,6 +725,11 @@ test("local table pagination restores browser history without route requests", a
       dashboardListings.listingRow("History Bloom 00"),
     ).toBeVisible();
     expect(navigations).toEqual([]);
+    await page.goto("/dashboard/listings?description=blue");
+    await expect(
+      dashboardListings.listingRow("History Bloom 01"),
+    ).toBeVisible();
+    expect(new URL(page.url()).searchParams.get("description")).toBe("blue");
   } finally {
     await withTempE2EDb(
       (db) => db.listing.deleteMany({ where: { id: { startsWith: prefix } } }),

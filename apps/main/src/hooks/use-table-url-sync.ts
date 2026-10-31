@@ -88,6 +88,12 @@ export function useTableUrlSync<TData>(table: Table<TData>, enabled = true) {
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   const { pagination, columnFilters, globalFilter } = table.getState();
   const filterableColumns = table.options.meta?.filterableColumns;
+  const serializedState = JSON.stringify([
+    pagination,
+    columnFilters,
+    globalFilter,
+  ]);
+  const lastState = React.useRef(serializedState);
 
   React.useEffect(() => {
     if (!enabled || typeof window === "undefined") return;
@@ -97,12 +103,19 @@ export function useTableUrlSync<TData>(table: Table<TData>, enabled = true) {
     if (lastSearch.current !== null && lastSearch.current !== url.search) {
       lastSearch.current = url.search;
       const state = getTableUrlState(oldParams, pathname, filterableColumns);
+      lastState.current = JSON.stringify([
+        state.pagination,
+        state.columnFilters,
+        state.globalFilter,
+      ]);
       table.setColumnFilters(state.columnFilters);
       table.setGlobalFilter(state.globalFilter);
       table.setPagination(state.pagination);
       return;
     }
     lastSearch.current = url.search;
+    if (lastState.current === serializedState) return;
+    lastState.current = serializedState;
     const defaultPageSize = getDefaultPageSize(pathname);
 
     // Update only the search parameters
@@ -167,6 +180,7 @@ export function useTableUrlSync<TData>(table: Table<TData>, enabled = true) {
     pathname,
     table,
     searchParams,
+    serializedState,
     pagination,
     columnFilters,
     globalFilter,

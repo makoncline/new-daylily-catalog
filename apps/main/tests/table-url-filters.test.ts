@@ -21,8 +21,21 @@ describe("table url filters", () => {
   it("keeps string filters distinct from facet arrays", () => {
     expect(toTableUrlColumnFilterParamValue("list-a")).toBe('"list-a"');
     expect(toTableUrlColumnFilterParamValue(["list-a", "list-b"])).toBe(
-      "list-a,list-b",
+      '["list-a","list-b"]',
     );
+    const values = ["red, yellow", "123"];
+    expect(
+      parseTableUrlColumnFilterValue(
+        "ploidy",
+        toTableUrlColumnFilterParamValue(values),
+      ),
+    ).toEqual(values);
+    expect(
+      parseTableUrlColumnFilterValue(
+        "lists",
+        toTableUrlColumnFilterParamValue(values),
+      ),
+    ).toEqual(values);
   });
   it.each(["red, yellow", "123", "true", '["red"]'])(
     "preserves text filter %s through a URL round trip",
