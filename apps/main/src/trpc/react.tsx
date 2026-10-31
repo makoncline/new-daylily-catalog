@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { createTRPCReact } from "@trpc/react-query";
 import { type inferRouterInputs, type inferRouterOutputs } from "@trpc/server";
 import { useState } from "react";
+import { useAuth } from "@clerk/nextjs";
 
 import { type AppRouter } from "@/server/api/root";
 import { getQueryClient } from "./query-client";
@@ -27,9 +28,10 @@ export type RouterOutputs = inferRouterOutputs<AppRouter>;
 
 export function TRPCReactProvider(props: { children: React.ReactNode }) {
   const queryClient = getQueryClient();
+  const { getToken } = useAuth();
 
   const [trpcClient] = useState(() =>
-    api.createClient({ links: createClientLinks() }),
+    api.createClient({ links: createClientLinks(undefined, getToken) }),
   );
 
   return (

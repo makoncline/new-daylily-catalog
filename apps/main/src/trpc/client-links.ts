@@ -16,12 +16,21 @@ import {
 } from "@/lib/telemetry";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 
-export function createClientLinks(memberId?: string) {
+export type GetSessionToken = () => Promise<string | null>;
+
+export function createClientLinks(
+  memberId?: string,
+  getToken?: GetSessionToken,
+) {
   const url = getBaseUrl() + "/api/trpc";
-  const headers = () => {
+  const headers = async () => {
+    const token = await getToken?.();
+    if (memberId && !token)
+      throw new Error("Your session ended. Sign in again.");
     const nextHeaders = new Headers();
     nextHeaders.set("x-trpc-source", "nextjs-react");
     if (memberId) nextHeaders.set("x-dashboard-member-id", memberId);
+    if (token) nextHeaders.set("authorization", `Bearer ${token}`);
     return nextHeaders;
   };
 

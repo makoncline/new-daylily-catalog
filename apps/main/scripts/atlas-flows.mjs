@@ -1175,6 +1175,7 @@ export const ATLAS_FLOWS = [
         },
       ],
       invariants: [
+        "Await the current Clerk session token before member bootstrap and batched requests. Keep server member binding and do not replay writes after authentication failure.",
         "Keep dashboard collections active while the provider is ready, including idle editors.",
         "The dashboard renders the member's saved catalog before refresh completes. Old refreshes must not replace confirmed writes; successful refreshes reconcile additions and deletions.",
         "Copied listing links use the listing owner ID until the profile URL loads. Loading the profile must not close an open row menu.",
@@ -1197,6 +1198,7 @@ export const ATLAS_FLOWS = [
     tests: {
       unit: [testRef("unit", "tests/listings-search-normalization.test.tsx")],
       integration: [
+        testRef("integration", "tests/trpc-session-token.integration.test.ts"),
         testRef(
           "integration",
           "tests/member-version-storage.integration.test.ts",

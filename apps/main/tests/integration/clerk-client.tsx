@@ -14,7 +14,7 @@ interface AuthSnapshot {
   isSignedIn: boolean | undefined;
   userId: string | null | undefined;
   sessionId: string | null | undefined;
-  getToken: () => Promise<null>;
+  getToken: () => Promise<string | null>;
 }
 
 interface UserSnapshot {
@@ -67,12 +67,13 @@ const signedInAuth: AuthSnapshot = {
   isSignedIn: true,
   userId: clerkUser.id,
   sessionId: "session_integration_seller",
-  getToken: async () => null,
+  getToken: async () => "integration-session-seller",
 };
 const otherAuth: AuthSnapshot = {
   ...signedInAuth,
   userId: "user_integration_other",
   sessionId: "session_integration_other",
+  getToken: async () => "integration-session-other",
 };
 const unloadedUser: UserSnapshot = {
   isLoaded: false,
