@@ -664,6 +664,8 @@ test("local table pagination restores browser history without route requests", a
           userId: "integration-user",
           slug: `${prefix}${index}`,
           title: `History Bloom ${String(index).padStart(2, "0")}`,
+          description:
+            index === 20 ? "red, yellow" : index === 0 ? "123" : "blue",
         })),
       }),
     { clearFirst: false },
@@ -698,6 +700,30 @@ test("local table pagination restores browser history without route requests", a
     await dashboardListings.setGlobalSearch("History Bloom 00");
     await expect(dashboardListings.filteredCount()).toContainText("1 /");
     expect(new URL(page.url()).searchParams.get("source")).toBe("test");
+    await dashboardListings.setGlobalSearch("History Bloom");
+    await dashboardListings.openColumnFilter("Description");
+    const description = page.getByRole("textbox", {
+      name: "Filter description",
+      exact: true,
+    });
+    await description.fill("red, yellow");
+    await expect(
+      dashboardListings.listingRow("History Bloom 20"),
+    ).toBeVisible();
+    await description.fill("123");
+    await expect(
+      dashboardListings.listingRow("History Bloom 00"),
+    ).toBeVisible();
+    await page.goBack();
+    await expect(description).toHaveValue("red, yellow");
+    await expect(
+      dashboardListings.listingRow("History Bloom 20"),
+    ).toBeVisible();
+    await page.goForward();
+    await expect(description).toHaveValue("123");
+    await expect(
+      dashboardListings.listingRow("History Bloom 00"),
+    ).toBeVisible();
     expect(navigations).toEqual([]);
   } finally {
     await withTempE2EDb(

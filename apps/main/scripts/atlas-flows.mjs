@@ -1198,6 +1198,7 @@ export const ATLAS_FLOWS = [
     tests: {
       unit: [testRef("unit", "tests/listings-search-normalization.test.tsx")],
       integration: [
+        testRef("integration", "tests/table-url-filters.test.ts"),
         testRef(
           "integration",
           "tests/member-version-storage.integration.test.ts",

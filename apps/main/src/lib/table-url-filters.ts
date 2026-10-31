@@ -40,11 +40,12 @@ export function parseTableUrlColumnFilterValue(
     return parseListsFilterValue(rawValue);
   }
 
+  const parsed = parseJsonValue(rawValue);
+  if (typeof parsed === "string" && rawValue.startsWith('"')) return parsed;
   if (rawValue.includes(",")) {
     return rawValue.split(",").filter((entry) => entry.length > 0);
   }
 
-  const parsed = parseJsonValue(rawValue);
   if (
     typeof parsed === "string" ||
     typeof parsed === "number" ||
@@ -63,11 +64,9 @@ export function toTableUrlColumnFilterParamValue(value: unknown): string {
       .join(",");
   }
 
-  if (
-    typeof value === "string" ||
-    typeof value === "number" ||
-    typeof value === "boolean"
-  ) {
+  if (typeof value === "string") return JSON.stringify(value);
+
+  if (typeof value === "number" || typeof value === "boolean") {
     return String(value);
   }
 
