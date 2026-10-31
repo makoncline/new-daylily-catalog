@@ -5,6 +5,9 @@ import { createTRPCClient } from "@trpc/client";
 import { initTRPC, TRPCError } from "@trpc/server";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import SuperJSON from "superjson";
+import { createElement } from "react";
+import { renderToString } from "react-dom/server";
+import { TRPCReactProvider } from "@/trpc/react";
 import { createClientLinks } from "@/trpc/client-links";
 
 const t = initTRPC
@@ -99,4 +102,12 @@ it("authenticates provider reads and keeps anonymous public reads available", as
     links: createClientLinks(),
   });
   await expect(anonymous.public.query()).resolves.toBeNull();
+});
+
+it("renders public providers without a Clerk provider", () => {
+  expect(
+    renderToString(
+      createElement(TRPCReactProvider, { children: "Public catalog" }),
+    ),
+  ).toContain("Public catalog");
 });
