@@ -650,3 +650,59 @@ test("an account change blocks an old dashboard save before it can write", async
     );
   }
 });
+
+test("local table pagination restores browser history without route requests", async ({
+  page,
+  dashboardListings,
+}) => {
+  const prefix = "history-page-";
+  await withTempE2EDb(
+    (db) =>
+      db.listing.createMany({
+        data: Array.from({ length: 21 }, (_, index) => ({
+          id: `${prefix}${index}`,
+          userId: "integration-user",
+          slug: `${prefix}${index}`,
+          title: `History Bloom ${String(index).padStart(2, "0")}`,
+        })),
+      }),
+    { clearFirst: false },
+  );
+  try {
+    await page.goto(
+      "/dashboard/listings?size=20&query=History+Bloom&source=test",
+    );
+    await expect(
+      dashboardListings.listingRow("History Bloom 00"),
+    ).toBeVisible();
+    const navigations: string[] = [];
+    page.on("request", (request) => {
+      if (request.headers().rsc === "1") navigations.push(request.url());
+    });
+    await dashboardListings.goToNextPage();
+    await expect(page).toHaveURL(/page=2/);
+    await expect(
+      dashboardListings.listingRow("History Bloom 20"),
+    ).toBeVisible();
+    await page.goBack();
+    await expect(
+      dashboardListings.listingRow("History Bloom 00"),
+    ).toBeVisible();
+    await expect(page).not.toHaveURL(/page=2/);
+    await page.goForward();
+    await expect(
+      dashboardListings.listingRow("History Bloom 20"),
+    ).toBeVisible();
+    await expect(page).toHaveURL(/page=2/);
+    await dashboardListings.pagerFirstButton.click();
+    await dashboardListings.setGlobalSearch("History Bloom 00");
+    await expect(dashboardListings.filteredCount()).toContainText("1 /");
+    expect(new URL(page.url()).searchParams.get("source")).toBe("test");
+    expect(navigations).toEqual([]);
+  } finally {
+    await withTempE2EDb(
+      (db) => db.listing.deleteMany({ where: { id: { startsWith: prefix } } }),
+      { clearFirst: false },
+    );
+  }
+});
