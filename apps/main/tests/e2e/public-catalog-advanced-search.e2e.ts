@@ -269,15 +269,15 @@ test.describe("public catalog advanced search @local", () => {
 
     await expectUrlParam("price", "true");
     await expectUrlParam("hasPhoto", "true");
-    await expectUrlParam("hybridizer", "Reed");
+    await expectUrlParam("hybridizer", JSON.stringify("Reed"));
     await expect(page).toHaveURL(
       (url) => url.searchParams.get("year") !== null,
     );
-    await expectUrlParam("lists", "list-featured");
-    await expectUrlParam("bloomSeason", "Midseason");
-    await expectUrlParam("ploidy", "Tet");
-    await expectUrlParam("color", "Rose");
-    await expectUrlParam("parentage", "A x B");
+    await expectUrlParam("lists", JSON.stringify(["list-featured"]));
+    await expectUrlParam("bloomSeason", JSON.stringify(["Midseason"]));
+    await expectUrlParam("ploidy", JSON.stringify(["Tet"]));
+    await expectUrlParam("color", JSON.stringify("Rose"));
+    await expectUrlParam("parentage", JSON.stringify("A x B"));
 
     await page.reload();
 
