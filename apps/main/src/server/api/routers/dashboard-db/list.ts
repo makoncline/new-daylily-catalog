@@ -247,7 +247,7 @@ export const dashboardDbListRouter = createTRPCRouter({
         throw new TRPCError({
           code: list ? "PRECONDITION_FAILED" : "NOT_FOUND",
           message: list
-            ? "Cannot delete list with associated listings"
+            ? "Remove all listings from this list before deleting it. Your listings will stay in your catalog."
             : "List not found",
         });
       }

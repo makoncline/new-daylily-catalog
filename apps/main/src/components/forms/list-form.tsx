@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
+import { ListDeleteDialog } from "@/components/list-delete-dialog";
 import { ListFormSkeleton } from "@/components/forms/list-form-skeleton";
 import { useListResource } from "@/app/dashboard/_lib/dashboard-db/use-list-resource";
 import { ListMissingState } from "@/components/list-missing-state";
@@ -398,12 +398,11 @@ function ListFormInner({
         </div>
       </form>
 
-      <DeleteConfirmDialog
+      <ListDeleteDialog
+        list={list}
         open={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
         onConfirm={() => void confirmDelete()}
-        title="Delete List"
-        description={`Delete ${list.title}? This action cannot be undone.`}
       />
     </>
   );

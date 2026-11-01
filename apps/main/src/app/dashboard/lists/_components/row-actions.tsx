@@ -13,7 +13,7 @@ import { MoreHorizontal, Pencil, Trash2, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/error-utils";
 import { type RouterOutputs } from "@/trpc/react";
-import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
+import { ListDeleteDialog } from "@/components/list-delete-dialog";
 import Link from "next/link";
 
 import { useConfirmableAsyncAction } from "@/hooks/use-confirmable-async-action";
@@ -91,12 +91,11 @@ export function DataTableRowActions({ row, onEdit }: DataTableRowActionsProps) {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <DeleteConfirmDialog
+      <ListDeleteDialog
+        list={row.original}
         open={showDeleteDialog}
         onOpenChange={setShowDeleteDialog}
         onConfirm={() => void confirmDelete()}
-        title="Delete List"
-        description="Are you sure you want to delete this list? Your listings will stay in your catalog. This action cannot be undone."
       />
     </>
   );

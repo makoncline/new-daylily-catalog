@@ -48,7 +48,7 @@ test.describe("listings page features @local", () => {
 
     const expectFirstRowTitle = async (title: string) => {
       await expect(
-        dashboardListings.rows().first().locator("td").first(),
+        dashboardListings.rows().first().locator("td").nth(1),
       ).toHaveText(title);
     };
 
@@ -102,7 +102,7 @@ test.describe("listings page features @local", () => {
         .rows()
         .first()
         .locator("td")
-        .first();
+        .nth(1);
 
       await dashboardListings.sortByColumn(columnLabel);
       await expect(firstRowTitleCell).toHaveText(

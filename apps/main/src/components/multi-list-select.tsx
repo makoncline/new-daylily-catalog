@@ -29,12 +29,16 @@ import { toast } from "sonner";
 import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
 
 interface MultiListSelectProps {
+  id?: string;
+  multiple?: boolean;
   values: string[];
   onSelect: (listIds: string[]) => void;
   disabled?: boolean;
 }
 
 export function MultiListSelect({
+  id = "list-select",
+  multiple = true,
   values,
   onSelect,
   disabled,
@@ -66,6 +70,11 @@ export function MultiListSelect({
     }
   };
   const handleToggleList = (listId: string) => {
+    if (!multiple) {
+      onSelect([listId]);
+      handleOpenChange(false);
+      return;
+    }
     onSelect(
       values.includes(listId)
         ? values.filter((id) => id !== listId)
@@ -83,7 +92,7 @@ export function MultiListSelect({
         createRequestRef.current = request;
       }
       const newList = await insertList(request);
-      onSelect([...values, newList.id]);
+      onSelect(multiple ? [...values, newList.id] : [newList.id]);
       handleOpenChange(false);
     } catch {
       toast.error("Failed to create list");
@@ -96,13 +105,13 @@ export function MultiListSelect({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button
-          id="list-select"
+          id={id}
           type="button"
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          aria-controls="list-select-list"
-          className="w-full justify-between"
+          aria-controls={`${id}-list`}
+          className="h-11 w-full justify-between sm:h-9"
           disabled={isBusy}
         >
           <span className="flex min-w-0 gap-1 overflow-hidden">
@@ -114,16 +123,21 @@ export function MultiListSelect({
                     className="shrink-0"
                   />
                 ))
-              : "Select lists..."}
+              : multiple
+                ? "Select lists..."
+                : "Select or create a list..."}
           </span>
           <ChevronsUpDown aria-hidden="true" />
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Select Lists</DialogTitle>
+          <DialogTitle>
+            {multiple ? "Select Lists" : "Select a list"}
+          </DialogTitle>
           <DialogDescription>
-            Select one or more lists. You can also create a list.
+            {multiple ? "Select one or more lists." : "Select a list."} You can
+            also create a list.
           </DialogDescription>
         </DialogHeader>
         <Command shouldFilter={false}>
@@ -133,7 +147,7 @@ export function MultiListSelect({
             onValueChange={setSearchValue}
             disabled={isCreating}
           />
-          <CommandList id="list-select-list">
+          <CommandList id={`${id}-list`}>
             {!searchValue && (
               <>
                 <CommandGroup>

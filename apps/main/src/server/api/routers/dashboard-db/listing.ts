@@ -708,6 +708,9 @@ export const dashboardDbListingRouter = createTRPCRouter({
             )
           RETURNING "id"
         `;
+        await tx.image.deleteMany({
+          where: { listing: { id: input.id, userId: ctx.user.id } },
+        });
         const deleted = await tx.listing.deleteMany({
           where: { id: input.id, userId: ctx.user.id },
         });

@@ -219,6 +219,10 @@ try {
   );
 
   const share = results[0].value;
+  const photo = await sharp(share)
+    .extract({ left: 750, top: 100, width: 300, height: 300 })
+    .stats();
+  assert.ok(photo.channels[0].stdev > 20, "The source photo must render.");
   for (const [body, light] of [
     [print, true],
     [share, false],
@@ -251,6 +255,26 @@ try {
     );
     writeFileSync(`${directory}/${route.split("/")[0]}.png`, body);
   }
+  const cachedPhotos = JSON.parse(
+    docker(
+      "exec",
+      name,
+      "node",
+      "-e",
+      `
+      const fs = require("node:fs");
+      const dir = "/app/apps/main/.next/cache/fetch-cache";
+      const entries = fs.existsSync(dir) ? fs.readdirSync(dir) : [];
+      const urls = entries.map(file => JSON.parse(fs.readFileSync(dir + "/" + file)).data?.url);
+      console.log(JSON.stringify(urls.filter(url => url && new URL(url).pathname.startsWith("/assets/"))));
+    `,
+    ),
+  );
+  assert.deepEqual(
+    cachedPhotos,
+    [],
+    "OG source photos must not persist in Next's fetch cache.",
+  );
   for (const route of ["cultivar/missing", "private/integration-user"]) {
     const response = await fetch(`${baseUrl}/api/og/${route}`);
     assert.equal(response.status, 404);

@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM node:20-bookworm-slim AS base
+FROM node:24.22.1-bookworm-slim AS base
 
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PNPM_HOME=/pnpm
@@ -16,7 +16,6 @@ FROM base AS deps
 WORKDIR /app
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY patches ./patches
 COPY apps/main/package.json ./apps/main/package.json
 COPY packages/standalone-runtime/package.json ./packages/standalone-runtime/package.json
 COPY apps/main/prisma ./apps/main/prisma
@@ -60,6 +59,9 @@ RUN --mount=type=secret,id=app_env \
 
 FROM base AS runner
 
+RUN --mount=type=bind,source=apps/main/scripts/node-runtime.test.mjs,target=/tmp/node-runtime.test.mjs \
+    node --test /tmp/node-runtime.test.mjs
+
 ARG GIT_COMMIT_SHA
 
 ENV NODE_ENV=production
@@ -89,6 +91,9 @@ COPY --from=runtime-deps --chown=nextjs:nodejs /runtime/node_modules ./node_modu
 COPY --from=builder --chown=nextjs:nodejs /app/apps/main/.next/static ./apps/main/.next/static
 
 RUN node -e 'const { execFileSync } = require("node:child_process"); const { createRequire } = require("node:module"); void (async () => { const serverRequire = createRequire("/app/apps/main/server.js"); for (const dependency of ["@aws-sdk/client-s3", "@prisma/client", "@prisma/adapter-libsql", "@libsql/client"]) serverRequire(dependency); const sharp = serverRequire("sharp"); await sharp({ create: { width: 1, height: 1, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } }).webp().toBuffer(); const sharpAddon = Object.keys(require.cache).find((modulePath) => modulePath.endsWith(".node") && modulePath.includes("sharp")); if (!sharpAddon) throw new Error("Loaded Sharp native addon was not found."); const sharpLdd = execFileSync("ldd", [sharpAddon], { encoding: "utf8" }); process.stdout.write(sharpLdd); if (sharpLdd.includes("not found")) process.exit(1); })().catch((error) => { console.error(error); process.exit(1); })'
+
+RUN --mount=type=bind,source=apps/main/scripts/next-image-runtime.test.mjs,target=/app/apps/main/scripts/next-image-runtime.test.mjs \
+    node --test apps/main/scripts/next-image-runtime.test.mjs
 
 USER nextjs
 

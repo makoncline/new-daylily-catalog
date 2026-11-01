@@ -85,7 +85,6 @@ async function prepareImageForSatori(source: string, requestUrl: string) {
   const safeSource = getOptimizedMetaImageUrl(source);
   const absoluteSource = new URL(safeSource, requestUrl).toString();
   const response = await fetch(absoluteSource, {
-    cache: "force-cache",
     signal: AbortSignal.timeout(5_000),
   });
 

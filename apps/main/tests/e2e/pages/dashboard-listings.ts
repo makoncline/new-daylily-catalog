@@ -58,7 +58,7 @@ export class DashboardListings {
     const rowCount = await this.visibleRowCount();
     if (rowCount === 0) return "";
 
-    const rawText = await this.rows().first().locator("td").first().innerText();
+    const rawText = await this.rows().first().locator("td").nth(1).innerText();
     return rawText.trim();
   }
 

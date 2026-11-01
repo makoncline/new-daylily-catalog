@@ -95,7 +95,7 @@ export function DataTableColumnHeader<TData, TValue>({
         <div>{title}</div>
       )}
 
-      {enableFilter && (
+      {enableFilter && column.getCanFilter() && (
         <Popover open={filterOpen} onOpenChange={updateFilterOpen}>
           <PopoverTrigger asChild>
             <Button
