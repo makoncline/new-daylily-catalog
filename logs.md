@@ -223,7 +223,10 @@ check current code before applying them.
 - [2026-10-22] Browser verification dependencies: Docker release and Vercel preview workflows also install Playwright system dependencies. Apply the same Ubuntu archive selection there as in PR Tests. A fix only in PR Tests leaves the other browser checks exposed to the same slow mirror.
 
 - [2026-10-31] Clerk browser request tokens: useAuth().getToken waits for the SDK to load and renews expired tokens. Pass that getter into both tRPC transports; dashboard bootstrap uses a separate httpLink and the initial member lookup must also use the authenticated provider client.
+- [2026-10-31] Local table history: Native pushState updates Next useSearchParams without route navigation. A table initialized from the URL must also restore state on history traversal; otherwise its sync effect writes the old table state back over the traversed URL. Encode string filters as JSON strings so commas and numeric text keep their type.
 
 - [2026-11-01] Browser runner baseline: GitHub is moving ubuntu-latest to Ubuntu 26.04 (actions/runner-images#14748). Playwright 1.55 does not support that image. Keep all browser-running jobs, including preview E2E and Docker verification, on ubuntu-24.04 until a supported Playwright upgrade is verified.
 
 - [2026-11-01] Snapshot lock runner: Ubuntu 26.04 uutils mkdir can return success to concurrent callers for the same directory (uutils/coreutils#13970). This breaks the backup integration test on ubuntu-latest. Keep Vitest on ubuntu-24.04 as well as browser jobs; do not weaken the snapshot lock assertion.
+
+- [2026-11-01] Native history and dialog URLs: useSearchParams can retain the previous query when a local table updates browser history and a dialog opens before the next React render. Build imperative dialog URLs from window.location.search at the action, including edit close. Verify the filter survives opening, saving, and returning.

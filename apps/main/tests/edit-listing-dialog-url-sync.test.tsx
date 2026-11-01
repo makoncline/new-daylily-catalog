@@ -17,6 +17,7 @@ const navigationState = vi.hoisted(() => {
 
   const push = vi.fn((url: string) => {
     const nextUrl = new URL(url, "https://example.com");
+    window.history.replaceState(null, "", nextUrl.pathname + nextUrl.search);
     pathname = nextUrl.pathname;
     search = nextUrl.search.startsWith("?")
       ? nextUrl.search.slice(1)
@@ -25,6 +26,7 @@ const navigationState = vi.hoisted(() => {
 
   const replace = vi.fn((url: string) => {
     const nextUrl = new URL(url, "https://example.com");
+    window.history.replaceState(null, "", nextUrl.pathname + nextUrl.search);
     pathname = nextUrl.pathname;
     search = nextUrl.search.startsWith("?")
       ? nextUrl.search.slice(1)
@@ -35,6 +37,7 @@ const navigationState = vi.hoisted(() => {
     getPathname: () => pathname,
     getSearch: () => search,
     setSearch: (value: string) => {
+      window.history.replaceState(null, "", `/dashboard/listings?${value}`);
       search = value;
     },
     push,
@@ -158,6 +161,20 @@ describe("useEditListing URL sync", () => {
     act(() => result.current.closeCreateListing());
     expect(navigationState.replace).toHaveBeenCalledWith(
       "/dashboard/listings",
+      { scroll: false },
+    );
+  });
+
+  it("keeps current browser filters when closing before a render", () => {
+    const { result } = renderHook(useEditListing);
+    window.history.pushState(
+      null,
+      "",
+      "/dashboard/listings?editing=listing-1&query=Coffee",
+    );
+    act(() => result.current.closeEditListing());
+    expect(navigationState.replace).toHaveBeenCalledWith(
+      "/dashboard/listings?query=Coffee",
       { scroll: false },
     );
   });

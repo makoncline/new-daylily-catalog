@@ -324,6 +324,9 @@ test("large saved catalog stays usable and current when a refresh overlaps a sav
       .filter({ visible: true })
       .click();
     await editListingDialog.isReady();
+    await expect(page).toHaveURL(
+      (url) => url.searchParams.get("query") === title(4999),
+    );
     await editListingDialog.fillTitle("Saved Warm Bloom 04999");
     const saveStart = performance.now();
     await editListingDialog.clickSaveChanges();
@@ -646,6 +649,93 @@ test("an account change blocks an old dashboard save before it can write", async
     await context.clearCookies();
     await withTempE2EDb(
       (db) => db.user.deleteMany({ where: { id: "boundary-other-member" } }),
+      { clearFirst: false },
+    );
+  }
+});
+
+test("local table pagination restores browser history without route requests", async ({
+  page,
+  dashboardListings,
+}) => {
+  const prefix = "history-page-";
+  await withTempE2EDb(
+    (db) =>
+      db.listing.createMany({
+        data: Array.from({ length: 21 }, (_, index) => ({
+          id: `${prefix}${index}`,
+          userId: "integration-user",
+          slug: `${prefix}${index}`,
+          title: `History Bloom ${String(index).padStart(2, "0")}`,
+          description:
+            index === 20 ? "red, yellow" : index === 0 ? "123" : "blue",
+        })),
+      }),
+    { clearFirst: false },
+  );
+  try {
+    await page.goto(
+      "/dashboard/listings?size=20&query=History+Bloom&source=test",
+    );
+    await expect(
+      dashboardListings.listingRow("History Bloom 00"),
+    ).toBeVisible();
+    const navigations: string[] = [];
+    page.on("request", (request) => {
+      if (request.headers().rsc === "1") navigations.push(request.url());
+    });
+    await dashboardListings.goToNextPage();
+    await expect(page).toHaveURL(/page=2/);
+    await expect(
+      dashboardListings.listingRow("History Bloom 20"),
+    ).toBeVisible();
+    await page.goBack();
+    await expect(
+      dashboardListings.listingRow("History Bloom 00"),
+    ).toBeVisible();
+    await expect(page).not.toHaveURL(/page=2/);
+    await page.goForward();
+    await expect(
+      dashboardListings.listingRow("History Bloom 20"),
+    ).toBeVisible();
+    await expect(page).toHaveURL(/page=2/);
+    await dashboardListings.pagerFirstButton.click();
+    await dashboardListings.setGlobalSearch("History Bloom 00");
+    await expect(dashboardListings.filteredCount()).toContainText("1 /");
+    expect(new URL(page.url()).searchParams.get("source")).toBe("test");
+    await dashboardListings.setGlobalSearch("History Bloom");
+    await dashboardListings.openColumnFilter("Description");
+    const description = page.getByRole("textbox", {
+      name: "Filter description",
+      exact: true,
+    });
+    await description.fill("red, yellow");
+    await expect(
+      dashboardListings.listingRow("History Bloom 20"),
+    ).toBeVisible();
+    await description.fill("123");
+    await expect(
+      dashboardListings.listingRow("History Bloom 00"),
+    ).toBeVisible();
+    await page.goBack();
+    await expect(description).toHaveValue("red, yellow");
+    await expect(
+      dashboardListings.listingRow("History Bloom 20"),
+    ).toBeVisible();
+    await page.goForward();
+    await expect(description).toHaveValue("123");
+    await expect(
+      dashboardListings.listingRow("History Bloom 00"),
+    ).toBeVisible();
+    expect(navigations).toEqual([]);
+    await page.goto("/dashboard/listings?description=blue");
+    await expect(
+      dashboardListings.listingRow("History Bloom 01"),
+    ).toBeVisible();
+    expect(new URL(page.url()).searchParams.get("description")).toBe("blue");
+  } finally {
+    await withTempE2EDb(
+      (db) => db.listing.deleteMany({ where: { id: { startsWith: prefix } } }),
       { clearFirst: false },
     );
   }
