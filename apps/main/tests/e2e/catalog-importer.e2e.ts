@@ -120,14 +120,12 @@ test.describe("catalog importer", () => {
       .getByRole("alertdialog")
       .getByRole("button", { name: "Clear local progress", exact: true })
       .click();
-    await page
-      .locator('input[type="file"]')
-      .setInputFiles({
-        name: download.suggestedFilename(),
-        mimeType:
-          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        buffer: await readFile(exportedPath),
-      });
+    await page.locator('input[type="file"]').setInputFiles({
+      name: download.suggestedFilename(),
+      mimeType:
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      buffer: await readFile(exportedPath),
+    });
     await expect(
       page.getByRole("region", { name: "Catalog preview ready" }),
     ).toBeVisible();
