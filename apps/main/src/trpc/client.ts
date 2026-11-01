@@ -2,13 +2,18 @@
 
 import { createTRPCClient, type TRPCClient } from "@trpc/client";
 import { type AppRouter } from "@/server/api/root";
-import { createClientLinks } from "./client-links";
+import { createClientLinks, type GetSessionToken } from "./client-links";
 
 let trpcClientSingleton: TRPCClient<AppRouter> | undefined;
 let testOverrideClient: TRPCClient<AppRouter> | undefined;
 
-export function createMemberClient(memberId: string) {
-  return createTRPCClient<AppRouter>({ links: createClientLinks(memberId) });
+export function createMemberClient(
+  memberId: string,
+  getToken: GetSessionToken,
+) {
+  return createTRPCClient<AppRouter>({
+    links: createClientLinks(memberId, getToken),
+  });
 }
 
 export function setTestTrpcClient(clientLike: TRPCClient<AppRouter>) {

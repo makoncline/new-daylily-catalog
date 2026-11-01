@@ -7,7 +7,7 @@ import { useState } from "react";
 
 import { type AppRouter } from "@/server/api/root";
 import { getQueryClient } from "./query-client";
-import { createClientLinks } from "./client-links";
+import { createClientLinks, type GetSessionToken } from "./client-links";
 
 export const api = createTRPCReact<AppRouter>();
 
@@ -25,11 +25,14 @@ export type RouterInputs = inferRouterInputs<AppRouter>;
  */
 export type RouterOutputs = inferRouterOutputs<AppRouter>;
 
-export function TRPCReactProvider(props: { children: React.ReactNode }) {
+export function TRPCReactProvider(props: {
+  children: React.ReactNode;
+  getToken?: GetSessionToken;
+}) {
   const queryClient = getQueryClient();
 
   const [trpcClient] = useState(() =>
-    api.createClient({ links: createClientLinks() }),
+    api.createClient({ links: createClientLinks(undefined, props.getToken) }),
   );
 
   return (

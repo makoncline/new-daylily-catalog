@@ -18,6 +18,7 @@ import {
 import { get, set, del } from "idb-keyval";
 import type { RouterInputs, RouterOutputs } from "@/trpc/react";
 import { createMemberClient } from "@/trpc/client";
+import type { GetSessionToken } from "@/trpc/client-links";
 import { capturePosthogEvent } from "@/lib/analytics/posthog";
 
 type Catalog = RouterOutputs["dashboardV2"]["bootstrap"]["catalog"];
@@ -35,9 +36,9 @@ type Input = RouterInputs["dashboardV2"];
 
 let session: ReturnType<typeof createSession> | undefined;
 
-function createSession(userId: string) {
+function createSession(userId: string, getToken: GetSessionToken) {
   let active = true;
-  const client = createMemberClient(userId);
+  const client = createMemberClient(userId, getToken);
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
@@ -310,9 +311,9 @@ async function deleteConfirmed<T extends { id: string }>(
 
 // Route suspension can restart effects. Reuse this member's catalog; callers
 // retain the returned session, so an account change cannot redirect their work.
-export function createDashboard(userId: string) {
+export function createDashboard(userId: string, getToken: GetSessionToken) {
   if (session?.userId === userId) return session;
   if (session) void session.dispose();
-  session = createSession(userId);
+  session = createSession(userId, getToken);
   return session;
 }

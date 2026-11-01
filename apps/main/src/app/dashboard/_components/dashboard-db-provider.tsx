@@ -12,8 +12,8 @@ import { useAuth } from "@clerk/nextjs";
 import { useLiveQuery } from "@tanstack/react-db";
 import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { api } from "@/trpc/react";
-import { getTrpcClient } from "@/trpc/client";
 import { toast } from "sonner";
+import type { GetSessionToken } from "@/trpc/client-links";
 import { createDashboard } from "@/app/dashboard/_lib/dashboard-db/collections";
 import {
   DashboardDbLoadingScreen,
@@ -35,12 +35,13 @@ export function useDashboardDb() {
 }
 
 export function DashboardDbProvider({ children }: { children: ReactNode }) {
-  const { userId: clerkUserId } = useAuth();
+  const { userId: clerkUserId, getToken } = useAuth();
+  const { client } = api.useUtils();
   const { data: user, isError } = useQuery({
     queryKey: ["dashboard-member", clerkUserId],
     queryFn: ({ signal }) => {
       if (!clerkUserId) throw new Error("Not signed in");
-      return getTrpcClient().dashboardV2.user.getCurrentUserId.query(
+      return client.dashboardV2.user.getCurrentUserId.query(
         { clerkUserId },
         {
           signal,
@@ -61,6 +62,7 @@ export function DashboardDbProvider({ children }: { children: ReactNode }) {
       key={`${clerkUserId}:${user.id}`}
       userId={user.id}
       clerkUserId={clerkUserId}
+      getToken={getToken}
     >
       {children}
     </MemberCatalog>
@@ -71,7 +73,9 @@ function MemberCatalog({
   children,
   userId,
   clerkUserId,
+  getToken,
 }: {
+  getToken: GetSessionToken;
   children: ReactNode;
   userId: string;
   clerkUserId: string;
@@ -79,7 +83,7 @@ function MemberCatalog({
   const [dashboard, setDashboard] = useState<Dashboard>();
   useEffect(() => {
     let cancelled = false;
-    const current = createDashboard(userId);
+    const current = createDashboard(userId, getToken);
     void current.restored.then(() => {
       if (cancelled) return;
       setDashboard(current);
@@ -87,7 +91,7 @@ function MemberCatalog({
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [userId, getToken]);
   return dashboard ? (
     <QueryClientProvider client={dashboard.queryClient}>
       <api.Provider
