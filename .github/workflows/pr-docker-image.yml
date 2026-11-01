@@ -18,7 +18,7 @@ permissions:
 jobs:
   build-and-push:
     name: Build Docker Image
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork != true
     environment: ${{ github.event_name == 'pull_request' && 'preview' || 'production' }}
     outputs:

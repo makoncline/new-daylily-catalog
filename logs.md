@@ -223,3 +223,5 @@ check current code before applying them.
 - [2026-10-22] Browser verification dependencies: Docker release and Vercel preview workflows also install Playwright system dependencies. Apply the same Ubuntu archive selection there as in PR Tests. A fix only in PR Tests leaves the other browser checks exposed to the same slow mirror.
 
 - [2026-10-31] Local table history: Native pushState updates Next useSearchParams without route navigation. A table initialized from the URL must also restore state on history traversal; otherwise its sync effect writes the old table state back over the traversed URL. Encode string filters as JSON strings so commas and numeric text keep their type.
+
+- [2026-11-01] Browser runner baseline: GitHub is moving ubuntu-latest to Ubuntu 26.04 (actions/runner-images#14748). Playwright 1.55 does not support that image. Keep all browser-running jobs, including preview E2E and Docker verification, on ubuntu-24.04 until a supported Playwright upgrade is verified.
