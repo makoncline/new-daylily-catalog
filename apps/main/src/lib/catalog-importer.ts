@@ -495,6 +495,13 @@ const CATALOG_ENRICHMENT_HEADERS = {
   registeredCultivarName: "Daylily Catalog Cultivar Name",
   cultivarUrl: "Daylily Catalog Cultivar URL",
 } as const;
+const CATALOG_PREVIEW_HEADERS = [
+  "Name",
+  "Price",
+  "Description",
+  "Private Note",
+  ...Object.values(CATALOG_ENRICHMENT_HEADERS),
+] as const;
 const CATALOG_IMPORT_DISPLAY_HEADERS: Record<
   keyof CatalogColumnMapping,
   string
@@ -573,6 +580,17 @@ export function cellToText(cell: SpreadsheetCell | undefined): string {
   }
 
   return String(cell).trim().replace(/\s+/g, " ");
+}
+
+export function isRecognizedCatalogImportSheet(rows: SpreadsheetCell[][]) {
+  const headers = rows[0] ?? [];
+  return (
+    [CATALOG_IMPORT_TEMPLATE_HEADERS, CATALOG_PREVIEW_HEADERS].some(
+      (knownHeaders) =>
+        headers.length === knownHeaders.length &&
+        knownHeaders.every((header, index) => headers[index] === header),
+    ) && rows.every((row) => row.length <= headers.length)
+  );
 }
 
 function getHeaderLabel(
@@ -1210,15 +1228,6 @@ export function createCatalogCleanSpreadsheet({
   matchedRows: CatalogImportRow[];
   parsedSpreadsheet: ParsedSpreadsheet;
 }): ParsedSpreadsheet {
-  const headers = [
-    "Name",
-    "Price",
-    "Description",
-    "Private Note",
-    CATALOG_ENRICHMENT_HEADERS.cultivarReferenceId,
-    CATALOG_ENRICHMENT_HEADERS.registeredCultivarName,
-    CATALOG_ENRICHMENT_HEADERS.cultivarUrl,
-  ];
   const rows = matchedRows
     .filter(
       (row) => row.rowKind === "listing" && row.outputState === "included",
@@ -1238,7 +1247,9 @@ export function createCatalogCleanSpreadsheet({
   return {
     fileName: parsedSpreadsheet.fileName,
     source: parsedSpreadsheet.source,
-    sheets: [{ name: "Catalog", rows: [headers, ...rows] }],
+    sheets: [
+      { name: "Catalog", rows: [[...CATALOG_PREVIEW_HEADERS], ...rows] },
+    ],
   };
 }
 

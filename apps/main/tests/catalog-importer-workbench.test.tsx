@@ -13,7 +13,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useCatalogImporterWorkbench } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
 import { CatalogImporterWorkbench as CatalogImporterWorkbenchComponent } from "@/app/(public)/catalog-importer/_components/catalog-importer-workbench";
 import {
+  createCatalogCleanSpreadsheet,
   createCatalogImportRows,
+  createCatalogImportTemplateCsv,
+  createSpreadsheetCsv,
   createCatalogImportSampleSpreadsheet,
   type CatalogColumnMapping,
   type CultivarMatchCandidate,
@@ -32,6 +35,18 @@ import type {
   CatalogImporterViewerResolution,
   CatalogImporterViewerState,
 } from "@/lib/catalog-importer-membership";
+
+type FileLoad = ReturnType<
+  ReturnType<typeof useCatalogImporterWorkbench>["loadFile"]
+>;
+
+function uploadCsv(contents: string) {
+  const file = new File([contents], "catalog.csv", { type: "text/csv" });
+  Object.defineProperty(file, "text", { value: async () => contents });
+  fireEvent.change(document.querySelector('input[type="file"]')!, {
+    target: { files: [file] },
+  });
+}
 
 const capturePosthogEventMock = vi.hoisted(() => vi.fn());
 const downloadCatalogImportFileMock = vi.hoisted(() => vi.fn());
@@ -612,6 +627,203 @@ describe("CatalogImporterWorkbench", () => {
     ).not.toBeInTheDocument();
   });
 
+  it.each(["template", "catalog export"])(
+    "opens Preview for a recognized %s and keeps Prepare available",
+    async (format) => {
+      const template = `${createCatalogImportTemplateCsv().split(/\r?\n/)[0]}\nA.W. Shucks,12.50,Purple bloom,Back bed`;
+      const spreadsheet = createCatalogCleanSpreadsheet({
+        parsedSpreadsheet: { fileName: "catalog.csv", sheets: [] },
+        matchedRows: createCatalogImportRows({
+          headerRowIndex: 0,
+          mapping: {
+            title: 0,
+            price: 1,
+            description: 2,
+            privateNote: 3,
+            cultivarReferenceId: null,
+          },
+          rows: [
+            ["name", "price", "description", "private note"],
+            ["A.W. Shucks", "12.50", "Purple bloom", "Back bed"],
+          ],
+        }),
+      });
+      requestCultivarMatchesMock.mockResolvedValue(createSavedIdMatchResults());
+      render(<CatalogImporterWorkbench />);
+      uploadCsv(
+        format === "template"
+          ? template
+          : createSpreadsheetCsv(spreadsheet.sheets[0]!.rows),
+      );
+      await openPreview();
+      expect(
+        screen.queryByRole("heading", { name: "Map your columns" }),
+      ).not.toBeInTheDocument();
+      expect(capturePosthogEventMock).toHaveBeenCalledWith(
+        "catalog_import_previewed",
+        expect.objectContaining({ mapping_skipped: true }),
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Prepare" }));
+      expect(
+        screen.getByRole("heading", { name: "Map your columns" }),
+      ).toBeVisible();
+      expect(
+        screen.getByLabelText("Private note", { exact: true }),
+      ).toHaveTextContent(/private note.*Back bed/i);
+    },
+  );
+
+  it.each([
+    "name,price\nA.W. Shucks,12",
+    "name,price,description,private note,quantity\nA.W. Shucks,12,Purple,Back bed,3",
+    "name,price,description,private note\nA.W. Shucks,12,Purple,Back bed,extra data",
+    "name,price,description,name\nA.W. Shucks,12,Purple,Other name",
+  ])("keeps ordinary or ambiguous columns on Prepare: %s", async (csv) => {
+    render(<CatalogImporterWorkbench />);
+    uploadCsv(csv);
+    expect(
+      await screen.findByRole("heading", { name: "Map your columns" }),
+    ).toBeVisible();
+    expect(requestCultivarMatchesMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps multi-sheet files on Prepare even when each sheet is recognized", async () => {
+    vi.mocked(parseCatalogImportFile).mockResolvedValueOnce({
+      fileName: "multi.xlsx",
+      sheets: ["First", "Second"].map((name) => ({
+        name,
+        rows: [
+          ["name", "price", "description", "private note"],
+          ["A.W. Shucks", 12, "", ""],
+        ],
+      })),
+    });
+    render(<CatalogImporterWorkbench />);
+    uploadCsv("");
+    await waitFor(() =>
+      expect(screen.getByLabelText("Spreadsheet sheet")).toBeVisible(),
+    );
+    expect(requestCultivarMatchesMock).not.toHaveBeenCalled();
+  });
+
+  it("shows progress during automatic matching and stays on Start after clearing", async () => {
+    let finishMatching!: (results: CultivarNameMatchResult[]) => void;
+    requestCultivarMatchesMock.mockReturnValueOnce(
+      new Promise<CultivarNameMatchResult[]>((resolve) => {
+        finishMatching = resolve;
+      }),
+    );
+    render(<CatalogImporterWorkbench />);
+    uploadCsv(
+      `${createCatalogImportTemplateCsv().split(/\r?\n/)[0]}\nA.W. Shucks,12,Purple,Back bed`,
+    );
+    await waitFor(() =>
+      expect(requestCultivarMatchesMock).toHaveBeenCalledOnce(),
+    );
+    const status = screen.getByRole("status", {
+      name: "Building catalog preview",
+    });
+    expect(status).toBeVisible();
+    expect(status).toHaveTextContent("0 / 1");
+    expect(
+      screen.getByRole("progressbar", { name: "Cultivar matching progress" }),
+    ).toHaveAttribute("aria-valuenow", "0");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Clear local progress" }),
+    );
+    fireEvent.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Clear local progress",
+      }),
+    );
+    await act(async () => {
+      finishMatching(createSavedIdMatchResults());
+    });
+    expect(
+      screen.getByText("Drop a spreadsheet here, or choose a file"),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("status", { name: "Building catalog preview" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Map your columns" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("region", { name: "Catalog preview ready" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("retains the recognized file and mapping when matching fails, then retries", async () => {
+    requestCultivarMatchesMock.mockRejectedValueOnce(
+      new Error("Matching unavailable"),
+    );
+    render(<CatalogImporterWorkbench />);
+    uploadCsv(
+      `${createCatalogImportTemplateCsv().split(/\r?\n/)[0]}\nA.W. Shucks,12,Purple bloom,Back bed`,
+    );
+    expect(
+      await screen.findByRole("heading", { name: "Map your columns" }),
+    ).toBeVisible();
+    expect(screen.getByText("Matching unavailable")).toBeVisible();
+    expect(screen.getByText("catalog.csv", { exact: true })).toBeVisible();
+    requestCultivarMatchesMock.mockResolvedValue(createSavedIdMatchResults());
+    fireEvent.click(
+      screen.getByRole("button", { name: "Build catalog preview" }),
+    );
+    await openPreview();
+  });
+
+  it.each(["reset", "replacement"])(
+    "does not publish stale recognized matches after %s",
+    async (action) => {
+      let finishMatching!: (results: CultivarNameMatchResult[]) => void;
+      requestCultivarMatchesMock.mockReturnValueOnce(
+        new Promise<CultivarNameMatchResult[]>((resolve) => {
+          finishMatching = resolve;
+        }),
+      );
+      const editor = renderHook(() => useCatalogImporterWorkbench());
+      const file = new File([""], "template.csv");
+      Object.defineProperty(file, "text", {
+        value: async () =>
+          `${createCatalogImportTemplateCsv().split(/\r?\n/)[0]}\nA.W. Shucks,12,Purple,Back bed`,
+      });
+      let loaded!: FileLoad;
+      act(() => {
+        loaded = editor.result.current.loadFile(file);
+      });
+      await waitFor(() =>
+        expect(requestCultivarMatchesMock).toHaveBeenCalledOnce(),
+      );
+      const signal = requestCultivarMatchesMock.mock.calls[0]![0]
+        .signal as AbortSignal;
+      if (action === "reset") {
+        act(() => editor.result.current.resetImporter());
+      } else {
+        const replacement = new File([""], "replacement.csv");
+        Object.defineProperty(replacement, "text", {
+          value: async () => "name,price\nKeep New Bloom,23",
+        });
+        await act(async () => {
+          expect(await editor.result.current.loadFile(replacement)).toBe(
+            "prepare",
+          );
+        });
+      }
+      expect(signal.aborted).toBe(true);
+      await act(async () => {
+        finishMatching(createSavedIdMatchResults());
+        expect(await loaded).toBe(false);
+        await editor.result.current.flushDraft();
+      });
+      const draft = await readCatalogImporterDraft();
+      expect(draft?.matchedRows ?? null).toBeNull();
+      expect(draft?.parsedSpreadsheet?.fileName ?? null).toBe(
+        action === "reset" ? null : "replacement.csv",
+      );
+    },
+  );
+
   it.each(["success", "error"])(
     "keeps a newer manual source when an old file parse ends with %s",
     async (outcome) => {
@@ -627,7 +839,7 @@ describe("CatalogImporterWorkbench", () => {
           }),
       });
       const editor = renderHook(() => useCatalogImporterWorkbench());
-      let loaded!: Promise<boolean>;
+      let loaded!: FileLoad;
       act(() => {
         loaded = editor.result.current.loadFile(file);
       });
@@ -644,7 +856,7 @@ describe("CatalogImporterWorkbench", () => {
       expect(savedManual?.parsedSpreadsheet?.sheets[0]?.rows[1]?.[0]).toBe(
         "Keep Manual Bloom",
       );
-      let oldResult!: boolean;
+      let oldResult!: Awaited<FileLoad>;
       await act(async () => {
         finishReading();
         oldResult = await loaded;
@@ -675,8 +887,8 @@ describe("CatalogImporterWorkbench", () => {
         }),
     });
     const editor = renderHook(() => useCatalogImporterWorkbench());
-    let oldLoad!: Promise<boolean>;
-    let newLoad!: Promise<boolean>;
+    let oldLoad!: FileLoad;
+    let newLoad!: FileLoad;
     act(() => {
       oldLoad = editor.result.current.loadFile(oldFile);
     });
@@ -693,7 +905,7 @@ describe("CatalogImporterWorkbench", () => {
     expect(editor.result.current.parsedSpreadsheet).toBeNull();
     await act(async () => {
       finishNew("name,price\nKeep New Bloom,23");
-      expect(await newLoad).toBe(true);
+      expect(await newLoad).toBe("prepare");
       await editor.result.current.flushDraft();
     });
     expect(editor.result.current.readingFile).toBe(false);
@@ -724,7 +936,7 @@ describe("CatalogImporterWorkbench", () => {
       },
     );
     const editor = renderHook(() => useCatalogImporterWorkbench());
-    let loaded!: Promise<boolean>;
+    let loaded!: FileLoad;
     act(() => {
       loaded = editor.result.current.loadFile(new File([""], "multi.xlsx"));
     });

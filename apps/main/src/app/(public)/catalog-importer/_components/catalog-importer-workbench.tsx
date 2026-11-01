@@ -4,6 +4,7 @@ import { useState } from "react";
 import { CircleAlert, Info } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { CatalogImporterProgress } from "@/app/(public)/catalog-importer/_components/catalog-importer-progress";
 import { CatalogImporterMapping } from "@/app/(public)/catalog-importer/_components/catalog-importer-mapping";
 import { CatalogImporterManualTable } from "@/app/(public)/catalog-importer/_components/catalog-importer-manual-table";
 import { CatalogImporterResults } from "@/app/(public)/catalog-importer/_components/catalog-importer-results";
@@ -80,8 +81,9 @@ export function CatalogImporterWorkbench({
             <CatalogImporterUpload
               controller={controller}
               onClear={reset}
-              onSourceReady={() => changeStep("prepare")}
+              onSourceReady={changeStep}
             />
+            <CatalogImporterProgress controller={controller} />
             {controller.parsedSpreadsheet ? (
               <Button type="button" onClick={() => changeStep("prepare")}>
                 Continue preparing

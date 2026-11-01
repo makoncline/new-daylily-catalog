@@ -20,6 +20,7 @@ import {
   getCatalogImportRowDisposition,
   getCatalogImportState,
   getSourceColumns,
+  isRecognizedCatalogImportSheet,
   suggestColumnMapping,
 } from "@/lib/catalog-importer";
 import type {
@@ -464,11 +465,13 @@ export function useCatalogImporterWorkbench(
     async ({
       headerRowIndex: nextHeaderRowIndex,
       mapping: nextMapping,
+      mappingSkipped = false,
       selectedSheetIndex: nextSheetIndex,
       spreadsheet,
     }: {
       headerRowIndex: number | null;
       mapping: CatalogColumnMapping;
+      mappingSkipped?: boolean;
       selectedSheetIndex: number;
       spreadsheet: ParsedSpreadsheet;
     }) => {
@@ -714,6 +717,7 @@ export function useCatalogImporterWorkbench(
               (columnIndex) => columnIndex !== null,
             ).length,
             mapping_changed: !mappingsAreEqual(nextMapping, suggestedMapping),
+            mapping_skipped: mappingSkipped,
             sheet_count: spreadsheet.sheets.length,
             source: spreadsheet.source ?? "upload",
             source_row_count: sheet.rows.length,
@@ -921,6 +925,7 @@ export function useCatalogImporterWorkbench(
   const loadFile = useCallback(
     async (file: File) => {
       let requestId = ++fileRequestId.current;
+      resetMatches();
       setReadingFile(true);
       setFileError(null);
 
@@ -931,6 +936,25 @@ export function useCatalogImporterWorkbench(
         }
         previewTracked.current = false;
         if (spreadsheet.sheets.length === 1) {
+          const sheet = spreadsheet.sheets[0]!;
+          if (isRecognizedCatalogImportSheet(sheet.rows)) {
+            const previewBuilt = await matchSpreadsheet({
+              headerRowIndex: 0,
+              mapping: suggestColumnMapping(sheet.rows, 0),
+              mappingSkipped: true,
+              selectedSheetIndex: 0,
+              spreadsheet,
+            });
+            if (fileRequestId.current !== requestId) {
+              return false;
+            }
+            setLiveAnnouncement(
+              previewBuilt
+                ? `${spreadsheet.fileName} loaded. Catalog preview ready.`
+                : `${spreadsheet.fileName} loaded. Review the column mapping and try again.`,
+            );
+            return previewBuilt ? ("preview" as const) : ("prepare" as const);
+          }
           configureSheet(spreadsheet, 0);
           requestId = fileRequestId.current;
         } else {
@@ -954,7 +978,7 @@ export function useCatalogImporterWorkbench(
         setLiveAnnouncement(
           `${spreadsheet.fileName} loaded with ${spreadsheet.sheets.length.toLocaleString()} sheet${spreadsheet.sheets.length === 1 ? "" : "s"}.`,
         );
-        return true;
+        return "prepare" as const;
       } catch (error) {
         if (fileRequestId.current !== requestId) {
           return false;
@@ -973,7 +997,7 @@ export function useCatalogImporterWorkbench(
         }
       }
     },
-    [configureSheet, commitSession, resetMatches, sessionRef],
+    [configureSheet, commitSession, matchSpreadsheet, resetMatches, sessionRef],
   );
 
   const loadManualCatalog = useCallback(() => {
