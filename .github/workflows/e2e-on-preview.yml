@@ -28,7 +28,7 @@ jobs:
        github.event.deployment_status.creator.login == 'vercel[bot]' &&
        github.event.deployment_status.environment_url != '' &&
        (github.event.deployment.environment == 'Preview' || github.event.deployment.environment == 'preview'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment: preview
     env:
       SKIP_ENV_VALIDATION: "1"
