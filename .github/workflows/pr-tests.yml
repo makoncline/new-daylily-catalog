@@ -34,7 +34,7 @@ jobs:
 
   vitest:
     name: Vitest unit and integration tests (shard ${{ matrix.shard }}/2)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -55,7 +55,7 @@ jobs:
 
   full-app-integration:
     name: Full-app integration tests (shard ${{ matrix.shard }}/3)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -98,7 +98,7 @@ jobs:
 
   e2e:
     name: Connected E2E tests (group ${{ matrix.group }}/3)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: github.event.pull_request.head.repo.fork != true
     environment: preview
     strategy:

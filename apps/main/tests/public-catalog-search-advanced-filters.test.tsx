@@ -14,7 +14,6 @@ import {
 
 const navigationState = vi.hoisted(() => {
   let pathname = "/seeded-daylily/search";
-  let params = new URLSearchParams();
 
   const applyHref = (href: string, method: "push" | "replace") => {
     const url = href.startsWith("http")
@@ -22,7 +21,6 @@ const navigationState = vi.hoisted(() => {
       : new URL(href, "https://example.test");
 
     pathname = url.pathname;
-    params = new URLSearchParams(url.search);
 
     if (typeof window !== "undefined") {
       const nextLocation = `${url.pathname}${url.search}${url.hash}`;
@@ -37,13 +35,12 @@ const navigationState = vi.hoisted(() => {
   return {
     reset: () => {
       pathname = "/seeded-daylily/search";
-      params = new URLSearchParams();
       if (typeof window !== "undefined") {
         window.history.replaceState(null, "", pathname);
       }
     },
     getPathname: () => pathname,
-    getParams: () => params,
+    getParams: () => new URLSearchParams(window.location.search),
     router: {
       push: vi.fn((href: string) => {
         applyHref(href, "push");
@@ -339,7 +336,9 @@ describe("public catalog search advanced filters", () => {
     expect(minimumYear).toHaveValue(2010);
     fireEvent.keyDown(minimumYear, { key: "Enter" });
     await waitFor(() =>
-      expect(navigationState.getParams().get("year")).toBe("2010:"),
+      expect(
+        JSON.parse(navigationState.getParams().get("year") ?? "null"),
+      ).toBe("2010:"),
     );
     fireEvent.change(minimumYear, { target: { value: "" } });
     fireEvent.blur(minimumYear);
@@ -408,14 +407,14 @@ describe("public catalog search advanced filters", () => {
       expect(params.get("mode")).toBe("advanced");
       expect(params.get("price")).toBe("true");
       expect(params.get("hasPhoto")).toBe("true");
-      expect(params.get("hybridizer")).toBe("Reed");
+      expect(params.get("hybridizer")).toBe('"Reed"');
       expect(params.get("year")).not.toBeNull();
-      expect(params.get("lists")).toBe("list-featured");
-      expect(params.get("bloomSeason")).toBe("Midseason");
-      expect(params.get("form")).toBe("Sculpted");
-      expect(params.get("ploidy")).toBe("Tet");
-      expect(params.get("color")).toBe("Rose");
-      expect(params.get("parentage")).toBe("A x B");
+      expect(params.get("lists")).toBe('["list-featured"]');
+      expect(params.get("bloomSeason")).toBe('["Midseason"]');
+      expect(params.get("form")).toBe('["Sculpted"]');
+      expect(params.get("ploidy")).toBe('["Tet"]');
+      expect(params.get("color")).toBe('"Rose"');
+      expect(params.get("parentage")).toBe('"A x B"');
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Reset" }));
@@ -457,7 +456,9 @@ describe("public catalog search advanced filters", () => {
       expect(
         within(screen.getByTestId("catalog-table")).getAllByRole("listitem"),
       ).toHaveLength(1);
-      expect(navigationState.getParams().get("form")).toBe("Cascade");
+      expect(
+        JSON.parse(navigationState.getParams().get("form") ?? "null"),
+      ).toEqual(["Cascade"]);
     });
 
     expect(screen.getByText("Gamma Peach")).toBeVisible();

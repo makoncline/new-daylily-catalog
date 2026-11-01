@@ -84,7 +84,7 @@ export function useQueryParamDialogState({
   ) => {
     const nextUrl = buildDialogSearchParamUrl(
       pathname,
-      searchParams,
+      new URLSearchParams(window.location.search),
       paramName,
       nextValue,
     );

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { TABLE_CONFIG } from "@/config/constants";
 import { type Table } from "@tanstack/react-table";
 import {
@@ -30,9 +30,18 @@ export function useUrlInitialTableState({
 }: {
   filterableColumnIds?: string[];
 } = {}) {
-  const searchParams = useSearchParams();
-  const pathname = usePathname();
+  return getTableUrlState(
+    useSearchParams(),
+    usePathname(),
+    filterableColumnIds,
+  );
+}
 
+function getTableUrlState(
+  searchParams: Pick<URLSearchParams, "get">,
+  pathname: string | null,
+  filterableColumnIds?: string[],
+) {
   const pageIndex =
     (Number(searchParams.get("page")) ||
       TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_INDEX + 1) - 1;
@@ -72,19 +81,41 @@ export function useUrlInitialTableState({
 }
 
 export function useTableUrlSync<TData>(table: Table<TData>, enabled = true) {
-  const router = useRouter();
+  const lastSearch = React.useRef<string | null>(null);
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   const { pagination, columnFilters, globalFilter } = table.getState();
   const filterableColumns = table.options.meta?.filterableColumns;
+  const serializedState = JSON.stringify([
+    pagination,
+    columnFilters,
+    globalFilter,
+  ]);
+  const lastState = React.useRef(serializedState);
 
   React.useEffect(() => {
     if (!enabled || typeof window === "undefined") return;
 
     const url = new URL(window.location.href);
     const oldParams = new URLSearchParams(window.location.search);
+    if (lastSearch.current !== null && lastSearch.current !== url.search) {
+      lastSearch.current = url.search;
+      const state = getTableUrlState(oldParams, pathname, filterableColumns);
+      lastState.current = JSON.stringify([
+        state.pagination,
+        state.columnFilters,
+        state.globalFilter,
+      ]);
+      table.setColumnFilters(state.columnFilters);
+      table.setGlobalFilter(state.globalFilter);
+      table.setPagination(state.pagination);
+      return;
+    }
+    lastSearch.current = url.search;
+    if (lastState.current === serializedState) return;
+    lastState.current = serializedState;
     const defaultPageSize = getDefaultPageSize(pathname);
 
     // Update only the search parameters
@@ -141,13 +172,15 @@ export function useTableUrlSync<TData>(table: Table<TData>, enabled = true) {
 
     // Only update URL if parameters have actually changed
     if (hasChanges) {
-      router.push(url.href, { scroll: false });
+      window.history.pushState(null, "", url.href);
+      lastSearch.current = window.location.search;
     }
   }, [
     enabled,
     pathname,
-    router,
+    table,
     searchParams,
+    serializedState,
     pagination,
     columnFilters,
     globalFilter,
