@@ -324,6 +324,9 @@ test("large saved catalog stays usable and current when a refresh overlaps a sav
       .filter({ visible: true })
       .click();
     await editListingDialog.isReady();
+    await expect(page).toHaveURL(
+      (url) => url.searchParams.get("query") === title(4999),
+    );
     await editListingDialog.fillTitle("Saved Warm Bloom 04999");
     const saveStart = performance.now();
     await editListingDialog.clickSaveChanges();

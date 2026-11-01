@@ -23,7 +23,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 export const useEditListing = () => {
   const pathname = usePathname();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { setValue, value } = useQueryParamDialogState({
     history: "push",
     paramName: "editing",
@@ -32,7 +31,7 @@ export const useEditListing = () => {
   return {
     editListing: (id: string) => setValue(id),
     closeEditListing: () => {
-      const params = new URLSearchParams(searchParams.toString());
+      const params = new URLSearchParams(window.location.search);
       params.delete("editing");
       params.delete("intent");
       router.replace(params.size ? `${pathname}?${params}` : pathname, {
