@@ -376,6 +376,23 @@ export const ATLAS_FLOWS = [
     title: "Prepare a daylily catalog spreadsheet",
     description:
       "Start from a spreadsheet, link registered cultivars, resolve catalog issues, preview the catalog, and download the prepared workbook.",
+    implementation: {
+      entryPoints: [
+        {
+          label: "Preparation and request lifetimes",
+          path: "src/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench.ts",
+        },
+        {
+          label: "Browser draft persistence",
+          path: "src/hooks/use-catalog-importer-session.ts",
+        },
+      ],
+      invariants: [
+        "Cancel obsolete file, preparation, row-candidate, search, and saved-ID requests independently. Ignore their late results.",
+        "Keep row inclusion, identity, issue repairs, undo, and browser drafts separate from preparation progress.",
+        "Preserve edits made during saved-ID rematching and clear prepared data when the source changes.",
+      ],
+    },
     tests: {
       unit: [],
       integration: [
@@ -569,7 +586,7 @@ export const ATLAS_FLOWS = [
       ],
       invariants: [
         "Keep the prepared draft and source rows across reloads and rejected writes.",
-        "Create eligible, selected rows in batches of at most 100 and prevent duplicate writes.",
+        "Create eligible, selected rows in batches of at most 100. Block a second submission before render and until refresh finishes.",
         "Keep native temp-list names, prices, notes, and explicit cultivar links through import.",
         "Save an optional named list atomically with its listings and reuse exact owned matches.",
         "Advance the saved list version for each import batch so incremental sync includes its membership.",
@@ -580,6 +597,7 @@ export const ATLAS_FLOWS = [
       unit: [],
       integration: [
         testRef("integration", "tests/dashboard-import-table.test.tsx"),
+        testRef("integration", "tests/dashboard-catalog-importer.test.tsx"),
         testRef(
           "integration",
           "tests/dashboard-db-listing-entitlements.integration.test.ts",

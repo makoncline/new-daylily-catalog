@@ -657,6 +657,48 @@ describe("CatalogImporterWorkbench", () => {
     },
   );
 
+  it("cancels a candidate search without canceling the row candidates", async () => {
+    let finishClose!: (results: CultivarNameMatchResult[]) => void;
+    let finishSearch!: (results: CultivarNameMatchResult[]) => void;
+    requestCultivarMatchesMock
+      .mockImplementationOnce(
+        () =>
+          new Promise<CultivarNameMatchResult[]>((resolve) => {
+            finishClose = resolve;
+          }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise<CultivarNameMatchResult[]>((resolve) => {
+            finishSearch = resolve;
+          }),
+      );
+    const draft = createSavedIdDraft();
+    const row = { ...draft.matchedRows![0]!, cultivarReferenceIdWarning: null };
+    draft.matchedRows = [row];
+    const { result } = renderHook(() => useCatalogImporterWorkbench(draft));
+    let search!: Promise<void>;
+    act(() => {
+      result.current.openReviewRow(row);
+      search = result.current.searchCandidates(row, "Another Bloom");
+      result.current.resetCandidateSearch(row);
+    });
+    await act(async () => {
+      finishClose(createSavedIdMatchResults());
+    });
+    expect(result.current.candidateResult?.candidates).toEqual([
+      savedIdCandidate,
+    ]);
+    await act(async () => {
+      finishSearch(createSavedIdMatchResults());
+      await search;
+    });
+    expect(result.current.searchCandidateResult).toBeNull();
+    expect(result.current.candidateResult?.candidates).toEqual([
+      savedIdCandidate,
+    ]);
+  });
+
   it("keeps reading a replacement file when the obsolete parse finishes", async () => {
     let finishOld!: (contents: string) => void;
     let finishNew!: (contents: string) => void;
