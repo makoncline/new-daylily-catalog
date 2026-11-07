@@ -11,7 +11,11 @@ const addIndex = new RegExp(
   "i",
 );
 
-/** Apply only simple additive schema changes, to an isolated snapshot. */
+/**
+ * Apply only simple additive schema changes, to an isolated snapshot.
+ * @param {string} databasePath
+ * @param {string} sql
+ */
 export function applyAdditivePreviewSchema(databasePath, sql) {
   const statements = sql
     .replace(/^\s*--[^\n]*$/gm, "")
