@@ -11,6 +11,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import path from "node:path";
+import { applyAdditivePreviewSchema } from "./apply-additive-preview-schema.mjs";
 import { copyPreviewSeed } from "./copy-preview-seed.mjs";
 import { realisticDataSchemaFingerprint } from "./realistic-data-snapshot.mjs";
 
@@ -50,28 +51,36 @@ try {
       .map((key) => [key, process.env[key]]),
   );
   const schemaPath = path.join(appRoot, "prisma/schema.prisma");
-  const diff = spawnSync(
-    "pnpm",
-    [
-      "exec",
-      "prisma",
-      "migrate",
-      "diff",
-      "--from-config-datasource",
-      "--to-schema",
-      schemaPath,
-      "--exit-code",
-    ],
-    {
-      cwd: appRoot,
-      env: { ...env, DATABASE_URL: `file:${stagedDb}` },
-      encoding: "utf8",
-    },
-  );
-  if (diff.status !== 0)
-    throw new Error(
-      "Preview schema differs from this checkout or could not be checked. No seed was installed.",
-    );
+  const diffArgs = [
+    "exec",
+    "prisma",
+    "migrate",
+    "diff",
+    "--from-config-datasource",
+    "--to-schema",
+    schemaPath,
+  ];
+  const diffOptions = {
+    cwd: appRoot,
+    env: { ...env, DATABASE_URL: `file:${stagedDb}` },
+    encoding: "utf8",
+  };
+  const diff = spawnSync("pnpm", [...diffArgs, "--exit-code"], diffOptions);
+  if (diff.status === 2) {
+    const script = spawnSync("pnpm", [...diffArgs, "--script"], diffOptions);
+    if (script.status !== 0 || !script.stdout)
+      throw new Error(
+        "Could not generate preview schema changes. No seed was installed.",
+      );
+    applyAdditivePreviewSchema(stagedDb, script.stdout);
+    const verify = spawnSync("pnpm", [...diffArgs, "--exit-code"], diffOptions);
+    if (verify.status !== 0)
+      throw new Error(
+        "Preview schema still differs after additive changes. No seed was installed.",
+      );
+  } else if (diff.status !== 0) {
+    throw new Error("Could not check preview schema. No seed was installed.");
+  }
   const search = spawnSync(
     process.execPath,
     [

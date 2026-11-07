@@ -65,6 +65,8 @@ token. Do not use a production database token or a write-capable preview token.
 The snapshot contains production-derived data, including private listing notes.
 Keep it in the private task and out of logs, Git, artifacts, and public evidence.
 The copy runs in one read transaction; the app never writes back to Preview.
+Simple additive schema changes are applied only to the local copy. Unsupported
+or destructive schema differences stop the seed.
 The command verifies counts, SQLite integrity, foreign keys, and schema parity,
 then builds the local search index. It refuses to replace an existing seed or
 search artifact. The seed persists across task resumes; start a new isolated
