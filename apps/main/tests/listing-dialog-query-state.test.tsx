@@ -8,6 +8,7 @@ const navigationState = vi.hoisted(() => {
 
   const push = vi.fn((url: string) => {
     const nextUrl = new URL(url, "https://example.com");
+    window.history.pushState(null, "", nextUrl.pathname + nextUrl.search);
     pathname = nextUrl.pathname;
     search = nextUrl.search.startsWith("?")
       ? nextUrl.search.slice(1)
@@ -34,6 +35,7 @@ vi.mock("next/navigation", () => ({
 
 describe("useListingDialogQueryState", () => {
   beforeEach(() => {
+    window.history.replaceState(null, "", "/grower?utm_source=test");
     navigationState.setSearch("utm_source=test");
     navigationState.push.mockClear();
   });
@@ -66,5 +68,17 @@ describe("useListingDialogQueryState", () => {
 
     rerender();
     expect(result.current.viewingId).toBeNull();
+  });
+
+  it("preserves browser filters changed after the hook rendered", () => {
+    const { result } = renderHook(() => useListingDialogQueryState());
+    window.history.pushState(null, "", "/grower?query=Coffee&source=test");
+
+    act(() => result.current.openListing("listing-1"));
+
+    expect(navigationState.push).toHaveBeenCalledWith(
+      "/grower?query=Coffee&source=test&viewing=listing-1",
+      { scroll: false },
+    );
   });
 });

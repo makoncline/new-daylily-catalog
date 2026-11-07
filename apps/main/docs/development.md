@@ -123,22 +123,3 @@ If connected access fails, use `dev:local` and normal checks. Keep the old
 credential files until real delivery is verified. Remove only migrated secret
 entries after that check. GitHub, production, backup, and deployment changes
 require their separate rollout.
-
-## PR-only CI trial
-
-Only PR #483 E2E group 1 reads Development keys through 1Password. Its
-`Development CI` GitHub environment allows only `refs/pull/483/merge`.
-The trial runs automatically, with no manual approval step. Shared `Preview`
-and other PRs keep their existing workflows and provider secrets.
-
-The trial uses the read-only **Daylily — CI Development** service account.
-Its `OP_SERVICE_ACCOUNT_TOKEN` is a secret in `Development CI`. The account
-has Development read access only, with no Production or vault grant. Cloud
-uses a different token. The job installs pinned CLI 2.41.1 without the token.
-Only the connected test step receives it and calls `pnpm secrets:dev`.
-The launcher removes the token before the application starts.
-
-Fork checks fetch no 1Password values. The trial removes no existing provider
-secrets and keeps `Verify PR` result rules. To stop it, remove its CI token
-and restore group 1 to the native-key step. Decide the wider CI rollout before
-merging the trial workflow into main.

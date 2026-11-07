@@ -34,7 +34,7 @@ jobs:
 
   vitest:
     name: Vitest unit and integration tests (shard ${{ matrix.shard }}/2)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -55,7 +55,7 @@ jobs:
 
   full-app-integration:
     name: Full-app integration tests (shard ${{ matrix.shard }}/3)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -100,9 +100,9 @@ jobs:
     name: Connected E2E tests (group ${{ matrix.group }}/3)
     permissions:
       contents: read
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: github.event.pull_request.head.repo.fork != true
-    environment: ${{ github.event.number == 483 && matrix.group == 1 && 'Development CI' || 'preview' }}
+    environment: preview
     strategy:
       fail-fast: false
       matrix:
@@ -146,27 +146,11 @@ jobs:
         run: pnpm main exec playwright install chromium
       - name: Install sqlite3
         run: sudo apt-get update && sudo apt-get install -y sqlite3
-      - name: Install pinned 1Password CLI
-        if: github.event.number == 483 && matrix.group == 1
-        uses: 1password/install-cli-action@9a0c9dd934086b7ab1d90115d455bda1c53c2bdb # v2
-        with:
-          version: "2.41.1"
-      - name: Set repository CLI path
-        if: github.event.number == 483 && matrix.group == 1
-        run: |
-          mkdir -p .tmp/tools
-          ln -s "$(command -v op)" .tmp/tools/op
       - name: Run connected E2E group
-        if: github.event.number != 483 || matrix.group != 1
         env:
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
         run: node apps/main/scripts/run-e2e-ci-group.mjs ${{ matrix.group }}
-      - name: Run trusted Development E2E group
-        if: github.event.number == 483 && matrix.group == 1
-        env:
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-        run: pnpm secrets:dev -- node apps/main/scripts/run-e2e-ci-group.mjs 1
       - name: Upload Playwright artifacts
         if: always()
         uses: actions/upload-artifact@v4

@@ -87,7 +87,7 @@ test.describe("listings page features @local", () => {
       await expectFilteredCount(1, seedMeta.totalListings);
       await expect(dashboardListings.rows()).toHaveCount(1);
       await expect(dashboardListings.listingRow(expectedTitle)).toBeVisible();
-      await expectUrlParam(urlKey, token);
+      await expectUrlParam(urlKey, JSON.stringify(token));
 
       await page.keyboard.press("Escape");
       await resetAndVerifyBaseline();
@@ -202,7 +202,7 @@ test.describe("listings page features @local", () => {
     await expect(dashboardListings.rows()).toHaveCount(
       seedMeta.listFilterCount,
     );
-    await expectUrlParam("lists", seedMeta.listFilterId);
+    await expectUrlParam("lists", JSON.stringify([seedMeta.listFilterId]));
     await expect(
       dashboardListings.listingRow(seedMeta.listFilterRepresentativeTitle),
     ).toBeVisible();

@@ -322,7 +322,10 @@ test.describe("create/edit listing flow @local", () => {
 
     await dashboardListings.openColumnFilter("Description");
     await dashboardListings.setOpenColumnFilterValue(seedMeta.descriptionToken);
-    await expectUrlParam("description", seedMeta.descriptionToken);
+    await expectUrlParam(
+      "description",
+      JSON.stringify(seedMeta.descriptionToken),
+    );
     await expect(
       dashboardListings.listingRow(seedMeta.relinkAhsName),
     ).toBeVisible();
@@ -332,7 +335,10 @@ test.describe("create/edit listing flow @local", () => {
     await dashboardListings.setOpenColumnFilterValue(
       seedMeta.pendingPrivateNoteToken,
     );
-    await expectUrlParam("privateNote", seedMeta.pendingPrivateNoteToken);
+    await expectUrlParam(
+      "privateNote",
+      JSON.stringify(seedMeta.pendingPrivateNoteToken),
+    );
     await expect(
       dashboardListings.listingRow(seedMeta.relinkAhsName),
     ).toBeVisible();
@@ -341,7 +347,7 @@ test.describe("create/edit listing flow @local", () => {
     await dashboardListings.openListsFilter();
     await dashboardListings.toggleListFilterOption(seedMeta.existingListTitle);
     await page.keyboard.press("Escape");
-    await expectUrlParam("lists", seedMeta.existingListId);
+    await expectUrlParam("lists", JSON.stringify([seedMeta.existingListId]));
     await expect(
       dashboardListings.listingRow(seedMeta.relinkAhsName),
     ).toBeVisible();
