@@ -53,6 +53,11 @@ it("checks fresh routes and ignores preserved dev validators after a rename", ()
       path.join(fixtureApp, "node_modules"),
       "dir",
     );
+    symlinkSync(
+      path.resolve(appRoot, "../../node_modules"),
+      path.join(fixture, "node_modules"),
+      "dir",
+    );
     writeFileSync(
       path.join(fixtureApp, "package.json"),
       JSON.stringify({
