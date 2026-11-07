@@ -161,20 +161,6 @@ export function useDashboardCatalogImport(
   );
   const builderExcludedCount = builderExcludedRows.length;
 
-  const setRowSelected = useCallback(
-    (rowId: string, selected: boolean) => {
-      if (busy.current) return;
-      setSelectedRowIds((current) => {
-        const next = new Set(current ?? defaultSelectedRowIds);
-        if (selected && readyRowIds.has(rowId) && next.size < IMPORT_BATCH_SIZE)
-          next.add(rowId);
-        else if (!selected) next.delete(rowId);
-        return next;
-      });
-    },
-    [defaultSelectedRowIds, readyRowIds],
-  );
-
   const setRowsSelected = useCallback(
     (rowIds: string[], selected: boolean) => {
       if (busy.current) return;
@@ -194,6 +180,9 @@ export function useDashboardCatalogImport(
     },
     [defaultSelectedRowIds, readyRowIds],
   );
+
+  const setRowSelected = (rowId: string, selected: boolean) =>
+    setRowsSelected([rowId], selected);
 
   const startOver = () => {
     if (busy.current) return;

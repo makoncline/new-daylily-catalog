@@ -192,6 +192,24 @@ function getNextReviewedIssueActions({
   ];
 }
 
+function useImporterRequest() {
+  const active = useRef<AbortController | null>(null);
+  return useMemo(() => {
+    const cancel = () => {
+      active.current?.abort();
+      active.current = null;
+    };
+    return {
+      cancel,
+      start: () => {
+        cancel();
+        active.current = new AbortController();
+        return active.current.signal;
+      },
+    };
+  }, []);
+}
+
 export function useCatalogImporterWorkbench(
   initialDraft: CatalogImporterDraft | null = null,
 ) {
@@ -205,24 +223,20 @@ export function useCatalogImporterWorkbench(
     selectedSheet,
     getSourceCellsForRow,
   } = useCatalogImporterSession(initialDraft);
+  const initialReviewRows =
+    initialDraft?.matchedRows?.filter(
+      (row) =>
+        row.rowKind === "listing" &&
+        row.outputState === "included" &&
+        row.cultivarReferenceIdWarning === null &&
+        row.match === null &&
+        row.linkState === "pending",
+    ) ?? [];
   const initialReviewRow =
-    initialDraft?.matchedRows?.find(
-      (row) =>
-        row.id === initialDraft.activeReviewRowId &&
-        row.rowKind === "listing" &&
-        row.outputState === "included" &&
-        row.cultivarReferenceIdWarning === null &&
-        row.match === null &&
-        row.linkState === "pending",
+    initialReviewRows.find(
+      (row) => row.id === initialDraft?.activeReviewRowId,
     ) ??
-    initialDraft?.matchedRows?.find(
-      (row) =>
-        row.rowKind === "listing" &&
-        row.outputState === "included" &&
-        row.cultivarReferenceIdWarning === null &&
-        row.match === null &&
-        row.linkState === "pending",
-    ) ??
+    initialReviewRows[0] ??
     null;
   const initialReviewedIssueActions = initialDraft?.reviewedIssueActions ?? [];
   const {
@@ -240,14 +254,17 @@ export function useCatalogImporterWorkbench(
   } = session;
   const [fileError, setFileError] = useState<string | null>(null);
   const [readingFile, setReadingFile] = useState(false);
-  const [matchingProgress, setMatchingProgress] = useState<{
-    processed: number;
-    total: number;
-  } | null>(null);
-  const [processingStage, setProcessingStage] = useState<
-    "building" | "detecting" | "matching" | null
+  const [preparation, setPreparation] = useState<
+    | { stage: "detecting" | "building" }
+    | { stage: "matching"; processed: number; total: number }
+    | { stage: "failed"; error: string }
+    | null
   >(null);
-  const [matchError, setMatchError] = useState<string | null>(null);
+  const matchError = preparation?.stage === "failed" ? preparation.error : null;
+  const processingStage =
+    preparation?.stage === "failed" ? null : (preparation?.stage ?? null);
+  const matchingProgress =
+    preparation?.stage === "matching" ? preparation : null;
   const [reviewQuery, setReviewQuery] = useState("");
   const [candidateResult, setCandidateResult] =
     useState<CatalogImporterCandidateResult | null>(() =>
@@ -284,54 +301,61 @@ export function useCatalogImporterWorkbench(
       0,
     ),
   );
-  const createReviewedIssueActions = useCallback(
-    (
-      message: string,
-      previousRows: CatalogImportRow[],
-      affectedRowIds: Iterable<string>,
-    ) => {
-      const actionId = issueActionSequence.current + 1;
-      const nextActions = getNextReviewedIssueActions({
-        actionId,
-        affectedRowIds,
-        message,
-        previousRows,
-        reviewedIssueActions: sessionRef.current.reviewedIssueActions,
-      });
-      if (nextActions !== sessionRef.current.reviewedIssueActions) {
-        issueActionSequence.current = actionId;
-      }
-      return nextActions;
-    },
-    [sessionRef],
-  );
-  const fileRequestId = useRef(0);
-  const exactMatchRequestId = useRef(0);
-  const exactMatchAbortController = useRef<AbortController | null>(null);
-  const closeCandidateRequestId = useRef(0);
-  const searchCandidateRequestId = useRef(0);
-  const savedIdRematchRequestId = useRef(0);
-  const savedIdRematchAbortController = useRef<AbortController | null>(null);
+  const createReviewedIssueActions = (
+    message: string,
+    previousRows: CatalogImportRow[],
+    affectedRowIds: Iterable<string>,
+  ) => {
+    const actionId = issueActionSequence.current + 1;
+    const nextActions = getNextReviewedIssueActions({
+      actionId,
+      affectedRowIds,
+      message,
+      previousRows,
+      reviewedIssueActions: sessionRef.current.reviewedIssueActions,
+    });
+    if (nextActions !== sessionRef.current.reviewedIssueActions) {
+      issueActionSequence.current = actionId;
+    }
+    return nextActions;
+  };
+  const fileRequest = useImporterRequest();
+  const exactMatchRequest = useImporterRequest();
+  const closeCandidateRequest = useImporterRequest();
+  const searchCandidateRequest = useImporterRequest();
+  const savedIdRematchRequest = useImporterRequest();
   const previewTracked = useRef(initialDraft?.matchedRows != null);
 
   const cancelMatchRequests = useCallback(() => {
-    exactMatchRequestId.current += 1;
-    exactMatchAbortController.current?.abort();
-    exactMatchAbortController.current = null;
-    closeCandidateRequestId.current += 1;
-    searchCandidateRequestId.current += 1;
-    savedIdRematchRequestId.current += 1;
-    savedIdRematchAbortController.current?.abort();
-    savedIdRematchAbortController.current = null;
-  }, []);
+    exactMatchRequest.cancel();
+    closeCandidateRequest.cancel();
+    searchCandidateRequest.cancel();
+    savedIdRematchRequest.cancel();
+  }, [
+    exactMatchRequest,
+    closeCandidateRequest,
+    searchCandidateRequest,
+    savedIdRematchRequest,
+  ]);
 
   useEffect(
     () => () => {
-      fileRequestId.current += 1;
+      fileRequest.cancel();
       cancelMatchRequests();
     },
-    [cancelMatchRequests],
+    [fileRequest, cancelMatchRequests],
   );
+
+  const clearPreparedRows = (updates: Partial<CatalogImporterSession>) =>
+    commitSession({
+      activeReviewRowId: null,
+      initialIssueCount: 0,
+      initialReviewCount: 0,
+      matchedRows: null,
+      matchedRowsKey: null,
+      reviewedIssueActions: [],
+      ...updates,
+    });
 
   const sourceColumns = useMemo(
     () =>
@@ -388,47 +412,47 @@ export function useCatalogImporterWorkbench(
     ? reviewRows.findIndex((row) => row.id === activeReviewRow.id)
     : -1;
 
-  const loadCandidates = useCallback(async (row: CatalogImportRow) => {
-    const requestId = closeCandidateRequestId.current + 1;
-    closeCandidateRequestId.current = requestId;
-    setCandidateResult({
-      candidates: [],
-      error: null,
-      loading: true,
-      query: row.title,
-      rowId: row.id,
-    });
-
-    try {
-      const [result] = await requestCultivarMatches({
-        includeCandidates: true,
-        names: [row.title],
-      });
-      if (closeCandidateRequestId.current !== requestId) {
-        return;
-      }
-
-      setCandidateResult({
-        candidates: result?.candidates ?? [],
-        error: null,
-        loading: false,
-        query: row.title,
-        rowId: row.id,
-      });
-    } catch (error) {
-      if (closeCandidateRequestId.current !== requestId) {
-        return;
-      }
-
-      setCandidateResult({
+  const requestCandidates = useCallback(
+    async (
+      row: CatalogImportRow,
+      query: string,
+      request: ReturnType<typeof useImporterRequest>,
+      setResult: (result: CatalogImporterCandidateResult) => void,
+    ) => {
+      const signal = request.start();
+      const result: CatalogImporterCandidateResult = {
         candidates: [],
-        error: getErrorMessage(error),
-        loading: false,
-        query: row.title,
+        error: null,
+        loading: true,
+        query,
         rowId: row.id,
-      });
-    }
-  }, []);
+      };
+      setResult({ ...result });
+      try {
+        const [matches] = await requestCultivarMatches({
+          includeCandidates: true,
+          names: [query],
+          signal,
+        });
+        result.candidates = matches?.candidates ?? [];
+      } catch (error) {
+        result.error = getErrorMessage(error);
+      }
+      if (!signal.aborted) setResult({ ...result, loading: false });
+    },
+    [],
+  );
+
+  const loadCandidates = useCallback(
+    (row: CatalogImportRow) =>
+      requestCandidates(
+        row,
+        row.title,
+        closeCandidateRequest,
+        setCandidateResult,
+      ),
+    [requestCandidates, closeCandidateRequest],
+  );
 
   const saveMatchedRows = useCallback(
     (
@@ -460,294 +484,234 @@ export function useCatalogImporterWorkbench(
     [activeReviewRowId, initialIssueCount, initialReviewCount, commitSession],
   );
 
-  const matchSpreadsheet = useCallback(
-    async ({
+  const matchSpreadsheet = async ({
+    headerRowIndex: nextHeaderRowIndex,
+    mapping: nextMapping,
+    selectedSheetIndex: nextSheetIndex,
+    spreadsheet,
+  }: {
+    headerRowIndex: number | null;
+    mapping: CatalogColumnMapping;
+    selectedSheetIndex: number;
+    spreadsheet: ParsedSpreadsheet;
+  }) => {
+    const signal = exactMatchRequest.start();
+    const source = {
       headerRowIndex: nextHeaderRowIndex,
       mapping: nextMapping,
+      parsedSpreadsheet: spreadsheet,
       selectedSheetIndex: nextSheetIndex,
-      spreadsheet,
-    }: {
-      headerRowIndex: number | null;
-      mapping: CatalogColumnMapping;
-      selectedSheetIndex: number;
-      spreadsheet: ParsedSpreadsheet;
-    }) => {
-      const sheet = spreadsheet.sheets[nextSheetIndex];
-      if (!sheet || nextMapping.title === null) {
-        setMatchingProgress(null);
-        setProcessingStage(null);
-        await commitSession({
-          activeReviewRowId: null,
-          headerRowIndex: nextHeaderRowIndex,
-          initialIssueCount: 0,
-          initialReviewCount: 0,
-          mapping: nextMapping,
-          matchedRows: null,
-          matchedRowsKey: null,
-          parsedSpreadsheet: spreadsheet,
-          reviewedIssueActions: [],
-          selectedSheetIndex: nextSheetIndex,
-        });
-        return false;
-      }
+    };
+    const sheet = spreadsheet.sheets[nextSheetIndex];
+    if (!sheet || nextMapping.title === null) {
+      setPreparation(null);
+      await clearPreparedRows(source);
+      return false;
+    }
 
-      setProcessingStage("detecting");
-      const rows = createCatalogImportRows({
-        headerRowIndex: nextHeaderRowIndex,
-        mapping: nextMapping,
-        rows: sheet.rows,
-      });
-      const rowsToMatch = rows.filter(
-        (row) =>
-          row.rowKind === "listing" &&
-          row.outputState === "included" &&
-          row.linkState !== "intentionally-unmatched",
-      );
-      if (rowsToMatch.length === 0) {
-        const nextImportState = getCatalogImportState(rows);
-        const nextIssueCount =
-          nextImportState.counts.issueCount +
-          nextImportState.counts.warningCount;
-        const nextReviewCount = nextImportState.counts.reviewQueueCount;
-        setMatchingProgress(null);
-        await commitSession({
-          activeReviewRowId: null,
-          headerRowIndex: nextHeaderRowIndex,
-          initialIssueCount: nextIssueCount,
-          initialReviewCount: nextReviewCount,
-          mapping: nextMapping,
-          matchedRows: rows,
-          matchedRowsKey: null,
-          parsedSpreadsheet: spreadsheet,
-          reviewedIssueActions: [],
-          selectedSheetIndex: nextSheetIndex,
-        });
-        setProcessingStage(null);
-        return true;
-      }
-
-      const uniqueInputs = [
-        ...new Map(
-          rowsToMatch.map((row) => [
-            row.sourceCultivarReferenceId
-              ? `id:${row.sourceCultivarReferenceId}`
-              : `name:${normalizeCultivarName(row.title) ?? row.title}`,
-            {
-              cultivarReferenceId: row.sourceCultivarReferenceId || null,
-              name: row.title,
-            },
-          ]),
-        ).values(),
-      ];
-      const nextMatchKey = getCatalogMatchKey({
-        fileName: spreadsheet.fileName,
-        headerRowIndex: nextHeaderRowIndex,
-        mapping: nextMapping,
-        rowCount: sheet.rows.length,
-        sheetName: sheet.name,
-      });
-      const requestId = exactMatchRequestId.current + 1;
-      const controller = new AbortController();
-      exactMatchRequestId.current = requestId;
-      exactMatchAbortController.current?.abort();
-      exactMatchAbortController.current = controller;
-      setMatchError(null);
-      setMatchingProgress(null);
+    setPreparation({ stage: "detecting" });
+    const rows = createCatalogImportRows({
+      headerRowIndex: nextHeaderRowIndex,
+      mapping: nextMapping,
+      rows: sheet.rows,
+    });
+    const rowsToMatch = rows.filter(
+      (row) =>
+        row.rowKind === "listing" &&
+        row.outputState === "included" &&
+        row.linkState !== "intentionally-unmatched",
+    );
+    const uniqueInputs = [
+      ...new Map(
+        rowsToMatch.map((row) => [
+          row.sourceCultivarReferenceId
+            ? `id:${row.sourceCultivarReferenceId}`
+            : `name:${normalizeCultivarName(row.title) ?? row.title}`,
+          {
+            cultivarReferenceId: row.sourceCultivarReferenceId || null,
+            name: row.title,
+          },
+        ]),
+      ).values(),
+    ];
+    const nextMatchKey = getCatalogMatchKey({
+      fileName: spreadsheet.fileName,
+      headerRowIndex: nextHeaderRowIndex,
+      mapping: nextMapping,
+      rowCount: sheet.rows.length,
+      sheetName: sheet.name,
+    });
+    if (rowsToMatch.length) {
       setReviewQuery("");
-      closeCandidateRequestId.current += 1;
+      closeCandidateRequest.cancel();
+      searchCandidateRequest.cancel();
       setCandidateResult(null);
       setSearchCandidateResult(null);
+      await clearPreparedRows(source);
+    }
+    if (signal.aborted) {
+      return false;
+    }
 
-      await commitSession({
-        activeReviewRowId: null,
-        headerRowIndex: nextHeaderRowIndex,
-        initialIssueCount: 0,
-        initialReviewCount: 0,
-        mapping: nextMapping,
-        matchedRows: null,
-        matchedRowsKey: null,
-        parsedSpreadsheet: spreadsheet,
-        reviewedIssueActions: [],
-        selectedSheetIndex: nextSheetIndex,
-      });
-      if (exactMatchRequestId.current !== requestId) {
-        return false;
-      }
+    setPreparation({
+      stage: "matching",
+      processed: 0,
+      total: uniqueInputs.length,
+    });
+    const automaticMatches = new Map<string, CultivarMatchCandidate>();
+    const cultivarReferenceMatches = new Map<string, CultivarMatchCandidate>();
+    const invalidCultivarReferenceIds = new Set<string>();
+    const suggestedMatches = new Map<string, CultivarMatchCandidate>();
 
-      setProcessingStage("matching");
-      setMatchingProgress({ processed: 0, total: uniqueInputs.length });
-      const automaticMatches = new Map<string, CultivarMatchCandidate>();
-      const cultivarReferenceMatches = new Map<
-        string,
-        CultivarMatchCandidate
-      >();
-      const invalidCultivarReferenceIds = new Set<string>();
-      const suggestedMatches = new Map<string, CultivarMatchCandidate>();
-
-      try {
-        for (
-          let start = 0;
-          start < uniqueInputs.length;
-          start += CATALOG_IMPORT_MATCH_BATCH_SIZE
-        ) {
-          const batch = uniqueInputs.slice(
-            start,
-            start + CATALOG_IMPORT_MATCH_BATCH_SIZE,
-          );
-          const results = await requestCultivarMatches({
-            cultivarReferenceIds: batch.map(
-              (input) => input.cultivarReferenceId,
-            ),
-            includeCandidates: true,
-            names: batch.map((input) => input.name),
-            signal: controller.signal,
-          });
-
-          if (exactMatchRequestId.current !== requestId) {
-            return false;
-          }
-
-          for (const result of results) {
-            if (result.inputCultivarReferenceId) {
-              if (result.exactMatch) {
-                cultivarReferenceMatches.set(
-                  result.inputCultivarReferenceId,
-                  result.exactMatch,
-                );
-              } else if (result.invalidCultivarReferenceId) {
-                invalidCultivarReferenceIds.add(
-                  result.invalidCultivarReferenceId,
-                );
-              }
-              continue;
-            }
-
-            const automaticMatch = getAutomaticCultivarMatch(result);
-            const suggestedMatch = result.candidates[0];
-            if (result.normalizedInput && suggestedMatch) {
-              suggestedMatches.set(result.normalizedInput, suggestedMatch);
-            }
-            if (result.normalizedInput && automaticMatch) {
-              automaticMatches.set(result.normalizedInput, automaticMatch);
-            }
-          }
-
-          setMatchingProgress({
-            processed: Math.min(start + batch.length, uniqueInputs.length),
-            total: uniqueInputs.length,
-          });
-        }
-
-        const nextRows = applyAutomaticCultivarMatches({
-          automaticMatches,
-          cultivarReferenceMatches,
-          invalidCultivarReferenceIds,
-          rows,
-          suggestedMatches,
+    try {
+      for (
+        let start = 0;
+        start < uniqueInputs.length;
+        start += CATALOG_IMPORT_MATCH_BATCH_SIZE
+      ) {
+        const batch = uniqueInputs.slice(
+          start,
+          start + CATALOG_IMPORT_MATCH_BATCH_SIZE,
+        );
+        const results = await requestCultivarMatches({
+          cultivarReferenceIds: batch.map((input) => input.cultivarReferenceId),
+          includeCandidates: true,
+          names: batch.map((input) => input.name),
+          signal,
         });
 
-        if (exactMatchRequestId.current !== requestId) {
+        if (signal.aborted) {
           return false;
         }
 
-        const nextImportState = getCatalogImportState(nextRows);
-        const nextReviewRow = nextImportState.reviewRows[0] ?? null;
-        const nextIssueCount =
-          nextImportState.counts.issueCount +
-          nextImportState.counts.warningCount;
-        const nextReviewCount = nextImportState.counts.reviewQueueCount;
-        setProcessingStage("building");
-        setMatchingProgress(null);
-        await commitSession({
-          activeReviewRowId: nextReviewRow?.id ?? null,
+        for (const result of results) {
+          if (result.inputCultivarReferenceId) {
+            if (result.exactMatch) {
+              cultivarReferenceMatches.set(
+                result.inputCultivarReferenceId,
+                result.exactMatch,
+              );
+            } else if (result.invalidCultivarReferenceId) {
+              invalidCultivarReferenceIds.add(
+                result.invalidCultivarReferenceId,
+              );
+            }
+            continue;
+          }
+
+          const automaticMatch = getAutomaticCultivarMatch(result);
+          const suggestedMatch = result.candidates[0];
+          if (result.normalizedInput && suggestedMatch) {
+            suggestedMatches.set(result.normalizedInput, suggestedMatch);
+          }
+          if (result.normalizedInput && automaticMatch) {
+            automaticMatches.set(result.normalizedInput, automaticMatch);
+          }
+        }
+
+        setPreparation({
+          stage: "matching",
+          processed: Math.min(start + batch.length, uniqueInputs.length),
+          total: uniqueInputs.length,
+        });
+      }
+
+      const nextRows = applyAutomaticCultivarMatches({
+        automaticMatches,
+        cultivarReferenceMatches,
+        invalidCultivarReferenceIds,
+        rows,
+        suggestedMatches,
+      });
+
+      if (signal.aborted) {
+        return false;
+      }
+
+      const nextImportState = getCatalogImportState(nextRows);
+      const nextReviewRow = nextImportState.reviewRows[0] ?? null;
+      const nextIssueCount =
+        nextImportState.counts.issueCount + nextImportState.counts.warningCount;
+      setPreparation({ stage: "building" });
+      await clearPreparedRows({
+        ...source,
+        activeReviewRowId: nextReviewRow?.id ?? null,
+        initialIssueCount: nextIssueCount,
+        initialReviewCount: nextImportState.counts.reviewQueueCount,
+        matchedRows: nextRows,
+        matchedRowsKey: rowsToMatch.length ? nextMatchKey : null,
+      });
+      if (signal.aborted) {
+        return false;
+      }
+
+      setPreparation(null);
+      if (rowsToMatch.length === 0) return true;
+      setReviewQuery(nextReviewRow?.sourceTitle ?? "");
+      globalThis.requestAnimationFrame?.(() => {
+        globalThis.requestAnimationFrame?.(() => {
+          document
+            .getElementById("catalog-importer-summary")
+            ?.scrollIntoView?.({ block: "start" });
+        });
+      });
+      if (!previewTracked.current) {
+        previewTracked.current = true;
+        const telemetry = getCatalogImportTelemetryCounts(nextRows);
+        const suggestedMapping = suggestColumnMapping(
+          sheet.rows,
+          nextHeaderRowIndex,
+          getSourceColumns(sheet.rows, nextHeaderRowIndex),
+        );
+        logCatalogImporterSubmissionSample({
           headerRowIndex: nextHeaderRowIndex,
-          initialIssueCount: nextIssueCount,
-          initialReviewCount: nextReviewCount,
+          importId: sessionRef.current.projectId,
           mapping: nextMapping,
-          matchedRows: nextRows,
-          matchedRowsKey: nextMatchKey,
           parsedSpreadsheet: spreadsheet,
-          reviewedIssueActions: [],
+          resultCounts: {
+            issueCount: telemetry.issue_count,
+            matchedCount: telemetry.matched_count,
+            readyCount: telemetry.ready_count,
+            reviewCount: telemetry.review_count,
+            rowCount: telemetry.row_count,
+            warningCount: telemetry.warning_count,
+          },
           selectedSheetIndex: nextSheetIndex,
         });
-        if (exactMatchRequestId.current !== requestId) {
-          return false;
-        }
-
-        setReviewQuery(nextReviewRow?.sourceTitle ?? "");
-        setProcessingStage(null);
-        setMatchingProgress(null);
-        globalThis.requestAnimationFrame?.(() => {
-          globalThis.requestAnimationFrame?.(() => {
-            document
-              .getElementById("catalog-importer-summary")
-              ?.scrollIntoView?.({ block: "start" });
-          });
-        });
-        if (!previewTracked.current) {
-          previewTracked.current = true;
-          const telemetry = getCatalogImportTelemetryCounts(nextRows);
-          const suggestedMapping = suggestColumnMapping(
-            sheet.rows,
-            nextHeaderRowIndex,
-            getSourceColumns(sheet.rows, nextHeaderRowIndex),
-          );
-          logCatalogImporterSubmissionSample({
-            headerRowIndex: nextHeaderRowIndex,
-            importId: sessionRef.current.projectId,
-            mapping: nextMapping,
-            parsedSpreadsheet: spreadsheet,
-            resultCounts: {
-              issueCount: telemetry.issue_count,
-              matchedCount: telemetry.matched_count,
-              readyCount: telemetry.ready_count,
-              reviewCount: telemetry.review_count,
-              rowCount: telemetry.row_count,
-              warningCount: telemetry.warning_count,
-            },
-            selectedSheetIndex: nextSheetIndex,
-          });
-          capturePosthogEvent("catalog_import_previewed", {
-            file_type: getCatalogImportFileType(spreadsheet.fileName),
-            import_id: sessionRef.current.projectId,
-            mapped_field_count: Object.values(nextMapping).filter(
-              (columnIndex) => columnIndex !== null,
-            ).length,
-            mapping_changed: !mappingsAreEqual(nextMapping, suggestedMapping),
-            sheet_count: spreadsheet.sheets.length,
-            source: spreadsheet.source ?? "upload",
-            source_row_count: sheet.rows.length,
-            ...telemetry,
-          });
-        }
-        if (nextReviewRow) {
-          void loadCandidates(nextReviewRow);
-        }
-        return true;
-      } catch (error) {
-        if (
-          controller.signal.aborted ||
-          exactMatchRequestId.current !== requestId
-        ) {
-          return false;
-        }
-
-        setMatchError(getErrorMessage(error));
-        setProcessingStage(null);
-        setMatchingProgress(null);
-        capturePosthogEvent("catalog_import_failed", {
-          error_code: "preview_generation_failed",
+        capturePosthogEvent("catalog_import_previewed", {
           file_type: getCatalogImportFileType(spreadsheet.fileName),
           import_id: sessionRef.current.projectId,
-          stage: "preview",
+          mapped_field_count: Object.values(nextMapping).filter(
+            (columnIndex) => columnIndex !== null,
+          ).length,
+          mapping_changed: !mappingsAreEqual(nextMapping, suggestedMapping),
+          sheet_count: spreadsheet.sheets.length,
+          source: spreadsheet.source ?? "upload",
+          source_row_count: sheet.rows.length,
+          ...telemetry,
         });
+      }
+      if (nextReviewRow) {
+        void loadCandidates(nextReviewRow);
+      }
+      return true;
+    } catch (error) {
+      if (signal.aborted) {
         return false;
       }
-    },
-    [loadCandidates, commitSession, sessionRef],
-  );
 
-  const buildCatalogPreview = useCallback(async () => {
+      setPreparation({ stage: "failed", error: getErrorMessage(error) });
+      capturePosthogEvent("catalog_import_failed", {
+        error_code: "preview_generation_failed",
+        file_type: getCatalogImportFileType(spreadsheet.fileName),
+        import_id: sessionRef.current.projectId,
+        stage: "preview",
+      });
+      return false;
+    }
+  };
+
+  const buildCatalogPreview = async () => {
     if (!parsedSpreadsheet) {
       return false;
     }
@@ -758,27 +722,19 @@ export function useCatalogImporterWorkbench(
       selectedSheetIndex,
       spreadsheet: parsedSpreadsheet,
     });
-  }, [
-    headerRowIndex,
-    mapping,
-    matchSpreadsheet,
-    parsedSpreadsheet,
-    selectedSheetIndex,
-  ]);
+  };
 
-  const resetMatches = useCallback(() => {
+  const resetMatches = () => {
     cancelMatchRequests();
-    setMatchingProgress(null);
-    setProcessingStage(null);
-    setMatchError(null);
+    setPreparation(null);
     setReviewQuery("");
     setCandidateResult(null);
     setSearchCandidateResult(null);
     setLastLinkAction(null);
-  }, [cancelMatchRequests]);
+  };
 
-  const resetImporter = useCallback(() => {
-    fileRequestId.current += 1;
+  const resetImporter = () => {
+    fileRequest.cancel();
     resetSession();
     setFileError(null);
     setReadingFile(false);
@@ -786,197 +742,167 @@ export function useCatalogImporterWorkbench(
     resetMatches();
     setLiveAnnouncement("Local progress cleared.");
     previewTracked.current = false;
-  }, [resetSession, resetMatches, setDownloadError]);
+  };
 
-  const setImportRowsIncluded = useCallback(
-    (rowIds: string[], included: boolean) => {
-      if (!matchedRows || rowIds.length === 0) return;
+  const setImportRowsIncluded = (rowIds: string[], included: boolean) => {
+    if (!matchedRows || rowIds.length === 0) return;
 
-      const targetIds = new Set(rowIds);
+    const targetIds = new Set(rowIds);
 
-      saveMatchedRows(
-        assignCatalogImportDuplicateGroups(
-          matchedRows.map((row) =>
-            targetIds.has(row.id)
-              ? {
-                  ...row,
-                  outputState: included ? "included" : "removed",
-                }
-              : row,
-          ),
-        ),
-      );
-    },
-    [matchedRows, saveMatchedRows],
-  );
-
-  const setImportRowIncluded = useCallback(
-    (rowId: string, included: boolean) => {
-      setImportRowsIncluded([rowId], included);
-    },
-    [setImportRowsIncluded],
-  );
-
-  const updateImportRow = useCallback(
-    (
-      rowId: string,
-      updates: {
-        description: string;
-        price: number | null;
-        privateNote: string;
-      },
-    ) => {
-      if (!matchedRows) return;
-
-      saveMatchedRows(
+    saveMatchedRows(
+      assignCatalogImportDuplicateGroups(
         matchedRows.map((row) =>
-          row.id === rowId
+          targetIds.has(row.id)
             ? {
                 ...row,
-                description: updates.description,
-                price: updates.price,
-                priceWarning: null,
-                privateNote: updates.privateNote,
+                outputState: included ? "included" : "removed",
               }
             : row,
         ),
-      );
+      ),
+    );
+  };
+
+  const setImportRowIncluded = (rowId: string, included: boolean) => {
+    setImportRowsIncluded([rowId], included);
+  };
+
+  const updateImportRow = (
+    rowId: string,
+    updates: {
+      description: string;
+      price: number | null;
+      privateNote: string;
     },
-    [matchedRows, saveMatchedRows],
-  );
+  ) => {
+    if (!matchedRows) return;
 
-  const getOriginalImportRow = useCallback(
-    (rowId: string) => {
-      if (!selectedSheet) return null;
+    saveMatchedRows(
+      matchedRows.map((row) =>
+        row.id === rowId
+          ? {
+              ...row,
+              description: updates.description,
+              price: updates.price,
+              priceWarning: null,
+              privateNote: updates.privateNote,
+            }
+          : row,
+      ),
+    );
+  };
 
-      return (
-        createCatalogImportRows({
-          headerRowIndex,
-          mapping,
-          rows: selectedSheet.rows,
-        }).find((row) => row.id === rowId) ?? null
-      );
-    },
-    [headerRowIndex, mapping, selectedSheet],
-  );
+  const getOriginalImportRow = (rowId: string) => {
+    if (!selectedSheet) return null;
 
-  const resetImportRow = useCallback(
-    (rowId: string) => {
-      if (!matchedRows) return;
+    return (
+      createCatalogImportRows({
+        headerRowIndex,
+        mapping,
+        rows: selectedSheet.rows,
+      }).find((row) => row.id === rowId) ?? null
+    );
+  };
 
-      const originalRow = getOriginalImportRow(rowId);
-      if (!originalRow) return;
+  const resetImportRow = (rowId: string) => {
+    if (!matchedRows) return;
 
-      saveMatchedRows(
-        matchedRows.map((row) =>
-          row.id === rowId
-            ? {
-                ...row,
-                description: originalRow.description,
-                price: originalRow.price,
-                priceWarning: originalRow.priceWarning,
-                privateNote: originalRow.privateNote,
-              }
-            : row,
-        ),
-      );
-    },
-    [getOriginalImportRow, matchedRows, saveMatchedRows],
-  );
+    const originalRow = getOriginalImportRow(rowId);
+    if (!originalRow) return;
 
-  const configureSheet = useCallback(
-    (spreadsheet: ParsedSpreadsheet, sheetIndex: number) => {
-      const sheet = spreadsheet.sheets[sheetIndex];
-      if (!sheet) {
-        return;
-      }
+    saveMatchedRows(
+      matchedRows.map((row) =>
+        row.id === rowId
+          ? {
+              ...row,
+              description: originalRow.description,
+              price: originalRow.price,
+              priceWarning: originalRow.priceWarning,
+              privateNote: originalRow.privateNote,
+            }
+          : row,
+      ),
+    );
+  };
 
-      fileRequestId.current += 1;
-      setReadingFile(false);
-      const nextHeaderRowIndex = detectHeaderRow(sheet.rows);
-      const nextColumns = getSourceColumns(sheet.rows, nextHeaderRowIndex);
-      const nextMapping = suggestColumnMapping(
-        sheet.rows,
-        nextHeaderRowIndex,
-        nextColumns,
-      );
+  const configureSheet = (
+    spreadsheet: ParsedSpreadsheet,
+    sheetIndex: number,
+  ) => {
+    const sheet = spreadsheet.sheets[sheetIndex];
+    if (!sheet) {
+      return;
+    }
 
-      resetMatches();
-      void commitSession({
-        activeReviewRowId: null,
-        headerRowIndex: nextHeaderRowIndex,
-        initialIssueCount: 0,
-        initialReviewCount: 0,
-        mapping: nextMapping,
-        matchedRows: null,
-        matchedRowsKey: null,
-        parsedSpreadsheet: spreadsheet,
-        reviewedIssueActions: [],
-        selectedSheetIndex: sheetIndex,
-      });
-    },
-    [commitSession, resetMatches],
-  );
+    fileRequest.cancel();
+    setReadingFile(false);
+    const nextHeaderRowIndex = detectHeaderRow(sheet.rows);
+    const nextColumns = getSourceColumns(sheet.rows, nextHeaderRowIndex);
+    const nextMapping = suggestColumnMapping(
+      sheet.rows,
+      nextHeaderRowIndex,
+      nextColumns,
+    );
 
-  const loadFile = useCallback(
-    async (file: File) => {
-      let requestId = ++fileRequestId.current;
-      setReadingFile(true);
-      setFileError(null);
+    resetMatches();
+    void clearPreparedRows({
+      headerRowIndex: nextHeaderRowIndex,
+      mapping: nextMapping,
+      parsedSpreadsheet: spreadsheet,
+      selectedSheetIndex: sheetIndex,
+    });
+  };
 
-      try {
-        const spreadsheet = await parseCatalogImportFile(file);
-        if (fileRequestId.current !== requestId) {
-          return false;
-        }
-        previewTracked.current = false;
-        if (spreadsheet.sheets.length === 1) {
-          configureSheet(spreadsheet, 0);
-          requestId = fileRequestId.current;
-        } else {
-          resetMatches();
-          await commitSession({
-            activeReviewRowId: null,
-            headerRowIndex: null,
-            initialIssueCount: 0,
-            initialReviewCount: 0,
-            mapping: EMPTY_CATALOG_IMPORT_MAPPING,
-            matchedRows: null,
-            matchedRowsKey: null,
-            parsedSpreadsheet: spreadsheet,
-            reviewedIssueActions: [],
-            selectedSheetIndex: -1,
-          });
-        }
-        if (fileRequestId.current !== requestId) {
-          return false;
-        }
-        setLiveAnnouncement(
-          `${spreadsheet.fileName} loaded with ${spreadsheet.sheets.length.toLocaleString()} sheet${spreadsheet.sheets.length === 1 ? "" : "s"}.`,
-        );
-        return true;
-      } catch (error) {
-        if (fileRequestId.current !== requestId) {
-          return false;
-        }
-        setFileError(getErrorMessage(error));
-        capturePosthogEvent("catalog_import_failed", {
-          error_code: "file_parse_failed",
-          file_type: getCatalogImportFileType(file.name),
-          import_id: sessionRef.current.projectId,
-          stage: "file",
-        });
+  const loadFile = async (file: File) => {
+    let signal = fileRequest.start();
+    setReadingFile(true);
+    setFileError(null);
+
+    try {
+      const spreadsheet = await parseCatalogImportFile(file);
+      if (signal.aborted) {
         return false;
-      } finally {
-        if (fileRequestId.current === requestId) {
-          setReadingFile(false);
-        }
       }
-    },
-    [configureSheet, commitSession, resetMatches, sessionRef],
-  );
+      previewTracked.current = false;
+      if (spreadsheet.sheets.length === 1) {
+        configureSheet(spreadsheet, 0);
+        signal = fileRequest.start();
+      } else {
+        resetMatches();
+        await clearPreparedRows({
+          headerRowIndex: null,
+          mapping: EMPTY_CATALOG_IMPORT_MAPPING,
+          parsedSpreadsheet: spreadsheet,
+          selectedSheetIndex: -1,
+        });
+      }
+      if (signal.aborted) {
+        return false;
+      }
+      setLiveAnnouncement(
+        `${spreadsheet.fileName} loaded with ${spreadsheet.sheets.length.toLocaleString()} sheet${spreadsheet.sheets.length === 1 ? "" : "s"}.`,
+      );
+      return true;
+    } catch (error) {
+      if (signal.aborted) {
+        return false;
+      }
+      setFileError(getErrorMessage(error));
+      capturePosthogEvent("catalog_import_failed", {
+        error_code: "file_parse_failed",
+        file_type: getCatalogImportFileType(file.name),
+        import_id: sessionRef.current.projectId,
+        stage: "file",
+      });
+      return false;
+    } finally {
+      if (!signal.aborted) {
+        setReadingFile(false);
+      }
+    }
+  };
 
-  const loadManualCatalog = useCallback(() => {
+  const loadManualCatalog = () => {
     const spreadsheet: ParsedSpreadsheet = {
       fileName: "My daylily catalog.csv",
       source: "manual",
@@ -991,331 +917,235 @@ export function useCatalogImporterWorkbench(
     setFileError(null);
     configureSheet(spreadsheet, 0);
     setLiveAnnouncement("Manual catalog started.");
-  }, [configureSheet]);
+  };
 
-  const replaceManualCatalogRows = useCallback(
-    (rows: ParsedSpreadsheet["sheets"][number]["rows"]) => {
-      if (parsedSpreadsheet?.source !== "manual") {
-        return;
-      }
-      const nextSpreadsheet: ParsedSpreadsheet = {
-        ...parsedSpreadsheet,
-        sheets: parsedSpreadsheet.sheets.map((sheet, index) =>
-          index === selectedSheetIndex ? { ...sheet, rows } : sheet,
-        ),
-      };
-      resetMatches();
-      void commitSession({
-        activeReviewRowId: null,
-        initialIssueCount: 0,
-        initialReviewCount: 0,
-        matchedRows: null,
-        matchedRowsKey: null,
-        parsedSpreadsheet: nextSpreadsheet,
-        reviewedIssueActions: [],
-      });
-    },
-    [parsedSpreadsheet, commitSession, resetMatches, selectedSheetIndex],
-  );
+  const replaceManualCatalogRows = (
+    rows: ParsedSpreadsheet["sheets"][number]["rows"],
+  ) => {
+    if (parsedSpreadsheet?.source !== "manual") {
+      return;
+    }
+    const nextSpreadsheet: ParsedSpreadsheet = {
+      ...parsedSpreadsheet,
+      sheets: parsedSpreadsheet.sheets.map((sheet, index) =>
+        index === selectedSheetIndex ? { ...sheet, rows } : sheet,
+      ),
+    };
+    resetMatches();
+    void clearPreparedRows({
+      parsedSpreadsheet: nextSpreadsheet,
+      reviewedIssueActions: [],
+    });
+  };
 
-  const addManualCatalogRow = useCallback(
-    ({
-      cultivarReferenceId = "",
-      name,
-    }: {
-      cultivarReferenceId?: string;
-      name: string;
-    }) => {
-      const rows = selectedSheet?.rows ?? [];
-      if (!name.trim() || rows.length - 1 >= 10) return;
-      replaceManualCatalogRows([
-        ...rows,
-        [name.trim(), "", "", "", cultivarReferenceId],
-      ]);
-      setLiveAnnouncement(`${name.trim()} added to the spreadsheet.`);
-    },
-    [replaceManualCatalogRows, selectedSheet?.rows],
-  );
+  const addManualCatalogRow = ({
+    cultivarReferenceId = "",
+    name,
+  }: {
+    cultivarReferenceId?: string;
+    name: string;
+  }) => {
+    const rows = selectedSheet?.rows ?? [];
+    if (!name.trim() || rows.length - 1 >= 10) return;
+    replaceManualCatalogRows([
+      ...rows,
+      [name.trim(), "", "", "", cultivarReferenceId],
+    ]);
+    setLiveAnnouncement(`${name.trim()} added to the spreadsheet.`);
+  };
 
-  const removeManualCatalogRow = useCallback(
-    (rowIndex: number) => {
-      const rows = (selectedSheet?.rows ?? []).filter(
-        (_, index) => index !== rowIndex,
-      );
-      replaceManualCatalogRows(rows);
-      setLiveAnnouncement("Listing removed from the spreadsheet.");
-    },
-    [replaceManualCatalogRows, selectedSheet?.rows],
-  );
+  const removeManualCatalogRow = (rowIndex: number) => {
+    const rows = (selectedSheet?.rows ?? []).filter(
+      (_, index) => index !== rowIndex,
+    );
+    replaceManualCatalogRows(rows);
+    setLiveAnnouncement("Listing removed from the spreadsheet.");
+  };
 
-  const loadSampleCatalog = useCallback(() => {
+  const loadSampleCatalog = () => {
     const spreadsheet = createCatalogImportSampleSpreadsheet();
     previewTracked.current = false;
     setFileError(null);
     configureSheet(spreadsheet, 0);
     setLiveAnnouncement("Sample daylily catalog loaded.");
-  }, [configureSheet]);
+  };
 
-  const rejectFile = useCallback((message: string) => {
+  const rejectFile = (message: string) => {
     setFileError(message);
     setLiveAnnouncement(message);
-  }, []);
+  };
 
-  const handleHeaderChange = useCallback(
-    (value: string) => {
-      if (!selectedSheet) {
-        return;
-      }
+  const handleHeaderChange = (value: string) => {
+    if (!selectedSheet) {
+      return;
+    }
 
-      const nextHeaderRowIndex = value === "none" ? null : Number(value);
-      const nextColumns = getSourceColumns(
-        selectedSheet.rows,
-        nextHeaderRowIndex,
+    const nextHeaderRowIndex = value === "none" ? null : Number(value);
+    const nextColumns = getSourceColumns(
+      selectedSheet.rows,
+      nextHeaderRowIndex,
+    );
+    const nextMapping = suggestColumnMapping(
+      selectedSheet.rows,
+      nextHeaderRowIndex,
+      nextColumns,
+    );
+
+    resetMatches();
+    void clearPreparedRows({
+      headerRowIndex: nextHeaderRowIndex,
+      mapping: nextMapping,
+    });
+  };
+
+  const handleMappingChange = (
+    field: CatalogImporterMappingField,
+    value: number | null,
+  ) => {
+    if (!parsedSpreadsheet) {
+      return;
+    }
+
+    const nextMapping = {
+      ...mapping,
+      [field]: value,
+    };
+    resetMatches();
+    void clearPreparedRows({
+      mapping: nextMapping,
+    });
+  };
+
+  const searchCandidates = async (row: CatalogImportRow, query: string) => {
+    if (query.trim())
+      await requestCandidates(
+        row,
+        query.trim(),
+        searchCandidateRequest,
+        setSearchCandidateResult,
       );
-      const nextMapping = suggestColumnMapping(
-        selectedSheet.rows,
-        nextHeaderRowIndex,
-        nextColumns,
-      );
+  };
 
-      resetMatches();
-      void commitSession({
-        activeReviewRowId: null,
-        headerRowIndex: nextHeaderRowIndex,
-        initialIssueCount: 0,
-        initialReviewCount: 0,
-        mapping: nextMapping,
-        matchedRows: null,
-        matchedRowsKey: null,
-        parsedSpreadsheet,
-        reviewedIssueActions: [],
-        selectedSheetIndex,
-      });
-    },
-    [
-      parsedSpreadsheet,
-      commitSession,
-      resetMatches,
-      selectedSheet,
-      selectedSheetIndex,
-    ],
-  );
-
-  const handleMappingChange = useCallback(
-    (field: CatalogImporterMappingField, value: number | null) => {
-      if (!parsedSpreadsheet) {
-        return;
-      }
-
-      const nextMapping = {
-        ...mapping,
-        [field]: value,
-      };
-      resetMatches();
-      void commitSession({
-        activeReviewRowId: null,
-        headerRowIndex,
-        initialIssueCount: 0,
-        initialReviewCount: 0,
-        mapping: nextMapping,
-        matchedRows: null,
-        matchedRowsKey: null,
-        parsedSpreadsheet,
-        reviewedIssueActions: [],
-        selectedSheetIndex,
-      });
-    },
-    [
-      headerRowIndex,
-      mapping,
-      parsedSpreadsheet,
-      commitSession,
-      resetMatches,
-      selectedSheetIndex,
-    ],
-  );
-
-  const searchCandidates = useCallback(
-    async (row: CatalogImportRow, query: string) => {
-      const trimmedQuery = query.trim();
-      if (!trimmedQuery) {
-        return;
-      }
-
-      const requestId = searchCandidateRequestId.current + 1;
-      searchCandidateRequestId.current = requestId;
-      setSearchCandidateResult({
-        candidates: [],
-        error: null,
-        loading: true,
-        query: trimmedQuery,
-        rowId: row.id,
-      });
-
-      try {
-        const [result] = await requestCultivarMatches({
-          includeCandidates: true,
-          names: [trimmedQuery],
-        });
-        if (searchCandidateRequestId.current !== requestId) {
-          return;
-        }
-
-        setSearchCandidateResult({
-          candidates: result?.candidates ?? [],
-          error: null,
-          loading: false,
-          query: trimmedQuery,
-          rowId: row.id,
-        });
-      } catch (error) {
-        if (searchCandidateRequestId.current !== requestId) {
-          return;
-        }
-
-        setSearchCandidateResult({
-          candidates: [],
-          error: getErrorMessage(error),
-          loading: false,
-          query: trimmedQuery,
-          rowId: row.id,
-        });
-      }
-    },
-    [],
-  );
-
-  const resetCandidateSearch = useCallback((row: CatalogImportRow) => {
-    searchCandidateRequestId.current += 1;
+  const resetCandidateSearch = (row: CatalogImportRow) => {
+    searchCandidateRequest.cancel();
     setReviewQuery(row.sourceTitle);
     setSearchCandidateResult(null);
-  }, []);
+  };
 
-  const openReviewRow = useCallback(
-    (row: CatalogImportRow) => {
-      searchCandidateRequestId.current += 1;
-      setReviewQuery(row.sourceTitle);
-      void loadCandidates(row);
-      setSearchCandidateResult(null);
-      setLiveAnnouncement(
-        `Reviewing source row ${row.sourceRow}: ${row.title}.`,
-      );
-      void commitSession({ activeReviewRowId: row.id });
-    },
-    [loadCandidates, commitSession],
-  );
+  const openReviewRow = (row: CatalogImportRow) => {
+    searchCandidateRequest.cancel();
+    setReviewQuery(row.sourceTitle);
+    void loadCandidates(row);
+    setSearchCandidateResult(null);
+    setLiveAnnouncement(`Reviewing source row ${row.sourceRow}: ${row.title}.`);
+    void commitSession({ activeReviewRowId: row.id });
+  };
 
-  const moveReviewRow = useCallback(
-    (direction: -1 | 1) => {
-      if (reviewRows.length === 0) {
-        return;
-      }
+  const moveReviewRow = (direction: -1 | 1) => {
+    if (reviewRows.length === 0) {
+      return;
+    }
 
-      const currentIndex = Math.max(
-        0,
-        reviewRows.findIndex((row) => row.id === activeReviewRowId),
-      );
-      const nextIndex =
-        (currentIndex + direction + reviewRows.length) % reviewRows.length;
-      const nextRow = reviewRows[nextIndex];
-      if (nextRow) {
-        openReviewRow(nextRow);
-      }
-    },
-    [activeReviewRowId, openReviewRow, reviewRows],
-  );
+    const currentIndex = Math.max(
+      0,
+      reviewRows.findIndex((row) => row.id === activeReviewRowId),
+    );
+    const nextIndex =
+      (currentIndex + direction + reviewRows.length) % reviewRows.length;
+    const nextRow = reviewRows[nextIndex];
+    if (nextRow) {
+      openReviewRow(nextRow);
+    }
+  };
 
-  const finishReviewRow = useCallback(
-    (
-      rowId: string,
-      update: Pick<CatalogImportRow, "linkProvenance" | "linkState" | "match"> &
-        Partial<Pick<CatalogImportRow, "outputState">>,
-    ) => {
-      if (!matchedRows) {
-        return;
-      }
+  const finishReviewRow = (
+    rowId: string,
+    update: Pick<CatalogImportRow, "linkProvenance" | "linkState" | "match"> &
+      Partial<Pick<CatalogImportRow, "outputState">>,
+  ) => {
+    if (!matchedRows) {
+      return;
+    }
 
-      const reviewedRow = matchedRows.find((row) => row.id === rowId);
-      const normalizedUpdate =
-        reviewedRow && update.match
+    const reviewedRow = matchedRows.find((row) => row.id === rowId);
+    const normalizedUpdate =
+      reviewedRow && update.match
+        ? {
+            ...update,
+            match: {
+              ...update.match,
+              confidence: getCultivarMatchConfidence(
+                reviewedRow.title,
+                update.match.displayName,
+              ),
+            },
+          }
+        : update;
+    const nextRows = assignCatalogImportDuplicateGroups(
+      matchedRows.map((row) =>
+        row.id === rowId
           ? {
-              ...update,
-              match: {
-                ...update.match,
-                confidence: getCultivarMatchConfidence(
-                  reviewedRow.title,
-                  update.match.displayName,
-                ),
-              },
+              ...row,
+              ...normalizedUpdate,
+              duplicateAccepted: normalizedUpdate.match
+                ? false
+                : row.duplicateAccepted,
+              identityReviewed: true,
             }
-          : update;
-      const nextRows = assignCatalogImportDuplicateGroups(
-        matchedRows.map((row) =>
-          row.id === rowId
-            ? {
-                ...row,
-                ...normalizedUpdate,
-                duplicateAccepted: normalizedUpdate.match
-                  ? false
-                  : row.duplicateAccepted,
-                identityReviewed: true,
-              }
-            : row,
-        ),
+          : row,
+      ),
+    );
+    const previousReviewRows = getCatalogImportState(matchedRows).reviewRows;
+    const reviewedIndex = Math.max(
+      0,
+      previousReviewRows.findIndex((row) => row.id === rowId),
+    );
+    const nextReviewRows = getCatalogImportState(nextRows).reviewRows;
+    const excluded = normalizedUpdate.outputState === "removed";
+    const nextReviewRow =
+      nextReviewRows[reviewedIndex % Math.max(nextReviewRows.length, 1)] ??
+      null;
+    searchCandidateRequest.cancel();
+    setSearchCandidateResult(null);
+
+    const action = excluded
+      ? "excluded from the catalog"
+      : update.match
+        ? `matched to ${update.match.displayName}`
+        : "left unmatched";
+
+    if (nextReviewRow) {
+      setLiveAnnouncement(
+        `${reviewedRow?.title ?? "Row"} ${action}. Moving to ${nextReviewRow.title}.`,
       );
-      const previousReviewRows = getCatalogImportState(matchedRows).reviewRows;
-      const reviewedIndex = Math.max(
-        0,
-        previousReviewRows.findIndex((row) => row.id === rowId),
+      setReviewQuery(nextReviewRow.sourceTitle);
+      void loadCandidates(nextReviewRow);
+    } else {
+      closeCandidateRequest.cancel();
+      setCandidateResult(null);
+      setReviewQuery("");
+      setLiveAnnouncement(
+        `${reviewedRow?.title ?? "Row"} ${action}. Manual review is complete.`,
       );
-      const nextReviewRows = getCatalogImportState(nextRows).reviewRows;
-      const excluded = normalizedUpdate.outputState === "removed";
-      const nextReviewRow =
-        nextReviewRows[reviewedIndex % Math.max(nextReviewRows.length, 1)] ??
-        null;
-      searchCandidateRequestId.current += 1;
-      setSearchCandidateResult(null);
+    }
+    saveMatchedRows(nextRows, nextReviewRow?.id ?? null);
+    if (reviewedRow) {
+      setLastLinkAction({
+        displayName: normalizedUpdate.match?.displayName ?? reviewedRow.title,
+        kind: excluded
+          ? "excluded"
+          : normalizedUpdate.match
+            ? reviewedRow.linkState === "linked" && reviewedRow.match
+              ? "changed"
+              : "added"
+            : "left-unmatched",
+        previousRow: reviewedRow,
+        rowId,
+      });
+    }
+  };
 
-      const action = excluded
-        ? "excluded from the catalog"
-        : update.match
-          ? `matched to ${update.match.displayName}`
-          : "left unmatched";
-
-      if (nextReviewRow) {
-        setLiveAnnouncement(
-          `${reviewedRow?.title ?? "Row"} ${action}. Moving to ${nextReviewRow.title}.`,
-        );
-        setReviewQuery(nextReviewRow.sourceTitle);
-        void loadCandidates(nextReviewRow);
-      } else {
-        closeCandidateRequestId.current += 1;
-        setCandidateResult(null);
-        setReviewQuery("");
-        setLiveAnnouncement(
-          `${reviewedRow?.title ?? "Row"} ${action}. Manual review is complete.`,
-        );
-      }
-      saveMatchedRows(nextRows, nextReviewRow?.id ?? null);
-      if (reviewedRow) {
-        setLastLinkAction({
-          displayName: normalizedUpdate.match?.displayName ?? reviewedRow.title,
-          kind: excluded
-            ? "excluded"
-            : normalizedUpdate.match
-              ? reviewedRow.linkState === "linked" && reviewedRow.match
-                ? "changed"
-                : "added"
-              : "left-unmatched",
-          previousRow: reviewedRow,
-          rowId,
-        });
-      }
-    },
-    [loadCandidates, matchedRows, saveMatchedRows],
-  );
-
-  const skipReviewRow = useCallback(() => {
+  const skipReviewRow = () => {
     if (!activeReviewRow) {
       return;
     }
@@ -1325,9 +1155,9 @@ export function useCatalogImporterWorkbench(
       linkState: "intentionally-unmatched",
       match: null,
     });
-  }, [activeReviewRow, finishReviewRow]);
+  };
 
-  const excludeAllReviewRows = useCallback(() => {
+  const excludeAllReviewRows = () => {
     if (!matchedRows || reviewRows.length === 0) {
       return;
     }
@@ -1346,8 +1176,8 @@ export function useCatalogImporterWorkbench(
       ),
     );
 
-    closeCandidateRequestId.current += 1;
-    searchCandidateRequestId.current += 1;
+    closeCandidateRequest.cancel();
+    searchCandidateRequest.cancel();
     setCandidateResult(null);
     setSearchCandidateResult(null);
     setReviewQuery("");
@@ -1355,9 +1185,9 @@ export function useCatalogImporterWorkbench(
       `${reviewRows.length.toLocaleString()} listings excluded. Manual review is complete.`,
     );
     saveMatchedRows(nextRows, null);
-  }, [matchedRows, reviewRows, saveMatchedRows]);
+  };
 
-  const excludeReviewRow = useCallback(() => {
+  const excludeReviewRow = () => {
     if (!activeReviewRow) {
       return;
     }
@@ -1368,45 +1198,42 @@ export function useCatalogImporterWorkbench(
       match: null,
       outputState: "removed",
     });
-  }, [activeReviewRow, finishReviewRow]);
+  };
 
-  const leaveRowUnmatched = useCallback(
-    (rowId: string) => {
-      if (!matchedRows) {
-        return;
-      }
+  const leaveRowUnmatched = (rowId: string) => {
+    if (!matchedRows) {
+      return;
+    }
 
-      const previousRow = matchedRows.find((row) => row.id === rowId);
-      if (!previousRow) {
-        return;
-      }
+    const previousRow = matchedRows.find((row) => row.id === rowId);
+    if (!previousRow) {
+      return;
+    }
 
-      const nextRows = assignCatalogImportDuplicateGroups(
-        matchedRows.map((row) =>
-          row.id === rowId
-            ? {
-                ...row,
-                identityReviewed: true,
-                linkProvenance: null,
-                linkState: "intentionally-unmatched" as const,
-                match: null,
-              }
-            : row,
-        ),
-      );
-      saveMatchedRows(nextRows);
-      setLastLinkAction({
-        displayName: previousRow.title,
-        kind: "left-unmatched",
-        previousRow,
-        rowId,
-      });
-      setLiveAnnouncement(
-        `${previousRow.title} will remain unmatched in the prepared workbook.`,
-      );
-    },
-    [matchedRows, saveMatchedRows],
-  );
+    const nextRows = assignCatalogImportDuplicateGroups(
+      matchedRows.map((row) =>
+        row.id === rowId
+          ? {
+              ...row,
+              identityReviewed: true,
+              linkProvenance: null,
+              linkState: "intentionally-unmatched" as const,
+              match: null,
+            }
+          : row,
+      ),
+    );
+    saveMatchedRows(nextRows);
+    setLastLinkAction({
+      displayName: previousRow.title,
+      kind: "left-unmatched",
+      previousRow,
+      rowId,
+    });
+    setLiveAnnouncement(
+      `${previousRow.title} will remain unmatched in the prepared workbook.`,
+    );
+  };
 
   const resetReviewedRow = useCallback(
     (rowId: string) => {
@@ -1432,62 +1259,59 @@ export function useCatalogImporterWorkbench(
         matchedRows.map((row) => (row.id === rowId ? restoredRow : row)),
       );
 
-      searchCandidateRequestId.current += 1;
+      searchCandidateRequest.cancel();
       setSearchCandidateResult(null);
       setReviewQuery(restoredRow.sourceTitle);
       void loadCandidates(restoredRow);
       setLiveAnnouncement(`${restoredRow.sourceTitle} returned to review.`);
       saveMatchedRows(nextRows, rowId);
     },
-    [loadCandidates, matchedRows, saveMatchedRows],
+    [loadCandidates, matchedRows, saveMatchedRows, searchCandidateRequest],
   );
 
-  const selectRowMatch = useCallback(
-    (rowId: string, match: CultivarMatchCandidate) => {
-      if (!matchedRows) {
-        return;
-      }
-      const previousRow = matchedRows.find((row) => row.id === rowId);
-      if (!previousRow) {
-        return;
-      }
+  const selectRowMatch = (rowId: string, match: CultivarMatchCandidate) => {
+    if (!matchedRows) {
+      return;
+    }
+    const previousRow = matchedRows.find((row) => row.id === rowId);
+    if (!previousRow) {
+      return;
+    }
 
-      const nextRows = assignCatalogImportDuplicateGroups(
-        matchedRows.map((row) =>
-          row.id === rowId
-            ? {
-                ...row,
-                match: {
-                  ...match,
-                  confidence: getCultivarMatchConfidence(
-                    row.title,
-                    match.displayName,
-                  ),
-                },
-                duplicateAccepted: false,
-                identityReviewed: true,
-                linkProvenance: "user-confirmed",
-                linkState: "linked",
-              }
-            : row,
-        ),
-      );
-      saveMatchedRows(nextRows);
-      setLastLinkAction({
-        displayName: match.displayName,
-        kind:
-          previousRow.linkState === "linked" && previousRow.match
-            ? "changed"
-            : "added",
-        previousRow,
-        rowId,
-      });
-      setLiveAnnouncement(`Match changed to ${match.displayName}.`);
-    },
-    [matchedRows, saveMatchedRows],
-  );
+    const nextRows = assignCatalogImportDuplicateGroups(
+      matchedRows.map((row) =>
+        row.id === rowId
+          ? {
+              ...row,
+              match: {
+                ...match,
+                confidence: getCultivarMatchConfidence(
+                  row.title,
+                  match.displayName,
+                ),
+              },
+              duplicateAccepted: false,
+              identityReviewed: true,
+              linkProvenance: "user-confirmed",
+              linkState: "linked",
+            }
+          : row,
+      ),
+    );
+    saveMatchedRows(nextRows);
+    setLastLinkAction({
+      displayName: match.displayName,
+      kind:
+        previousRow.linkState === "linked" && previousRow.match
+          ? "changed"
+          : "added",
+      previousRow,
+      rowId,
+    });
+    setLiveAnnouncement(`Match changed to ${match.displayName}.`);
+  };
 
-  const undoLastLinkAction = useCallback(() => {
+  const undoLastLinkAction = () => {
     if (!lastLinkAction || !matchedRows) {
       return;
     }
@@ -1502,7 +1326,7 @@ export function useCatalogImporterWorkbench(
         ? lastLinkAction.previousRow
         : null;
     if (restoredReviewRow) {
-      searchCandidateRequestId.current += 1;
+      searchCandidateRequest.cancel();
       setSearchCandidateResult(null);
       setReviewQuery(restoredReviewRow.sourceTitle);
       void loadCandidates(restoredReviewRow);
@@ -1511,381 +1335,309 @@ export function useCatalogImporterWorkbench(
     setLiveAnnouncement(
       `${lastLinkAction.displayName} identity decision undone.`,
     );
-  }, [lastLinkAction, loadCandidates, matchedRows, saveMatchedRows]);
+  };
 
-  const removeDuplicateRow = useCallback(
-    (rowId: string) => {
-      if (!matchedRows) {
-        return;
-      }
-      const removedRow = matchedRows.find((row) => row.id === rowId);
-      if (!removedRow) {
-        return;
-      }
+  const removeDuplicateRow = (rowId: string) => {
+    if (!matchedRows) {
+      return;
+    }
+    const removedRow = matchedRows.find((row) => row.id === rowId);
+    if (!removedRow) {
+      return;
+    }
 
-      const nextRows = removeRowFromDuplicateGroup(matchedRows, rowId);
-      const nextReviewedIssueActions = createReviewedIssueActions(
-        `Source row ${removedRow.sourceRow} was excluded.`,
-        matchedRows,
-        [rowId],
-      );
-      saveMatchedRows(nextRows, undefined, {
-        reviewedIssueActions: nextReviewedIssueActions,
-      });
-      setLiveAnnouncement(`Source row ${removedRow.sourceRow} removed.`);
-    },
-    [createReviewedIssueActions, matchedRows, saveMatchedRows],
-  );
+    const nextRows = removeRowFromDuplicateGroup(matchedRows, rowId);
+    const nextReviewedIssueActions = createReviewedIssueActions(
+      `Source row ${removedRow.sourceRow} was excluded.`,
+      matchedRows,
+      [rowId],
+    );
+    saveMatchedRows(nextRows, undefined, {
+      reviewedIssueActions: nextReviewedIssueActions,
+    });
+    setLiveAnnouncement(`Source row ${removedRow.sourceRow} removed.`);
+  };
 
-  const keepDuplicateRows = useCallback(
-    (rowIds: string[]) => {
-      const retainedIds = new Set(rowIds);
-      if (retainedIds.size === 0 || !matchedRows) {
-        return;
-      }
+  const keepDuplicateRows = (rowIds: string[]) => {
+    const retainedIds = new Set(rowIds);
+    if (retainedIds.size === 0 || !matchedRows) {
+      return;
+    }
 
-      const nextRows = matchedRows.map((row) =>
-        retainedIds.has(row.id)
-          ? {
-              ...row,
-              duplicateAccepted: true,
-              duplicateOfSourceRow: null,
-            }
-          : row,
-      );
-      const nextReviewedIssueActions = createReviewedIssueActions(
-        `Kept ${retainedIds.size.toLocaleString()} listings.`,
-        matchedRows,
-        retainedIds,
-      );
-      saveMatchedRows(nextRows, undefined, {
-        reviewedIssueActions: nextReviewedIssueActions,
-      });
-      setLiveAnnouncement(
-        `${retainedIds.size.toLocaleString()} duplicate listings kept.`,
-      );
-    },
-    [createReviewedIssueActions, matchedRows, saveMatchedRows],
-  );
-
-  const excludeDuplicateRows = useCallback(
-    (rowIds: string[]) => {
-      const excludedIds = new Set(rowIds);
-      if (excludedIds.size === 0 || !matchedRows) {
-        return;
-      }
-
-      const nextRows = assignCatalogImportDuplicateGroups(
-        matchedRows.map((row) =>
-          excludedIds.has(row.id)
-            ? {
-                ...row,
-                duplicateOfSourceRow: null,
-                outputState: "removed",
-              }
-            : row,
-        ),
-      );
-      const nextReviewedIssueActions = createReviewedIssueActions(
-        `${excludedIds.size.toLocaleString()} listings were excluded.`,
-        matchedRows,
-        excludedIds,
-      );
-      saveMatchedRows(nextRows, undefined, {
-        reviewedIssueActions: nextReviewedIssueActions,
-      });
-      setLiveAnnouncement(
-        `${excludedIds.size.toLocaleString()} duplicate listings excluded.`,
-      );
-    },
-    [createReviewedIssueActions, matchedRows, saveMatchedRows],
-  );
-
-  const excludeIssueRows = useCallback(
-    (rowIds: string[]) => {
-      const excludedIds = new Set(rowIds);
-      if (excludedIds.size === 0 || !matchedRows) {
-        return;
-      }
-
-      const nextRows = assignCatalogImportDuplicateGroups(
-        matchedRows.map((row) =>
-          excludedIds.has(row.id)
-            ? {
-                ...row,
-                duplicateOfSourceRow: null,
-                outputState: "removed",
-              }
-            : row,
-        ),
-      );
-      const nextReviewedIssueActions = createReviewedIssueActions(
-        `${excludedIds.size.toLocaleString()} listings were excluded.`,
-        matchedRows,
-        excludedIds,
-      );
-      saveMatchedRows(nextRows, undefined, {
-        reviewedIssueActions: nextReviewedIssueActions,
-      });
-      setLiveAnnouncement(
-        `${excludedIds.size.toLocaleString()} listings excluded.`,
-      );
-    },
-    [createReviewedIssueActions, matchedRows, saveMatchedRows],
-  );
-
-  const resolvePriceIssues = useCallback(
-    (
-      updates: Array<{
-        preserveOriginalOffer?: boolean;
-        price: number | null;
-        rowId: string;
-      }>,
-    ) => {
-      if (!matchedRows) {
-        return;
-      }
-      const prices = new Map(updates.map((update) => [update.rowId, update]));
-      if (prices.size === 0) {
-        return;
-      }
-
-      const nextRows = matchedRows.map((row) =>
-        prices.has(row.id)
-          ? {
-              ...row,
-              price: prices.get(row.id)?.price ?? null,
-              priceWarning: null,
-              privateNote: prices.get(row.id)?.preserveOriginalOffer
-                ? appendCatalogImportOriginalPriceNote(
-                    row.privateNote,
-                    row.sourcePrice,
-                  )
-                : row.privateNote,
-            }
-          : row,
-      );
-      const nextReviewedIssueActions = createReviewedIssueActions(
-        `${prices.size.toLocaleString()} price ${prices.size === 1 ? "value was" : "values were"} updated.`,
-        matchedRows,
-        prices.keys(),
-      );
-      saveMatchedRows(nextRows, undefined, {
-        reviewedIssueActions: nextReviewedIssueActions,
-      });
-      setLiveAnnouncement(
-        `${prices.size.toLocaleString()} price ${prices.size === 1 ? "issue" : "issues"} resolved.`,
-      );
-    },
-    [createReviewedIssueActions, matchedRows, saveMatchedRows],
-  );
-
-  const clearCultivarReferenceIdIssues = useCallback(
-    async (rowIds: string[]) => {
-      const rowsBeforeRequest = sessionRef.current.matchedRows;
-      if (!rowsBeforeRequest) {
-        return;
-      }
-      const targetIds = new Set(rowIds);
-      const targetRows = rowsBeforeRequest.filter((row) =>
-        targetIds.has(row.id),
-      );
-      if (targetRows.length === 0) {
-        return;
-      }
-
-      const invalidIdStateByRowId = new Map(
-        targetRows.map((row) => [
-          row.id,
-          {
-            sourceCultivarReferenceId: row.sourceCultivarReferenceId,
-            warning: row.cultivarReferenceIdWarning,
-          },
-        ]),
-      );
-      const requestId = savedIdRematchRequestId.current + 1;
-      savedIdRematchRequestId.current = requestId;
-      savedIdRematchAbortController.current?.abort();
-      const controller = new AbortController();
-      savedIdRematchAbortController.current = controller;
-
-      let results: Awaited<ReturnType<typeof requestCultivarMatches>>;
-      try {
-        results = await requestCultivarMatches({
-          includeCandidates: true,
-          names: targetRows.map((row) => row.title),
-          signal: controller.signal,
-        });
-      } catch (error) {
-        if (
-          controller.signal.aborted ||
-          savedIdRematchRequestId.current !== requestId
-        ) {
-          return;
-        }
-        throw error;
-      } finally {
-        if (savedIdRematchAbortController.current === controller) {
-          savedIdRematchAbortController.current = null;
-        }
-      }
-      if (
-        controller.signal.aborted ||
-        savedIdRematchRequestId.current !== requestId
-      ) {
-        return;
-      }
-
-      const currentRows = sessionRef.current.matchedRows;
-      if (!currentRows) {
-        return;
-      }
-      const currentTargetIds = new Set(
-        currentRows.flatMap((row) => {
-          const initialState = invalidIdStateByRowId.get(row.id);
-          return initialState &&
-            row.outputState === "included" &&
-            row.cultivarReferenceIdWarning === initialState.warning &&
-            row.sourceCultivarReferenceId ===
-              initialState.sourceCultivarReferenceId
-            ? [row.id]
-            : [];
-        }),
-      );
-      if (currentTargetIds.size === 0) {
-        return;
-      }
-
-      const resultsByName = new Map(
-        results.flatMap((result) =>
-          result.normalizedInput
-            ? [[result.normalizedInput, result] as const]
-            : [],
-        ),
-      );
-      let replacedCount = 0;
-      const nextRows = assignCatalogImportDuplicateGroups(
-        currentRows.map((row) => {
-          if (!currentTargetIds.has(row.id)) {
-            return row;
-          }
-
-          const result = resultsByName.get(
-            normalizeCultivarName(row.title) ?? "",
-          );
-          const automaticMatch = result
-            ? getAutomaticCultivarMatch(result)
-            : null;
-          if (automaticMatch) {
-            replacedCount += 1;
-          }
-
-          return {
+    const nextRows = matchedRows.map((row) =>
+      retainedIds.has(row.id)
+        ? {
             ...row,
-            cultivarReferenceIdWarning: null,
-            linkProvenance: automaticMatch
-              ? automaticMatch.confidence === 100
-                ? ("exact-name" as const)
-                : ("automatic-name" as const)
-              : null,
-            linkState: automaticMatch
-              ? ("linked" as const)
-              : ("pending" as const),
-            match: automaticMatch,
-            sourceCultivarReferenceId: "",
-            suggestedMatch: result?.candidates[0] ?? null,
-          };
-        }),
-      );
-      const nextReviewRow = getCatalogImportState(nextRows).reviewRows.find(
-        (row) => currentTargetIds.has(row.id),
-      );
-      if (nextReviewRow) {
-        setReviewQuery(nextReviewRow.sourceTitle);
-        void loadCandidates(nextReviewRow);
-      }
-      const reviewCount = currentTargetIds.size - replacedCount;
-      const replacementSummary =
-        replacedCount > 0
-          ? `${replacedCount.toLocaleString()} ${
-              replacedCount === 1 ? "ID was" : "IDs were"
-            } replaced by a confident name match.`
-          : "";
-      const reviewSummary =
-        reviewCount > 0
-          ? `${reviewCount.toLocaleString()} ${
-              reviewCount === 1 ? "name needs" : "names need"
-            } review.`
-          : "";
-      const actionSummary = [replacementSummary, reviewSummary]
-        .filter(Boolean)
-        .join(" ");
-      const nextReviewedIssueActions = createReviewedIssueActions(
-        actionSummary,
-        currentRows,
-        currentTargetIds,
-      );
-      saveMatchedRows(nextRows, nextReviewRow?.id, {
-        reviewedIssueActions: nextReviewedIssueActions,
-      });
-      setLiveAnnouncement(actionSummary);
-    },
-    [createReviewedIssueActions, loadCandidates, saveMatchedRows, sessionRef],
-  );
-
-  const undoReviewedIssueAction = useCallback(
-    (actionId: number, rowId?: string) => {
-      if (!matchedRows) {
-        return;
-      }
-      const action = reviewedIssueActions.find(
-        (candidate) => candidate.id === actionId,
-      );
-      if (!action) {
-        return;
-      }
-
-      const rowsToRestore = rowId
-        ? action.previousRows.filter((row) => row.id === rowId)
-        : action.previousRows;
-      if (rowsToRestore.length === 0) {
-        return;
-      }
-
-      const previousRowsById = new Map(
-        rowsToRestore.map((row) => [row.id, row]),
-      );
-      const nextRows = assignCatalogImportDuplicateGroups(
-        matchedRows.map((row) => previousRowsById.get(row.id) ?? row),
-      );
-      const remainingPreviousRows = rowId
-        ? action.previousRows.filter((row) => row.id !== rowId)
-        : [];
-      const nextActions = sessionRef.current.reviewedIssueActions.flatMap(
-        (candidate) => {
-          if (candidate.id !== actionId) {
-            return [candidate];
+            duplicateAccepted: true,
+            duplicateOfSourceRow: null,
           }
+        : row,
+    );
+    const nextReviewedIssueActions = createReviewedIssueActions(
+      `Kept ${retainedIds.size.toLocaleString()} listings.`,
+      matchedRows,
+      retainedIds,
+    );
+    saveMatchedRows(nextRows, undefined, {
+      reviewedIssueActions: nextReviewedIssueActions,
+    });
+    setLiveAnnouncement(
+      `${retainedIds.size.toLocaleString()} duplicate listings kept.`,
+    );
+  };
 
-          return remainingPreviousRows.length > 0
-            ? [{ ...candidate, previousRows: remainingPreviousRows }]
-            : [];
+  const excludeIssueRows = (rowIds: string[], kind = "") => {
+    const excludedIds = new Set(rowIds);
+    if (excludedIds.size === 0 || !matchedRows) return;
+    saveMatchedRows(
+      assignCatalogImportDuplicateGroups(
+        matchedRows.map((row) =>
+          excludedIds.has(row.id)
+            ? { ...row, duplicateOfSourceRow: null, outputState: "removed" }
+            : row,
+        ),
+      ),
+      undefined,
+      {
+        reviewedIssueActions: createReviewedIssueActions(
+          `${excludedIds.size.toLocaleString()} listings were excluded.`,
+          matchedRows,
+          excludedIds,
+        ),
+      },
+    );
+    setLiveAnnouncement(
+      `${excludedIds.size.toLocaleString()} ${kind}listings excluded.`,
+    );
+  };
+  const excludeDuplicateRows = (rowIds: string[]) =>
+    excludeIssueRows(rowIds, "duplicate ");
+
+  const resolvePriceIssues = (
+    updates: Array<{
+      preserveOriginalOffer?: boolean;
+      price: number | null;
+      rowId: string;
+    }>,
+  ) => {
+    if (!matchedRows) {
+      return;
+    }
+    const prices = new Map(updates.map((update) => [update.rowId, update]));
+    if (prices.size === 0) {
+      return;
+    }
+
+    const nextRows = matchedRows.map((row) =>
+      prices.has(row.id)
+        ? {
+            ...row,
+            price: prices.get(row.id)?.price ?? null,
+            priceWarning: null,
+            privateNote: prices.get(row.id)?.preserveOriginalOffer
+              ? appendCatalogImportOriginalPriceNote(
+                  row.privateNote,
+                  row.sourcePrice,
+                )
+              : row.privateNote,
+          }
+        : row,
+    );
+    const nextReviewedIssueActions = createReviewedIssueActions(
+      `${prices.size.toLocaleString()} price ${prices.size === 1 ? "value was" : "values were"} updated.`,
+      matchedRows,
+      prices.keys(),
+    );
+    saveMatchedRows(nextRows, undefined, {
+      reviewedIssueActions: nextReviewedIssueActions,
+    });
+    setLiveAnnouncement(
+      `${prices.size.toLocaleString()} price ${prices.size === 1 ? "issue" : "issues"} resolved.`,
+    );
+  };
+
+  const clearCultivarReferenceIdIssues = async (rowIds: string[]) => {
+    const rowsBeforeRequest = sessionRef.current.matchedRows;
+    if (!rowsBeforeRequest) {
+      return;
+    }
+    const targetIds = new Set(rowIds);
+    const targetRows = rowsBeforeRequest.filter((row) => targetIds.has(row.id));
+    if (targetRows.length === 0) {
+      return;
+    }
+
+    const invalidIdStateByRowId = new Map(
+      targetRows.map((row) => [
+        row.id,
+        {
+          sourceCultivarReferenceId: row.sourceCultivarReferenceId,
+          warning: row.cultivarReferenceIdWarning,
         },
-      );
-      saveMatchedRows(nextRows, undefined, {
-        reviewedIssueActions: nextActions,
-      });
-      setLiveAnnouncement("Spreadsheet issue change undone.");
-    },
-    [matchedRows, reviewedIssueActions, saveMatchedRows, sessionRef],
-  );
+      ]),
+    );
+    const signal = savedIdRematchRequest.start();
 
-  const downloadTemplate = useCallback(() => {
+    let results: Awaited<ReturnType<typeof requestCultivarMatches>>;
+    try {
+      results = await requestCultivarMatches({
+        includeCandidates: true,
+        names: targetRows.map((row) => row.title),
+        signal,
+      });
+    } catch (error) {
+      if (signal.aborted) {
+        return;
+      }
+      throw error;
+    }
+    if (signal.aborted) {
+      return;
+    }
+
+    const currentRows = sessionRef.current.matchedRows;
+    if (!currentRows) {
+      return;
+    }
+    const currentTargetIds = new Set(
+      currentRows.flatMap((row) => {
+        const initialState = invalidIdStateByRowId.get(row.id);
+        return initialState &&
+          row.outputState === "included" &&
+          row.cultivarReferenceIdWarning === initialState.warning &&
+          row.sourceCultivarReferenceId ===
+            initialState.sourceCultivarReferenceId
+          ? [row.id]
+          : [];
+      }),
+    );
+    if (currentTargetIds.size === 0) {
+      return;
+    }
+
+    const resultsByName = new Map(
+      results.flatMap((result) =>
+        result.normalizedInput
+          ? [[result.normalizedInput, result] as const]
+          : [],
+      ),
+    );
+    let replacedCount = 0;
+    const nextRows = assignCatalogImportDuplicateGroups(
+      currentRows.map((row) => {
+        if (!currentTargetIds.has(row.id)) {
+          return row;
+        }
+
+        const result = resultsByName.get(
+          normalizeCultivarName(row.title) ?? "",
+        );
+        const automaticMatch = result
+          ? getAutomaticCultivarMatch(result)
+          : null;
+        if (automaticMatch) {
+          replacedCount += 1;
+        }
+
+        return {
+          ...row,
+          cultivarReferenceIdWarning: null,
+          linkProvenance: automaticMatch
+            ? automaticMatch.confidence === 100
+              ? ("exact-name" as const)
+              : ("automatic-name" as const)
+            : null,
+          linkState: automaticMatch
+            ? ("linked" as const)
+            : ("pending" as const),
+          match: automaticMatch,
+          sourceCultivarReferenceId: "",
+          suggestedMatch: result?.candidates[0] ?? null,
+        };
+      }),
+    );
+    const nextReviewRow = getCatalogImportState(nextRows).reviewRows.find(
+      (row) => currentTargetIds.has(row.id),
+    );
+    if (nextReviewRow) {
+      setReviewQuery(nextReviewRow.sourceTitle);
+      void loadCandidates(nextReviewRow);
+    }
+    const reviewCount = currentTargetIds.size - replacedCount;
+    const replacementSummary =
+      replacedCount > 0
+        ? `${replacedCount.toLocaleString()} ${
+            replacedCount === 1 ? "ID was" : "IDs were"
+          } replaced by a confident name match.`
+        : "";
+    const reviewSummary =
+      reviewCount > 0
+        ? `${reviewCount.toLocaleString()} ${
+            reviewCount === 1 ? "name needs" : "names need"
+          } review.`
+        : "";
+    const actionSummary = [replacementSummary, reviewSummary]
+      .filter(Boolean)
+      .join(" ");
+    const nextReviewedIssueActions = createReviewedIssueActions(
+      actionSummary,
+      currentRows,
+      currentTargetIds,
+    );
+    saveMatchedRows(nextRows, nextReviewRow?.id, {
+      reviewedIssueActions: nextReviewedIssueActions,
+    });
+    setLiveAnnouncement(actionSummary);
+  };
+
+  const undoReviewedIssueAction = (actionId: number, rowId?: string) => {
+    if (!matchedRows) {
+      return;
+    }
+    const action = reviewedIssueActions.find(
+      (candidate) => candidate.id === actionId,
+    );
+    if (!action) {
+      return;
+    }
+
+    const rowsToRestore = rowId
+      ? action.previousRows.filter((row) => row.id === rowId)
+      : action.previousRows;
+    if (rowsToRestore.length === 0) {
+      return;
+    }
+
+    const previousRowsById = new Map(rowsToRestore.map((row) => [row.id, row]));
+    const nextRows = assignCatalogImportDuplicateGroups(
+      matchedRows.map((row) => previousRowsById.get(row.id) ?? row),
+    );
+    const remainingPreviousRows = rowId
+      ? action.previousRows.filter((row) => row.id !== rowId)
+      : [];
+    const nextActions = sessionRef.current.reviewedIssueActions.flatMap(
+      (candidate) => {
+        if (candidate.id !== actionId) {
+          return [candidate];
+        }
+
+        return remainingPreviousRows.length > 0
+          ? [{ ...candidate, previousRows: remainingPreviousRows }]
+          : [];
+      },
+    );
+    saveMatchedRows(nextRows, undefined, {
+      reviewedIssueActions: nextActions,
+    });
+    setLiveAnnouncement("Spreadsheet issue change undone.");
+  };
+
+  const downloadTemplate = () => {
     downloadTextFile({
       contents: createCatalogImportTemplateCsv(),
       fileName: "daylily-clean-list-template.csv",
     });
-  }, []);
+  };
 
   return {
     activeReviewRow,
