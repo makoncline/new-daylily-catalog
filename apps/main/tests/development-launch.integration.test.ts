@@ -295,6 +295,37 @@ test("standalone loading honors app-local overrides and test mode without contac
   expect(existsSync(path.join(f.dir, "op-called"))).toBe(false);
 });
 
+test("production standalone loading preserves inherited, root, then app env precedence", () => {
+  const f = fixture();
+  writeFileSync(
+    path.join(f.dir, ".env.production"),
+    "PRIORITY=root\nROOT_ONLY=root-value\nINHERITED_PRIORITY=root\n",
+  );
+  writeFileSync(
+    path.join(f.app, ".env.production"),
+    "PRIORITY=app\nAPP_ONLY=app-value\nINHERITED_PRIORITY=app\n",
+  );
+  const result = spawnSync(
+    process.execPath,
+    [
+      path.join(f.app, "scripts/with-env.mjs"),
+      "--env",
+      "production",
+      "--",
+      process.execPath,
+      "-e",
+      "const a=require('node:assert/strict'); a.equal(process.env.PRIORITY,'root'); a.equal(process.env.ROOT_ONLY,'root-value'); a.equal(process.env.APP_ONLY,'app-value'); a.equal(process.env.INHERITED_PRIORITY,'caller');",
+    ],
+    {
+      cwd: f.app,
+      env: { ...f.baseEnv, INHERITED_PRIORITY: "caller" },
+      encoding: "utf8",
+    },
+  );
+  expect(result.status, result.stderr).toBe(0);
+  expect(existsSync(path.join(f.dir, "op-called"))).toBe(false);
+});
+
 test("shutdown forwards the received signal and stops the owned command tree", async () => {
   const f = fixture();
   const child = spawn(

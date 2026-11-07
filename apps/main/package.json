@@ -51,6 +51,7 @@
     "@editorjs/table": "^2.4.5",
     "@hookform/resolvers": "^5.2.2",
     "@libsql/client": "^0.17.3",
+    "@next/env": "16.4.1",
     "@prisma/adapter-better-sqlite3": "7.8.0",
     "@prisma/adapter-libsql": "7.8.0",
     "@prisma/client": "7.8.0",
@@ -104,6 +105,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
+    "dotenv": "^17.2.2",
     "embla-carousel-react": "^8.6.0",
     "geist": "^1.5.1",
     "html2canvas": "^1.4.1",
@@ -147,8 +149,7 @@
     "uuid": "^11.1.0",
     "vaul": "^1.1.2",
     "write-excel-file": "^4.1.1",
-    "zod": "^4.1.5",
-    "@next/env": "16.4.1"
+    "zod": "^4.1.5"
   },
   "devDependencies": {
     "@clerk/backend": "^2.33.5",
