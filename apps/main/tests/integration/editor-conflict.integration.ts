@@ -221,4 +221,89 @@ for (const [device, viewport] of [
       }
     });
   }
+
+  test(`listing saves queued fields and cultivar name on ${device}`, async ({
+    page,
+  }) => {
+    const original = await db.listing.findUniqueOrThrow({
+      where: { id: "integration-existing-listing" },
+    });
+    let releaseSave!: () => void;
+    const held = new Promise<void>((resolve) => {
+      releaseSave = resolve;
+    });
+    let fieldWritten!: () => void;
+    const written = new Promise<void>((resolve) => {
+      fieldWritten = resolve;
+    });
+    try {
+      await page.setViewportSize(viewport);
+      await db.listing.update({
+        where: { id: original.id },
+        data: { title: "Name before sync" },
+      });
+      await page.goto(`/dashboard/listings?editing=${original.id}`);
+      const editor = page.getByRole("region", {
+        name: "Edit listing",
+        exact: true,
+      });
+      const name = editor.getByLabel("Name", { exact: true });
+      const save = editor.getByRole("button", {
+        name: "Save Changes",
+        exact: true,
+      });
+      await expect(name).toHaveValue("Name before sync");
+      await page.route(
+        "**/api/trpc/dashboardV2.listing.update?*",
+        async (route) => {
+          const response = await route.fetch();
+          fieldWritten();
+          await held;
+          await route.fulfill({ response });
+        },
+      );
+      await editor
+        .getByLabel("Description", { exact: true })
+        .fill("Saved field draft");
+      await save.click();
+      await written;
+      await expect(name).toBeDisabled();
+      const sync = editor.getByRole("button", {
+        name: "Sync Name",
+        exact: true,
+      });
+      await expect(sync).toBeEnabled();
+      await sync.click();
+      await expect(name).toHaveValue("Name before sync");
+      releaseSave();
+      await expect(editor).toBeHidden();
+      await expect
+        .poll(
+          async () =>
+            (await db.listing.findUniqueOrThrow({ where: { id: original.id } }))
+              .title,
+        )
+        .toBe("Integration Bloom");
+      await page.goto(`/dashboard/listings?editing=${original.id}`);
+      await expect(name).toHaveValue("Integration Bloom");
+      await expect(
+        editor.getByLabel("Description", { exact: true }),
+      ).toHaveValue("Saved field draft");
+      if (process.env.CONFLICT_EVIDENCE_DIR) {
+        await mkdir(process.env.CONFLICT_EVIDENCE_DIR, { recursive: true });
+        await page.screenshot({
+          path: path.join(
+            process.env.CONFLICT_EVIDENCE_DIR,
+            `${device}-listing-queued-save.png`,
+          ),
+          fullPage: true,
+          animations: "disabled",
+        });
+      }
+    } finally {
+      releaseSave();
+      await page.unroute("**/api/trpc/dashboardV2.listing.update?*");
+      await db.listing.update({ where: { id: original.id }, data: original });
+    }
+  });
 }

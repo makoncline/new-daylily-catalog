@@ -6,16 +6,14 @@ import { api, type RouterOutputs } from "@/trpc/react";
 import { profileFormSchema } from "@/types/schemas/profile";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { useManagedFormSave } from "@/hooks/use-managed-form-save";
-import { useParentCommitFlag } from "@/hooks/use-parent-commit-flag";
+import { useFormCommit } from "@/hooks/use-form-commit";
 import {
   getErrorMessage,
   normalizeError,
   reportError,
 } from "@/lib/error-utils";
 import type { ContentManagerFormHandle } from "@/components/forms/content-form";
-import type { z } from "zod";
 import { useWatch } from "react-hook-form";
-import { rebaseFormValues } from "@/lib/rebase-form-values";
 import { isConflictError } from "@/trpc/is-conflict-error";
 
 export type UserProfile = RouterOutputs["dashboardV2"]["userProfile"]["get"];
@@ -35,19 +33,6 @@ function toFormValues(profile: UserProfile) {
   };
 }
 
-function equalValues(
-  a: z.input<typeof profileFormSchema>,
-  b: z.input<typeof profileFormSchema>,
-) {
-  return (
-    a.title === b.title &&
-    a.slug === b.slug &&
-    a.description === b.description &&
-    a.location === b.location &&
-    a.logoUrl === b.logoUrl
-  );
-}
-
 function profileTimestamp(profile: UserProfile) {
   return new Date(profile.updatedAt).getTime();
 }
@@ -60,36 +45,31 @@ export function useProfileForm(
   const [isContentDirty, setIsContentDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [hasRemoteChange, setHasRemoteChange] = useState(false);
-  const committedProfileRef = useRef(initialProfile);
   const syncedProfileTimestampRef = useRef(profileTimestamp(initialProfile));
   const contentFormRef = useRef<ContentManagerFormHandle | null>(null);
-  const childMutationVersionRef = useRef(0);
   const utils = api.useUtils();
-  const {
-    markNeedsParentCommit,
-    needsParentCommitRef,
-    resetNeedsParentCommit,
-  } = useParentCommitFlag();
-  const markChildMutation = useCallback(() => {
-    childMutationVersionRef.current += 1;
-    markNeedsParentCommit();
-  }, [markNeedsParentCommit]);
   const form = useZodForm({
     schema: profileFormSchema,
     defaultValues: toFormValues(profile),
   });
+  const {
+    committed,
+    hasRemoteChange,
+    setHasRemoteChange,
+    hasFieldChanges,
+    hasPendingChanges: hasFieldOrChildChanges,
+    markNeedsParentCommit,
+    reset,
+    rebase,
+    saveFields,
+  } = useFormCommit(form, initialProfile, toFormValues);
   const update = api.dashboardV2.userProfile.update.useMutation();
   useWatch({ control: form.control });
   const hasPendingChanges = useCallback(
     () =>
-      !equalValues(
-        form.getValues(),
-        toFormValues(committedProfileRef.current),
-      ) ||
-      (contentFormRef.current?.hasPendingChanges() ?? isContentDirty) ||
-      needsParentCommitRef.current,
-    [form, isContentDirty, needsParentCommitRef],
+      hasFieldOrChildChanges() ||
+      (contentFormRef.current?.hasPendingChanges() ?? isContentDirty),
+    [hasFieldOrChildChanges, isContentDirty],
   );
 
   useEffect(() => {
@@ -101,33 +81,19 @@ export function useProfileForm(
       return;
     }
     syncedProfileTimestampRef.current = profileTimestamp(initialProfile);
-    committedProfileRef.current = initialProfile;
-    form.reset(toFormValues(initialProfile), { keepIsValid: true });
-    resetNeedsParentCommit();
-    setHasRemoteChange(false);
-  }, [initialProfile, form, hasPendingChanges, resetNeedsParentCommit]);
+    reset(initialProfile);
+  }, [initialProfile, hasPendingChanges, reset, setHasRemoteChange]);
 
   const onContentSaved = useCallback(
     (saved: UserProfile) => {
-      const draft = form.getValues();
-      const rebased = rebaseFormValues(
-        draft,
-        toFormValues(committedProfileRef.current),
-        toFormValues(saved),
-      );
-      if (rebased) {
-        committedProfileRef.current = saved;
-        if (!equalValues(draft, rebased))
-          form.reset(rebased, { keepIsValid: true });
-      }
+      rebase(saved);
       syncedProfileTimestampRef.current = profileTimestamp(saved);
       setProfile(saved);
-      setHasRemoteChange(!rebased);
       utils.dashboardV2.userProfile.get.setData(undefined, saved);
       void utils.dashboardV2.userProfile.get.invalidate();
-      markChildMutation();
+      markNeedsParentCommit();
     },
-    [form, markChildMutation, utils],
+    [rebase, markNeedsParentCommit, utils],
   );
 
   const discardFieldsAndLoadLatest = useCallback(async () => {
@@ -136,12 +102,9 @@ export function useProfileForm(
       const latest = await utils.dashboardV2.userProfile.get.fetch(undefined, {
         staleTime: 0,
       });
-      committedProfileRef.current = latest;
+      reset(latest);
       syncedProfileTimestampRef.current = profileTimestamp(latest);
       setProfile(latest);
-      form.reset(toFormValues(latest), { keepIsValid: true });
-      resetNeedsParentCommit();
-      setHasRemoteChange(false);
       setSaveError(null);
     } catch (error) {
       toast.error("Failed to load the latest profile", {
@@ -150,7 +113,7 @@ export function useProfileForm(
     } finally {
       setIsSaving(false);
     }
-  }, [form, resetNeedsParentCommit, utils]);
+  }, [reset, utils]);
 
   const save = useCallback(
     async (reason: SaveReason) => {
@@ -168,71 +131,27 @@ export function useProfileForm(
           }
         }
 
-        const values = form.getValues();
-        const hasFieldPending = !equalValues(
-          values,
-          toFormValues(committedProfileRef.current),
-        );
-        if (!hasFieldPending && !needsParentCommitRef.current) return true;
-        if (!hasFieldPending) {
-          if (
-            profileTimestamp(initialProfile) >
-            profileTimestamp(committedProfileRef.current)
-          ) {
-            committedProfileRef.current = initialProfile;
-            syncedProfileTimestampRef.current =
-              profileTimestamp(initialProfile);
-            setProfile(initialProfile);
-            form.reset(toFormValues(initialProfile), { keepIsValid: true });
+        if (hasFieldChanges()) {
+          const valid =
+            reason === "manual"
+              ? await form.trigger(undefined, { shouldFocus: true })
+              : profileFormSchema.safeParse(form.getValues()).success;
+          if (!valid) {
+            if (reason === "navigate")
+              await form.trigger(undefined, { shouldFocus: true });
+            return false;
           }
-          resetNeedsParentCommit();
-          setHasRemoteChange(false);
-          toast.success("Changes saved");
-          return true;
         }
-        const valid =
-          reason === "manual"
-            ? await form.trigger(undefined, { shouldFocus: true })
-            : profileFormSchema.safeParse(values).success;
-        if (!valid) {
-          if (reason === "navigate")
-            await form.trigger(undefined, { shouldFocus: true });
-          return false;
-        }
-
-        const childMutationVersion = childMutationVersionRef.current;
-        const updatedProfile = await update.mutateAsync({
-          expectedUpdatedAt: new Date(
-            committedProfileRef.current.updatedAt,
-          ).toISOString(),
-          data: values,
-        });
-        const changedDuringSave = !equalValues(form.getValues(), values);
-        if (
-          profileTimestamp(updatedProfile) >=
-          profileTimestamp(committedProfileRef.current)
-        ) {
-          committedProfileRef.current = updatedProfile;
-          syncedProfileTimestampRef.current = profileTimestamp(updatedProfile);
-          setProfile(updatedProfile);
-          setHasRemoteChange(false);
-          form.reset(toFormValues(updatedProfile), {
-            keepIsValid: true,
-            keepValues: changedDuringSave,
-          });
-        }
-        if (childMutationVersionRef.current === childMutationVersion)
-          resetNeedsParentCommit();
-        utils.dashboardV2.userProfile.get.setData(
-          undefined,
-          committedProfileRef.current,
+        const fieldsSaved = await saveFields(
+          initialProfile,
+          (data, expectedUpdatedAt) =>
+            update.mutateAsync({ expectedUpdatedAt, data }),
         );
+        syncedProfileTimestampRef.current = profileTimestamp(committed.current);
+        setProfile(committed.current);
+        utils.dashboardV2.userProfile.get.setData(undefined, committed.current);
         void utils.dashboardV2.userProfile.get.invalidate();
-        if (
-          changedDuringSave ||
-          childMutationVersionRef.current !== childMutationVersion ||
-          contentFormRef.current?.hasPendingChanges()
-        ) {
+        if (!fieldsSaved || hasPendingChanges()) {
           setSaveError("More changes were made during the save.");
           return false;
         }
@@ -255,11 +174,13 @@ export function useProfileForm(
       }
     },
     [
-      contentFormRef,
       form,
-      needsParentCommitRef,
       initialProfile,
-      resetNeedsParentCommit,
+      committed,
+      hasFieldChanges,
+      hasPendingChanges,
+      saveFields,
+      setHasRemoteChange,
       update,
       utils,
     ],
@@ -280,7 +201,7 @@ export function useProfileForm(
     discardFieldsAndLoadLatest,
     hasPendingChanges,
     saveChanges,
-    markNeedsParentCommit: markChildMutation,
+    markNeedsParentCommit,
     onContentSaved,
     onContentDirtyChange: setIsContentDirty,
   };

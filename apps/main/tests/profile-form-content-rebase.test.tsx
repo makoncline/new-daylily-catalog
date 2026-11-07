@@ -1,4 +1,4 @@
-import { createRef } from "react";
+import { createRef, useImperativeHandle } from "react";
 import {
   act,
   fireEvent,
@@ -19,6 +19,7 @@ import type { AppRouter } from "@/server/api/root";
 import type { RouterOutputs } from "@/trpc/react";
 
 const state = vi.hoisted(() => ({
+  contentPending: false,
   initial: {
     id: "profile-1",
     userId: "user-1",
@@ -52,6 +53,7 @@ const updateProfile = vi.hoisted(() =>
     }) => Promise<unknown>
   >(),
 );
+const saveContent = vi.hoisted(() => vi.fn());
 const profileUtils = vi.hoisted(() => ({
   dashboardV2: {
     userProfile: {
@@ -99,19 +101,35 @@ vi.mock("@/components/slug-change-confirm-dialog", () => ({
 vi.mock("@/components/forms/content-form", () => ({
   ContentManagerFormItem: ({
     onMutationSuccess,
+    formRef,
   }: {
     onMutationSuccess: (profile: typeof state.saved) => void;
-  }) => (
-    <button type="button" onClick={() => onMutationSuccess(state.saved)}>
-      Save story elsewhere
-    </button>
-  ),
+    formRef: React.RefObject<
+      import("@/components/forms/content-form").ContentManagerFormHandle | null
+    >;
+  }) => {
+    useImperativeHandle(formRef, () => ({
+      hasPendingChanges: () => state.contentPending,
+      saveChanges: async () => {
+        saveContent();
+        state.contentPending = false;
+        onMutationSuccess(state.saved);
+        return true;
+      },
+    }));
+    return (
+      <button type="button" onClick={() => onMutationSuccess(state.saved)}>
+        Save story elsewhere
+      </button>
+    );
+  },
 }));
 
 describe("profile fields after a story save", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     updateProfile.mockReset();
+    state.contentPending = false;
     profileUtils.dashboardV2.userProfile.get.fetch.mockImplementation(
       async () => state.saved,
     );
@@ -123,6 +141,36 @@ describe("profile fields after a story save", () => {
   });
 
   afterEach(resetQueryClient);
+
+  it("retries failed fields without saving committed content again", async () => {
+    state.contentPending = true;
+    updateProfile.mockRejectedValueOnce(new Error("Field save failed"));
+    const formRef = createRef<ProfileFormHandle>();
+    render(<ProfileForm initialProfile={state.initial} formRef={formRef} />);
+    const name = screen.getByRole("textbox", { name: "Garden Name" });
+    fireEvent.change(name, { target: { value: "Local garden" } });
+    await act(async () => {
+      expect(await formRef.current!.saveChanges("navigate")).toBe(false);
+    });
+    expect(name).toHaveValue("Local garden");
+    expect(formRef.current?.hasPendingChanges()).toBe(true);
+    expect(saveContent).toHaveBeenCalledOnce();
+    expect(updateProfile.mock.calls[0]?.[0]).toMatchObject({
+      expectedUpdatedAt: state.saved.updatedAt.toISOString(),
+      data: { title: "Local garden", description: "Remote description" },
+    });
+    updateProfile.mockResolvedValue({
+      ...state.saved,
+      title: "Local garden",
+      updatedAt: new Date("2026-09-25T14:00:00Z"),
+    });
+    await act(async () => {
+      expect(await formRef.current!.saveChanges("navigate")).toBe(true);
+    });
+    expect(saveContent).toHaveBeenCalledOnce();
+    expect(updateProfile).toHaveBeenCalledTimes(2);
+    expect(formRef.current?.hasPendingChanges()).toBe(false);
+  });
 
   it("keeps a local garden name and adopts the latest description", async () => {
     updateProfile.mockResolvedValue(state.saved);
