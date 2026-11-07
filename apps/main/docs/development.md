@@ -54,6 +54,28 @@ private notes. Keep it out of cloud setup and public evidence.
 `pnpm dev` keeps local edits. `--disposable` removes its copy on shutdown.
 A caller-supplied `DATABASE_URL` stays caller-owned and cannot use `--disposable`.
 
+### Preview seed in Cloud
+
+For a private cloud task, an optional `pnpm seed:preview` can copy the existing
+Vercel Preview database into local SQLite. It needs the database-scoped,
+read-only `PREVIEW_SEED_TURSO_AUTH_TOKEN` in the same 1Password Development
+Environment. The Cloud task still supplies only its 1Password service-account
+token. Do not use a production database token or a write-capable preview token.
+
+The snapshot contains production-derived data, including private listing notes.
+Keep it in the private task and out of logs, Git, artifacts, and public evidence.
+The copy runs in one read transaction; the app never writes back to Preview.
+The command verifies counts, SQLite integrity, foreign keys, and schema parity,
+then builds the local search index. It refuses to replace an existing seed or
+search artifact. The seed persists across task resumes; start a new isolated
+task or explicitly remove its local files before requesting a fresh copy.
+The preview database can be stale and its test identities must still match the
+current Clerk Development instance. Do not infer production freshness.
+
+Run `pnpm seed:preview` once after `pnpm setup:cloud`, then `pnpm dev`.
+The scoped preview token is passed only to the seed command, not to the app,
+Turbo, or schema/search subprocesses. This path is not a production cutover.
+
 The launcher loads secrets once before Turbo. It removes the service-account
 token before the application command. It loads Development ordinary settings,
 even for a production-mode build. It rejects live Clerk and Stripe keys.

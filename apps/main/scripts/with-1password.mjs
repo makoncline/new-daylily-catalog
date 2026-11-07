@@ -26,6 +26,8 @@ let command;
 let commandArgs;
 if (injected) {
   delete process.env.OP_SERVICE_ACCOUNT_TOKEN;
+  // The preview snapshot credential is only for the dedicated seed command.
+  delete process.env.PREVIEW_SEED_TURSO_AUTH_TOKEN;
   // Check secret keys before any application command or service request.
   requireTestKey("CLERK_SECRET_KEY", "sk_test_");
   requireTestKey("STRIPE_SECRET_KEY", "sk_test_");

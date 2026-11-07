@@ -30,6 +30,7 @@ function fixture() {
   for (const name of [
     "with-1password.mjs",
     "with-env.mjs",
+    "with-preview-seed.mjs",
     "load-env.mjs",
     "development-keys.mjs",
   ])
@@ -91,7 +92,7 @@ if(process.argv[2]==='--version'){console.log(process.env.FAKE_VERSION??'2.41.1'
 assert.deepEqual(process.argv.slice(2,6),['run','--environment','development-fixture','--']);
 fs.writeFileSync('op-called','yes');if(process.env.FAKE_FAILURE)process.exit(23);
 assert.equal(process.env.OP_SERVICE_ACCOUNT_TOKEN,'dummy-bootstrap');
-const result=spawnSync(process.argv[6],process.argv.slice(7),{stdio:'inherit',env:{...process.env,CLERK_SECRET_KEY:process.env.FAKE_CLERK??'sk_test_clerk',STRIPE_SECRET_KEY:'sk_test_stripe'}});process.exit(result.status??1);`;
+const result=spawnSync(process.argv[6],process.argv.slice(7),{stdio:'inherit',env:{...process.env,CLERK_SECRET_KEY:process.env.FAKE_CLERK??'sk_test_clerk',STRIPE_SECRET_KEY:'sk_test_stripe',PREVIEW_SEED_TURSO_AUTH_TOKEN:'dummy-preview-token'}});process.exit(result.status??1);`;
   writeFileSync(path.join(dir, "bin/op"), op, { mode: 0o755 });
   mkdirSync(path.join(dir, ".tmp/tools"), { recursive: true });
   symlinkSync(path.join(dir, "bin/op"), path.join(dir, ".tmp/tools/op"));
@@ -160,6 +161,7 @@ test("Development pairs public and secret keys in production mode, preserves arg
     path.join(f.app, "probe.mjs"),
     `import assert from 'node:assert/strict';
 assert.equal(process.env.OP_SERVICE_ACCOUNT_TOKEN,undefined);
+assert.equal(process.env.PREVIEW_SEED_TURSO_AUTH_TOKEN,undefined);
 assert.equal(process.env.NODE_ENV,'production');
 assert.equal(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,'pk_test_development');
 assert.equal(process.env.CLERK_SECRET_KEY,'sk_test_clerk');
@@ -239,6 +241,33 @@ test("failed fetch, unstable CLI, and live credentials prevent the target comman
     expect(result.status).not.toBe(0);
     expect(result.stdout).not.toContain("TARGET STARTED");
   }
+});
+
+test("preview seed receives only the scoped credential, never the bootstrap or app keys", () => {
+  const f = fixture();
+  writeFileSync(
+    path.join(f.app, "scripts/prepare-preview-seed.mjs"),
+    `
+    import assert from 'node:assert/strict';
+    assert.equal(process.env.PREVIEW_SEED_TURSO_AUTH_TOKEN, 'dummy-preview-token');
+    assert.equal(process.env.OP_SERVICE_ACCOUNT_TOKEN, undefined);
+    assert.equal(process.env.CLERK_SECRET_KEY, undefined);
+    assert.equal(process.env.STRIPE_SECRET_KEY, undefined);
+    console.log('PREVIEW ISOLATED');
+  `,
+  );
+  const result = spawnSync(
+    process.execPath,
+    [path.join(f.app, "scripts/with-preview-seed.mjs")],
+    {
+      cwd: f.dir,
+      env: f.baseEnv,
+      encoding: "utf8",
+    },
+  );
+  expect(result.status, result.stderr).toBe(0);
+  expect(result.stdout).toContain("PREVIEW ISOLATED");
+  expect(result.stdout + result.stderr).not.toContain("dummy-preview-token");
 });
 
 test("standalone loading honors app-local overrides and test mode without contacting 1Password", () => {

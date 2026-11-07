@@ -35,7 +35,8 @@
     "secrets:dev": "node apps/main/scripts/with-1password.mjs",
     "dev:local": "node apps/main/scripts/dev-local.mjs",
     "setup:local": "node apps/main/scripts/setup-local.mjs",
-    "setup:cloud": "node apps/main/scripts/setup-cloud.mjs"
+    "setup:cloud": "node apps/main/scripts/setup-cloud.mjs",
+    "seed:preview": "node apps/main/scripts/with-preview-seed.mjs"
   },
   "devDependencies": {
     "turbo": "^2.9.6"
