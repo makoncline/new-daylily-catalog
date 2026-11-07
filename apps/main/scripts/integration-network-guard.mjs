@@ -6,6 +6,12 @@ import path from "node:path";
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
 const installedKey = Symbol.for("daylily.integrationNetworkGuardInstalled");
 export const FORBIDDEN_SERVICE_ENV = [
+  "OP_SERVICE_ACCOUNT_TOKEN",
+  "DAYLILY_SECRET_STAGE",
+  "SEARCH_INDEX_CANDIDATE_TOKEN",
+  "VERCEL_AUTOMATION_BYPASS_SECRET",
+  "TURSO_EMBEDDED_REPLICA_SYNC_URL",
+  "TURSO_EMBEDDED_REPLICA_SYNC_INTERVAL_SECONDS",
   "CLERK_WEBHOOK_SECRET",
   "STRIPE_WEBHOOK_SECRET",
   "TURSO_DATABASE_AUTH_TOKEN",

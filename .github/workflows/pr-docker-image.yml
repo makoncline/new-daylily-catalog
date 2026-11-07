@@ -83,6 +83,12 @@ jobs:
             printf '%s\n' "${{ steps.meta.outputs.alias_tags }}"
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Install pinned 1Password CLI for preview
+        if: github.event_name == 'pull_request'
+        uses: 1password/install-cli-action@9a0c9dd934086b7ab1d90115d455bda1c53c2bdb # v2
+        with:
+          version: "2.41.1"
+
       - name: Write build env
         id: build-env
         env:
@@ -94,28 +100,33 @@ jobs:
           BUILD_NEXT_PUBLIC_POSTHOG_KEY: ${{ vars.NEXT_PUBLIC_POSTHOG_KEY }}
           BUILD_NEXT_PUBLIC_POSTHOG_HOST: ${{ vars.NEXT_PUBLIC_POSTHOG_HOST }}
           BUILD_DATABASE_URL: ${{ vars.DATABASE_URL }}
-          BUILD_TURSO_DATABASE_AUTH_TOKEN: ${{ secrets.TURSO_DATABASE_AUTH_TOKEN }}
-          BUILD_STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          BUILD_TURSO_DATABASE_AUTH_TOKEN: ${{ github.event_name != 'pull_request' && secrets.TURSO_DATABASE_AUTH_TOKEN || '' }}
+          BUILD_STRIPE_SECRET_KEY: ${{ github.event_name != 'pull_request' && secrets.STRIPE_SECRET_KEY || '' }}
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ github.event_name == 'pull_request' && secrets.OP_SERVICE_ACCOUNT_TOKEN || '' }}
           BUILD_SENTRY_AUTH_TOKEN: ${{ github.event_name != 'pull_request' && secrets.SENTRY_AUTH_TOKEN || '' }}
         run: |
           BUILD_ENV_FILE="$RUNNER_TEMP/daylilycatalog-build.env"
 
-          if [ -z "$BUILD_APP_BASE_URL" ] || [ -z "$BUILD_CLOUDFLARE_URL" ] || [ -z "$BUILD_CLERK_PUBLISHABLE_KEY" ]; then
-            echo "Configure APP_BASE_URL, NEXT_PUBLIC_CLOUDFLARE_URL, and NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY in the '$BUILD_ENVIRONMENT_NAME' environment." >&2
-            exit 1
-          fi
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            ENVIRONMENT_ID="$(node -p 'require("./apps/main/scripts/1password-development.json").environmentId')"
+            op run --environment "$ENVIRONMENT_ID" -- node apps/main/scripts/write-preview-ci-build-env.mjs
+          else
+            if [ -z "$BUILD_APP_BASE_URL" ] || [ -z "$BUILD_CLOUDFLARE_URL" ] || [ -z "$BUILD_CLERK_PUBLISHABLE_KEY" ]; then
+              echo "Configure APP_BASE_URL, NEXT_PUBLIC_CLOUDFLARE_URL, and NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY in the '$BUILD_ENVIRONMENT_NAME' environment." >&2
+              exit 1
+            fi
 
-          if [ -z "$BUILD_DATABASE_URL" ] || [ -z "$BUILD_TURSO_DATABASE_AUTH_TOKEN" ]; then
-            echo "Configure DATABASE_URL and TURSO_DATABASE_AUTH_TOKEN in the '$BUILD_ENVIRONMENT_NAME' environment." >&2
-            exit 1
-          fi
+            if [ -z "$BUILD_DATABASE_URL" ] || [ -z "$BUILD_TURSO_DATABASE_AUTH_TOKEN" ]; then
+              echo "Configure DATABASE_URL and TURSO_DATABASE_AUTH_TOKEN in the '$BUILD_ENVIRONMENT_NAME' environment." >&2
+              exit 1
+            fi
 
-          if [ -z "$BUILD_STRIPE_SECRET_KEY" ]; then
-            echo "Configure STRIPE_SECRET_KEY in the '$BUILD_ENVIRONMENT_NAME' environment." >&2
-            exit 1
-          fi
+            if [ -z "$BUILD_STRIPE_SECRET_KEY" ]; then
+              echo "Configure STRIPE_SECRET_KEY in the '$BUILD_ENVIRONMENT_NAME' environment." >&2
+              exit 1
+            fi
 
-          cat > "$BUILD_ENV_FILE" <<EOF
+            cat > "$BUILD_ENV_FILE" <<EOF
           APP_BASE_URL=$BUILD_APP_BASE_URL
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=$BUILD_CLERK_PUBLISHABLE_KEY
           NEXT_PUBLIC_CLOUDFLARE_URL=$BUILD_CLOUDFLARE_URL
@@ -128,12 +139,9 @@ jobs:
           STRIPE_SECRET_KEY=$BUILD_STRIPE_SECRET_KEY
           EOF
 
-          if [ -n "$BUILD_SENTRY_AUTH_TOKEN" ]; then
-            echo "SENTRY_AUTH_TOKEN=$BUILD_SENTRY_AUTH_TOKEN" >> "$BUILD_ENV_FILE"
-          fi
-
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "SENTRY_SOURCEMAPS_DISABLED=1" >> "$BUILD_ENV_FILE"
+            if [ -n "$BUILD_SENTRY_AUTH_TOKEN" ]; then
+              echo "SENTRY_AUTH_TOKEN=$BUILD_SENTRY_AUTH_TOKEN" >> "$BUILD_ENV_FILE"
+            fi
           fi
 
           BUILD_ENV_FINGERPRINT="$(sha256sum "$BUILD_ENV_FILE" | cut -d' ' -f1)"

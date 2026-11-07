@@ -4,11 +4,10 @@ import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import * as dotenv from "dotenv";
+import { loadAppEnv } from "./load-env.mjs";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const appRoot = path.resolve(scriptDir, "..");
-const repoRoot = path.resolve(appRoot, "../..");
 const explicitDatabaseUrl = process.env.DATABASE_URL;
 
 const args = [...process.argv.slice(2)];
@@ -30,13 +29,11 @@ if (args[0] === "--") args.shift();
 const envName =
   explicitEnvName ??
   (process.env.NODE_ENV === "production" ? "production" : "development");
-const envFile = `.env.${envName}`;
-
-for (const envPath of [
-  path.join(repoRoot, envFile),
-  path.join(appRoot, envFile),
-]) {
-  if (existsSync(envPath)) dotenv.config({ path: envPath, quiet: true });
+loadAppEnv(envName);
+if (process.env.DAYLILY_SECRET_STAGE === "development") {
+  delete process.env.OP_SERVICE_ACCOUNT_TOKEN;
+  const { requireDevelopmentKeys } = await import("./development-keys.mjs");
+  requireDevelopmentKeys(process.env);
 }
 
 if (args.length === 0) process.exit(0);

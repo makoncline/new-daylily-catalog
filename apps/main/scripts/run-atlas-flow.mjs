@@ -13,7 +13,7 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import * as dotenv from "dotenv";
+import { loadAppEnv } from "./load-env.mjs";
 import {
   generateAtlasGallery,
   generateAtlasHome,
@@ -137,12 +137,7 @@ async function startServer() {
     return;
   }
   await assertAtlasPortAvailable(baseURL);
-  for (const envPath of [
-    path.join(repoRoot, ".env.development"),
-    path.join(appRoot, ".env.development"),
-  ]) {
-    if (existsSync(envPath)) dotenv.config({ path: envPath, quiet: true });
-  }
+  loadAppEnv("development");
   let databaseUrl = normalizeDatabaseUrl(explicitDatabaseUrl);
   if (!databaseUrl) {
     const manifest = assertRealisticDataSeedFresh({

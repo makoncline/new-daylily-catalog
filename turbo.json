@@ -7,10 +7,14 @@
     "AWS_REGION",
     "AWS_SECRET_ACCESS_KEY",
     "BASE_URL",
+    "CI",
     "CLERK_SECRET_KEY",
     "CLERK_WEBHOOK_SECRET",
-    "CI",
     "DATABASE_URL",
+    "DAYLILY_MCP_OAUTH_CLIENT_ID",
+    "DAYLILY_MEMBER_API_OAUTH_CLIENT_IDS",
+    "DAYLILY_SECRET_STAGE",
+    "DAYLILY_TRUST_PROXY_IP",
     "E2E_PORT",
     "E2E_PROD_SCENARIO",
     "E2E_PROFILE_SCENARIO",
@@ -18,12 +22,19 @@
     "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
     "NEXT_PUBLIC_CLOUDFLARE_URL",
     "NEXT_PUBLIC_SENTRY_ENABLED",
+    "OPENAI_IMAGE_MODERATION_API_KEY",
     "PLAYWRIGHT_LOCAL_E2E",
     "POSTHOG_PROJECT_ID",
     "POSTHOG_PROJECT_KEY",
+    "R2_ACCESS_KEY_ID",
+    "R2_ACCOUNT_ID",
+    "R2_BUCKET_NAME",
+    "R2_PUBLIC_BASE_URL",
+    "R2_SECRET_ACCESS_KEY",
     "REALISTIC_DATA_OUTPUT_DB_PATH",
     "REALISTIC_DATA_SOURCE_DB_PATH",
     "RUNTIME_FEATURE_FLAGS_PATH",
+    "SEARCH_INDEX_CANDIDATE_TOKEN",
     "SENTRY_AUTH_TOKEN",
     "SENTRY_ORG",
     "SENTRY_PROJECT",
@@ -31,18 +42,45 @@
     "STRIPE_SECRET_KEY",
     "STRIPE_WEBHOOK_SECRET",
     "TURSO_DATABASE_AUTH_TOKEN",
+    "TURSO_EMBEDDED_REPLICA_SYNC_INTERVAL_SECONDS",
+    "TURSO_EMBEDDED_REPLICA_SYNC_URL",
+    "TURSO_EMBEDDED_REPLICA_URL",
     "VERCEL_AUTOMATION_BYPASS_SECRET"
   ],
   "tasks": {
     "build": {
-      "dependsOn": ["^build"],
-      "env": ["VERCEL"],
-      "outputs": [".next/**", "!.next/cache/**"]
+      "dependsOn": [
+        "^build"
+      ],
+      "env": [
+        "VERCEL"
+      ],
+      "outputs": [
+        ".next/**",
+        "!.next/cache/**"
+      ],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        ".env*",
+        "!*.local"
+      ]
     },
     "build:next": {
-      "dependsOn": ["^build:next"],
-      "env": ["VERCEL"],
-      "outputs": [".next/**", "!.next/cache/**"]
+      "dependsOn": [
+        "^build:next"
+      ],
+      "env": [
+        "VERCEL"
+      ],
+      "outputs": [
+        ".next/**",
+        "!.next/cache/**"
+      ],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        ".env*",
+        "!*.local"
+      ]
     },
     "lint": {},
     "typecheck": {},
@@ -99,5 +137,20 @@
     "profile:queries": {
       "cache": false
     }
-  }
+  },
+  "globalEnv": [
+    "APP_BASE_URL",
+    "AWS_BUCKET_NAME",
+    "AWS_REGION",
+    "DAYLILY_MCP_OAUTH_CLIENT_ID",
+    "DAYLILY_MEMBER_API_OAUTH_CLIENT_IDS",
+    "DAYLILY_SECRET_STAGE",
+    "DAYLILY_TRUST_PROXY_IP",
+    "NEXT_PUBLIC_*",
+    "NODE_ENV",
+    "R2_ACCOUNT_ID",
+    "R2_BUCKET_NAME",
+    "R2_PUBLIC_BASE_URL",
+    "SENTRY_ENVIRONMENT"
+  ]
 }

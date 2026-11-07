@@ -1,19 +1,11 @@
 import path from "node:path";
 import fs from "node:fs";
-import dotenv from "dotenv";
+import { loadAppEnv } from "../scripts/load-env.mjs";
 import type { FullConfig } from "@playwright/test";
 import { clerkSetup } from "@clerk/testing/playwright";
 
 export default async function globalSetup(_config: FullConfig) {
-  // Load env for Clerk keys
-  dotenv.config({
-    path: path.resolve(process.cwd(), "../../.env.development"),
-    override: false,
-  });
-  dotenv.config({
-    path: path.resolve(process.cwd(), ".env.development"),
-    override: false,
-  });
+  loadAppEnv("development");
   if (
     !process.env.CLERK_PUBLISHABLE_KEY &&
     process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY

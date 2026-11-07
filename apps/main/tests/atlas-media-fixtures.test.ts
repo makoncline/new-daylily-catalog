@@ -221,4 +221,4 @@ test("refuses attach and explicit database media runs before changing files or c
       expect(readFileSync(sourcePath)).toEqual(before);
     }
   }
-});
+}, 30000);

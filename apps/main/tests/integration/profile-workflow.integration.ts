@@ -371,7 +371,8 @@ test("Profile URL checks ignore late results and preserve eligibility", async ({
     page.getByRole("status", { name: "Checking profile URL" }),
   ).toHaveCount(0);
   await page.getByRole("link", { name: "View Public Profile" }).click();
-  await expect(page).toHaveURL("/available-garden");
+  // First navigation may compile the public profile route on a cold CI server.
+  await expect(page).toHaveURL("/available-garden", { timeout: 15_000 });
   await page.goto("/dashboard/profile");
   await expect(profile.saveChangesButton).toBeDisabled();
   await page.reload();

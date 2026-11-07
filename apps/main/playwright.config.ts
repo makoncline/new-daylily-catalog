@@ -1,16 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
-import dotenv from "dotenv";
+import { loadAppEnv } from "./scripts/load-env.mjs";
 
-dotenv.config({
-  path: path.resolve(process.cwd(), "../../.env.development"),
-  override: false,
-});
-dotenv.config({
-  path: path.resolve(process.cwd(), ".env.development"),
-  override: false,
-});
+loadAppEnv("development");
 
 const e2ePort = process.env.E2E_PORT ?? "3100";
 const baseURL = process.env.BASE_URL ?? `http://localhost:${e2ePort}`;

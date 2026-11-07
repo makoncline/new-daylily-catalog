@@ -90,7 +90,12 @@ describe("Docker build cache and observability boundaries", () => {
     expect(workflow).toContain(
       "github.event_name != 'pull_request' && secrets.SENTRY_AUTH_TOKEN || ''",
     );
-    expect(workflow).toContain('echo "SENTRY_SOURCEMAPS_DISABLED=1"');
+    const previewBuildScript = readFileSync(
+      path.join(repoRoot, "apps/main/scripts/write-preview-ci-build-env.mjs"),
+      "utf8",
+    );
+    expect(previewBuildScript).toContain('SENTRY_SOURCEMAPS_DISABLED: "1"');
+    expect(workflow).toContain("github.event_name == 'pull_request'");
     expect(nextConfig).toContain(
       'process.env.SENTRY_SOURCEMAPS_DISABLED === "1"',
     );

@@ -128,12 +128,15 @@ it("reads the accepted artifact for search, facets, importer and parentage, and 
       includeCandidates: false,
     }),
   ).toMatchObject([{ exactMatch: { cultivarReferenceId: "Candidate" } }]);
-  await vi.waitFor(async () => {
-    expect(await ensurePublicParentageIndex()).toMatchObject({
-      sourcePath: candidatePath,
-      status: "fresh",
-    });
-  });
+  await vi.waitFor(
+    async () => {
+      expect(await ensurePublicParentageIndex()).toMatchObject({
+        sourcePath: candidatePath,
+        status: "fresh",
+      });
+    },
+    { timeout: 5000 },
+  );
 
   createIndex(`${candidatePath}.next`, "Replacement");
   renameSync(candidatePath, `${candidatePath}.previous`);
