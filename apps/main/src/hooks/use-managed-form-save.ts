@@ -1,6 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, type RefObject } from "react";
+import {
+  useCallback,
+  useImperativeHandle,
+  useRef,
+  type RefObject,
+} from "react";
 
 export interface ManagedFormSaveHandle<TReason extends string = string> {
   hasPendingChanges: () => boolean;
@@ -54,32 +59,10 @@ export function useManagedFormSave<
     [hasPendingChanges, save],
   );
 
-  const baseHandle = useMemo<ManagedFormSaveHandle<TReason>>(
-    () => ({
-      hasPendingChanges,
-      saveChanges,
-    }),
-    [hasPendingChanges, saveChanges],
-  );
-
-  const handle = useMemo(() => {
-    if (createHandle) {
-      return createHandle(baseHandle);
-    }
-
-    return baseHandle as THandle;
-  }, [baseHandle, createHandle]);
-
-  useEffect(() => {
-    if (!formRef) {
-      return;
-    }
-
-    formRef.current = handle;
-  }, [formRef, handle]);
-
-  return {
-    handle,
-    saveChanges,
-  };
+  const baseHandle = { hasPendingChanges, saveChanges };
+  const handle = createHandle
+    ? createHandle(baseHandle)
+    : (baseHandle as THandle);
+  useImperativeHandle(formRef, () => handle, [handle]);
+  return { handle, saveChanges };
 }

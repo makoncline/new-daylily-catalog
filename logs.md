@@ -230,3 +230,5 @@ check current code before applying them.
 - [2026-11-01] Snapshot lock runner: Ubuntu 26.04 uutils mkdir can return success to concurrent callers for the same directory (uutils/coreutils#13970). This breaks the backup integration test on ubuntu-latest. Keep Vitest on ubuntu-24.04 as well as browser jobs; do not weaken the snapshot lock assertion.
 
 - [2026-11-01] Native history and dialog URLs: useSearchParams can retain the previous query when a local table updates browser history and a dialog opens before the next React render. Build imperative dialog URLs from window.location.search at the action, including edit close. Verify the filter survives opening, saving, and returning.
+
+- [2026-11-06] Listing command order: Dashboard collection writes share the TanStack `dashboard-commands` mutation scope. An enabled cultivar action waits for a pending field response before its write starts. When testing editor saves, preserve this queue and distinguish synthetic handle interleavings from reachable browser behavior.
