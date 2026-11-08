@@ -1,5 +1,13 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  renderHook,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useDashboardCatalogImport } from "@/app/dashboard/imports/_components/use-dashboard-catalog-import";
 import { DashboardCatalogImporter } from "@/app/dashboard/imports/_components/dashboard-catalog-importer";
 import type { CatalogImporterDraft } from "@/lib/catalog-importer-draft";
 import type { CatalogImportRow } from "@/lib/catalog-importer";
@@ -141,6 +149,40 @@ describe("DashboardCatalogImporter", () => {
       parsedSpreadsheet: null,
       projectId: "project-1",
     };
+  });
+
+  it("blocks a second submission before React renders and while refresh is pending", async () => {
+    let finishRefresh!: () => void;
+    mocks.importRows.mockResolvedValue({
+      createdCount: 100,
+      existingCount: 0,
+      skippedExactCount: 0,
+    });
+    mocks.revalidate.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finishRefresh = resolve;
+        }),
+    );
+    const { result } = renderHook(() => useDashboardCatalogImport(mocks.draft));
+    let first!: Promise<void>;
+    await act(async () => {
+      first = result.current.runImport();
+      await result.current.runImport();
+    });
+    expect(mocks.importRows).toHaveBeenCalledTimes(1);
+    expect(result.current.batchResult?.createdCount).toBe(100);
+    expect(result.current.isImporting).toBe(true);
+    await act(async () => {
+      await result.current.runImport();
+    });
+    expect(mocks.importRows).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      finishRefresh();
+      await first;
+    });
+    expect(result.current.isImporting).toBe(false);
+    expect(result.current.readyRows).toHaveLength(101);
   });
 
   it("selects the next import group after one import finishes", async () => {

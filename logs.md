@@ -230,3 +230,6 @@ check current code before applying them.
 - [2026-11-01] Snapshot lock runner: Ubuntu 26.04 uutils mkdir can return success to concurrent callers for the same directory (uutils/coreutils#13970). This breaks the backup integration test on ubuntu-latest. Keep Vitest on ubuntu-24.04 as well as browser jobs; do not weaken the snapshot lock assertion.
 
 - [2026-11-01] Native history and dialog URLs: useSearchParams can retain the previous query when a local table updates browser history and a dialog opens before the next React render. Build imperative dialog URLs from window.location.search at the action, including edit close. Verify the filter survives opening, saving, and returning.
+
+- [2026-11-06] Import busy scope: Dashboard import stays busy through the write and the subsequent refresh. Mutation pending state alone covers only the write with the current call structure. Keep the synchronous submission guard and test two calls before React renders when changing this flow.
+- [2026-11-06] Node native addons: Select the repository's pinned Node runtime before dependency install and tests. After a Node major change, rebuild better-sqlite3 in the owned checkout with `pnpm -r rebuild better-sqlite3`. A root-only rebuild does not rebuild this transitive workspace dependency.
