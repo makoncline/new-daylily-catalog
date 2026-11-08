@@ -171,6 +171,77 @@ describe("member mutation versions", () => {
     });
   }, 30_000);
 
+  it("rejects the whole membership change when a target is foreign or stale", async () => {
+    await withTempAppDb(async ({ user }) => {
+      const { caller, db } = await createCaller(user.id);
+      const other = await db.user.create({ data: {} });
+      const listing = await db.listing.create({
+        data: { userId: user.id, title: "Bloom", slug: "bloom" },
+      });
+      const foreignListing = await db.listing.create({
+        data: { userId: other.id, title: "Other", slug: "other" },
+      });
+      const createList = (userId: string, title: string) =>
+        db.list.create({ data: { userId, title } });
+      const firstId = "default-date-list";
+      await db.$executeRaw`
+        INSERT INTO "List" ("id", "userId", "title", "updatedAt")
+        VALUES (${firstId}, ${user.id}, 'First', ${Date.now()})
+      `;
+      const first = await db.list.findUniqueOrThrow({ where: { id: firstId } });
+      const second = await createList(user.id, "Second");
+      const foreign = await createList(other.id, "Other");
+      const toTarget = ({ id, updatedAt }: typeof first) => ({
+        id,
+        expectedUpdatedAt: updatedAt.toISOString(),
+      });
+      const change = (lists: (typeof first)[]) =>
+        caller.dashboardV2.list.changeListingMembership({
+          listingId: listing.id,
+          lists: lists.map(toTarget),
+          present: true,
+        });
+      await expect(change([first, foreign])).rejects.toMatchObject({
+        code: "NOT_FOUND",
+      });
+      await expect(
+        caller.dashboardV2.list.addListingToList({
+          listId: first.id,
+          listingId: foreignListing.id,
+        }),
+      ).rejects.toMatchObject({ code: "NOT_FOUND" });
+      const updated = await caller.dashboardV2.list.update({
+        id: second.id,
+        expectedUpdatedAt: second.updatedAt.toISOString(),
+        data: { title: "New title" },
+      });
+      await expect(change([first, second])).rejects.toMatchObject({
+        code: "CONFLICT",
+      });
+      expect(
+        await db.list.findUniqueOrThrow({
+          where: { id: first.id },
+          include: { listings: true },
+        }),
+      ).toEqual({ ...first, listings: [] });
+      expect(
+        await db.list.findUniqueOrThrow({
+          where: { id: foreign.id },
+          include: { listings: true },
+        }),
+      ).toEqual({ ...foreign, listings: [] });
+      const saved = await change([first, updated]);
+      expect(saved.map(({ listings }) => listings)).toEqual([
+        [{ id: listing.id }],
+        [{ id: listing.id }],
+      ]);
+      expect(saved.find(({ id }) => id === second.id)?.title).toBe("New title");
+      expect(saved.find(({ id }) => id === firstId)?.createdAt).toEqual(
+        first.createdAt,
+      );
+    });
+  }, 30_000);
+
   it("advances the concurrency token for each profile content command", async () => {
     await withTempAppDb(async ({ user }) => {
       const { caller, db } = await createCaller(user.id);

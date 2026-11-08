@@ -1785,6 +1785,14 @@ export const ATLAS_FLOWS = [
           path: "src/components/multi-list-select.tsx",
         },
         {
+          label: "Listing picker membership command",
+          path: "src/components/forms/use-listing-form.ts",
+        },
+        {
+          label: "Atomic list membership and version write",
+          path: "src/server/db/list-membership.ts",
+        },
+        {
           label: "Lists overview",
           path: "src/app/dashboard/lists/_components/lists-table.tsx",
         },
@@ -1835,6 +1843,8 @@ export const ATLAS_FLOWS = [
         "Store member versions as integer milliseconds and preserve stale-write rejection.",
         "Classify editor save conflicts by the tRPC code; keep drafts and load the latest version only on explicit recovery.",
         "Save list fields through the editor; write membership changes at once and mark the parent for commit.",
+        "Apply each picker membership action in one batch. Reject all changes if any target is foreign or has a newer version.",
+        "Read the affected lists after an uncertain reply. Accept the change only when current membership confirms the requested result.",
         "Keep confirmed list membership current when commands overlap, including after a reload with catalog reads unavailable.",
         "Order targeted reads with writes so a delayed response cannot replace a later confirmed edit.",
         "Keep queued commands bound to their original member and reject them if authentication changes before dispatch.",
@@ -1854,6 +1864,7 @@ export const ATLAS_FLOWS = [
           "integration",
           "tests/member-version-storage.integration.test.ts",
         ),
+        testRef("integration", "tests/member-versioning.integration.test.ts"),
         testRef("integration", "tests/daylily-plugin-package.test.ts"),
         testRef("integration", "tests/add-listings-combobox.test.tsx"),
         testRef(

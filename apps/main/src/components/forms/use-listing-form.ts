@@ -17,7 +17,10 @@ import {
   reportError,
 } from "@/lib/error-utils";
 import { STATUS } from "@/config/constants";
-import { type ListingCollectionItem } from "@/app/dashboard/_lib/dashboard-db/collections";
+import type {
+  ListCollectionItem,
+  ListingCollectionItem,
+} from "@/app/dashboard/_lib/dashboard-db/collections";
 
 import { isConflictError } from "@/trpc/is-conflict-error";
 import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
@@ -54,7 +57,6 @@ export function useListingFormController({
   listingId,
   openDeleteOnMount,
   listing,
-  selectedListIds,
   onDelete,
   onSave,
   onPendingChangesChange,
@@ -63,7 +65,6 @@ export function useListingFormController({
   listingId: string;
   openDeleteOnMount?: boolean;
   listing: ListingCollectionItem;
-  selectedListIds: string[];
   onDelete: () => void;
   onSave: () => void;
   onPendingChangesChange?: (hasPendingChanges: boolean) => void;
@@ -74,8 +75,7 @@ export function useListingFormController({
     updateListing,
     loadMissingListing,
     listingsCollection,
-    addListingToList,
-    removeListingFromList,
+    changeListingMembership,
   } = useDashboardDb();
   const [isSaving, setIsSaving] = useState(false);
   const form = useZodForm({
@@ -241,21 +241,21 @@ export function useListingFormController({
     await saveChanges("manual");
   }
 
-  const handleUpdateLists = async (nextListIds: string[]) => {
+  const handleUpdateLists = async (
+    lists: ListCollectionItem[],
+    present: boolean,
+  ) => {
+    if (!lists.length) return;
     setIsSaving(true);
-    const prev = new Set(selectedListIds);
-    const next = new Set(nextListIds);
-
-    const toAdd = nextListIds.filter((id) => !prev.has(id));
-    const toRemove = selectedListIds.filter((id) => !next.has(id));
-
     try {
-      await Promise.all([
-        ...toAdd.map((listId) => addListingToList({ listId, listingId })),
-        ...toRemove.map((listId) =>
-          removeListingFromList({ listId, listingId }),
-        ),
-      ]);
+      await changeListingMembership({
+        listingId,
+        lists: lists.map(({ id, updatedAt }) => ({
+          id,
+          expectedUpdatedAt: new Date(updatedAt).toISOString(),
+        })),
+        present,
+      });
       markNeedsParentCommit();
       toast.success("Lists updated");
     } catch (error) {

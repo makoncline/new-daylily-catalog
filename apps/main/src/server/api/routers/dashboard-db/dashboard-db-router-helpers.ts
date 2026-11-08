@@ -19,24 +19,6 @@ export async function assertOwnedListing(args: {
   }
 }
 
-export async function assertOwnedList(args: {
-  db: PrismaClient;
-  listId: string;
-  userId: string;
-}) {
-  const list = await args.db.list.findFirst({
-    where: { id: args.listId, userId: args.userId },
-    select: { id: true },
-  });
-
-  if (!list) {
-    throw new TRPCError({
-      code: "NOT_FOUND",
-      message: "List not found",
-    });
-  }
-}
-
 export async function assertOwnedProfile(args: {
   db: PrismaClient;
   userId: string;

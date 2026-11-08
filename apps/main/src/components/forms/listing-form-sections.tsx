@@ -55,7 +55,7 @@ export function ListingListsSection({
   selectedListIds,
 }: {
   disabled: boolean;
-  onSelect: (listIds: string[]) => void;
+  onSelect: ComponentProps<typeof MultiListSelect>["onSelect"];
   selectedListIds: string[];
 }) {
   return (
