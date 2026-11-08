@@ -245,11 +245,16 @@ export const ATLAS_FLOWS = [
           label: "Search request correlation and response headers",
           path: "src/app/api/v1/cultivars/search/route.ts",
         },
+        {
+          label: "Cultivar offer sorting and its visible label",
+          path: "src/app/(public)/cultivar/[cultivarNormalizedName]/_components/cultivar-offers-section.tsx",
+        },
       ],
       invariants: [
         "Parse shareable controls through cultivar-search-url on the server and from the current URL on mount. Keep first repeated values, literal Booleans, and existing canonicalization.",
         "A consumed snapshot restores only the same history entry's results, pagination, and scroll anchor. It must not replace URL controls or add result depth to shared URLs.",
         "Use one correlation ID for each search request and its logs. Return that ID on errors, but keep it off cached success responses.",
+        "Render the current offer sort label in its trigger. Route changes must work after browser translation replaces the label text.",
       ],
     },
     tests: {
@@ -258,6 +263,9 @@ export const ATLAS_FLOWS = [
         testRef("integration", "tests/cultivar-search-url.test.ts"),
         fullAppIntegrationRef(
           "tests/integration/cultivar-url-controls.integration.ts",
+        ),
+        fullAppIntegrationRef(
+          "tests/integration/cultivar-offer-navigation.integration.ts",
         ),
         testRef("integration", "tests/cultivar-search-page-client.test.tsx"),
         testRef("integration", "tests/cultivar-search-route.test.ts"),

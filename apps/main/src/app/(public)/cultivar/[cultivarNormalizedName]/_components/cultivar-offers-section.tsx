@@ -118,7 +118,7 @@ function CultivarOffersSectionInner({ offers }: CultivarOffersSectionProps) {
             }
           >
             <SelectTrigger className="w-[180px]" aria-label="Sort offers">
-              <SelectValue placeholder="Sort" />
+              <SelectValue>{sortLabels[filters.sort]}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               {Object.entries(sortLabels).map(([value, label]) => (
