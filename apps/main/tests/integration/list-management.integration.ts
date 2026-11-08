@@ -241,7 +241,7 @@ test("listing picker clears several memberships in one save and recovers a lost 
   page,
   editListingDialog,
 }) => {
-  const listingId = "integration-existing-listing";
+  const listingId = "membership-clear-listing";
   const mediaId = "integration-media-listing";
   const targets = [
     { id: "membership-clear-a", title: "Membership Clear A" },
@@ -252,6 +252,14 @@ test("listing picker clears several memberships in one save and recovers a lost 
   const path = "**/api/trpc/*dashboardV2.list.changeListingMembership*";
   await withTempE2EDb(
     async (db) => {
+      await db.listing.create({
+        data: {
+          id: listingId,
+          userId: owner,
+          title: "Membership Clear Bloom",
+          slug: listingId,
+        },
+      });
       await db.list.create({
         data: {
           ...targets[0]!,
@@ -357,7 +365,10 @@ test("listing picker clears several memberships in one save and recovers a lost 
   } finally {
     await page.unroute(path);
     await withTempE2EDb(
-      (db) => db.list.deleteMany({ where: { id: { in: ids } } }),
+      async (db) => {
+        await db.list.deleteMany({ where: { id: { in: ids } } });
+        await db.listing.delete({ where: { id: listingId } });
+      },
       {
         clearFirst: false,
       },
