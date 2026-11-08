@@ -55,7 +55,7 @@ function ListingEditor({ resource, ...props }: ListingEditorProps) {
     setIsDeleteDialogOpen,
     openDeleteDialog,
     confirmDelete,
-  } = useListingFormController({ ...props, listing, selectedListIds });
+  } = useListingFormController({ ...props, listing });
   return (
     <>
       <form onSubmit={form.handleSubmit(onSubmit)} className="pb-16">
@@ -90,7 +90,9 @@ function ListingEditor({ resource, ...props }: ListingEditorProps) {
           <ListingListsSection
             disabled={isBusy}
             selectedListIds={selectedListIds}
-            onSelect={(listIds) => void handleUpdateLists(listIds)}
+            onSelect={(lists, present) =>
+              void handleUpdateLists(lists, present)
+            }
           />
           <ListingCultivarLinkSection
             listing={listing}

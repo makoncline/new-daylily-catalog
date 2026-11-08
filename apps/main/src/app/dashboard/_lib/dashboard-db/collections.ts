@@ -1,5 +1,7 @@
 "use client";
 
+import { isTRPCClientError } from "@trpc/client";
+import type { AppRouter } from "@/server/api/root";
 import { createCollection, type Collection } from "@tanstack/react-db";
 import {
   MutationObserver,
@@ -262,11 +264,67 @@ function createSession(userId: string, getToken: GetSessionToken) {
         () => client.dashboardV2.list.addListingToList.mutate(draft),
         (row) => lists.utils.writeUpsert(row),
       ),
-    removeListingFromList: (draft: Input["list"]["removeListingFromList"]) =>
-      command(
-        () => client.dashboardV2.list.removeListingFromList.mutate(draft),
-        (row) => lists.utils.writeUpsert(row),
-      ),
+    changeListingMembership: (
+      draft: Input["list"]["changeListingMembership"],
+    ) => {
+      const expected = new Map(
+        draft.lists.map(({ id, expectedUpdatedAt }) => [
+          id,
+          Date.parse(expectedUpdatedAt),
+        ]),
+      );
+      async function cacheRows(rows: ListCollectionItem[]) {
+        const currentRows = rows.filter((row) => {
+          const current = lists.get(row.id);
+          return (
+            !current || new Date(row.updatedAt) >= new Date(current.updatedAt)
+          );
+        });
+        if (currentRows.length) await lists.utils.writeUpsert(currentRows);
+      }
+      return command(async () => {
+        try {
+          return await client.dashboardV2.list.changeListingMembership.mutate(
+            draft,
+          );
+        } catch (error) {
+          const code = isTRPCClientError<AppRouter>(error)
+            ? error.data?.code
+            : undefined;
+          const uncertain =
+            code === undefined || code === "INTERNAL_SERVER_ERROR";
+          if (!uncertain && code !== "CONFLICT" && code !== "NOT_FOUND")
+            throw error;
+
+          assertActive();
+          const snapshot = await client.dashboardV2.list.list
+            .query()
+            .catch(() => null);
+          if (!snapshot) throw error;
+          const rows = snapshot.filter(({ id }) => expected.has(id));
+          assertActive();
+          if (
+            uncertain &&
+            rows.length === expected.size &&
+            rows.every(
+              (row) =>
+                new Date(row.updatedAt).getTime() > expected.get(row.id)! &&
+                row.listings.some(({ id }) => id === draft.listingId) ===
+                  draft.present,
+            )
+          )
+            return rows;
+          await cacheRows(rows);
+          await deleteConfirmed(
+            lists,
+            [...expected.keys()].filter(
+              (id) => !rows.some((row) => row.id === id),
+            ),
+          );
+          throw error;
+        }
+      }, cacheRows);
+    },
     removeListingsFromList: (draft: Input["list"]["removeListingsFromList"]) =>
       command(
         () => client.dashboardV2.list.removeListingsFromList.mutate(draft),

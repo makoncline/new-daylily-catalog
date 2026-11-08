@@ -250,7 +250,7 @@ export function ListingBulkActions({
                   id="bulk-target-list"
                   multiple={false}
                   values={listId ? [listId] : []}
-                  onSelect={(ids) => setListId(ids[0] ?? "")}
+                  onSelect={(lists) => setListId(lists[0]?.id ?? "")}
                   disabled={isPending}
                 />
               </Field>

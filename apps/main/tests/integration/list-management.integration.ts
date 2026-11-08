@@ -237,6 +237,134 @@ test("list picker retries a committed create without duplicating the list", asyn
   );
 });
 
+test("listing picker clears several memberships in one save and recovers a lost reply", async ({
+  page,
+  editListingDialog,
+}) => {
+  const listingId = "integration-existing-listing";
+  const mediaId = "integration-media-listing";
+  const targets = [
+    { id: "membership-clear-a", title: "Membership Clear A" },
+    { id: "membership-clear-b", title: "Membership Clear B" },
+  ];
+  const ids = targets.map(({ id }) => id);
+  const owner = "integration-user";
+  const path = "**/api/trpc/*dashboardV2.list.changeListingMembership*";
+  await withTempE2EDb(
+    async (db) => {
+      await db.list.create({
+        data: {
+          ...targets[0]!,
+          userId: owner,
+          listings: { connect: [{ id: listingId }, { id: mediaId }] },
+        },
+      });
+      await db.list.create({ data: { ...targets[1]!, userId: owner } });
+    },
+    { clearFirst: false },
+  );
+
+  try {
+    await page.goto(`/dashboard/listings?editing=${listingId}`);
+    await editListingDialog.isReady();
+    await expect(editListingDialog.listSelectButton).toContainText(
+      targets[0]!.title,
+    );
+    await editListingDialog.openListsPicker();
+    const picker = page.getByRole("dialog", { name: "Select Lists" });
+    const add = page.waitForResponse((response) =>
+      response.url().includes("dashboardV2.list.changeListingMembership"),
+    );
+    await picker.getByRole("option", { name: targets[1]!.title }).click();
+    expect((await add).ok()).toBe(true);
+    await page.keyboard.press("Escape");
+    await expect(editListingDialog.listSelectButton).toContainText(
+      targets[1]!.title,
+    );
+    const requests: unknown[] = [];
+    page.on("request", (request) => {
+      if (request.url().includes("dashboardV2.list.changeListingMembership"))
+        requests.push(request.postDataJSON()[0].json);
+    });
+    const before = await withTempE2EDb(
+      (db) =>
+        db.list.findMany({
+          where: { id: { in: ids } },
+          orderBy: { id: "asc" },
+        }),
+      { clearFirst: false },
+    );
+    await page.route(
+      path,
+      async (route) => {
+        const response = await route.fetch({
+          headers: { ...route.request().headers(), "trpc-accept": "" },
+        });
+        expect(response.ok()).toBe(true);
+        const [result] = await response.json();
+        expect(result).not.toHaveProperty("error");
+        await withTempE2EDb(
+          async (db) => {
+            const saved = await db.list.findMany({
+              where: { id: { in: ids } },
+              select: { updatedAt: true, listings: { select: { id: true } } },
+              orderBy: { id: "asc" },
+            });
+            expect(saved.map(({ listings }) => listings)).toEqual([
+              [{ id: mediaId }],
+              [],
+            ]);
+            saved.forEach((row, i) =>
+              expect(row.updatedAt.getTime()).toBeGreaterThan(
+                before[i]!.updatedAt.getTime(),
+              ),
+            );
+          },
+          { clearFirst: false },
+        );
+        await route.abort("connectionclosed");
+      },
+      { times: 1 },
+    );
+    const readback = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === "/api/trpc/dashboardV2.list.list",
+    );
+    await editListingDialog.openListsPicker();
+    await picker.getByRole("option", { name: "None", exact: true }).click();
+    expect((await readback).ok()).toBe(true);
+    await expect(editListingDialog.listSelectButton).toHaveText(
+      "Select lists...",
+    );
+    expect(requests).toEqual([
+      {
+        listingId,
+        present: false,
+        lists: before.map(({ id, updatedAt }) => ({
+          id,
+          expectedUpdatedAt: updatedAt.toISOString(),
+        })),
+      },
+    ]);
+    await editListingDialog.clickSaveChanges();
+    await expect(editListingDialog.dialog).toBeHidden();
+    await page.reload();
+    await page.goto(`/dashboard/listings?editing=${listingId}`);
+    await editListingDialog.isReady();
+    await expect(editListingDialog.listSelectButton).toHaveText(
+      "Select lists...",
+    );
+  } finally {
+    await page.unroute(path);
+    await withTempE2EDb(
+      (db) => db.list.deleteMany({ where: { id: { in: ids } } }),
+      {
+        clearFirst: false,
+      },
+    );
+  }
+});
+
 test("a delayed targeted read cannot replace a later list title save", async ({
   page,
 }) => {

@@ -26,13 +26,14 @@ import { TruncatedListBadge } from "@/components/data-table/truncated-list-badge
 import { useLiveQuery } from "@tanstack/react-db";
 
 import { toast } from "sonner";
+import type { ListCollectionItem } from "@/app/dashboard/_lib/dashboard-db/collections";
 import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
 
 interface MultiListSelectProps {
   id?: string;
   multiple?: boolean;
   values: string[];
-  onSelect: (listIds: string[]) => void;
+  onSelect: (lists: ListCollectionItem[], present: boolean) => void;
   disabled?: boolean;
 }
 
@@ -69,17 +70,9 @@ export function MultiListSelect({
       createRequestRef.current = null;
     }
   };
-  const handleToggleList = (listId: string) => {
-    if (!multiple) {
-      onSelect([listId]);
-      handleOpenChange(false);
-      return;
-    }
-    onSelect(
-      values.includes(listId)
-        ? values.filter((id) => id !== listId)
-        : [...values, listId],
-    );
+  const handleToggleList = (list: ListCollectionItem) => {
+    onSelect([list], !multiple || !values.includes(list.id));
+    if (!multiple) handleOpenChange(false);
   };
   const handleCreateList = async () => {
     const title = searchValue.trim();
@@ -92,7 +85,7 @@ export function MultiListSelect({
         createRequestRef.current = request;
       }
       const newList = await insertList(request);
-      onSelect(multiple ? [...values, newList.id] : [newList.id]);
+      onSelect([newList], true);
       handleOpenChange(false);
     } catch {
       toast.error("Failed to create list");
@@ -154,7 +147,7 @@ export function MultiListSelect({
                   <CommandItem
                     disabled={isBusy}
                     onSelect={() => {
-                      onSelect([]);
+                      onSelect(multiple ? selectedLists : [], false);
                       handleOpenChange(false);
                     }}
                   >
@@ -186,7 +179,7 @@ export function MultiListSelect({
                 <CommandItem
                   key={list.id}
                   disabled={isBusy}
-                  onSelect={() => handleToggleList(list.id)}
+                  onSelect={() => handleToggleList(list)}
                 >
                   <Check
                     className={cn(

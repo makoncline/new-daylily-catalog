@@ -235,3 +235,5 @@ check current code before applying them.
 - [2026-11-06] Node native addons: Select the repository's pinned Node runtime before dependency install and tests. After a Node major change, rebuild better-sqlite3 in the owned checkout with `pnpm -r rebuild better-sqlite3`. A root-only rebuild does not rebuild this transitive workspace dependency.
 
 - [2026-11-06] Listing command order: Dashboard collection writes share the TanStack `dashboard-commands` mutation scope. An enabled cultivar action waits for a pending field response before its write starts. When testing editor saves, preserve this queue and distinguish synthetic handle interleavings from reachable browser behavior.
+
+- [2026-11-08] List membership batch: Prisma interactive transactions on the libSQL adapter hold a client mutex until commit or rollback. For list membership, use the native write batch so the database advances versions and changes links in one operation. Verify the same batch through local SQLite and a loopback Hrana server. Raw snapshots must read the SQLite text default for `List.createdAt` as UTC.

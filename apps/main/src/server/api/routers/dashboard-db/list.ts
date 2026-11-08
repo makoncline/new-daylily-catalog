@@ -1,12 +1,11 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { Prisma, type PrismaClient } from "@prisma/client";
 
 import { protectedProcedure, createTRPCRouter } from "@/server/api/trpc";
 import {
-  assertOwnedList,
-  assertOwnedListing,
-} from "./dashboard-db-router-helpers";
+  readMembershipLists,
+  writeListMemberships,
+} from "@/server/db/list-membership";
 import { APP_CONFIG } from "@/config/constants";
 import { getStripeSubscriptionResult } from "@/server/stripe/sync-subscription";
 import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
@@ -30,62 +29,49 @@ const listSelect = {
   },
 } as const;
 
-const listBaseSelect = {
-  id: true,
-  userId: true,
-  title: true,
-  description: true,
-  status: true,
-  createdAt: true,
-  updatedAt: true,
-} as const;
+const membershipId = z.string().min(1);
+const membershipIds = z.array(membershipId).min(1);
+const uniqueIds = (ids: string[]) => new Set(ids).size === ids.length;
 
-type ListBaseRow = Prisma.ListGetPayload<{
-  select: typeof listBaseSelect;
-}>;
-
-async function attachListListingIds(db: PrismaClient, lists: ListBaseRow[]) {
-  if (!lists.length) {
-    return [];
-  }
-
-  const listIds = lists.map((list) => list.id);
-  const memberships = await db.$queryRaw<Array<{ A: string; B: string }>>(
-    Prisma.sql`
-      SELECT "A", "B"
-      FROM "_ListToListing"
-      WHERE "A" IN (${Prisma.join(listIds)})
-    `,
-  );
-
-  const listingIdsByListId = new Map<string, Array<{ id: string }>>();
-  memberships.forEach((membership) => {
-    const rows = listingIdsByListId.get(membership.A) ?? [];
-    rows.push({ id: membership.B });
-    listingIdsByListId.set(membership.A, rows);
-  });
-
-  return lists.map((list) => ({
-    ...list,
-    listings: listingIdsByListId.get(list.id) ?? [],
-  }));
-}
-
-async function advanceListVersion(
-  tx: Prisma.TransactionClient,
-  listId: string,
-  userId: string,
+async function changeMemberships(
+  input: Parameters<typeof writeListMemberships>[0],
 ) {
-  await tx.$executeRaw`
-    UPDATE "List"
-    SET "updatedAt" = MAX("updatedAt" + 1, ${Date.now()})
-    WHERE "id" = ${listId} AND "userId" = ${userId}
-  `;
-  return tx.list.findFirstOrThrow({
-    where: { id: listId, userId },
-    select: listSelect,
-  });
+  const result = await writeListMemberships(input);
+  if (result.changed) return result.lists;
+
+  if (result.lists.length !== input.lists.length) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "List not found" });
+  }
+  if (input.requireMembers) {
+    throw new TRPCError({
+      code: "PRECONDITION_FAILED",
+      message: "Some listings are no longer in this list",
+    });
+  }
+  if (input.lists[0]?.expectedUpdatedAt !== undefined) {
+    throw new TRPCError({
+      code: "CONFLICT",
+      message:
+        "The lists or listing changed. Check the current selection and try again.",
+    });
+  }
+  throw new TRPCError({ code: "NOT_FOUND", message: "Listing not found" });
 }
+
+const membershipPair = z.object({
+  listId: membershipId,
+  listingId: membershipId,
+});
+const changeSingleMembership = (present: boolean) =>
+  protectedProcedure.input(membershipPair).mutation(async ({ ctx, input }) => {
+    const [list] = await changeMemberships({
+      userId: ctx.user.id,
+      lists: [{ id: input.listId }],
+      listingIds: [input.listingId],
+      present,
+    });
+    return list!;
+  });
 
 export const dashboardDbListRouter = createTRPCRouter({
   create: protectedProcedure
@@ -171,15 +157,7 @@ export const dashboardDbListRouter = createTRPCRouter({
       return list;
     }),
 
-  list: protectedProcedure.query(async ({ ctx }) => {
-    const lists = await ctx.db.list.findMany({
-      where: { userId: ctx.user.id },
-      select: listBaseSelect,
-      orderBy: { createdAt: "desc" },
-    });
-
-    return attachListListingIds(ctx.db, lists);
-  }),
+  list: protectedProcedure.query(({ ctx }) => readMembershipLists(ctx.user.id)),
 
   update: protectedProcedure
     .input(
@@ -255,102 +233,52 @@ export const dashboardDbListRouter = createTRPCRouter({
       return { id: input.id } as const;
     }),
 
-  addListingToList: protectedProcedure
-    .input(z.object({ listId: z.string(), listingId: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      await assertOwnedListing({
-        db: ctx.db,
-        listingId: input.listingId,
+  changeListingMembership: protectedProcedure
+    .input(
+      z.object({
+        listingId: membershipId,
+        lists: z
+          .array(
+            z.object({
+              id: membershipId,
+              expectedUpdatedAt: z.iso.datetime(),
+            }),
+          )
+          .min(1)
+          .refine(
+            (lists) => new Set(lists.map(({ id }) => id)).size === lists.length,
+            "List IDs must be unique",
+          ),
+        present: z.boolean(),
+      }),
+    )
+    .mutation(({ ctx, input }) =>
+      changeMemberships({
+        ...input,
         userId: ctx.user.id,
-      });
-      await assertOwnedList({
-        db: ctx.db,
-        listId: input.listId,
-        userId: ctx.user.id,
-      });
+        listingIds: [input.listingId],
+      }),
+    ),
 
-      const updated = await ctx.db.$transaction(async (tx) => {
-        await tx.list.update({
-          where: { id: input.listId, userId: ctx.user.id },
-          data: { listings: { connect: { id: input.listingId } } },
-        });
-        return advanceListVersion(tx, input.listId, ctx.user.id);
-      });
+  addListingToList: changeSingleMembership(true),
 
-      return updated;
-    }),
-
-  removeListingFromList: protectedProcedure
-    .input(z.object({ listId: z.string(), listingId: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      await assertOwnedListing({
-        db: ctx.db,
-        listingId: input.listingId,
-        userId: ctx.user.id,
-      });
-      await assertOwnedList({
-        db: ctx.db,
-        listId: input.listId,
-        userId: ctx.user.id,
-      });
-
-      const updated = await ctx.db.$transaction(async (tx) => {
-        await tx.list.update({
-          where: { id: input.listId, userId: ctx.user.id },
-          data: { listings: { disconnect: { id: input.listingId } } },
-        });
-        return advanceListVersion(tx, input.listId, ctx.user.id);
-      });
-
-      return updated;
-    }),
+  removeListingFromList: changeSingleMembership(false),
 
   removeListingsFromList: protectedProcedure
     .input(
       z.object({
-        listId: z.string().min(1),
-        listingIds: z
-          .array(z.string().min(1))
-          .min(1)
-          .max(20)
-          .refine(
-            (ids) => new Set(ids).size === ids.length,
-            "Listing IDs must be unique",
-          ),
+        listId: membershipId,
+        listingIds: membershipIds.max(20).refine(uniqueIds),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.$transaction(async (tx) => {
-        const list = await tx.list.findFirst({
-          where: { id: input.listId, userId: ctx.user.id },
-          select: { id: true },
-        });
-        if (!list) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "List not found" });
-        }
-        const members = await tx.listing.findMany({
-          where: {
-            id: { in: input.listingIds },
-            userId: ctx.user.id,
-            lists: { some: { id: input.listId } },
-          },
-          select: { id: true },
-        });
-        if (members.length !== input.listingIds.length) {
-          throw new TRPCError({
-            code: "PRECONDITION_FAILED",
-            message: "Some listings are no longer in this list",
-          });
-        }
-        await tx.list.update({
-          where: { id: input.listId, userId: ctx.user.id },
-          data: {
-            listings: {
-              disconnect: input.listingIds.map((id) => ({ id })),
-            },
-          },
-        });
-        return advanceListVersion(tx, input.listId, ctx.user.id);
+      const [list] = await changeMemberships({
+        userId: ctx.user.id,
+        lists: [{ id: input.listId }],
+        listingIds: input.listingIds,
+        present: false,
+        requireMembers: true,
       });
+      return list!;
     }),
 });
