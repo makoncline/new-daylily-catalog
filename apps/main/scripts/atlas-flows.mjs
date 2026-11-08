@@ -1652,6 +1652,7 @@ export const ATLAS_FLOWS = [
         "Use two reserved synthetic listings with nine local images and zero images. Keep the surrounding realistic catalog.",
         "Create media fixtures only in a runner-owned disposable snapshot. Refuse BASE_URL, DATABASE_URL, and ATLAS_DATABASE_URL overrides before any write.",
         "Keep populated, empty, preview, crop, reorder, and delete-confirmation assertions. Do not send an upload.",
+        "Keep the selected photo and crop if upload preparation fails. Show the preparation error and retain the server's explicit rejection message.",
         "Delete only the selected image. Keep survivor order values; apply the full canonical image set after a reorder, including images absent from the browser.",
       ],
     },

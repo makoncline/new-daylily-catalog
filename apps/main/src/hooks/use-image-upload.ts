@@ -196,13 +196,11 @@ export function useImageUpload({
         return image;
       } catch (error) {
         toast.error(
-          step === "moderate"
-            ? "Image not accepted"
-            : step === "presign"
-              ? "Failed to get upload URL"
-              : step === "upload"
-                ? "Failed to upload image"
-                : "Failed to save image",
+          step === "upload"
+            ? "Failed to upload image"
+            : step === "create"
+              ? "Failed to save image"
+              : "Could not prepare image upload",
           {
             description: getErrorMessage(error),
           },
