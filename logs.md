@@ -212,6 +212,8 @@ check current code before applying them.
 
 - [2026-10-17] Old dashboard tabs: A deployed client cannot add UI to JavaScript already loaded in an open tab. The old listing editor displays server error messages and keeps a rejected draft. For an incompatible dashboard API change, reject old browser mutations before writing and test an unchanged Chrome tab across two production-built containers.
 
+- [2026-11-08] Radix Select and browser translation: Radix portals the selected item text into an empty SelectValue. Chrome Translate can replace that text node. React then fails to remove it when the route changes. Pass the current label as SelectValue children when the app owns the selected value. Test navigation after a text replacement.
+
 - [2026-10-17] PostHog survey capture: posthog-js 1.438.10 adds survey response person properties to the captured event `$set`. It does not expose them through `get_property`. The return value confirms local capture, not delivery. Browser automation can pass `is_capturing()` and still return no capture because of bot filtering. For API survey tests, check the event contract and identity. Change bot filtering only in private fixtures.
 
 - [2026-10-17] Query command ordering: Direct collection writes use arrival order, not server row versions. Run dashboard commands and their canonical cache writes in one TanStack Query mutation scope. Exclude paused mutations from snapshot persistence. Do not nest the scoped runner. Check ordering with delayed real responses and a warm reload.
@@ -235,4 +237,5 @@ check current code before applying them.
 - [2026-11-06] Node native addons: Select the repository's pinned Node runtime before dependency install and tests. After a Node major change, rebuild better-sqlite3 in the owned checkout with `pnpm -r rebuild better-sqlite3`. A root-only rebuild does not rebuild this transitive workspace dependency.
 
 - [2026-11-06] Listing command order: Dashboard collection writes share the TanStack `dashboard-commands` mutation scope. An enabled cultivar action waits for a pending field response before its write starts. When testing editor saves, preserve this queue and distinguish synthetic handle interleavings from reachable browser behavior.
-- [2026-11-08] Radix Select and browser translation: Radix portals the selected item text into an empty SelectValue. Chrome Translate can replace that text node. React then fails to remove it when the route changes. Pass the current label as SelectValue children when the app owns the selected value. Test navigation after a text replacement.
+
+- [2026-11-08] Prisma in a managed checkout: Prisma can fail while it updates the timestamp of its cached schema engine. If the matching engine is already in the user cache, set `PRISMA_SCHEMA_ENGINE_BINARY` to its path and run `pnpm main db:generate` directly. The root Turbo task filters this variable.
