@@ -25,10 +25,10 @@ export interface ProfileFormHandle {
 
 function toFormValues(profile: UserProfile) {
   return {
-    title: profile.title ?? undefined,
-    slug: profile.slug ?? undefined,
-    description: profile.description ?? undefined,
-    location: profile.location ?? undefined,
+    title: profile.title ?? "",
+    slug: profile.slug ?? "",
+    description: profile.description ?? "",
+    location: profile.location ?? "",
     logoUrl: profile.logoUrl ?? undefined,
   };
 }
