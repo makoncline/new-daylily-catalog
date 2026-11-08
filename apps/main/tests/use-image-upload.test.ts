@@ -389,15 +389,18 @@ describe("useImageUpload", () => {
     expect(getPresignedUrlMutateAsyncMock).not.toHaveBeenCalled();
     expect(uploadFileWithProgressMock).not.toHaveBeenCalled();
     expect(createImageMock).not.toHaveBeenCalled();
-    expect(toastErrorMock).toHaveBeenCalledWith("Failed to get upload URL", {
-      description: "Only JPEG, PNG, and WebP images are supported",
-    });
+    expect(toastErrorMock).toHaveBeenCalledWith(
+      "Could not prepare image upload",
+      {
+        description: "Only JPEG, PNG, and WebP images are supported",
+      },
+    );
   });
 
-  it("handles presigned-url failure and resets state", async () => {
-    getPresignedUrlMutateAsyncMock.mockRejectedValue(
-      new Error("Presign failed"),
-    );
+  it("reports an interrupted moderation request as an upload preparation failure", async () => {
+    getPresignedUrlMutateAsyncMock
+      .mockResolvedValueOnce({ moderationRequired: true })
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"));
 
     const { result } = renderHook(() =>
       useImageUpload({
@@ -416,9 +419,12 @@ describe("useImageUpload", () => {
     expect(uploadFileWithProgressMock).not.toHaveBeenCalled();
     expect(createImageMock).not.toHaveBeenCalled();
     expect(returned).toBeUndefined();
-    expect(toastErrorMock).toHaveBeenCalledWith("Failed to get upload URL", {
-      description: "Presign failed",
-    });
+    expect(toastErrorMock).toHaveBeenCalledWith(
+      "Could not prepare image upload",
+      {
+        description: "Failed to fetch",
+      },
+    );
 
     await waitFor(() => {
       expect(result.current.isUploading).toBe(false);

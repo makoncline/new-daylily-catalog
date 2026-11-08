@@ -220,6 +220,8 @@ check current code before applying them.
 
 - [2026-10-18] Browser test database reads: `withTempE2EDb` clears the database by default. During full-app browser tests, use `{ clearFirst: false }` for additional fixtures and persistence checks so the running app keeps its seeded account and related records.
 
+- [2026-11-08] Moderated photo proof: The standard full-app runner clears the moderation key and S3 bucket. To check the second upload preparation request in Chrome, use a disposable database, local moderation and storage providers, and the real tRPC procedures. Interrupt the browser response after the server prepares the URL. Check crop retention and the stored attachment separately.
+
 - [2026-10-18] Pinned table test rows: The listing table renders pinned titles and list memberships in separate table rows. For browser assertions across those columns, check the membership cells and verify exact listing IDs in the disposable database. Do not expect the title row to contain every column.
 - [2026-10-22] Browser CI archive: GitHub's Ubuntu runners use /etc/apt/apt-mirrors.txt and can stay on a slow Azure mirror for more than 20 minutes. Before browser system dependency installation, select the official Ubuntu archive in that mirror file and keep installation failure fatal. The CI tests remain required.
 - [2026-10-22] Browser verification dependencies: Docker release and Vercel preview workflows also install Playwright system dependencies. Apply the same Ubuntu archive selection there as in PR Tests. A fix only in PR Tests leaves the other browser checks exposed to the same slow mirror.

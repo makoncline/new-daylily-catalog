@@ -1005,6 +1005,7 @@ export const ATLAS_FLOWS = [
         "Keep field and content drafts during refresh and failed navigation saves.",
         "Restoring a blank profile field leaves it clean. Clearing a saved garden name remains a change and saves a blank name.",
         "Include child content and media changes in the parent commit.",
+        "Keep the selected photo and crop if upload preparation fails. Show the preparation error and retain the server's explicit rejection message.",
         "Ignore late URL validation results and keep drafts after rejected writes.",
         "Convert uppercase profile URL input to lowercase before validation and saving.",
         "Reject member MCP requests before database reads when the token, scope, or client is not allowed.",

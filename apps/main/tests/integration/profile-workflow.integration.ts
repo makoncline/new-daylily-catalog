@@ -562,7 +562,7 @@ test("Profile loading, empty images, crop recovery and image limits", async ({
   );
   await page.getByRole("button", { name: "Upload", exact: true }).click();
   await expect(
-    page.getByText("Failed to get upload URL", { exact: true }),
+    page.getByText("Could not prepare image upload", { exact: true }),
   ).toBeVisible();
   await expect(page.getByRole("img", { name: "Crop preview" })).toBeVisible();
   await expect(
