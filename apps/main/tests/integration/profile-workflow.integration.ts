@@ -137,6 +137,49 @@ async function capture(page: Page, name: string) {
   });
 }
 
+test("Profile restores blank fields and saves a cleared garden name", async ({
+  page,
+}) => {
+  await db.userProfile.update({
+    where: { id: "integration-profile" },
+    data: { title: null, slug: null, description: null, location: null },
+  });
+  const profile = new DashboardProfile(page);
+  await profile.goto();
+  await profile.isReady();
+  await expect(profile.saveChangesButton).toBeDisabled();
+
+  await profile.unlockSlugEditing();
+  for (const field of [
+    profile.gardenNameInput,
+    profile.descriptionInput,
+    profile.locationInput,
+    profile.slugInput,
+  ]) {
+    await expect(field).toHaveValue("");
+    await field.fill("temporary");
+    await expect(profile.saveChangesButton).toBeEnabled();
+    await field.clear();
+    await expect(profile.saveChangesButton).toBeDisabled();
+  }
+
+  await profile.gardenNameInput.fill("Saved Garden");
+  await profile.saveChangesButton.click();
+  await expect
+    .poll(async () => (await profileRecord()).title)
+    .toBe("Saved Garden");
+  await expect(profile.saveChangesButton).toBeDisabled();
+
+  await profile.gardenNameInput.clear();
+  await expect(profile.saveChangesButton).toBeEnabled();
+  await profile.saveChangesButton.click();
+  await expect.poll(async () => (await profileRecord()).title).toBeNull();
+  await expect(profile.saveChangesButton).toBeDisabled();
+  await page.reload();
+  await expect(profile.gardenNameInput).toHaveValue("");
+  await expect(profile.saveChangesButton).toBeDisabled();
+});
+
 test("Profile retains drafts across refresh and fast failed navigation", async ({
   page,
 }) => {
