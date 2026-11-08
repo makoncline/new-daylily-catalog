@@ -935,6 +935,10 @@ export const ATLAS_FLOWS = [
     implementation: {
       entryPoints: [
         {
+          label: "Shared field snapshots and child acknowledgement",
+          path: "src/hooks/use-form-commit.ts",
+        },
+        {
           label: "API/MCP usage evidence",
           path: "src/server/observability/api-usage.ts",
         },
@@ -988,6 +992,7 @@ export const ATLAS_FLOWS = [
         },
       ],
       invariants: [
+        "A save response acknowledges only its submitted fields and child version. Keep later drafts pending and block navigation until they are saved.",
         "Use five reserved local image records on the realistic profile in a runner-owned disposable snapshot. Refuse attach and explicit database modes.",
         "Keep field and content drafts during refresh and failed navigation saves.",
         "Include child content and media changes in the parent commit.",
@@ -1140,6 +1145,10 @@ export const ATLAS_FLOWS = [
     implementation: {
       entryPoints: [
         {
+          label: "Shared field snapshots and child acknowledgement",
+          path: "src/hooks/use-form-commit.ts",
+        },
+        {
           label: "Dashboard collection lifetime",
           path: "src/app/dashboard/_components/dashboard-db-provider.tsx",
         },
@@ -1193,6 +1202,7 @@ export const ATLAS_FLOWS = [
         },
       ],
       invariants: [
+        "A save response acknowledges only its submitted fields and child version. Keep later drafts pending and block navigation until they are saved.",
         "Await the current Clerk session token before member bootstrap and batched requests. Keep server member binding and do not replay writes after authentication failure.",
         "Update local table filters and pagination through browser history without route navigation. Restore table state when browser history changes the URL. Opening and closing an editor must preserve the current browser filters, including changes after the last React render.",
         "Keep dashboard collections active while the provider is ready, including idle editors.",

@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type RefObject,
-} from "react";
+import { useCallback, useEffect, useState, type RefObject } from "react";
 import { toast } from "sonner";
 import {
   listingFormSchema,
@@ -14,7 +8,7 @@ import {
   type ListingFormData,
 } from "@/types/schemas/listing";
 import { useManagedFormSave } from "@/hooks/use-managed-form-save";
-import { useParentCommitFlag } from "@/hooks/use-parent-commit-flag";
+import { useFormCommit } from "@/hooks/use-form-commit";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { useConfirmableAsyncAction } from "@/hooks/use-confirmable-async-action";
 import {
@@ -25,7 +19,6 @@ import {
 import { STATUS } from "@/config/constants";
 import { type ListingCollectionItem } from "@/app/dashboard/_lib/dashboard-db/collections";
 
-import { rebaseFormValues } from "@/lib/rebase-form-values";
 import { isConflictError } from "@/trpc/is-conflict-error";
 import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
 
@@ -57,19 +50,6 @@ function toFormValues(listing: ListingCollectionItem): ListingFormData {
   )!;
 }
 
-function areListingValuesEqual(
-  a: ListingFormData,
-  b: ListingFormData,
-): boolean {
-  return (
-    a.title === b.title &&
-    a.description === b.description &&
-    a.price === b.price &&
-    a.status === b.status &&
-    a.privateNote === b.privateNote
-  );
-}
-
 export function useListingFormController({
   listingId,
   openDeleteOnMount,
@@ -98,19 +78,22 @@ export function useListingFormController({
     removeListingFromList,
   } = useDashboardDb();
   const [isSaving, setIsSaving] = useState(false);
-  const [hasRemoteChange, setHasRemoteChange] = useState(false);
-  const committedListingRef = useRef(listing);
-  const {
-    markNeedsParentCommit,
-    needsParentCommit,
-    needsParentCommitRef,
-    resetNeedsParentCommit,
-  } = useParentCommitFlag();
-
   const form = useZodForm({
     schema: listingFormSchema,
     defaultValues: toFormValues(listing),
   });
+  const {
+    committed,
+    hasRemoteChange,
+    setHasRemoteChange,
+    hasFieldChanges,
+    hasPendingChanges,
+    markNeedsParentCommit,
+    needsParentCommit,
+    reset,
+    rebase,
+    saveFields,
+  } = useFormCommit(form, listing, toFormValues);
   const { dirtyFields } = form.formState;
   const {
     isDialogOpen: isDeleteDialogOpen,
@@ -141,33 +124,12 @@ export function useListingFormController({
   }, [openDeleteOnMount, openDeleteDialog]);
   const isBusy = isSaving || isDeletePending;
 
-  const hasPendingChanges = useCallback(() => {
-    const values = form.getValues();
-    const committedValues = toFormValues(committedListingRef.current);
-    return (
-      !areListingValuesEqual(values, committedValues) ||
-      needsParentCommitRef.current
-    );
-  }, [form, needsParentCommitRef]);
-
   const handleCultivarMutation = useCallback(
     (updated: ListingCollectionItem) => {
-      const rebased = rebaseFormValues(
-        form.getValues(),
-        toFormValues(committedListingRef.current),
-        toFormValues(updated),
-      );
-      if (!rebased) {
-        setHasRemoteChange(true);
-        markNeedsParentCommit();
-        return;
-      }
-      committedListingRef.current = updated;
-      form.reset(rebased, { keepIsValid: true });
-      setHasRemoteChange(false);
+      rebase(updated);
       markNeedsParentCommit();
     },
-    [form, markNeedsParentCommit],
+    [rebase, markNeedsParentCommit],
   );
 
   const { saveChanges } = useManagedFormSave<
@@ -179,41 +141,13 @@ export function useListingFormController({
     save: useCallback(
       async (reason: ListingFormSaveReason): Promise<boolean> => {
         const values = form.getValues();
-        const committedValues = toFormValues(committedListingRef.current);
-        const hasFieldPending = !areListingValuesEqual(values, committedValues);
-        const shouldCommitParent =
-          hasFieldPending || needsParentCommitRef.current;
-
-        if (!shouldCommitParent) {
-          return true;
-        }
-        if (!hasFieldPending) {
-          if (
-            new Date(listing.updatedAt).getTime() >
-            new Date(committedListingRef.current.updatedAt).getTime()
-          ) {
-            committedListingRef.current = listing;
-            form.reset(toFormValues(listing), { keepIsValid: true });
-          }
-          resetNeedsParentCommit();
-          setHasRemoteChange(false);
-          if (reason === "manual") {
-            toast.success("Changes saved");
-            onSave();
-          }
-          return true;
-        }
-
-        if (reason !== "navigate" && hasFieldPending) {
-          const isValid = await form.trigger(undefined, { shouldFocus: true });
-          if (!isValid) {
-            return false;
-          }
-        } else if (reason === "navigate" && hasFieldPending) {
-          const parsed = listingFormSchema.safeParse(values);
-          if (!parsed.success) {
-            return false;
-          }
+        const hasFields = hasFieldChanges();
+        if (hasFields) {
+          const valid =
+            reason === "navigate"
+              ? listingFormSchema.safeParse(values).success
+              : await form.trigger(undefined, { shouldFocus: true });
+          if (!valid) return false;
         }
 
         const shouldUpdateUi = reason !== "navigate";
@@ -222,21 +156,13 @@ export function useListingFormController({
         }
 
         try {
-          const updated = await updateListing({
-            id: listing.id,
-            expectedUpdatedAt: new Date(
-              committedListingRef.current.updatedAt,
-            ).toISOString(),
-            data: values,
-          });
-
-          committedListingRef.current = updated;
-          setHasRemoteChange(false);
-          resetNeedsParentCommit();
-          if (shouldUpdateUi) {
-            form.reset(values, { keepIsValid: true });
-          }
-          toast.success("Changes saved");
+          const complete = await saveFields(
+            listing,
+            (data, expectedUpdatedAt) =>
+              updateListing({ id: listing.id, expectedUpdatedAt, data }),
+          );
+          if (!complete) return false;
+          if (hasFields || reason === "manual") toast.success("Changes saved");
           if (reason === "manual") {
             onSave();
           }
@@ -265,9 +191,10 @@ export function useListingFormController({
         updateListing,
         form,
         listing,
-        needsParentCommitRef,
+        hasFieldChanges,
         onSave,
-        resetNeedsParentCommit,
+        setHasRemoteChange,
+        saveFields,
       ],
     ),
   });
@@ -290,22 +217,9 @@ export function useListingFormController({
 
   useEffect(() => {
     if (isSaving) return;
-    const currentVersion = new Date(committedListingRef.current.updatedAt);
-    const incomingVersion = new Date(listing.updatedAt);
-    if (incomingVersion <= currentVersion) return;
-    const rebased = rebaseFormValues(
-      form.getValues(),
-      toFormValues(committedListingRef.current),
-      toFormValues(listing),
-    );
-    if (!rebased) {
-      setHasRemoteChange(true);
-      return;
-    }
-    committedListingRef.current = listing;
-    setHasRemoteChange(false);
-    form.reset(rebased, { keepIsValid: true });
-  }, [form, isSaving, listing]);
+    if (new Date(listing.updatedAt) > new Date(committed.current.updatedAt))
+      rebase(listing);
+  }, [committed, isSaving, listing, rebase]);
 
   const discardDraftAndLoadLatest = useCallback(async () => {
     setIsSaving(true);
@@ -313,10 +227,7 @@ export function useListingFormController({
       await loadMissingListing(listingId);
       const latest = listingsCollection.get(listingId);
       if (!latest) throw new Error("Listing not found.");
-      committedListingRef.current = latest;
-      form.reset(toFormValues(latest), { keepIsValid: true });
-      resetNeedsParentCommit();
-      setHasRemoteChange(false);
+      reset(latest);
     } catch (error) {
       toast.error("Failed to load the latest listing", {
         description: getErrorMessage(error),
@@ -324,13 +235,7 @@ export function useListingFormController({
     } finally {
       setIsSaving(false);
     }
-  }, [
-    listingsCollection,
-    loadMissingListing,
-    form,
-    listingId,
-    resetNeedsParentCommit,
-  ]);
+  }, [listingsCollection, loadMissingListing, listingId, reset]);
 
   async function onSubmit() {
     await saveChanges("manual");

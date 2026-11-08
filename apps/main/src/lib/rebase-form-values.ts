@@ -13,3 +13,7 @@ export function rebaseFormValues<T extends object>(
   }
   return rebased;
 }
+
+export function equalFormValues<T extends object>(a: T, b: T): boolean {
+  return (Object.keys(a) as Array<keyof T>).every((key) => a[key] === b[key]);
+}
