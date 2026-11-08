@@ -239,3 +239,5 @@ check current code before applying them.
 - [2026-11-08] List membership batch: Prisma interactive transactions on the libSQL adapter hold a client mutex until commit or rollback. For list membership, use the native write batch so the database advances versions and changes links in one operation. Verify the same batch through local SQLite and a loopback Hrana server. Raw snapshots must read the SQLite text default for `List.createdAt` as UTC.
 
 - [2026-11-08] Local Chrome reload loop: A Turbopack reload loop can abort dashboard requests before a browser assertion. Confirm repeated Fast Refresh in the trace. For a local proof, use a temporary Playwright wrapper that intercepts only `/_next/webpack-hmr`. Keep app requests and persistence real. Report the wrapper with the evidence.
+
+- [2026-11-08] Prisma in a managed checkout: Prisma can fail while it updates the timestamp of its cached schema engine. If the matching engine is already in the user cache, set `PRISMA_SCHEMA_ENGINE_BINARY` to its path and run `pnpm main db:generate` directly. The root Turbo task filters this variable.
