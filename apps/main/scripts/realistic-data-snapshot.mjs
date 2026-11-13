@@ -9,38 +9,11 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { backup, DatabaseSync } from "node:sqlite";
+import { scrubRealisticDataSnapshot } from "./realistic-data-scrub.mjs";
 
 /** @param {string} schemaPath */
 export function realisticDataSchemaFingerprint(schemaPath) {
   return createHash("sha256").update(readFileSync(schemaPath)).digest("hex");
-}
-
-/** @param {{ manifestPath: string; schemaPath: string }} options */
-export function assertRealisticDataSeedFresh({ manifestPath, schemaPath }) {
-  let manifest;
-  try {
-    manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
-  } catch {
-    throw new Error(
-      "Realistic seed metadata is missing or invalid. Run `pnpm db:seed:prepare`.",
-    );
-  }
-  if (
-    manifest.schemaFingerprint !== realisticDataSchemaFingerprint(schemaPath)
-  ) {
-    throw new Error(
-      "Realistic seed schema is stale. Run `pnpm db:seed:prepare`.",
-    );
-  }
-  if (
-    typeof manifest.databasePath !== "string" ||
-    manifest.databasePath.length === 0
-  ) {
-    throw new Error(
-      "Realistic seed metadata is missing its database path. Run `pnpm db:seed:prepare`.",
-    );
-  }
-  return manifest;
 }
 
 /**
@@ -65,24 +38,6 @@ export async function createDisposableRealisticDataSnapshot({
     databasePath,
     cleanup: () => rmSync(directory, { recursive: true, force: true }),
   };
-}
-
-/** @param {{ appRoot: string; configuredPath?: string; cwd?: string }} options */
-export function resolveRealisticDataOutputPath({
-  appRoot,
-  configuredPath,
-  cwd = process.cwd(),
-}) {
-  const outputPath = configuredPath
-    ? path.resolve(cwd, configuredPath)
-    : path.join(appRoot, "local", "realistic-data", "realistic-data.sqlite");
-  const allowedRoot = `${path.resolve(appRoot, "local", "realistic-data")}${path.sep}`;
-  if (!outputPath.startsWith(allowedRoot)) {
-    throw new Error(
-      "The realistic-data output must be stored under apps/main/local/realistic-data.",
-    );
-  }
-  return outputPath;
 }
 
 /**
@@ -157,6 +112,7 @@ export async function generateRealisticDataSnapshot({
   const db = new DatabaseSync(outputPath);
   const resolvedPersonas = [];
   let productionVisibleUserCount = 0;
+  let scrubbed;
 
   try {
     db.exec("PRAGMA foreign_keys = ON; BEGIN IMMEDIATE;");
@@ -259,6 +215,13 @@ export async function generateRealisticDataSnapshot({
       resolvedPersonas.push({ ...persona, userId: match.userId });
     }
 
+    scrubbed = scrubRealisticDataSnapshot(db, {
+      proUserIds: new Set([
+        ...productionActiveUsers.map((user) => String(user.userId)),
+        ...resolvedPersonas.map((persona) => String(persona.userId)),
+      ]),
+    });
+
     db.exec("COMMIT;");
   } catch (error) {
     try {
@@ -277,11 +240,6 @@ export async function generateRealisticDataSnapshot({
   const listingCount = db
     .prepare("SELECT COUNT(*) AS count FROM Listing")
     .get()?.count;
-  const privateNoteCount = db
-    .prepare(
-      "SELECT COUNT(*) AS count FROM Listing WHERE privateNote IS NOT NULL AND privateNote != ''",
-    )
-    .get()?.count;
   db.close();
 
   return {
@@ -289,8 +247,8 @@ export async function generateRealisticDataSnapshot({
     outputPath,
     userCount,
     listingCount,
-    privateNoteCount,
     productionVisibleUserCount,
+    scrubbed,
     personas: resolvedPersonas,
   };
 }

@@ -11,11 +11,8 @@ import path from "node:path";
 import { describe, expect, test } from "vitest";
 
 import {
-  assertRealisticDataSeedFresh,
   createDisposableRealisticDataSnapshot,
   generateRealisticDataSnapshot,
-  realisticDataSchemaFingerprint,
-  resolveRealisticDataOutputPath,
   resolveRealisticDataSourcePath,
 } from "../scripts/realistic-data-snapshot.mjs";
 
@@ -30,13 +27,25 @@ function createSourceDatabase(databasePath: string) {
     CREATE TABLE UserProfile (
       id TEXT PRIMARY KEY,
       userId TEXT UNIQUE NOT NULL,
-      slug TEXT UNIQUE
+      slug TEXT UNIQUE,
+      title TEXT,
+      description TEXT,
+      content TEXT,
+      location TEXT
     );
     CREATE TABLE Listing (
       id TEXT PRIMARY KEY,
       userId TEXT NOT NULL,
       title TEXT NOT NULL,
+      status TEXT,
+      description TEXT,
       privateNote TEXT
+    );
+    CREATE TABLE List (
+      id TEXT PRIMARY KEY,
+      userId TEXT NOT NULL,
+      status TEXT,
+      description TEXT
     );
     CREATE TABLE KeyValue (
       key TEXT PRIMARY KEY,
@@ -48,14 +57,20 @@ function createSourceDatabase(databasePath: string) {
     INSERT INTO User VALUES
       ('large-user', 'prod-clerk-large', 'prod-stripe-large'),
       ('medium-user', 'prod-clerk-medium', 'prod-stripe-medium'),
-      ('unmapped-user', 'prod-clerk-unmapped', 'prod-stripe-unmapped');
+      ('unmapped-user', 'prod-clerk-unmapped', 'prod-stripe-unmapped'),
+      ('free-user', 'prod-clerk-free', NULL);
     INSERT INTO UserProfile VALUES
-      ('large-profile', 'large-user', 'large-catalog'),
-      ('medium-profile', 'medium-user', 'medium-catalog'),
-      ('unmapped-profile', 'unmapped-user', 'unmapped-catalog');
+      ('large-profile', 'large-user', 'large-catalog', 'Large Gardens', 'Email grower@realgarden.com or call 615-555-1234. Visit https://realgarden.com/shop.', NULL, 'Hillsboro, KS'),
+      ('medium-profile', 'medium-user', 'medium-catalog', 'Medium Gardens', NULL, NULL, NULL),
+      ('unmapped-profile', 'unmapped-user', 'unmapped-catalog', 'Unmapped Gardens', NULL, NULL, NULL),
+      ('free-profile', 'free-user', 'free-catalog', 'Real Family Farm', 'Private bio', '{"blocks":[]}', 'Smalltown, KS');
     INSERT INTO Listing VALUES
-      ('large-listing', 'large-user', 'Large listing', 'Keep this private note'),
-      ('medium-listing', 'medium-user', 'Medium listing', 'Keep this note too');
+      ('large-listing', 'large-user', 'Large listing', NULL, 'Public description', 'Keep this private note'),
+      ('medium-listing', 'medium-user', 'Medium listing', 'HIDDEN', 'Hidden description', 'Keep this note too'),
+      ('free-listing', 'free-user', 'Free listing', NULL, 'Unpublished description', NULL);
+    INSERT INTO List VALUES
+      ('large-list', 'large-user', NULL, 'See https://daylilycatalog.com/large-catalog'),
+      ('free-list', 'free-user', NULL, 'Private list notes');
     INSERT INTO KeyValue (key, value) VALUES
       ('clerk:user:prod-clerk-large', '{"email":"real@example.com"}'),
       ('stripe:customer:prod-stripe-large', '{"status":"active"}'),
@@ -93,51 +108,6 @@ describe("generateRealisticDataSnapshot", () => {
 
     disposable.cleanup();
     expect(existsSync(disposable.databasePath)).toBe(false);
-  });
-
-  test("rejects a seed manifest created for an older schema", () => {
-    const directory = mkdtempSync(
-      path.join(tmpdir(), "realistic-data-schema-"),
-    );
-    const schemaPath = path.join(directory, "schema.prisma");
-    const manifestPath = path.join(directory, "personas.json");
-    const databasePath = "/app/local/realistic-data/custom.sqlite";
-    writeFileSync(schemaPath, "model User { id String @id }\n");
-    writeFileSync(
-      manifestPath,
-      JSON.stringify({
-        databasePath,
-        schemaFingerprint: realisticDataSchemaFingerprint(schemaPath),
-      }),
-    );
-
-    expect(
-      assertRealisticDataSeedFresh({ manifestPath, schemaPath }),
-    ).toMatchObject({ databasePath });
-
-    writeFileSync(schemaPath, "model User { id String @id email String? }\n");
-    expect(() =>
-      assertRealisticDataSeedFresh({ manifestPath, schemaPath }),
-    ).toThrow("Run `pnpm db:seed:prepare`");
-  });
-
-  test("resolves one output path for preparation and launch", () => {
-    expect(
-      resolveRealisticDataOutputPath({
-        appRoot: "/app",
-        configuredPath: "local/realistic-data/custom.sqlite",
-        cwd: "/app",
-      }),
-    ).toBe("/app/local/realistic-data/custom.sqlite");
-    expect(resolveRealisticDataOutputPath({ appRoot: "/app" })).toBe(
-      "/app/local/realistic-data/realistic-data.sqlite",
-    );
-    expect(() =>
-      resolveRealisticDataOutputPath({
-        appRoot: "/app",
-        configuredPath: "/tmp/unsafe.sqlite",
-      }),
-    ).toThrow("must be stored under apps/main/local/realistic-data");
   });
 
   test("uses the primary checkout snapshot as the realistic seed source", () => {
@@ -203,17 +173,12 @@ describe("generateRealisticDataSnapshot", () => {
     const output = new DatabaseSync(outputPath, { readOnly: true });
     expect(
       output
-        .prepare("SELECT privateNote FROM Listing ORDER BY id")
-        .all()
-        .map((row) => row.privateNote),
-    ).toEqual(["Keep this private note", "Keep this note too"]);
-    expect(
-      output
         .prepare(
           "SELECT id, clerkUserId, stripeCustomerId FROM User ORDER BY id",
         )
         .all(),
     ).toEqual([
+      { id: "free-user", clerkUserId: null, stripeCustomerId: null },
       {
         id: "large-user",
         clerkUserId: "stage-clerk-large",
@@ -250,6 +215,89 @@ describe("generateRealisticDataSnapshot", () => {
     output.close();
   });
 
+  test("replaces private values with repeatable fake values and keeps public values", async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), "realistic-data-scrub-"));
+    const sourcePath = path.join(directory, "source.sqlite");
+    createSourceDatabase(sourcePath);
+    const generate = async (name: string) => {
+      const outputPath = path.join(directory, name);
+      await generateRealisticDataSnapshot({
+        sourcePath,
+        outputPath,
+        personas: [
+          {
+            key: "large",
+            sourceProfileSlug: "large-catalog",
+            email: "prodlike+clerk_test_large@example.com",
+            clerkUserId: "stage-clerk-large",
+            stripeCustomerId: "cus_stage_large",
+            subscriptionStatus: "active",
+          },
+        ],
+      });
+      const db = new DatabaseSync(outputPath, { readOnly: true });
+      const read = (sql: string) => db.prepare(sql).all();
+      const result = {
+        listings: read(
+          "SELECT id, description, privateNote FROM Listing ORDER BY id",
+        ),
+        profiles: read(
+          "SELECT id, slug, title, description, content, location FROM UserProfile ORDER BY id",
+        ),
+        lists: read("SELECT id, description FROM List ORDER BY id"),
+      };
+      db.close();
+      return result;
+    };
+
+    const first = await generate("first.sqlite");
+    expect(await generate("second.sqlite")).toEqual(first);
+
+    const listing = (id: string) =>
+      first.listings.find((row) => row.id === id)!;
+    expect(listing("large-listing").description).toBe("Public description");
+    expect(listing("medium-listing").description).not.toBe(
+      "Hidden description",
+    );
+    expect(listing("free-listing").description).not.toBe(
+      "Unpublished description",
+    );
+    for (const id of ["large-listing", "medium-listing"]) {
+      expect(listing(id).privateNote).toEqual(expect.any(String));
+      expect(listing(id).privateNote).not.toMatch(/^Keep this/);
+    }
+    expect(listing("free-listing").privateNote).toBeNull();
+
+    const profile = (id: string) =>
+      first.profiles.find((row) => row.id === id)!;
+    expect(profile("large-profile")).toMatchObject({
+      slug: "large-catalog",
+      title: "Large Gardens",
+    });
+    expect(profile("large-profile").description).not.toMatch(
+      /realgarden|615-555-1234/,
+    );
+    expect(profile("large-profile").description).toMatch(/@example\.com/);
+    expect(profile("large-profile").location).not.toBe("Hillsboro, KS");
+    expect(profile("free-profile").slug).not.toBe("free-catalog");
+    expect(profile("free-profile").title).not.toBe("Real Family Farm");
+    expect(profile("free-profile").description).not.toBe("Private bio");
+    expect(
+      JSON.parse(String(profile("free-profile").content)).blocks[0].type,
+    ).toBe("paragraph");
+
+    expect(first.lists).toEqual([
+      {
+        id: "free-list",
+        description: expect.not.stringMatching(/Private list notes/),
+      },
+      {
+        id: "large-list",
+        description: "See https://daylilycatalog.com/large-catalog",
+      },
+    ]);
+  });
+
   test("includes committed data that still resides in the source WAL", async () => {
     const directory = mkdtempSync(
       path.join(tmpdir(), "realistic-data-wal-snapshot-"),
@@ -260,7 +308,7 @@ describe("generateRealisticDataSnapshot", () => {
     const source = new DatabaseSync(sourcePath);
     source.exec("PRAGMA journal_mode = WAL;");
     source.exec(`
-      INSERT INTO Listing VALUES
+      INSERT INTO Listing (id, userId, title, privateNote) VALUES
         ('wal-listing', 'large-user', 'Committed in WAL', 'WAL note');
     `);
 

@@ -24,11 +24,8 @@ import {
   missingFreshStateIds,
   validateAtlasFlows,
 } from "./atlas-flows.mjs";
-import {
-  assertRealisticDataSeedFresh,
-  createDisposableRealisticDataSnapshot,
-  resolveRealisticDataOutputPath,
-} from "./realistic-data-snapshot.mjs";
+import { createDisposableRealisticDataSnapshot } from "./realistic-data-snapshot.mjs";
+import { ensureRealisticDataSeed } from "./realistic-data-seed-store.mjs";
 import { assertNoUnexpectedBrowserDiagnostics } from "./atlas-browser-diagnostics.mjs";
 import {
   ATLAS_MEDIA_FLOW_IDS,
@@ -145,18 +142,7 @@ async function startServer() {
   }
   let databaseUrl = normalizeDatabaseUrl(explicitDatabaseUrl);
   if (!databaseUrl) {
-    const manifest = assertRealisticDataSeedFresh({
-      manifestPath: path.join(appRoot, "local/realistic-data/personas.json"),
-      schemaPath: path.join(appRoot, "prisma/schema.prisma"),
-    });
-    const seededDatabase = resolveRealisticDataOutputPath({
-      appRoot,
-      configuredPath: manifest.databasePath,
-    });
-    if (!existsSync(seededDatabase))
-      throw new Error(
-        "Seeded database missing. Run `pnpm db:seed:prepare` first.",
-      );
+    const { databasePath: seededDatabase } = await ensureRealisticDataSeed();
     disposableDatabase = mediaFlowIds.length
       ? await createAtlasMediaSnapshot({
           sourcePath: seededDatabase,

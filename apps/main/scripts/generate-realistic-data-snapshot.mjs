@@ -3,29 +3,23 @@
 import { createClerkClient } from "@clerk/backend";
 import * as dotenv from "dotenv";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import Stripe from "stripe";
 
 import { REALISTIC_DATA_PERSONAS } from "./realistic-data-personas.mjs";
 import {
   generateRealisticDataSnapshot,
-  realisticDataSchemaFingerprint,
-  resolveRealisticDataOutputPath,
   resolveRealisticDataSourcePath,
 } from "./realistic-data-snapshot.mjs";
+import {
+  finishLocalSeed,
+  publishRealisticDataSeed,
+  seedPaths,
+} from "./realistic-data-seed-store.mjs";
 
 const appRoot = path.resolve(import.meta.dirname, "..");
 const repoRoot = path.resolve(appRoot, "../..");
-const outputDirectory = path.join(appRoot, "local", "realistic-data");
-const defaultManifestPath = path.join(outputDirectory, "personas.json");
-const schemaPath = path.join(appRoot, "prisma", "schema.prisma");
-const searchIndexPath = path.join(
-  appRoot,
-  ".tmp",
-  "search",
-  "public-search-candidate.sqlite",
-);
 for (const envPath of [
   path.join(repoRoot, ".env.development"),
   path.join(appRoot, ".env.development"),
@@ -113,10 +107,7 @@ async function main() {
   requireTestKey("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "pk_test_");
   const stripeSecretKey = requireTestKey("STRIPE_SECRET_KEY", "sk_test_");
   const sourcePath = resolveSourcePath();
-  const outputPath = resolveRealisticDataOutputPath({
-    appRoot,
-    configuredPath: process.env.REALISTIC_DATA_OUTPUT_DB_PATH,
-  });
+  const outputPath = seedPaths.database;
 
   const clerk = createClerkClient({ secretKey: clerkSecretKey });
   const stripe = new Stripe(stripeSecretKey, {
@@ -144,51 +135,28 @@ async function main() {
     personas: resolvedPersonas,
   });
   console.log("Aligning realistic-data snapshot with the current schema...");
-  execFileSync(
-    "pnpm",
-    [
-      "exec",
-      "prisma",
-      "db",
-      "push",
-      "--accept-data-loss",
-      "--url",
-      `file:${outputPath}`,
-    ],
-    { cwd: appRoot, env: process.env, stdio: "inherit" },
-  );
-  execFileSync(
-    process.execPath,
-    [
-      path.join(appRoot, "scripts", "build-public-search-index.mjs"),
-      "--source",
-      outputPath,
-      "--target",
-      searchIndexPath,
-    ],
-    { cwd: appRoot, env: process.env, stdio: "inherit" },
-  );
-  const manifest = {
+  finishLocalSeed({
     generatedAt: new Date().toISOString(),
-    databasePath: outputPath,
-    searchIndexPath,
-    schemaFingerprint: realisticDataSchemaFingerprint(schemaPath),
     verificationCode: "424242",
-    ...summary,
-  };
-  mkdirSync(outputDirectory, { recursive: true });
-  writeFileSync(defaultManifestPath, `${JSON.stringify(manifest, null, 2)}\n`, {
-    mode: 0o600,
+    userCount: summary.userCount,
+    listingCount: summary.listingCount,
+    personas: summary.personas,
   });
+  const published = await publishRealisticDataSeed();
 
-  console.log("Generated realistic-data local snapshot:");
+  console.log("Published realistic-data seed:");
+  console.log(
+    `- R2 object: ${published.key} (${published.compressedBytes} bytes)`,
+  );
   console.log(`- Database: ${outputPath}`);
   console.log(`- Users: ${summary.userCount}`);
   console.log(`- Listings: ${summary.listingCount}`);
   console.log(
     `- Production-visible subscription states preserved: ${summary.productionVisibleUserCount}`,
   );
-  console.log(`- Listings with private notes: ${summary.privateNoteCount}`);
+  console.log(
+    `- Fake values: ${summary.scrubbed.privateNotes} private notes, ${summary.scrubbed.profiles} profiles, ${summary.scrubbed.listings} listing descriptions, ${summary.scrubbed.lists} list descriptions`,
+  );
   console.log("- Verification code: 424242");
   for (const persona of summary.personas) {
     console.log(

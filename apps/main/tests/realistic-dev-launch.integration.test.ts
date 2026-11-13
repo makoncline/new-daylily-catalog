@@ -35,7 +35,12 @@ function fixture() {
   for (const folder of ["scripts", "prisma", "local/realistic-data"])
     mkdirSync(path.join(appRoot, folder), { recursive: true });
   const actualAppRoot = path.resolve(import.meta.dirname, "..");
-  for (const script of ["with-env.mjs", "realistic-data-snapshot.mjs"])
+  for (const script of [
+    "with-env.mjs",
+    "realistic-data-snapshot.mjs",
+    "realistic-data-scrub.mjs",
+    "realistic-data-seed-store.mjs",
+  ])
     copyFileSync(
       path.join(actualAppRoot, "scripts", script),
       path.join(appRoot, "scripts", script),
@@ -45,8 +50,17 @@ function fixture() {
     path.join(appRoot, "node_modules"),
   );
   writeFileSync(path.join(appRoot, "package.json"), '{"type":"module"}');
+  writeFileSync(
+    path.join(appRoot, "scripts/build-public-search-index.mjs"),
+    `import { writeFileSync } from "node:fs";
+const target = process.argv[process.argv.indexOf("--target") + 1];
+writeFileSync(${JSON.stringify(path.join(directory, "search-built"))}, target);`,
+  );
   const schemaPath = path.join(appRoot, "prisma/schema.prisma");
-  const databasePath = path.join(appRoot, "local/realistic-data/custom.sqlite");
+  const databasePath = path.join(
+    appRoot,
+    "local/realistic-data/realistic-data.sqlite",
+  );
   writeFileSync(schemaPath, "model Listing { id String @id }\n");
   const db = new DatabaseSync(databasePath);
   db.exec(`CREATE TABLE User (id TEXT PRIMARY KEY); CREATE TABLE Listing (id TEXT PRIMARY KEY, userId TEXT REFERENCES User(id), title TEXT, privateNote TEXT);
@@ -91,7 +105,12 @@ function launch(
     ],
     {
       cwd: f.appRoot,
-      env: { ...process.env, DATABASE_URL: options.databaseUrl ?? "" },
+      env: {
+        ...process.env,
+        DATABASE_URL: options.databaseUrl ?? "",
+        SEED_R2_ACCESS_KEY_ID: "",
+        SEED_R2_SECRET_ACCESS_KEY: "",
+      },
       stdio: ["pipe", "pipe", "pipe"],
     },
   );
@@ -126,7 +145,7 @@ const edit = `import { DatabaseSync } from 'node:sqlite';
 const fileHash = (filename: string) =>
   createHash("sha256").update(readFileSync(filename)).digest("hex");
 
-test("default dev resolves the prepared path, persists edits across launches, and rejects stale schema before launch", async () => {
+test("default dev persists edits across launches and updates a stale seed to the current schema", async () => {
   const f = fixture();
   const first = launch(f, edit);
   expect(await first.exited, first.stderr()).toEqual({ code: 0, signal: null });
@@ -134,11 +153,58 @@ test("default dev resolves the prepared path, persists edits across launches, an
   const second = launch(f, edit);
   expect(await second.exited).toEqual({ code: 0, signal: null });
   expect(second.stdout()).toContain('"before":"Edited"');
-  writeFileSync(f.schemaPath, "model Listing { id String @id title String }\n");
-  const stale = launch(f, "console.log('CHILD STARTED')");
-  expect((await stale.exited).code).toBe(1);
-  expect(stale.stderr()).toContain("Run `pnpm db:seed:prepare`");
-  expect(stale.stdout()).not.toContain("CHILD STARTED");
+
+  writeFileSync(
+    f.schemaPath,
+    `datasource db {
+  provider = "sqlite"
+}
+model User {
+  id       String    @id
+  listings Listing[]
+}
+model Listing {
+  id          String  @id
+  userId      String?
+  user        User?   @relation(fields: [userId], references: [id])
+  title       String?
+  privateNote String?
+  description String?
+}
+`,
+  );
+  const updated = launch(
+    f,
+    `import { DatabaseSync } from 'node:sqlite';
+ const db = new DatabaseSync(process.env.DATABASE_URL.slice(5));
+ console.log(JSON.stringify(db.prepare('SELECT title, description FROM Listing').get()));`,
+  );
+  expect(await updated.exited, updated.stderr()).toEqual({
+    code: 0,
+    signal: null,
+  });
+  expect(updated.stdout()).toContain('{"title":"Edited","description":null}');
+  expect(readFileSync(path.join(f.directory, "search-built"), "utf8")).toBe(
+    path.join(f.appRoot, ".tmp/search/public-search-candidate.sqlite"),
+  );
+  const manifest = JSON.parse(
+    readFileSync(
+      path.join(f.appRoot, "local/realistic-data/personas.json"),
+      "utf8",
+    ),
+  );
+  expect(manifest.schemaFingerprint).toBe(
+    realisticDataSchemaFingerprint(f.schemaPath),
+  );
+});
+
+test("a missing seed needs the read credential before launch", async () => {
+  const f = fixture();
+  rmSync(f.databasePath);
+  const missing = launch(f, "console.log('CHILD STARTED')");
+  expect((await missing.exited).code).toBe(1);
+  expect(missing.stderr()).toContain("Set SEED_R2_ACCESS_KEY_ID");
+  expect(missing.stdout()).not.toContain("CHILD STARTED");
 });
 
 test("disposable dev preserves source relationships and notes, forwards app args, and removes its copy on normal exit", async () => {

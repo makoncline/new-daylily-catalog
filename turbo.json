@@ -21,9 +21,12 @@
     "PLAYWRIGHT_LOCAL_E2E",
     "POSTHOG_PROJECT_ID",
     "POSTHOG_PROJECT_KEY",
-    "REALISTIC_DATA_OUTPUT_DB_PATH",
     "REALISTIC_DATA_SOURCE_DB_PATH",
     "RUNTIME_FEATURE_FLAGS_PATH",
+    "SEED_R2_ACCESS_KEY_ID",
+    "SEED_R2_PUBLISH_ACCESS_KEY_ID",
+    "SEED_R2_PUBLISH_SECRET_ACCESS_KEY",
+    "SEED_R2_SECRET_ACCESS_KEY",
     "SENTRY_AUTH_TOKEN",
     "SENTRY_ORG",
     "SENTRY_PROJECT",
@@ -83,7 +86,10 @@
       "cache": false,
       "persistent": true
     },
-    "db:seed:prepare": {
+    "db:seed:publish": {
+      "cache": false
+    },
+    "db:seed:pull": {
       "cache": false
     },
     "db:seed:sync": {

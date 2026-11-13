@@ -40,7 +40,7 @@ vi.mock("@/server/clerk/client", () => ({
 const runProof = process.env.RUN_MCP_REAL_SQLITE_PROOF === "1";
 if (runProof && !existsSync(snapshotPath)) {
   throw new Error(
-    "RUN_MCP_REAL_SQLITE_PROOF=1 requires local/realistic-data/realistic-data.sqlite. Run pnpm db:seed:prepare from the repository root first.",
+    "RUN_MCP_REAL_SQLITE_PROOF=1 requires local/realistic-data/realistic-data.sqlite. Run pnpm db:seed:pull from the repository root first.",
   );
 }
 

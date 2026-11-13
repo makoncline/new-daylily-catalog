@@ -120,25 +120,15 @@ try {
     useSeededDatabaseDefault &&
     !explicitDatabaseUrl
   ) {
-    const {
-      assertRealisticDataSeedFresh,
-      createDisposableRealisticDataSnapshot,
-      resolveRealisticDataOutputPath,
-    } = await import("./realistic-data-snapshot.mjs");
-    const manifest = assertRealisticDataSeedFresh({
-      manifestPath: path.join(appRoot, "local/realistic-data/personas.json"),
-      schemaPath: path.join(appRoot, "prisma/schema.prisma"),
-    });
-    const seededDatabasePath = resolveRealisticDataOutputPath({
-      appRoot,
-      configuredPath: manifest.databasePath,
-      cwd: appRoot,
-    });
-    if (!existsSync(seededDatabasePath)) {
-      throw new Error(
-        "The seeded development database is missing. Run `pnpm db:seed:prepare` first.",
-      );
-    }
+    const [
+      { createDisposableRealisticDataSnapshot },
+      { ensureRealisticDataSeed },
+    ] = await Promise.all([
+      import("./realistic-data-snapshot.mjs"),
+      import("./realistic-data-seed-store.mjs"),
+    ]);
+    const { databasePath: seededDatabasePath } =
+      await ensureRealisticDataSeed();
     if (disposableRequested) {
       disposableDatabase = await createDisposableRealisticDataSnapshot({
         sourcePath: seededDatabasePath,

@@ -41,7 +41,7 @@ a failure. Keep the previous validated artifact for recovery.
 
 ## Local rebuild
 
-`pnpm db:seed:prepare` builds the local search artifact. To rebuild it from an
+`pnpm dev` and `pnpm db:seed:pull` build the local search artifact. To rebuild it from an
 existing sanitized local database, run:
 
 ```sh
