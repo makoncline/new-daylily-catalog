@@ -51,7 +51,7 @@ vi.mock("@/server/clerk/sync-user", () => ({
 const enabled = process.env.RUN_MCP_MEMBER_WRITE_PROOF === "1";
 if (enabled && !existsSync(snapshotPath)) {
   throw new Error(
-    "RUN_MCP_MEMBER_WRITE_PROOF=1 requires local/realistic-data/realistic-data.sqlite. Run pnpm db:seed:prepare from the repository root first.",
+    "RUN_MCP_MEMBER_WRITE_PROOF=1 requires local/realistic-data/realistic-data.sqlite. Run pnpm db:seed:pull from the repository root first.",
   );
 }
 const tempDir = enabled

@@ -38,14 +38,21 @@ service configuration, including Clerk test credentials; they are separate from
 the full-app integration runner. Install Playwright Chromium for browser tests.
 Use free `INTEGRATION_PORT` and `E2E_PORT` values for local runs.
 
-For local app work, run `pnpm db:seed:prepare` once with the existing stage
-service configuration. Ordinary `pnpm dev` checks seed freshness and keeps
-local edits across restarts. For throwaway edits, use
+Local app work uses the realistic seed in the private R2 bucket
+`daylily-catalog-dev`. On first start, `pnpm dev` downloads it. After a schema
+change, `pnpm dev` updates the local copy and keeps local edits across
+restarts. `pnpm db:seed:pull` replaces the local copy with the published seed.
+The read key (`SEED_R2_ACCESS_KEY_ID`, `SEED_R2_SECRET_ACCESS_KEY`) is in the
+1Password Environment "Daylily — Development". After schema changes, or for
+fresh data, run `pnpm db:seed:publish` on the Mac. It needs the local production
+copy, stage Clerk and Stripe test keys, and the publish key
+(`SEED_R2_PUBLISH_ACCESS_KEY_ID`, `SEED_R2_PUBLISH_SECRET_ACCESS_KEY`). The seed
+has fake private notes, non-Pro profiles, and contact details. For throwaway edits, use
 `pnpm dev -- --disposable --port <free-port> --hostname localhost`. It copies
 the full seed and removes its copy on shutdown. After restart, use dashboard
 Refresh or a fresh browser context. An explicit `DATABASE_URL` stays
-caller-owned and cannot use `--disposable`. Keep realistic-data browser proof
-private; the dataset retains private notes.
+caller-owned and cannot use `--disposable`. The seed is production-derived.
+Keep it out of Git and public evidence.
 
 Use [database migration steps](apps/main/docs/db-migration.md) for schema and
 data changes, [V2 AHS refresh](.codex/skills/v2-ahs-refresh/SKILL.md) for
