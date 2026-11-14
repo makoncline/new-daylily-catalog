@@ -17,7 +17,7 @@
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
-    "db:seed:publish": "SEED_PUBLISH=true varlock run -- node scripts/generate-realistic-data-snapshot.mjs",
+    "db:seed:publish": "varlock run -- node scripts/generate-realistic-data-snapshot.mjs",
     "db:seed:pull": "varlock run -- node scripts/pull-realistic-data-seed.mjs",
     "db:seed:sync": "bash scripts/sync-seeded-daylily-catalog-from-local.sh",
     "images:generate": "node --disable-warning=ExperimentalWarning scripts/image-processing/v2-ahs-image-review/run-codex-native-worker.mjs",

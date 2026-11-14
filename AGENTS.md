@@ -18,12 +18,10 @@ Run scripts from the repository root with `pnpm`. Development env values come
 from varlock: `apps/main/.env.schema` declares every variable,
 `apps/main/.env.development` holds non-secret values, and secrets come from the
 1Password Environment "Daylily — Development". A read-only service account
-token in `DAYLILY_OP_SERVICE_ACCOUNT_TOKEN` signs in. On the Mac, `~/.zshenv` reads it
-from the login Keychain; without it, the 1Password desktop app asks for
-approval for each new shell. `pnpm db:seed:publish` always asks for desktop app
-approval. `pnpm dev`,
-`pnpm test:e2e`, and the seed commands load these values. Use
-`pnpm env:dev <command>` for other scripts. Put machine-only overrides in the
+token in `DAYLILY_OP_SERVICE_ACCOUNT_TOKEN` signs in. On the Mac, `~/.zshenv`
+reads it from the login Keychain; without it, the 1Password desktop app asks
+for approval for each new shell. `pnpm dev`, `pnpm test:e2e`, and the seed
+commands load these values. Use `pnpm env:dev <command>` for other scripts. Put machine-only overrides in the
 ignored `apps/main/.env.development.local`. Do not reuse another checkout's
 server, database, or port. The PR CI aggregate status is `Verify PR`.
 
@@ -51,9 +49,7 @@ Local app work uses the realistic seed in the private R2 bucket
 change, `pnpm dev` updates the local copy and keeps local edits across
 restarts. `pnpm db:seed:pull` replaces the local copy with the published seed.
 After schema changes, or for fresh data, run `pnpm db:seed:publish` on the Mac.
-It needs the local production copy. It also loads the publish key from the
-1Password Environment "Daylily — Seed publish". The seed
-has fake private notes, non-Pro profiles, and contact details. For throwaway edits, use
+It needs the local production copy. The seed has fake private notes, non-Pro profiles, and contact details. For throwaway edits, use
 `pnpm dev -- --disposable --port <free-port> --hostname localhost`. It copies
 the full seed and removes its copy on shutdown. After restart, use dashboard
 Refresh or a fresh browser context. An explicit `DATABASE_URL` stays
