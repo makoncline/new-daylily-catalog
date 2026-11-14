@@ -9,7 +9,7 @@ const stateFor =
     description,
     capture: `${id}.png`,
     captureSpec,
-    reproductionCommand: `node apps/main/scripts/run-atlas-flow.mjs ${atlasFlowId} --output=local/atlas/reproduce`,
+    reproductionCommand: `pnpm main env:dev node scripts/run-atlas-flow.mjs ${atlasFlowId} --output=local/atlas/reproduce`,
     url,
     urlReproducible,
   });
@@ -63,7 +63,7 @@ const testRef = (layer, file) => ({
   runner: layer === "e2e" ? "e2e" : "vitest",
   command:
     layer === "e2e"
-      ? `pnpm main exec playwright test ${file}`
+      ? `pnpm main env:dev playwright test ${file}`
       : `pnpm main exec vitest run ${file}`,
 });
 const fullAppIntegrationRef = (file) => ({
@@ -2117,7 +2117,7 @@ export function confidenceCommandsForFlow(flow) {
       ? `node apps/main/scripts/run-integration-local.mjs ${fullAppIntegrationFiles.join(" ")}`
       : null,
     e2eFiles.length
-      ? `pnpm main exec playwright test --retries=0 ${e2eFiles.join(" ")}`
+      ? `pnpm main env:dev playwright test --retries=0 ${e2eFiles.join(" ")}`
       : null,
   ].filter(Boolean);
 }
