@@ -17,8 +17,11 @@ technical lesson may affect the change, check [logs.md](logs.md).
 Run scripts from the repository root with `pnpm`. Development env values come
 from varlock: `apps/main/.env.schema` declares every variable,
 `apps/main/.env.development` holds non-secret values, and secrets come from the
-1Password Environment "Daylily — Development". On the Mac, the 1Password desktop
-app signs in. In Cloud and CI, `OP_SERVICE_ACCOUNT_TOKEN` signs in. `pnpm dev`,
+1Password Environment "Daylily — Development". A read-only service account
+token in `OP_SERVICE_ACCOUNT_TOKEN` signs in. On the Mac, `~/.zshenv` reads it
+from the login Keychain; without it, the 1Password desktop app asks for
+approval for each new shell. `pnpm db:seed:publish` always asks for desktop app
+approval. `pnpm dev`,
 `pnpm test:e2e`, and the seed commands load these values. Use
 `pnpm env:dev <command>` for other scripts. Put machine-only overrides in the
 ignored `apps/main/.env.development.local`. Do not reuse another checkout's
