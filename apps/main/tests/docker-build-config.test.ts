@@ -87,9 +87,6 @@ describe("Docker build cache and observability boundaries", () => {
     expect(prodLikeScript).toContain(
       'setEnvValue(lines, "SENTRY_ENVIRONMENT", "prod-like")',
     );
-    expect(workflow).toContain(
-      "github.event_name != 'pull_request' && secrets.SENTRY_AUTH_TOKEN || ''",
-    );
     expect(workflow).toContain('echo "SENTRY_SOURCEMAPS_DISABLED=1"');
     expect(nextConfig).toContain(
       'process.env.SENTRY_SOURCEMAPS_DISABLED === "1"',

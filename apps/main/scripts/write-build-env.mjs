@@ -1,21 +1,20 @@
 import { spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
-import { appendFileSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import path from "node:path";
 
-const buildNames = {
-  APP_BASE_URL: "BUILD_APP_BASE_URL",
-  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "BUILD_CLERK_PUBLISHABLE_KEY",
-  NEXT_PUBLIC_CLOUDFLARE_URL: "BUILD_CLOUDFLARE_URL",
-  NEXT_PUBLIC_SENTRY_ENABLED: "BUILD_NEXT_PUBLIC_SENTRY_ENABLED",
-  SENTRY_ENVIRONMENT: "BUILD_ENVIRONMENT_NAME",
-  NEXT_PUBLIC_POSTHOG_KEY: "BUILD_NEXT_PUBLIC_POSTHOG_KEY",
-  NEXT_PUBLIC_POSTHOG_HOST: "BUILD_NEXT_PUBLIC_POSTHOG_HOST",
-  DATABASE_URL: "BUILD_DATABASE_URL",
-  TURSO_DATABASE_AUTH_TOKEN: "BUILD_TURSO_DATABASE_AUTH_TOKEN",
-  STRIPE_SECRET_KEY: "BUILD_STRIPE_SECRET_KEY",
-  SENTRY_AUTH_TOKEN: "BUILD_SENTRY_AUTH_TOKEN",
-};
+const buildNames = [
+  "APP_BASE_URL",
+  "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
+  "NEXT_PUBLIC_CLOUDFLARE_URL",
+  "NEXT_PUBLIC_SENTRY_ENABLED",
+  "SENTRY_ENVIRONMENT",
+  "NEXT_PUBLIC_POSTHOG_KEY",
+  "NEXT_PUBLIC_POSTHOG_HOST",
+  "DATABASE_URL",
+  "TURSO_DATABASE_AUTH_TOKEN",
+  "STRIPE_SECRET_KEY",
+  "SENTRY_AUTH_TOKEN",
+];
 
 function mask(value) {
   if (process.env.GITHUB_ACTIONS !== "true" || !value) return;
@@ -36,13 +35,6 @@ function main() {
     return;
   }
   mask(token);
-  for (const name of [
-    "DATABASE_URL",
-    "TURSO_DATABASE_AUTH_TOKEN",
-    "STRIPE_SECRET_KEY",
-    "SENTRY_AUTH_TOKEN",
-  ])
-    mask(process.env[buildNames[name]]);
 
   const loaded = spawnSync(
     "pnpm",
@@ -85,27 +77,7 @@ function main() {
     return;
   }
 
-  const hash = (value) =>
-    createHash("sha256")
-      .update(String(value ?? ""))
-      .digest("hex");
-  const differences = Object.entries(buildNames)
-    .filter(
-      ([name, oldName]) => hash(values[name]) !== hash(process.env[oldName]),
-    )
-    .map(([name]) => name);
-  if (process.env.GITHUB_STEP_SUMMARY) {
-    appendFileSync(
-      process.env.GITHUB_STEP_SUMMARY,
-      [
-        "## Build env source comparison",
-        "",
-        ...differences.map((name) => `- ${name}`),
-        "",
-      ].join("\n"),
-    );
-  }
-  const lines = Object.keys(buildNames).map((name) => {
+  const lines = buildNames.map((name) => {
     const value = String(values[name] ?? "").replaceAll("'", "'\\''");
     return `${name}='${value}'`;
   });
