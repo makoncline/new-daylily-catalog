@@ -75,6 +75,12 @@ for deployment work.
 
 Keep server-only modules out of client imports. Read installed Next docs in
 `apps/main/node_modules/next/dist/docs/` before changing framework behavior.
-Add new env names to `apps/main/.env.schema`, and to `apps/main/.env.example`
-when production needs them. Use `NEXT_PUBLIC_` only
-when the browser needs a value.
+Use `NEXT_PUBLIC_` only when the browser needs a value.
+
+To add a new env variable, use these steps.
+
+1. Add its name to `apps/main/.env.schema`. Add `# @sensitive` for a secret.
+2. Put the development value in the 1Password Environment "Daylily — Development".
+   Use `apps/main/.env.development` for a public value.
+3. Put the production value in "Daylily — Production".
+4. Merge the change. The next deploy uses the value.

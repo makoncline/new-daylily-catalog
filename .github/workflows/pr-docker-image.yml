@@ -39,7 +39,6 @@ jobs:
         run: corepack enable
 
       - name: Install build env dependencies
-        if: ((github.event_name == 'push' && vars.BUILD_ENV_FROM_1PASSWORD == 'true') || inputs.build_env_dry_run == true)
         run: pnpm install --frozen-lockfile --prefer-offline
 
       - name: Compute image metadata
@@ -99,24 +98,22 @@ jobs:
       - name: Write build env
         id: build-env
         env:
-          BUILD_ENV_FROM_1PASSWORD: ${{ ((github.event_name == 'push' && vars.BUILD_ENV_FROM_1PASSWORD == 'true') || inputs.build_env_dry_run == true) }}
           APP_ENV: production
-          DAYLILY_OP_SERVICE_ACCOUNT_TOKEN: ${{ ((github.event_name == 'push' && vars.BUILD_ENV_FROM_1PASSWORD == 'true') || inputs.build_env_dry_run == true) && secrets.DAYLILY_OP_SERVICE_ACCOUNT_TOKEN || '' }}
+          DAYLILY_OP_SERVICE_ACCOUNT_TOKEN: ${{ github.event_name != 'pull_request' && secrets.DAYLILY_OP_SERVICE_ACCOUNT_TOKEN || '' }}
           BUILD_ENVIRONMENT_NAME: ${{ github.event_name == 'pull_request' && 'preview' || 'production' }}
-          BUILD_APP_BASE_URL: ${{ vars.APP_BASE_URL }}
-          BUILD_CLOUDFLARE_URL: ${{ vars.NEXT_PUBLIC_CLOUDFLARE_URL }}
-          BUILD_CLERK_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-          BUILD_NEXT_PUBLIC_SENTRY_ENABLED: ${{ vars.NEXT_PUBLIC_SENTRY_ENABLED }}
-          BUILD_NEXT_PUBLIC_POSTHOG_KEY: ${{ vars.NEXT_PUBLIC_POSTHOG_KEY }}
-          BUILD_NEXT_PUBLIC_POSTHOG_HOST: ${{ vars.NEXT_PUBLIC_POSTHOG_HOST }}
-          BUILD_DATABASE_URL: ${{ vars.DATABASE_URL }}
-          BUILD_TURSO_DATABASE_AUTH_TOKEN: ${{ secrets.TURSO_DATABASE_AUTH_TOKEN }}
-          BUILD_STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
-          BUILD_SENTRY_AUTH_TOKEN: ${{ github.event_name != 'pull_request' && secrets.SENTRY_AUTH_TOKEN || '' }}
+          BUILD_APP_BASE_URL: ${{ github.event_name == 'pull_request' && vars.APP_BASE_URL || '' }}
+          BUILD_CLOUDFLARE_URL: ${{ github.event_name == 'pull_request' && vars.NEXT_PUBLIC_CLOUDFLARE_URL || '' }}
+          BUILD_CLERK_PUBLISHABLE_KEY: ${{ github.event_name == 'pull_request' && vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || '' }}
+          BUILD_NEXT_PUBLIC_SENTRY_ENABLED: ${{ github.event_name == 'pull_request' && vars.NEXT_PUBLIC_SENTRY_ENABLED || '' }}
+          BUILD_NEXT_PUBLIC_POSTHOG_KEY: ${{ github.event_name == 'pull_request' && vars.NEXT_PUBLIC_POSTHOG_KEY || '' }}
+          BUILD_NEXT_PUBLIC_POSTHOG_HOST: ${{ github.event_name == 'pull_request' && vars.NEXT_PUBLIC_POSTHOG_HOST || '' }}
+          BUILD_DATABASE_URL: ${{ github.event_name == 'pull_request' && vars.DATABASE_URL || '' }}
+          BUILD_TURSO_DATABASE_AUTH_TOKEN: ${{ github.event_name == 'pull_request' && secrets.TURSO_DATABASE_AUTH_TOKEN || '' }}
+          BUILD_STRIPE_SECRET_KEY: ${{ github.event_name == 'pull_request' && secrets.STRIPE_SECRET_KEY || '' }}
         run: |
           BUILD_ENV_FILE="$RUNNER_TEMP/daylilycatalog-build.env"
 
-          if [ "$BUILD_ENV_FROM_1PASSWORD" = "true" ]; then
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
             node apps/main/scripts/write-build-env.mjs "$BUILD_ENV_FILE"
           else
             if [ -z "$BUILD_APP_BASE_URL" ] || [ -z "$BUILD_CLOUDFLARE_URL" ] || [ -z "$BUILD_CLERK_PUBLISHABLE_KEY" ]; then
@@ -146,10 +143,6 @@ jobs:
           TURSO_DATABASE_AUTH_TOKEN=$BUILD_TURSO_DATABASE_AUTH_TOKEN
           STRIPE_SECRET_KEY=$BUILD_STRIPE_SECRET_KEY
           EOF
-
-            if [ -n "$BUILD_SENTRY_AUTH_TOKEN" ]; then
-              echo "SENTRY_AUTH_TOKEN=$BUILD_SENTRY_AUTH_TOKEN" >> "$BUILD_ENV_FILE"
-            fi
           fi
 
           if [ "${{ github.event_name }}" = "pull_request" ]; then
@@ -194,8 +187,6 @@ jobs:
       - name: Check MCP after an idle proxy connection
         run: node apps/main/scripts/smoke-mcp-keepalive-local.mjs '${{ steps.meta.outputs.image_repo }}:${{ steps.meta.outputs.immutable_tag }}'
 
-      - run: pnpm install --frozen-lockfile --prefer-offline
-        if: ${{ !((github.event_name == 'push' && vars.BUILD_ENV_FROM_1PASSWORD == 'true') || inputs.build_env_dry_run == true) }}
       - name: Use Ubuntu package archive
         run: printf '%s\n' 'https://archive.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt
       - name: Install Playwright Chromium
