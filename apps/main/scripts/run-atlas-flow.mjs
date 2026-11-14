@@ -2,7 +2,6 @@
 import { spawn, spawnSync } from "node:child_process";
 import {
   closeSync,
-  existsSync,
   mkdirSync,
   openSync,
   readFileSync,
@@ -13,7 +12,6 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import * as dotenv from "dotenv";
 import {
   generateAtlasGallery,
   generateAtlasHome,
@@ -134,12 +132,6 @@ async function startServer() {
     return;
   }
   await assertAtlasPortAvailable(baseURL);
-  for (const envPath of [
-    path.join(repoRoot, ".env.development"),
-    path.join(appRoot, ".env.development"),
-  ]) {
-    if (existsSync(envPath)) dotenv.config({ path: envPath, quiet: true });
-  }
   let databaseUrl = normalizeDatabaseUrl(explicitDatabaseUrl);
   if (!databaseUrl) {
     const { databasePath: seededDatabase } = await ensureRealisticDataSeed();

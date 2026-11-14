@@ -32,11 +32,13 @@ const envName =
   (process.env.NODE_ENV === "production" ? "production" : "development");
 const envFile = `.env.${envName}`;
 
-for (const envPath of [
-  path.join(repoRoot, envFile),
-  path.join(appRoot, envFile),
-]) {
-  if (existsSync(envPath)) dotenv.config({ path: envPath, quiet: true });
+if (envName === "production") {
+  for (const envPath of [
+    path.join(repoRoot, envFile),
+    path.join(appRoot, envFile),
+  ]) {
+    if (existsSync(envPath)) dotenv.config({ path: envPath, quiet: true });
+  }
 }
 
 if (args.length === 0) process.exit(0);

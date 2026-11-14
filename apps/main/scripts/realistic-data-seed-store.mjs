@@ -43,13 +43,12 @@ const BUCKET = "daylily-catalog-dev";
 const LATEST_KEY = "realistic-seed/latest.json";
 const seedKey = (fingerprint, name) => `realistic-seed/${fingerprint}/${name}`;
 
-/** @param {"SEED_R2" | "SEED_R2_PUBLISH"} prefix */
-function r2Client(prefix) {
-  const accessKeyId = process.env[`${prefix}_ACCESS_KEY_ID`];
-  const secretAccessKey = process.env[`${prefix}_SECRET_ACCESS_KEY`];
+function r2Client() {
+  const accessKeyId = process.env.SEED_R2_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.SEED_R2_SECRET_ACCESS_KEY;
   if (!accessKeyId || !secretAccessKey) {
     throw new Error(
-      `Set ${prefix}_ACCESS_KEY_ID and ${prefix}_SECRET_ACCESS_KEY from 1Password. See AGENTS.md.`,
+      "Set SEED_R2_ACCESS_KEY_ID and SEED_R2_SECRET_ACCESS_KEY from 1Password. See AGENTS.md.",
     );
   }
   return new S3Client({
@@ -106,7 +105,7 @@ export function finishLocalSeed(details) {
 /** Upload the local seed database. Other checkouts download it. */
 export async function publishRealisticDataSeed() {
   const local = JSON.parse(readFileSync(seedPaths.manifest, "utf8"));
-  const client = r2Client("SEED_R2_PUBLISH");
+  const client = r2Client();
   const { databasePath: _db, searchIndexPath: _search, ...details } = local;
   const remote = {
     ...details,
@@ -148,7 +147,7 @@ async function readRemoteManifest(client, key) {
 
 /** Replace the local seed with the published seed. Local edits are removed. */
 export async function pullRealisticDataSeed() {
-  const client = r2Client("SEED_R2");
+  const client = r2Client();
   const fingerprint = realisticDataSchemaFingerprint(seedPaths.schema);
   const remote =
     (await readRemoteManifest(client, seedKey(fingerprint, "manifest.json"))) ??

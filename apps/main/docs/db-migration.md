@@ -78,7 +78,7 @@ prisma/local-prod-copy-daylily-catalog.db
 rm -f prisma/local-dev.sqlite prisma/local-dev.sqlite-wal prisma/local-dev.sqlite-shm
 
 DATABASE_URL="file:./prisma/local-dev.sqlite" \
-NODE_OPTIONS='' RUST_LOG=info npx dotenv -e .env.development -- \
+NODE_OPTIONS='' RUST_LOG=info pnpm env:dev \
   npx prisma migrate dev --create-only --name <migration_name>
 ```
 
@@ -92,7 +92,7 @@ diff against the local authoring DB instead:
 rm -f prisma/local-dev.sqlite prisma/local-dev.sqlite-wal prisma/local-dev.sqlite-shm
 
 DATABASE_URL="file:./prisma/local-dev.sqlite" \
-NODE_OPTIONS='' RUST_LOG=info npx dotenv -e .env.development -- \
+NODE_OPTIONS='' RUST_LOG=info pnpm env:dev \
   npx prisma migrate dev --name bootstrap_authoring_db --skip-generate
 
 npx prisma migrate diff \

@@ -1,9 +1,7 @@
 #!/usr/bin/env node
 
 import { createClerkClient } from "@clerk/backend";
-import * as dotenv from "dotenv";
 import { execFileSync } from "node:child_process";
-import { existsSync } from "node:fs";
 import path from "node:path";
 import Stripe from "stripe";
 
@@ -20,12 +18,6 @@ import {
 
 const appRoot = path.resolve(import.meta.dirname, "..");
 const repoRoot = path.resolve(appRoot, "../..");
-for (const envPath of [
-  path.join(repoRoot, ".env.development"),
-  path.join(appRoot, ".env.development"),
-]) {
-  if (existsSync(envPath)) dotenv.config({ path: envPath, quiet: true });
-}
 
 function requireTestKey(name, prefix) {
   const value = process.env[name] ?? "";

@@ -60,7 +60,7 @@ describe("Atlas flow contract", () => {
       /^node apps\/main\/scripts\/run-integration-local\.mjs tests\/integration\//,
     );
     expect(commands[2]).toMatch(
-      /^pnpm main exec playwright test --retries=0 tests\/e2e\//,
+      /^pnpm main env:dev playwright test --retries=0 tests\/e2e\//,
     );
     const editorSave = getAtlasFlow("list-management").tests.integration.find(
       ({ path: file }) =>
@@ -172,7 +172,7 @@ describe("Atlas flow contract", () => {
     for (const flow of ATLAS_FLOWS) {
       for (const stateItem of statesForFlow(flow)) {
         expect(stateItem.reproductionCommand).toBe(
-          `node apps/main/scripts/run-atlas-flow.mjs ${flow.id} --output=local/atlas/reproduce`,
+          `pnpm main env:dev node scripts/run-atlas-flow.mjs ${flow.id} --output=local/atlas/reproduce`,
         );
       }
     }
