@@ -30,6 +30,36 @@ webhook after the push. PR CI builds an image for verification without
 publishing it. The tracked Docker workflow contains the webhook request
 contract and reads its bearer token from GitHub Actions secrets.
 
+## Production build values
+
+The `production` GitHub environment variable `BUILD_ENV_FROM_1PASSWORD`
+selects the source for Docker build values on a `push` event. When it is
+`true`, varlock loads the 1Password Environment "Daylily — Production"
+(`kbms3dbpzhwvwiicxcnuh64uoa`). It holds every production value, public and
+secret. The GitHub environment
+secret `DAYLILY_OP_SERVICE_ACCOUNT_TOKEN` must contain a read-only token for
+that 1Password Environment. `SENTRY_AUTH_TOKEN` is required on this path.
+The repo does not commit an `apps/main/.env.production` file, because Next.js
+loads that file in every production build, including Vercel previews. Existing
+process env values take precedence over varlock values.
+
+When the switch is unset or `false`, the build uses the existing GitHub
+variables and secrets. PR preview builds also use the existing source.
+
+To test the 1Password source before a rollout, run the Docker Image workflow
+manually with `build_env_dry_run` set to `true`. The dry run builds the
+production image from 1Password, runs the image smoke checks, and writes the
+source comparison to the step summary. It does not push the image or deploy.
+The workflow sends only the selected build values through a BuildKit secret.
+
+To enable this path, set `BUILD_ENV_FROM_1PASSWORD=true` in the `production`
+GitHub environment, then merge the PR. Check the build step summary for names
+whose value hashes differ from the GitHub source. Differences do not fail the
+build. Verify the site after deployment. Set the switch to `false` to use the
+GitHub source on the next build.
+
+The production runtime uses the VPS `.env` until a later PR.
+
 To roll back, set `IMAGE_TAG` to a previous published tag in the live `.env`
 and run `docker compose up -d`. The `next-cache` volume survives normal image
 changes. Clear it only when a specific cache problem requires it.
