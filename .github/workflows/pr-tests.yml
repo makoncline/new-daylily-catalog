@@ -109,9 +109,7 @@ jobs:
       SKIP_ENV_VALIDATION: "1"
       DATABASE_URL: "file:./prisma/local-dev.sqlite"
       E2E_PORT: "3100"
-      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
-      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-      STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+      DAYLILY_OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.DAYLILY_OP_SERVICE_ACCOUNT_TOKEN }}
       STRIPE_WEBHOOK_SECRET: "whsec_test_placeholder"
       CLERK_WEBHOOK_SECRET: "whsec_test_placeholder"
       AWS_ACCESS_KEY_ID: "placeholder"
@@ -147,7 +145,7 @@ jobs:
       - name: Install sqlite3
         run: sudo apt-get update && sudo apt-get install -y sqlite3
       - name: Run connected E2E group
-        run: node apps/main/scripts/run-e2e-ci-group.mjs ${{ matrix.group }}
+        run: pnpm main env:dev node scripts/run-e2e-ci-group.mjs ${{ matrix.group }}
       - name: Upload Playwright artifacts
         if: always()
         uses: actions/upload-artifact@v4
