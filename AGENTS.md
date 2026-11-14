@@ -23,7 +23,17 @@ reads it from the login Keychain; without it, the 1Password desktop app asks
 for approval for each new shell. `pnpm dev`, `pnpm test:e2e`, and the seed
 commands load these values. Use `pnpm env:dev <command>` for other scripts. Put machine-only overrides in the
 ignored `apps/main/.env.development.local`. Do not reuse another checkout's
-server, database, or port. The PR CI aggregate status is `Verify PR`.
+server, database, or port. Connected E2E CI loads development values with
+`pnpm main env:dev` and the repository secret `DAYLILY_OP_SERVICE_ACCOUNT_TOKEN`.
+The PR CI aggregate status is `Verify PR`.
+
+Codex Cloud settings are in the ChatGPT web UI. Set
+`DAYLILY_OP_SERVICE_ACCOUNT_TOKEN` as an environment variable. Codex removes
+secrets before the agent phase. Use the setup script
+`pnpm install --frozen-lockfile && pnpm main exec playwright install --with-deps chromium && pnpm db:seed:pull`.
+For agent internet access, allow the Common dependencies domains plus
+`1password.com`, `*.1password.com`, `*.r2.cloudflarestorage.com`, `clerk.com`,
+`api.clerk.com`, `*.clerk.accounts.dev`, and `api.stripe.com`.
 
 Use the [Atlas flow registry](apps/main/scripts/atlas-flows.mjs) to find
 completed dashboard examples, implementation entry points, behavior rules,

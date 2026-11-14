@@ -97,10 +97,8 @@ jobs:
           BASE_URL: ${{ env.BASE_URL }}
           # set only if you enabled Vercel Preview Protection
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
-          # Clerk keys needed for clerkSetup() in global-setup.ts
-          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
-          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-        run: pnpm main exec playwright test
+          DAYLILY_OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.DAYLILY_OP_SERVICE_ACCOUNT_TOKEN }}
+        run: pnpm main env:dev playwright test
 
       - name: Upload Playwright artifacts
         if: always()
