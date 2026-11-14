@@ -84,7 +84,6 @@ yarn-error.log*
 !.env.example
 !apps/main/.env.schema
 !apps/main/.env.development
-!apps/main/.env.production
 
 # vercel
 .vercel

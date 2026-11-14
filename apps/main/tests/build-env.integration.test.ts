@@ -234,33 +234,3 @@ test("keeps the legacy workflow output byte-for-byte for PRs and disabled or man
     );
   }
 });
-
-test("loads local production defaults and keeps process env overrides and DATABASE_URL", () => {
-  const env: NodeJS.ProcessEnv = {
-    ...process.env,
-    APP_BASE_URL: "https://override.test",
-    DATABASE_URL: "file:local.db",
-  };
-  delete env.AWS_BUCKET_NAME;
-  const result = execFileSync(
-    process.execPath,
-    [
-      "scripts/with-env.mjs",
-      "--env",
-      "production",
-      "--",
-      process.execPath,
-      "-e",
-      "console.log(JSON.stringify({base:process.env.APP_BASE_URL,bucket:process.env.AWS_BUCKET_NAME,database:process.env.DATABASE_URL}))",
-    ],
-    { cwd: appRoot, env, encoding: "utf8" },
-  );
-  expect(JSON.parse(result)).toEqual({
-    base: env.APP_BASE_URL,
-    bucket: "daylily-catalog-images",
-    database: env.DATABASE_URL,
-  });
-  expect(
-    readFileSync(path.join(appRoot, ".env.production"), "utf8"),
-  ).not.toMatch(/^DATABASE_URL=/m);
-});

@@ -34,16 +34,18 @@ contract and reads its bearer token from GitHub Actions secrets.
 
 The `production` GitHub environment variable `BUILD_ENV_FROM_1PASSWORD`
 selects the source for Docker build values on a `push` event. When it is
-`true`, varlock loads `apps/main/.env.production` and the 1Password Environment
-"Daylily — Production" (`kbms3dbpzhwvwiicxcnuh64uoa`). The GitHub environment
+`true`, varlock loads the 1Password Environment "Daylily — Production"
+(`kbms3dbpzhwvwiicxcnuh64uoa`). It holds every production value, public and
+secret. The GitHub environment
 secret `DAYLILY_OP_SERVICE_ACCOUNT_TOKEN` must contain a read-only token for
 that 1Password Environment. `SENTRY_AUTH_TOKEN` is required on this path.
-The committed file holds public values only. `DATABASE_URL` comes from
-1Password. Existing process env values take precedence over varlock values.
+The repo does not commit an `apps/main/.env.production` file, because Next.js
+loads that file in every production build, including Vercel previews. Existing
+process env values take precedence over varlock values.
 
 When the switch is unset or `false`, the build uses the existing GitHub
 variables and secrets. PR preview builds and manual workflow runs also use
-the existing source. Both Docker ignore files exclude `.env.production`.
+the existing source.
 The workflow sends only the selected build values through a BuildKit secret.
 
 To enable this path, set `BUILD_ENV_FROM_1PASSWORD=true` in the `production`
@@ -52,9 +54,7 @@ whose value hashes differ from the GitHub source. Differences do not fail the
 build. Verify the site after deployment. Set the switch to `false` to use the
 GitHub source on the next build.
 
-The production runtime uses the VPS `.env` until a later PR. For local
-`pnpm env:prod` commands, the committed file supplies public defaults.
-Process env values and the root `.env.production` take precedence.
+The production runtime uses the VPS `.env` until a later PR.
 
 To roll back, set `IMAGE_TAG` to a previous published tag in the live `.env`
 and run `docker compose up -d`. The `next-cache` volume survives normal image
