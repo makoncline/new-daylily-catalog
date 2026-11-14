@@ -18,7 +18,7 @@ Run scripts from the repository root with `pnpm`. Development env values come
 from varlock: `apps/main/.env.schema` declares every variable,
 `apps/main/.env.development` holds non-secret values, and secrets come from the
 1Password Environment "Daylily — Development". A read-only service account
-token in `OP_SERVICE_ACCOUNT_TOKEN` signs in. On the Mac, `~/.zshenv` reads it
+token in `DAYLILY_OP_SERVICE_ACCOUNT_TOKEN` signs in. On the Mac, `~/.zshenv` reads it
 from the login Keychain; without it, the 1Password desktop app asks for
 approval for each new shell. `pnpm db:seed:publish` always asks for desktop app
 approval. `pnpm dev`,
