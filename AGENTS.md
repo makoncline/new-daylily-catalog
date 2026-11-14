@@ -14,10 +14,15 @@ scripts and installed package documentation as the source of truth.
 When choosing or prioritizing work, read [GOALS.md](GOALS.md). When a prior
 technical lesson may affect the change, check [logs.md](logs.md).
 
-Run scripts from the repository root with `pnpm`. Use `pnpm env:dev <command>`
-when a script needs development env values. Keep credentials in ignored env
-files. Do not reuse another checkout's server, database, or port. The PR CI
-aggregate status is `Verify PR`.
+Run scripts from the repository root with `pnpm`. Development env values come
+from varlock: `apps/main/.env.schema` declares every variable,
+`apps/main/.env.development` holds non-secret values, and secrets come from the
+1Password Environment "Daylily — Development". On the Mac, the 1Password desktop
+app signs in. In Cloud and CI, `OP_SERVICE_ACCOUNT_TOKEN` signs in. `pnpm dev`,
+`pnpm test:e2e`, and the seed commands load these values. Use
+`pnpm env:dev <command>` for other scripts. Put machine-only overrides in the
+ignored `apps/main/.env.development.local`. Do not reuse another checkout's
+server, database, or port. The PR CI aggregate status is `Verify PR`.
 
 Use the [Atlas flow registry](apps/main/scripts/atlas-flows.mjs) to find
 completed dashboard examples, implementation entry points, behavior rules,
@@ -42,11 +47,9 @@ Local app work uses the realistic seed in the private R2 bucket
 `daylily-catalog-dev`. On first start, `pnpm dev` downloads it. After a schema
 change, `pnpm dev` updates the local copy and keeps local edits across
 restarts. `pnpm db:seed:pull` replaces the local copy with the published seed.
-The read key (`SEED_R2_ACCESS_KEY_ID`, `SEED_R2_SECRET_ACCESS_KEY`) is in the
-1Password Environment "Daylily — Development". After schema changes, or for
-fresh data, run `pnpm db:seed:publish` on the Mac. It needs the local production
-copy, stage Clerk and Stripe test keys, and the publish key
-(`SEED_R2_PUBLISH_ACCESS_KEY_ID`, `SEED_R2_PUBLISH_SECRET_ACCESS_KEY`). The seed
+After schema changes, or for fresh data, run `pnpm db:seed:publish` on the Mac.
+It needs the local production copy. It also loads the publish key from the
+1Password Environment "Daylily — Seed publish". The seed
 has fake private notes, non-Pro profiles, and contact details. For throwaway edits, use
 `pnpm dev -- --disposable --port <free-port> --hostname localhost`. It copies
 the full seed and removes its copy on shutdown. After restart, use dashboard
@@ -63,5 +66,6 @@ for deployment work.
 
 Keep server-only modules out of client imports. Read installed Next docs in
 `apps/main/node_modules/next/dist/docs/` before changing framework behavior.
-Add required env names to `apps/main/.env.example`. Use `NEXT_PUBLIC_` only
+Add new env names to `apps/main/.env.schema`, and to `apps/main/.env.example`
+when production needs them. Use `NEXT_PUBLIC_` only
 when the browser needs a value.
