@@ -44,8 +44,12 @@ loads that file in every production build, including Vercel previews. Existing
 process env values take precedence over varlock values.
 
 When the switch is unset or `false`, the build uses the existing GitHub
-variables and secrets. PR preview builds and manual workflow runs also use
-the existing source.
+variables and secrets. PR preview builds also use the existing source.
+
+To test the 1Password source before a rollout, run the Docker Image workflow
+manually with `build_env_dry_run` set to `true`. The dry run builds the
+production image from 1Password, runs the image smoke checks, and writes the
+source comparison to the step summary. It does not push the image or deploy.
 The workflow sends only the selected build values through a BuildKit secret.
 
 To enable this path, set `BUILD_ENV_FROM_1PASSWORD=true` in the `production`

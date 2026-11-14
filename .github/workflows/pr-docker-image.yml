@@ -6,6 +6,11 @@ on:
       - main
   pull_request:
   workflow_dispatch:
+    inputs:
+      build_env_dry_run:
+        description: "Build the production image from 1Password without pushing or deploying"
+        type: boolean
+        default: false
 
 concurrency:
   group: docker-image-${{ github.event.pull_request.number || github.ref }}
@@ -34,7 +39,7 @@ jobs:
         run: corepack enable
 
       - name: Install build env dependencies
-        if: github.event_name == 'push' && vars.BUILD_ENV_FROM_1PASSWORD == 'true'
+        if: ((github.event_name == 'push' && vars.BUILD_ENV_FROM_1PASSWORD == 'true') || inputs.build_env_dry_run == true)
         run: pnpm install --frozen-lockfile --prefer-offline
 
       - name: Compute image metadata
@@ -46,6 +51,10 @@ jobs:
 
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             IMMUTABLE_TAG="pr-${{ github.event.pull_request.number }}-${SHORT_SHA}"
+            SHOULD_PUSH="false"
+            CACHE_TO=""
+          elif [ "${{ inputs.build_env_dry_run }}" = "true" ]; then
+            IMMUTABLE_TAG="dry-run-${SHORT_SHA}"
             SHOULD_PUSH="false"
             CACHE_TO=""
           else
@@ -90,9 +99,9 @@ jobs:
       - name: Write build env
         id: build-env
         env:
-          BUILD_ENV_FROM_1PASSWORD: ${{ github.event_name == 'push' && vars.BUILD_ENV_FROM_1PASSWORD == 'true' }}
+          BUILD_ENV_FROM_1PASSWORD: ${{ ((github.event_name == 'push' && vars.BUILD_ENV_FROM_1PASSWORD == 'true') || inputs.build_env_dry_run == true) }}
           APP_ENV: production
-          DAYLILY_OP_SERVICE_ACCOUNT_TOKEN: ${{ github.event_name == 'push' && vars.BUILD_ENV_FROM_1PASSWORD == 'true' && secrets.DAYLILY_OP_SERVICE_ACCOUNT_TOKEN || '' }}
+          DAYLILY_OP_SERVICE_ACCOUNT_TOKEN: ${{ ((github.event_name == 'push' && vars.BUILD_ENV_FROM_1PASSWORD == 'true') || inputs.build_env_dry_run == true) && secrets.DAYLILY_OP_SERVICE_ACCOUNT_TOKEN || '' }}
           BUILD_ENVIRONMENT_NAME: ${{ github.event_name == 'pull_request' && 'preview' || 'production' }}
           BUILD_APP_BASE_URL: ${{ vars.APP_BASE_URL }}
           BUILD_CLOUDFLARE_URL: ${{ vars.NEXT_PUBLIC_CLOUDFLARE_URL }}
@@ -186,7 +195,7 @@ jobs:
         run: node apps/main/scripts/smoke-mcp-keepalive-local.mjs '${{ steps.meta.outputs.image_repo }}:${{ steps.meta.outputs.immutable_tag }}'
 
       - run: pnpm install --frozen-lockfile --prefer-offline
-        if: github.event_name != 'push' || vars.BUILD_ENV_FROM_1PASSWORD != 'true'
+        if: ${{ !((github.event_name == 'push' && vars.BUILD_ENV_FROM_1PASSWORD == 'true') || inputs.build_env_dry_run == true) }}
       - name: Use Ubuntu package archive
         run: printf '%s\n' 'https://archive.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt
       - name: Install Playwright Chromium
