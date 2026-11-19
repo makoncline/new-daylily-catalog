@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v7.1.0
         with:
-          node-version: 24.22.1
+          node-version: 24.22.3
           cache: "pnpm"
           cache-dependency-path: pnpm-lock.yaml
       - name: Check patched Node runtime
@@ -45,7 +45,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v7.1.0
         with:
-          node-version: 24.22.1
+          node-version: 24.22.3
           cache: "pnpm"
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm fetch
@@ -66,7 +66,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v7.1.0
         with:
-          node-version: 24.22.1
+          node-version: 24.22.3
           cache: "pnpm"
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm fetch
@@ -123,7 +123,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v7.1.0
         with:
-          node-version: 24.22.1
+          node-version: 24.22.3
           cache: "pnpm"
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm fetch
