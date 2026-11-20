@@ -116,8 +116,8 @@ export function getCultivarMatchConfidence(
   );
 
   if (
-    looseInput.includes(looseCandidate) ||
-    looseCandidate.includes(looseInput)
+    ` ${looseInput} `.includes(` ${looseCandidate} `) ||
+    ` ${looseCandidate} `.includes(` ${looseInput} `)
   ) {
     confidence = Math.max(confidence, 0.82);
   }

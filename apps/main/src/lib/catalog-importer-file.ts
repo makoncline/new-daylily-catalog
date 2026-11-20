@@ -5,10 +5,14 @@ import type {
   SpreadsheetCell,
   SpreadsheetSheet,
 } from "@/lib/catalog-importer";
-import { createSpreadsheetCsv } from "@/lib/catalog-importer";
+import {
+  CATALOG_LISTING_HEADERS,
+  cellToText,
+  detectHeaderRow,
+} from "@/lib/catalog-importer";
 
 export const MAX_CATALOG_IMPORT_FILE_BYTES = 10 * 1024 * 1024;
-export const MAX_CATALOG_IMPORT_ROWS_PER_SHEET = 5_000;
+const MAX_CATALOG_IMPORT_ROWS_PER_SHEET = 5_000;
 
 function parseCsv(text: string): SpreadsheetCell[][] {
   const rows: SpreadsheetCell[][] = [];
@@ -50,6 +54,12 @@ function parseCsv(text: string): SpreadsheetCell[][] {
     cell += character;
   }
 
+  if (inQuotes) {
+    throw new Error(
+      "This CSV has an unclosed quote. Close the quoted cell in your spreadsheet and upload the file again.",
+    );
+  }
+
   if (cell.length > 0 || row.length > 0) {
     row.push(cell);
     rows.push(row);
@@ -73,7 +83,17 @@ function trimEmptyTrailingRows(rows: SpreadsheetCell[][]) {
 }
 
 function assertSheetSize(sheet: SpreadsheetSheet) {
-  if (sheet.rows.length > MAX_CATALOG_IMPORT_ROWS_PER_SHEET) {
+  if (
+    CATALOG_LISTING_HEADERS.every(
+      (header, index) =>
+        cellToText(sheet.rows[0]?.[index]).toLowerCase() ===
+        header.toLowerCase(),
+    )
+  )
+    return;
+  const header = detectHeaderRow(sheet.rows);
+  const dataRowCount = sheet.rows.length - (header === null ? 0 : header + 1);
+  if (dataRowCount > MAX_CATALOG_IMPORT_ROWS_PER_SHEET) {
     throw new Error(
       `${sheet.name} has more than ${MAX_CATALOG_IMPORT_ROWS_PER_SHEET.toLocaleString()} rows. Split the file into smaller sheets and try again.`,
     );
@@ -82,6 +102,7 @@ function assertSheetSize(sheet: SpreadsheetSheet) {
 
 export async function parseCatalogImportFile(
   file: File,
+  { firstSheetOnly = false } = {},
 ): Promise<ParsedSpreadsheet> {
   if (file.size > MAX_CATALOG_IMPORT_FILE_BYTES) {
     throw new Error("Choose a spreadsheet smaller than 10 MB.");
@@ -98,8 +119,15 @@ export async function parseCatalogImportFile(
       },
     ];
   } else if (extension === "xlsx") {
-    const { default: readExcelFile } = await import("read-excel-file/browser");
-    const workbookSheets = await readExcelFile(file, { trim: false });
+    const reader = await import("read-excel-file/browser");
+    const workbookSheets = firstSheetOnly
+      ? [
+          {
+            sheet: "First sheet",
+            data: await reader.readSheet(file, { trim: false }),
+          },
+        ]
+      : await reader.default(file, { trim: false });
     sheets = workbookSheets.map((sheet) => ({
       name: sheet.sheet,
       rows: trimEmptyTrailingRows(sheet.data as SpreadsheetCell[][]),
@@ -120,20 +148,8 @@ export async function parseCatalogImportFile(
 
   return {
     fileName: file.name,
-    source: "upload",
     sheets,
   };
-}
-
-function downloadBlob(blob: Blob, fileName: string) {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = fileName;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
 }
 
 export async function downloadCatalogImportFile({
@@ -143,15 +159,6 @@ export async function downloadCatalogImportFile({
   fileName: string;
   spreadsheet: ParsedSpreadsheet;
 }) {
-  if (fileName.toLowerCase().endsWith(".csv")) {
-    const csv = createSpreadsheetCsv(spreadsheet.sheets[0]?.rows ?? []);
-    downloadBlob(
-      new Blob([csv], { type: "text/csv;charset=utf-8;" }),
-      fileName,
-    );
-    return;
-  }
-
   const { default: writeExcelFile } = await import("write-excel-file/browser");
   await writeExcelFile(
     spreadsheet.sheets.map((sheet) => ({
@@ -160,20 +167,4 @@ export async function downloadCatalogImportFile({
       sheet: sheet.name.slice(0, 31) || "Sheet",
     })),
   ).toFile(fileName);
-}
-
-export function getCatalogImporterDownloadFileName(
-  fileName: string,
-  kind: "clean" | "enriched",
-) {
-  const extension = fileName.toLowerCase().endsWith(".csv") ? "csv" : "xlsx";
-  const baseName = fileName.replace(/\.[^.]+$/, "");
-  const safeName =
-    baseName
-      .trim()
-      .replace(/[^a-zA-Z0-9_-]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .toLowerCase() || "daylily-catalog";
-
-  return `${safeName}-${kind === "clean" ? "prepared-import" : "enhanced-original"}.${extension}`;
 }

@@ -4,11 +4,18 @@ import { cn } from "@/lib/utils";
 
 interface TableProps extends React.HTMLAttributes<HTMLTableElement> {
   containerClassName?: string;
+  variant?: "default" | "outline";
 }
 
 const Table = React.forwardRef<HTMLTableElement, TableProps>(
-  ({ className, containerClassName, ...props }, ref) => (
-    <div className={cn("relative w-full overflow-auto", containerClassName)}>
+  ({ className, containerClassName, variant = "default", ...props }, ref) => (
+    <div
+      className={cn(
+        "relative w-full overflow-auto",
+        variant === "outline" && "rounded-md border",
+        containerClassName,
+      )}
+    >
       <table
         ref={ref}
         className={cn("w-full caption-bottom text-sm", className)}
@@ -56,12 +63,14 @@ TableFooter.displayName = "TableFooter";
 
 const TableRow = React.forwardRef<
   HTMLTableRowElement,
-  React.HTMLAttributes<HTMLTableRowElement>
->(({ className, ...props }, ref) => (
+  React.HTMLAttributes<HTMLTableRowElement> & { responsive?: boolean }
+>(({ className, responsive = false, ...props }, ref) => (
   <tr
     ref={ref}
     className={cn(
       "hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors",
+      responsive &&
+        "grid grid-cols-[minmax(0,1fr)_2.5rem] gap-x-2 gap-y-3 p-3 sm:table-row sm:p-0 [&>td]:p-0 sm:[&>td]:p-2",
       className,
     )}
     {...props}

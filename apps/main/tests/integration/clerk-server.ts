@@ -9,6 +9,15 @@ const clerkUser = {
   },
 };
 
+const checkoutUser = {
+  ...clerkUser,
+  id: "user_integration_checkout",
+  email: "integration-stripe-success@example.com",
+  primaryEmailAddress: {
+    emailAddress: "integration-stripe-success@example.com",
+  },
+};
+
 const authResult = {
   isAuthenticated: true,
   userId: clerkUser.id,
@@ -23,6 +32,8 @@ const anonymousAuthResult = {
 
 function authResultForCookie(value: string | undefined) {
   if (value === "anonymous") return anonymousAuthResult;
+  if (value === "checkout-member")
+    return { ...authResult, userId: checkoutUser.id };
   return value === "other-member"
     ? { ...authResult, userId: "user_integration_other" }
     : authResult;
@@ -64,7 +75,7 @@ export function clerkMiddleware(
 
 export async function clerkClient() {
   return {
-    // Substitute only the external OAuth provider. App admission and account lookup stay real.
+    // Substitute the external provider. App admission and account lookup stay real.
     authenticateRequest: async (request: Request) => ({
       toAuth: () =>
         request.headers.get("authorization") ===
@@ -75,10 +86,23 @@ export async function clerkClient() {
               clientId: "integration-oauth-client",
               scopes: ["catalog:read", "catalog:write"],
             }
-          : { isAuthenticated: false },
+          : request.headers
+                .get("cookie")
+                ?.split(";")
+                .some((cookie) => cookie.trim() === "__session=integration")
+            ? authResultForCookie(
+                request.headers
+                  .get("cookie")
+                  ?.split(";")
+                  .map((cookie) => cookie.trim())
+                  .find((cookie) => cookie.startsWith("integration-auth="))
+                  ?.split("=")[1],
+              )
+            : { isAuthenticated: false },
     }),
     users: {
-      getUser: async () => clerkUser,
+      getUser: async (userId: string) =>
+        userId === checkoutUser.id ? checkoutUser : clerkUser,
     },
   };
 }

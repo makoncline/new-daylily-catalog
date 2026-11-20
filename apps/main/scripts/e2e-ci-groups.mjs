@@ -4,7 +4,6 @@ import path from "node:path";
 /** @type {Record<1 | 2 | 3, string[]>} */
 export const e2eCiGroups = {
   1: [
-    "tests/e2e/catalog-importer.e2e.ts",
     "tests/e2e/listing-image-manager.e2e.ts",
     "tests/e2e/manual-signin.e2e.ts",
     "tests/e2e/public-profile-first-response.e2e.ts",
@@ -20,7 +19,6 @@ export const e2eCiGroups = {
   3: [
     "tests/e2e/new-user-journey.e2e.ts",
     "tests/e2e/listings-page-features.e2e.ts",
-    "tests/e2e/catalog-importer-onboarding.e2e.ts",
     "tests/e2e/lists-page-features.e2e.ts",
     "tests/e2e/signed-in-user-tour.e2e.ts",
   ],
@@ -50,7 +48,7 @@ export function discoverLocalE2eFiles(appRoot = defaultAppRoot) {
       .flatMap((entry) => {
         const absolutePath = path.join(currentDirectory, entry.name);
         if (entry.isDirectory()) return discover(absolutePath);
-        if (!entry.name.match(/\.e2e\.(?:ts|tsx)$/)) return [];
+        if (!/\.e2e\.(?:ts|tsx)$/.test(entry.name)) return [];
 
         const source = fs.readFileSync(absolutePath, "utf8");
         const isAttachOnly =

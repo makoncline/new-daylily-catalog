@@ -44,7 +44,7 @@ export async function getMainSitemapEntries(baseUrl: string) {
 
   if (isCatalogImporterDiscoveryEnabled()) {
     entries.push({
-      url: `${baseUrl}/catalog-importer`,
+      url: `${baseUrl}/playground`,
       changeFrequency: "monthly",
       priority: 0.8,
     });

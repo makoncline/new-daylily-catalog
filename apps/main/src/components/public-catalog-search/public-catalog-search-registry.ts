@@ -425,7 +425,7 @@ interface CatalogSearchFacetRow {
 }
 
 interface CatalogSearchListRow {
-  lists?: Array<{ id: string; title: string }>;
+  lists?: ReadonlyArray<{ id: string; title: string }>;
 }
 
 const FACET_VALUE_GETTERS: Record<

@@ -52,7 +52,7 @@ describe("seller landing actions", () => {
 
     expect(
       screen.getByRole("link", { name: "Create your catalog" }),
-    ).toHaveAttribute("data-href", "/catalog-importer");
+    ).toHaveAttribute("data-href", "/playground");
   });
 
   it("captures seller CTA clicks with the importer target", () => {
@@ -70,8 +70,8 @@ describe("seller landing actions", () => {
       source_path: "/start-membership",
       cta_id: "seller-landing-hero-primary",
       cta_label: "Create your catalog",
-      target_path: "/catalog-importer",
-      next_path: "/catalog-importer",
+      target_path: "/playground",
+      next_path: "/playground",
     });
   });
 

@@ -5,6 +5,12 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  --color-public-ink: #142118;
+  --color-public-hero: #07120e;
+  --color-public-home: #f1f4ec;
+  --color-public-surface: #f6f8f3;
+  --color-public-gold: #b7791f;
+  --color-public-gold-light: #f4c477;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -224,5 +230,25 @@
 @media (prefers-reduced-motion: reduce) {
   .daylily-bloom-sprite {
     animation: none;
+  }
+}
+
+@utility public-header {
+  &::before {
+    z-index: -1;
+    content: "";
+    backdrop-filter: blur(5px);
+    mask-image: linear-gradient(
+      to bottom,
+      #000 0%,
+      #000 calc(100% - 20px),
+      transparent 100%
+    );
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      #000 0%,
+      #000 calc(100% - 20px),
+      transparent 100%
+    );
   }
 }

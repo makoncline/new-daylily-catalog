@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { protectedProcedure, createTRPCRouter } from "@/server/api/trpc";
@@ -10,7 +11,17 @@ import { APP_CONFIG } from "@/config/constants";
 import { getStripeSubscriptionResult } from "@/server/stripe/sync-subscription";
 import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
 import { slugify } from "@/lib/utils/slugify";
-import { getCatalogImportExistingListingMatch } from "@/lib/catalog-import-existing-listings";
+import {
+  catalogImportListingKey,
+  normalizeCatalogImportName,
+} from "@/lib/catalog-import-existing-listings";
+import { normalizeCatalogListNames } from "@/lib/catalog-importer";
+import {
+  CATALOG_IMPORT_BATCH_LIST_LIMIT,
+  CATALOG_IMPORT_BATCH_SIZE,
+  catalogImportCultivarIdSchema,
+  catalogImportRowSchema,
+} from "@/lib/catalog-import-rows";
 import {
   memberCreateId,
   reserveMemberCreateRequest,
@@ -30,15 +41,91 @@ const listingSelect = {
   cultivarReferenceId: true,
 } as const;
 
-const importListingSchema = z.object({
-  allowExistingDuplicate: z.boolean().default(false),
-  cultivarReferenceId: z.string().trim().min(1).nullable(),
-  description: z.string().trim().max(10_000).nullable(),
-  importKey: z.string().trim().min(1).max(300),
-  price: z.number().nonnegative().nullable(),
-  privateNote: z.string().trim().max(10_000).nullable(),
-  title: z.string().trim().min(1).max(200),
-});
+const importIdentitySelect = {
+  title: true,
+  cultivarReferenceId: true,
+} as const;
+
+async function findImportCultivarIds(
+  db: Prisma.TransactionClient,
+  ids: string[],
+) {
+  const found: string[] = [];
+  for (let offset = 0; offset < ids.length; offset += 400) {
+    const references = await db.cultivarReference.findMany({
+      where: { id: { in: ids.slice(offset, offset + 400) } },
+      select: { id: true },
+    });
+    found.push(...references.map(({ id }) => id));
+  }
+  return found;
+}
+
+async function getImportListsByName(
+  db: Prisma.TransactionClient,
+  userId: string,
+) {
+  const lists = await db.list.findMany({
+    where: { userId },
+    select: { id: true, title: true },
+  });
+  const byName = new Map<string, (typeof lists)[number] | null>();
+  for (const list of lists) {
+    const name = normalizeCatalogImportName(list.title);
+    byName.set(name, byName.has(name) ? null : list);
+  }
+  return byName;
+}
+
+async function writeImportListMemberships(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  rows: { id: string; lists: string[] }[],
+) {
+  if (rows.every((row) => row.lists.length === 0)) return;
+
+  const existingLists = await getImportListsByName(tx, userId);
+  const newLists = new Map<
+    string,
+    { id: string; title: string; userId: string }
+  >();
+  const touchedListIds = new Set<string>();
+  const listingIdsByListId = new Map<string, string[]>();
+  for (const row of rows) {
+    for (const title of row.lists) {
+      const name = normalizeCatalogImportName(title);
+      const existing = existingLists.get(name);
+      if (existing === null) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: `More than one list is named “${title}”. Upload the file again to check its lists.`,
+        });
+      }
+      const listId =
+        existing?.id ?? newLists.get(name)?.id ?? crypto.randomUUID();
+      if (existing) touchedListIds.add(listId);
+      else if (!newLists.has(name))
+        newLists.set(name, { id: listId, title, userId });
+      const listingIds = listingIdsByListId.get(listId) ?? [];
+      listingIds.push(row.id);
+      listingIdsByListId.set(listId, listingIds);
+    }
+  }
+  if (newLists.size) await tx.list.createMany({ data: [...newLists.values()] });
+  await tx.$executeRaw`
+    INSERT INTO "_ListToListing" ("A", "B")
+    SELECT lists.key, listings.value
+    FROM json_each(${JSON.stringify(Object.fromEntries(listingIdsByListId))}) AS lists
+    CROSS JOIN json_each(lists.value) AS listings
+  `;
+  if (touchedListIds.size) {
+    await tx.$executeRaw`
+      UPDATE "List"
+      SET "updatedAt" = MAX("updatedAt" + 1, ${Date.now()})
+      WHERE "userId" = ${userId} AND "id" IN (SELECT value FROM json_each(${JSON.stringify([...touchedListIds])}))
+    `;
+  }
+}
 
 function reserveUniqueSlug(title: string, reservedSlugs: Set<string>) {
   const baseSlug = slugify(title);
@@ -59,164 +146,102 @@ function nextListingVersion(updatedAt: Date) {
 }
 
 export const dashboardDbListingRouter = createTRPCRouter({
-  importRows: protectedProcedure
+  readImportPreview: protectedProcedure
     .input(
       z.object({
-        rows: z.array(importListingSchema).min(1).max(100),
-        list: z
-          .object({
-            key: z.string().trim().min(1).max(200),
-            title: z.string().trim().min(1).max(200),
-          })
-          .optional(),
+        cultivarReferenceIds: z.array(catalogImportCultivarIdSchema).max(5_000),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const rowsByImportKey = new Map(
-        input.rows.map((row) => [row.importKey, row]),
+      const [existingListings, cultivarReferenceIds, listsByName] =
+        await Promise.all([
+          ctx.db.listing.findMany({
+            where: { userId: ctx.user.id },
+            select: importIdentitySelect,
+          }),
+          findImportCultivarIds(ctx.db, [
+            ...new Set(input.cultivarReferenceIds),
+          ]),
+          getImportListsByName(ctx.db, ctx.user.id),
+        ]);
+      return {
+        existingListings,
+        cultivarReferenceIds,
+        ambiguousListNames: [...listsByName]
+          .filter(([, list]) => list === null)
+          .map(([name]) => name),
+      };
+    }),
+
+  importRows: protectedProcedure
+    .input(
+      z.object({
+        rows: z
+          .array(catalogImportRowSchema)
+          .min(1)
+          .max(CATALOG_IMPORT_BATCH_SIZE),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const rows = input.rows.map((row) => ({
+        ...row,
+        lists: normalizeCatalogListNames(row.lists),
+      }));
+      const listNames = new Set(
+        rows.flatMap((row) => row.lists.map(normalizeCatalogImportName)),
       );
-      if (rowsByImportKey.size !== input.rows.length) {
+      if (listNames.size > CATALOG_IMPORT_BATCH_LIST_LIMIT) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Each imported row must have a unique import key.",
+          message: "Import at most 100 lists at a time.",
         });
-      }
-
-      const cultivarReferenceIds = [
-        ...new Set(
-          input.rows.flatMap((row) =>
-            row.cultivarReferenceId ? [row.cultivarReferenceId] : [],
-          ),
-        ),
-      ];
-      if (cultivarReferenceIds.length > 0) {
-        const references = await ctx.db.cultivarReference.findMany({
-          where: { id: { in: cultivarReferenceIds } },
-          select: { id: true },
-        });
-        const validIds = new Set(references.map((reference) => reference.id));
-        const invalidId = cultivarReferenceIds.find((id) => !validIds.has(id));
-        if (invalidId) {
-          throw new TRPCError({
-            code: "NOT_FOUND",
-            message: `Cultivar reference not found: ${invalidId}`,
-          });
-        }
       }
 
       const subscriptionResult =
         ctx._confirmedActiveMembership === undefined
           ? await getStripeSubscriptionResult(ctx.user.stripeCustomerId)
           : null;
-
-      if (
-        input.list &&
-        !(
-          ctx._confirmedActiveMembership === true ||
-          (subscriptionResult?.confirmed &&
-            hasActiveSubscription(subscriptionResult.subscription.status))
-        )
-      ) {
+      const hasPro =
+        ctx._confirmedActiveMembership === true ||
+        (subscriptionResult?.confirmed === true &&
+          hasActiveSubscription(subscriptionResult.subscription.status));
+      if (listNames.size > 0 && !hasPro) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message:
-            "Upgrade to Pro to import a named list. If you already have Pro, retry once membership is confirmed.",
+            "Upgrade to Pro to import lists. If you already have Pro, retry once membership is confirmed.",
         });
       }
-      const listId = input.list
-        ? memberCreateId(
-            "list",
-            ctx.user.id,
-            `catalog-import:${input.list.key}`,
-          )
-        : null;
 
       return ctx.db.$transaction(async (tx) => {
-        let listUpdatedAt = new Date();
-        if (listId && input.list) {
-          const fresh = await reserveMemberCreateRequest(
-            tx,
-            "list",
-            ctx.user.id,
-            `catalog-import:${input.list.key}`,
-            { title: input.list.title },
-          );
-          const existingList = await tx.list.findUnique({
-            where: { id: listId },
-          });
-          if (
-            (!fresh && !existingList) ||
-            (existingList &&
-              (existingList.userId !== ctx.user.id ||
-                existingList.title !== input.list.title))
-          ) {
-            throw new TRPCError({
-              code: "CONFLICT",
-              message:
-                "This import already has a named list. If it was renamed or deleted, start a new import.",
-            });
-          }
-          if (existingList) {
-            listUpdatedAt = new Date(
-              Math.max(Date.now(), existingList.updatedAt.getTime() + 1),
-            );
-          }
-        }
-        const existingImportedRows = await tx.listing.findMany({
-          where: {
-            userId: ctx.user.id,
-            importKey: { in: [...rowsByImportKey.keys()] },
-          },
-          select: { id: true, importKey: true },
-        });
-        const existingImportKeys = new Set(
-          existingImportedRows.flatMap((row) =>
-            row.importKey ? [row.importKey] : [],
-          ),
-        );
-        const newImportRows = input.rows.filter(
-          (row) => !existingImportKeys.has(row.importKey),
-        );
-
+        const userId = ctx.user.id;
         const existingListings = await tx.listing.findMany({
-          where: { userId: ctx.user.id },
-          select: {
-            cultivarReferenceId: true,
-            description: true,
-            id: true,
-            price: true,
-            privateNote: true,
-            slug: true,
-            title: true,
-          },
+          where: { userId },
+          select: { ...importIdentitySelect, slug: true },
         });
-        const rowsToCreate: z.infer<typeof importListingSchema>[] = [];
-        const reusedListingIds: string[] = [];
-        for (const row of newImportRows) {
-          const match = getCatalogImportExistingListingMatch(
-            row,
-            existingListings,
-          );
-          if (match.kind === "possible" && !row.allowExistingDuplicate) {
-            throw new TRPCError({
-              code: "CONFLICT",
-              message: `Review the existing listing for ${row.title} before importing.`,
+        const keys = new Set(existingListings.map(catalogImportListingKey));
+        const reservedSlugs = new Set(existingListings.map(({ slug }) => slug));
+        const skippedNames: string[] = [];
+        const rowsToCreate = [];
+        for (const row of rows) {
+          const key = catalogImportListingKey(row);
+          if (keys.has(key)) {
+            skippedNames.push(row.title);
+          } else {
+            keys.add(key);
+            rowsToCreate.push({
+              ...row,
+              id: crypto.randomUUID(),
+              slug: reserveUniqueSlug(row.title, reservedSlugs),
             });
           }
-          if (match.kind === "exact" && !row.allowExistingDuplicate) {
-            reusedListingIds.push(match.listings[0]!.id);
-          } else {
-            rowsToCreate.push(row);
-          }
         }
+        if (rowsToCreate.length === 0) return { createdCount: 0, skippedNames };
 
         if (
-          rowsToCreate.length > 0 &&
           (ctx._confirmedActiveMembership === false ||
-            (subscriptionResult?.confirmed &&
-              !hasActiveSubscription(
-                subscriptionResult.subscription.status,
-              ))) &&
+            subscriptionResult?.confirmed) &&
+          !hasPro &&
           existingListings.length + rowsToCreate.length >
             APP_CONFIG.LISTING.FREE_TIER_MAX_LISTINGS
         ) {
@@ -226,59 +251,32 @@ export const dashboardDbListingRouter = createTRPCRouter({
           });
         }
 
-        if (rowsToCreate.length > 0) {
-          const reservedSlugs = new Set(
-            existingListings.map((listing) => listing.slug),
-          );
-          await tx.listing.createMany({
-            data: rowsToCreate.map((row) => ({
-              cultivarReferenceId: row.cultivarReferenceId,
-              description: row.description,
-              importKey: row.importKey,
-              price: row.price,
-              privateNote: row.privateNote,
-              slug: reserveUniqueSlug(row.title, reservedSlugs),
-              title: row.title,
-              userId: ctx.user.id,
-            })),
-          });
-        }
-
-        const importedRows = await tx.listing.findMany({
-          where: {
-            userId: ctx.user.id,
-            importKey: { in: [...rowsByImportKey.keys()] },
-          },
-          select: { id: true },
-        });
-
-        const listingIds = [
-          ...new Set([
-            ...importedRows.map((row) => row.id),
-            ...reusedListingIds,
-          ]),
+        const cultivarIds = [
+          ...new Set(
+            rowsToCreate.flatMap(({ cultivarReferenceId }) =>
+              cultivarReferenceId === null ? [] : [cultivarReferenceId],
+            ),
+          ),
         ];
-        if (listId && input.list) {
-          const listings = { connect: listingIds.map((id) => ({ id })) };
-          await tx.list.upsert({
-            where: { id: listId },
-            create: {
-              id: listId,
-              title: input.list.title,
-              userId: ctx.user.id,
-              listings,
-            },
-            update: { listings, updatedAt: listUpdatedAt },
+        if (
+          (await findImportCultivarIds(tx, cultivarIds)).length !==
+          cultivarIds.length
+        ) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message:
+              "A linked cultivar is no longer available. Upload the file again to check its links.",
           });
         }
 
-        return {
-          listId,
-          createdCount: rowsToCreate.length,
-          existingCount: existingImportedRows.length,
-          listingIds,
-          skippedExactCount: reusedListingIds.length,
-        };
+        await tx.listing.createMany({
+          data: rowsToCreate.map(({ lists: _lists, ...row }) => ({
+            ...row,
+            userId,
+          })),
+        });
+        await writeImportListMemberships(tx, userId, rowsToCreate);
+        return { createdCount: rowsToCreate.length, skippedNames };
       });
     }),
 

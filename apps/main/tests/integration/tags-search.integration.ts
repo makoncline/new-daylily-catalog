@@ -8,8 +8,9 @@ import type { Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
 
 const compareCultivars = process.env.TAGS_COMPARE_CULTIVAR_SEARCH === "1";
-const candidatePath = path.resolve(
-  ".tmp/search/public-search-candidate.sqlite",
+const candidatePath = path.join(
+  process.env.INTEGRATION_SEARCH_DIRECTORY!,
+  "public-search-candidate.sqlite",
 );
 const purchaseNote = "2026 fall synthetic purchase";
 const db = new PrismaClient({

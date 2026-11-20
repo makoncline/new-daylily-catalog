@@ -17,7 +17,6 @@ import {
 } from "@/server/search/public-search-index";
 
 export const MAX_CULTIVAR_MATCH_NAMES = 250;
-export const MAX_CULTIVAR_MATCH_NAME_LENGTH = 160;
 
 const CULTIVAR_MATCH_PROJECTION = `
   i.cultivarReferenceId,

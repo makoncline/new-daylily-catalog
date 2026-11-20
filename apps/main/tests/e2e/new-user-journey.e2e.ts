@@ -33,16 +33,15 @@ test.describe("dashboard setup journey @local", () => {
       });
 
       // Phase 1: auth and profile completion
-      // Direct signup URLs should enter the importer, not Clerk signup.
+      // Direct signup opens the public Playground.
       await page.goto("/sign-up");
-      await expect(page).toHaveURL(/\/catalog-importer/);
+      await expect(page).toHaveURL("/playground");
 
       // arrive on the home page
       await homePage.goto();
       await homePage.isReady();
 
-      // The dashboard entry point is sign-in only. New account creation must
-      // happen through the post-checkout onboarding success screen.
+      // The dashboard entry point is sign-in only.
       await homePage.openDashboard();
       await expect(page).toHaveURL(/\/sign-in/);
       await expect(

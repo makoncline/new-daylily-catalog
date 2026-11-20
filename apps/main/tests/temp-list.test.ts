@@ -5,35 +5,65 @@ import {
   createTempListSpreadsheet,
   createTempListing,
   matchTempListings,
-  MAX_TEMP_LISTINGS,
   tempListSchema,
   toTempPreviewRow,
-} from "@/app/(public)/temp-list/_lib/temp-list";
+} from "@/app/(public)/playground/_lib/temp-list";
 
 afterEach(() => vi.unstubAllGlobals());
 
 describe("temp list matching", () => {
-  it("uses one exact lookup and rejects oversized lists before making a request", async () => {
+  it("checks 350 rows in ordered API chunks and retries a later failure without changing the source", async () => {
+    const listings = Array.from({ length: 350 }, (_, index) => ({
+      ...createTempListing(`Flower ${index}`),
+      cultivarReferenceId: `reference-${index}`,
+    }));
+    let fail = true;
     const fetchMock = vi
       .fn<typeof fetch>()
-      .mockResolvedValue(Response.json({ results: [] }));
+      .mockImplementation(async (_url, options) => {
+        const body = JSON.parse(String(options?.body)) as {
+          names: string[];
+          cultivarReferenceIds: string[];
+        };
+        expect(body.names.length).toBeLessThanOrEqual(250);
+        expect(
+          body.names.reduce((total, name) => total + name.length, 0),
+        ).toBeLessThanOrEqual(30_000);
+        if (body.cultivarReferenceIds[0] === "reference-250" && fail) {
+          fail = false;
+          return Response.json(
+            { error: "Later chunk failed" },
+            { status: 503 },
+          );
+        }
+        return Response.json({
+          results: body.names.map((name, index) => ({
+            inputName: name,
+            inputCultivarReferenceId: body.cultivarReferenceIds[index],
+            exactMatch: null,
+            candidates: [],
+          })),
+        });
+      });
     vi.stubGlobal("fetch", fetchMock);
-    const listings = Array.from({ length: MAX_TEMP_LISTINGS }, (_, index) =>
-      createTempListing(`Flower ${index}`),
+    const before = JSON.stringify(listings);
+    await expect(matchTempListings(listings)).rejects.toThrow(
+      "Later chunk failed",
     );
-    await matchTempListings(listings);
-    expect(fetchMock).toHaveBeenCalledOnce();
-    const requestBody = fetchMock.mock.calls[0]?.[1]?.body;
-    if (typeof requestBody !== "string") throw new Error("Expected JSON body");
-    const body: unknown = JSON.parse(requestBody);
-    expect(body).toMatchObject({
-      names: listings.map((listing) => listing.name),
-      includeCandidates: false,
-    });
-    await expect(
-      matchTempListings([...listings, createTempListing("One too many")]),
-    ).rejects.toThrow("up to 100 flowers");
-    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(JSON.stringify(listings)).toBe(before);
+    const results = await matchTempListings(listings);
+    expect(results.map((row) => row.inputName)).toEqual(
+      listings.map((row) => row.name),
+    );
+    expect(results.map((row) => row.inputCultivarReferenceId)).toEqual(
+      listings.map((row) => row.cultivarReferenceId),
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(tempListSchema.parse(listings)).toHaveLength(350);
+    const longNames = Array.from({ length: 350 }, (_, index) =>
+      createTempListing(`Flower ${index}`.padEnd(160, "x")),
+    );
+    expect(await matchTempListings(longNames)).toHaveLength(350);
   });
 });
 

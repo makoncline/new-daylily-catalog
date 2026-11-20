@@ -75,6 +75,12 @@ const otherAuth: AuthSnapshot = {
   sessionId: "session_integration_other",
   getToken: async () => "integration-session-other",
 };
+const checkoutAuth: AuthSnapshot = {
+  ...signedInAuth,
+  userId: "user_integration_checkout",
+  sessionId: "session_integration_checkout",
+  getToken: async () => "integration-session-checkout",
+};
 const unloadedUser: UserSnapshot = {
   isLoaded: false,
   isSignedIn: undefined,
@@ -96,6 +102,16 @@ const otherUser: UserSnapshot = {
   user: { ...clerkUser, id: "user_integration_other" },
 };
 
+const checkoutUser: UserSnapshot = {
+  ...signedInUser,
+  user: {
+    id: "user_integration_checkout",
+    primaryEmailAddress: {
+      emailAddress: "integration-stripe-success@example.com",
+    },
+  },
+};
+
 export function ClerkProvider({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
@@ -108,7 +124,9 @@ export function useAuth() {
         ? anonymousAuth
         : account() === "other-member"
           ? otherAuth
-          : signedInAuth,
+          : account() === "checkout-member"
+            ? checkoutAuth
+            : signedInAuth,
     () => unloadedAuth,
   );
 }
@@ -121,7 +139,9 @@ export function useUser() {
         ? anonymousUser
         : account() === "other-member"
           ? otherUser
-          : signedInUser,
+          : account() === "checkout-member"
+            ? checkoutUser
+            : signedInUser,
     () => unloadedUser,
   );
 }

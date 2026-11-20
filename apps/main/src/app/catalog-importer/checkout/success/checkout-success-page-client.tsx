@@ -6,17 +6,13 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
+import { withSubscribeSuccessSyncedParam } from "@/lib/utils/safe-redirect";
 import { api } from "@/trpc/react";
 import { CheckoutStatusPage } from "../checkout-status-page";
-import {
-  CATALOG_IMPORTER_MEMBERSHIP_RETURN_PATH,
-  CATALOG_IMPORTER_RETURN_PATH,
-} from "@/lib/catalog-importer-membership";
 
 interface CheckoutStatus {
   sessionId: string;
   email: string;
-  status: string | null;
   isActive: boolean;
 }
 
@@ -29,6 +25,7 @@ export function CheckoutSuccessPageClient({
 }: CheckoutSuccessPageClientProps) {
   const router = useRouter();
   const { isLoaded, userId } = useAuth();
+  const utils = api.useUtils();
   const claimCheckout = api.catalogImporter.claimCheckout.useMutation();
   const hasStartedClaim = useRef(false);
   const autoClaimedSessionId = useRef<string | null>(null);
@@ -37,7 +34,7 @@ export function CheckoutSuccessPageClient({
     ? `/catalog-importer/checkout/success?session_id=${encodeURIComponent(
         status.sessionId,
       )}`
-    : CATALOG_IMPORTER_RETURN_PATH;
+    : "/playground";
 
   const claimCheckoutAndContinue = useCallback(() => {
     if (!activeSessionId || hasStartedClaim.current) {
@@ -51,14 +48,15 @@ export function CheckoutSuccessPageClient({
       },
       {
         onSuccess: () => {
-          router.replace(CATALOG_IMPORTER_MEMBERSHIP_RETURN_PATH);
+          void utils.stripe.getSubscription.invalidate();
+          router.replace(withSubscribeSuccessSyncedParam("/dashboard/imports"));
         },
         onError: () => {
           hasStartedClaim.current = false;
         },
       },
     );
-  }, [activeSessionId, claimCheckout, router]);
+  }, [activeSessionId, claimCheckout, router, utils]);
 
   useEffect(() => {
     if (!isLoaded || !userId || !activeSessionId) {
@@ -81,9 +79,7 @@ export function CheckoutSuccessPageClient({
         description="We could not find the checkout details for this page."
       >
         <Button asChild>
-          <Link href={CATALOG_IMPORTER_RETURN_PATH}>
-            Return to catalog importer
-          </Link>
+          <Link href="/playground">Return to Playground</Link>
         </Button>
       </CheckoutShell>
     );
@@ -98,7 +94,7 @@ export function CheckoutSuccessPageClient({
       >
         <div className="flex flex-col gap-3 sm:flex-row">
           <Button asChild>
-            <Link href={CATALOG_IMPORTER_RETURN_PATH}>Retry checkout</Link>
+            <Link href="/playground">Return to Playground</Link>
           </Button>
           <Button asChild variant="outline">
             <Link href="mailto:support@daylilycatalog.com">
@@ -114,8 +110,8 @@ export function CheckoutSuccessPageClient({
     return (
       <CheckoutShell
         eyebrow={SUBSCRIPTION_CONFIG.COPY.STATUS.ACTIVE_EYEBROW}
-        title="Opening your import"
-        description={SUBSCRIPTION_CONFIG.COPY.STATUS.ACTIVE_DESCRIPTION}
+        title="Opening your dashboard"
+        description="We are linking your membership to your account."
       >
         {claimCheckout.error ? (
           <div className="space-y-3">
@@ -182,9 +178,9 @@ function CheckoutAuthShell({
       className="bg-muted/20"
       data-testid="catalog-importer-checkout-success"
     >
-      <div className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-10 sm:gap-12 sm:py-16 lg:grid-cols-[minmax(0,1fr)_28rem] lg:px-8">
+      <div className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-10 sm:gap-12 sm:py-16 lg:grid-cols-2 lg:px-8">
         <div className="flex max-w-2xl flex-col gap-3">
-          <p className="text-xs font-semibold tracking-wide text-[#b7791f] uppercase">
+          <p className="text-primary text-xs font-semibold tracking-wide uppercase">
             {SUBSCRIPTION_CONFIG.COPY.STATUS.ACTIVE_EYEBROW}
           </p>
           <h1 className="text-3xl leading-tight font-semibold tracking-tight text-balance sm:text-4xl">
@@ -192,7 +188,6 @@ function CheckoutAuthShell({
           </h1>
           <p className="text-muted-foreground max-w-xl text-base leading-7">
             Use the email from checkout. We will send your one-time login code.
-            Your spreadsheet and progress remain in this browser.
           </p>
         </div>
 
