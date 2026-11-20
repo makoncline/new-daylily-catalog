@@ -60,11 +60,7 @@ async function openListingMedia(
   return { editor, images };
 }
 
-async function capturePopulated(
-  page: Page,
-  viewport: typeof desktop,
-  stateId: string,
-) {
+async function checkPopulated(page: Page, viewport: typeof desktop) {
   const { images } = await openListingMedia(
     page,
     viewport,
@@ -72,14 +68,9 @@ async function capturePopulated(
     9,
   );
   await expect(images.imageGrid()).toBeVisible();
-  await captureAtlasState(page, stateId);
 }
 
-async function captureEmpty(
-  page: Page,
-  viewport: typeof desktop,
-  stateId: string,
-) {
+async function checkEmpty(page: Page, viewport: typeof desktop) {
   const { images } = await openListingMedia(
     page,
     viewport,
@@ -92,14 +83,9 @@ async function captureEmpty(
       exact: true,
     }),
   ).toBeVisible();
-  await captureAtlasState(page, stateId);
 }
 
-async function capturePreview(
-  page: Page,
-  viewport: typeof desktop,
-  stateId: string,
-) {
+async function checkPreview(page: Page, viewport: typeof desktop) {
   const { images } = await openListingMedia(
     page,
     viewport,
@@ -114,43 +100,43 @@ async function capturePreview(
 
   await images.openImagePreviewById(firstImageId);
   await expect(page.getByRole("img", { name: "Gallery image" })).toBeVisible();
-  await captureAtlasState(page, stateId);
 }
 
-async function captureCrop(
-  page: Page,
-  viewport: typeof desktop,
-  stateId: string,
-) {
+async function checkCrop(page: Page, viewport: typeof desktop) {
   await openListingMedia(page, viewport, emptyListingTitle, 0);
   await page.locator("#image-upload-input").setInputFiles(uploadPath);
   await expect(page.getByRole("img", { name: "Crop preview" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Upload" })).toBeEnabled();
-  await captureAtlasState(page, stateId);
 }
 
 test("Desktop populated image grid", async ({ page }) => {
-  await capturePopulated(page, desktop, "listing-media-desktop-populated");
+  await checkPopulated(page, desktop);
+  await captureAtlasState(page, "listing-media-desktop-populated");
 });
 
 test("Mobile populated image grid", async ({ page }) => {
-  await capturePopulated(page, mobile, "listing-media-mobile-populated");
+  await checkPopulated(page, mobile);
+  await captureAtlasState(page, "listing-media-mobile-populated");
 });
 
 test("Desktop empty image manager", async ({ page }) => {
-  await captureEmpty(page, desktop, "listing-media-desktop-empty");
+  await checkEmpty(page, desktop);
+  await captureAtlasState(page, "listing-media-desktop-empty");
 });
 
 test("Mobile empty image manager", async ({ page }) => {
-  await captureEmpty(page, mobile, "listing-media-mobile-empty");
+  await checkEmpty(page, mobile);
+  await captureAtlasState(page, "listing-media-mobile-empty");
 });
 
 test("Desktop full-size preview", async ({ page }) => {
-  await capturePreview(page, desktop, "listing-media-desktop-preview");
+  await checkPreview(page, desktop);
+  await captureAtlasState(page, "listing-media-desktop-preview");
 });
 
 test("Mobile full-size preview", async ({ page }) => {
-  await capturePreview(page, mobile, "listing-media-mobile-preview");
+  await checkPreview(page, mobile);
+  await captureAtlasState(page, "listing-media-mobile-preview");
 });
 
 test("Delete image confirmation", async ({ page }) => {
@@ -199,9 +185,11 @@ test("Pointer reorder target", async ({ page }) => {
 });
 
 test("Desktop selected-file crop", async ({ page }) => {
-  await captureCrop(page, desktop, "listing-media-desktop-crop");
+  await checkCrop(page, desktop);
+  await captureAtlasState(page, "listing-media-desktop-crop");
 });
 
 test("Mobile selected-file crop", async ({ page }) => {
-  await captureCrop(page, mobile, "listing-media-mobile-crop");
+  await checkCrop(page, mobile);
+  await captureAtlasState(page, "listing-media-mobile-crop");
 });

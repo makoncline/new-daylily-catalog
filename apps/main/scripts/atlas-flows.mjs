@@ -21,6 +21,14 @@ const cultivarState = stateFor(
   "tests/atlas/cultivar-search.atlas.ts",
   "cultivar-search",
 );
+const playgroundState = stateFor(
+  "tests/atlas/playground.atlas.ts",
+  "playground",
+);
+const membershipState = stateFor(
+  "tests/atlas/onboarding-membership.atlas.ts",
+  "onboarding-membership",
+);
 const dashboardImporterState = stateFor(
   "tests/atlas/dashboard-catalog-importer.atlas.ts",
   "dashboard-catalog-importer",
@@ -473,7 +481,55 @@ export const ATLAS_FLOWS = [
       ],
       e2e: [],
     },
-    steps: [],
+    steps: [
+      {
+        title: "Enter cultivar names",
+        states: [
+          playgroundState(
+            "playground-input",
+            "Playground input",
+            "The empty Playground offers search, pasted names, and spreadsheet upload.",
+            "/playground",
+          ),
+        ],
+      },
+      {
+        title: "Review the names",
+        states: [
+          playgroundState(
+            "playground-review",
+            "Name review",
+            "Check the matches and decide whether to keep unlinked names.",
+            "/playground",
+            false,
+          ),
+        ],
+      },
+      {
+        title: "Preview the saved catalog",
+        states: [
+          playgroundState(
+            "playground-catalog",
+            "Saved catalog",
+            "Preview linked and unlinked listings as cards.",
+            "/playground",
+            false,
+          ),
+        ],
+      },
+      {
+        title: "Download the catalog",
+        states: [
+          playgroundState(
+            "playground-download",
+            "Spreadsheet download",
+            "Download the spreadsheet and find the link to the dashboard Importer.",
+            "/playground",
+            false,
+          ),
+        ],
+      },
+    ],
   },
   {
     id: "dashboard-catalog-importer",
@@ -524,7 +580,7 @@ export const ATLAS_FLOWS = [
     },
     steps: [
       {
-        title: "Choose a Playground file",
+        title: "Upload a Playground file",
         states: [
           dashboardImporterState(
             "dashboard-importer-start",
@@ -554,7 +610,7 @@ export const ATLAS_FLOWS = [
         ],
       },
       {
-        title: "Import new listings",
+        title: "Check the import result",
         states: [
           dashboardImporterState(
             "dashboard-importer-complete",
@@ -569,7 +625,7 @@ export const ATLAS_FLOWS = [
   },
   {
     id: "onboarding-membership",
-    audience: "member",
+    audience: "public",
     title: "Create a catalog and start membership",
     description:
       "Understand the grower offer and start a catalog. Keep email verification available for existing checkouts.",
@@ -617,7 +673,19 @@ export const ATLAS_FLOWS = [
       ],
       e2e: [],
     },
-    steps: [],
+    steps: [
+      {
+        title: "Learn when to choose membership",
+        states: [
+          membershipState(
+            "onboarding-start-membership",
+            "Grower membership",
+            "Start a catalog in the Playground. Choose membership when ready to publish.",
+            "/start-membership",
+          ),
+        ],
+      },
+    ],
   },
   {
     id: "dashboard-home",
@@ -1935,6 +2003,12 @@ export function validateAtlasFlows({ flows = ATLAS_FLOWS, appRoot }) {
   const captures = new Set();
   const allowedLayers = new Set(["unit", "integration", "e2e"]);
   for (const flow of flows) {
+    if (!flow.steps.length)
+      throw new Error(`Atlas flow has no steps: ${flow.id}`);
+    for (const step of flow.steps) {
+      if (!step.states.length)
+        throw new Error(`Atlas step has no states: ${flow.id} / ${step.title}`);
+    }
     if (flow.implementation) {
       for (const entryPoint of flow.implementation.entryPoints) {
         if (!existsSync(path.resolve(appRoot, entryPoint.path)))

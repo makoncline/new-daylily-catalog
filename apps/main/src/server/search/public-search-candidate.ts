@@ -21,9 +21,15 @@ function getAppRoot() {
 }
 
 export function getPublicSearchCandidatePath() {
-  return process.env.NODE_ENV === "production"
-    ? "/data/search/public-search-candidate.sqlite"
-    : path.join(getAppRoot(), ".tmp/search/public-search-candidate.sqlite");
+  if (process.env.NODE_ENV === "production") {
+    return "/data/search/public-search-candidate.sqlite";
+  }
+  const integrationDirectory = process.env.INTEGRATION_SEARCH_DIRECTORY;
+  const directory =
+    process.env.INTEGRATION_MODE === "1" && integrationDirectory
+      ? integrationDirectory
+      : path.join(getAppRoot(), ".tmp/search");
+  return path.join(directory, "public-search-candidate.sqlite");
 }
 
 export function buildPublicSearchCandidate() {

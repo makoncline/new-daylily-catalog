@@ -20,6 +20,7 @@ import {
   ATLAS_FLOWS,
   getAtlasFlow,
   missingFreshStateIds,
+  statesForFlow,
   validateAtlasFlows,
 } from "./atlas-flows.mjs";
 import { createDisposableRealisticDataSnapshot } from "./realistic-data-snapshot.mjs";
@@ -217,7 +218,7 @@ try {
         "test",
         "-c",
         "playwright.atlas.config.ts",
-        flow.steps[0].states[0].captureSpec,
+        ...new Set(statesForFlow(flow).map(({ captureSpec }) => captureSpec)),
       ],
       {
         cwd: appRoot,

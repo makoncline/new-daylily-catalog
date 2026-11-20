@@ -5,19 +5,20 @@ import { promisify } from "node:util";
 import type { Page } from "@playwright/test";
 
 export async function installPlaygroundSearchFixture() {
+  const searchDirectory = process.env.INTEGRATION_SEARCH_DIRECTORY;
+  if (!searchDirectory)
+    throw new Error(
+      "Use run-integration-local.mjs to install the search fixture.",
+    );
+  const candidatePath = path.join(
+    searchDirectory,
+    "public-search-candidate.sqlite",
+  );
   const flagsPath = process.env.RUNTIME_FEATURE_FLAGS_PATH!;
   const flags = await fs.readFile(flagsPath).catch(() => undefined);
-  const searchDirectory = path.resolve(".tmp/search");
-  const savedSearchDirectory = `${searchDirectory}-input-test-${process.pid}`;
-  const hadSearch = await fs.stat(searchDirectory).then(
-    () => true,
-    () => false,
-  );
-  if (hadSearch) await fs.rename(searchDirectory, savedSearchDirectory);
 
   async function restore() {
-    await fs.rm(searchDirectory, { recursive: true, force: true });
-    if (hadSearch) await fs.rename(savedSearchDirectory, searchDirectory);
+    await fs.rm(path.dirname(candidatePath), { recursive: true, force: true });
     if (flags) await fs.writeFile(flagsPath, flags);
     else await fs.rm(flagsPath, { force: true });
   }
@@ -32,7 +33,7 @@ export async function installPlaygroundSearchFixture() {
       "--source",
       process.env.DATABASE_URL!,
       "--target",
-      path.join(searchDirectory, "public-search-candidate.sqlite"),
+      candidatePath,
     ]);
   } catch (error) {
     await restore();

@@ -1,6 +1,6 @@
 import { captureAtlasState, expect, test } from "./atlas-test";
 
-test("Membership offer", async ({ page }) => {
+test("Start membership", async ({ page }) => {
   await page.goto("/start-membership");
   await expect(
     page.getByRole("heading", {
@@ -23,5 +23,5 @@ test("Membership offer", async ({ page }) => {
   ).toHaveAttribute("href", "/playground");
   await expect(page.locator("body")).not.toContainText(/\btrial\b/i);
   await expect(page.locator("body")).not.toContainText(/\$\s*\d/);
-  await captureAtlasState(page, "onboarding-membership-offer");
+  await captureAtlasState(page, "onboarding-start-membership");
 });

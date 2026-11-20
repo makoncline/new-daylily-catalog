@@ -58,21 +58,25 @@ test("Dashboard importer start", async ({ page }) => {
   await captureAtlasState(page, "dashboard-importer-start");
 });
 
-for (const [viewport, state] of [
-  [desktop, "dashboard-importer-ready"],
-  [mobile, "dashboard-importer-mobile-ready"],
-] as const) {
-  test(state, async ({ page }) => {
-    await openImporter(page, viewport);
-    await uploadSample(page);
-    expect(
-      await page.evaluate(
-        () => document.documentElement.scrollWidth <= innerWidth,
-      ),
-    ).toBe(true);
-    await captureAtlasState(page, state);
-  });
+async function checkPreview(page: Page, viewport: typeof desktop) {
+  await openImporter(page, viewport);
+  await uploadSample(page);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
 }
+
+test("Desktop import preview", async ({ page }) => {
+  await checkPreview(page, desktop);
+  await captureAtlasState(page, "dashboard-importer-ready");
+});
+
+test("Mobile import preview", async ({ page }) => {
+  await checkPreview(page, mobile);
+  await captureAtlasState(page, "dashboard-importer-mobile-ready");
+});
 
 test("Dashboard importer complete", async ({ page }) => {
   await openImporter(page);

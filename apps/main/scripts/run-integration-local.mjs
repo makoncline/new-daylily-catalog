@@ -1,6 +1,7 @@
 import { execFileSync, spawn } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
@@ -31,6 +32,10 @@ const databasePath = path.join(
   `integration-${runId}.sqlite`,
 );
 const databaseUrl = `file:${databasePath}`;
+const searchDirectory = path.join(
+  tmpdir(),
+  `daylily-integration-search-${runId}`,
+);
 const runtimeFlagsPath =
   process.env.RUNTIME_FEATURE_FLAGS_PATH ??
   path.join(appRoot, "tests", ".tmp", `integration-flags-${runId}.json`);
@@ -44,6 +49,7 @@ const integrationEnv = {
   NODE_ENV: "development",
   INTEGRATION_MODE: "1",
   INTEGRATION_NETWORK_GUARD: "1",
+  INTEGRATION_SEARCH_DIRECTORY: searchDirectory,
   APP_BASE_URL: appBaseUrl,
   INTEGRATION_PROVIDER_URL: providerUrl,
   DATABASE_URL: databaseUrl,
@@ -144,6 +150,7 @@ try {
   console.error(error);
 } finally {
   removeIntegrationDatabaseFiles(databaseUrl);
+  fs.rmSync(searchDirectory, { recursive: true, force: true });
   if (!process.env.RUNTIME_FEATURE_FLAGS_PATH)
     fs.rmSync(runtimeFlagsPath, { force: true });
   if (evidence?.finish(exitCode, forwardedSignal)) {
