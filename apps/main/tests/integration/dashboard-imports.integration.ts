@@ -100,13 +100,27 @@ function expectResult(page: Page, created: number, skipped: number) {
 }
 
 test.describe("Playground workbook round trip", () => {
+  const bulkListingPrefix = "Batch Sale Bloom ";
+  const bulkListTitle = "Bulk Import Sale";
   let restoreSearch:
     | Awaited<ReturnType<typeof installPlaygroundSearchFixture>>
     | undefined;
   test.beforeAll(async () => {
     restoreSearch = await installPlaygroundSearchFixture();
   });
-  test.afterAll(async () => restoreSearch?.());
+  test.afterAll(async () => {
+    try {
+      const userId = await sellerId();
+      await db.$transaction([
+        db.list.deleteMany({ where: { userId, title: bulkListTitle } }),
+        db.listing.deleteMany({
+          where: { userId, title: { startsWith: bulkListingPrefix } },
+        }),
+      ]);
+    } finally {
+      await restoreSearch?.();
+    }
+  });
 
   test("imports a real Playground download, then skips unchanged and edited listings", async ({
     context,
@@ -283,11 +297,11 @@ test.describe("Playground workbook round trip", () => {
       createSpreadsheetCsv([
         headers,
         ...Array.from({ length: 350 }, (_, index) => [
-          `Batch Sale Bloom ${index}`,
+          `${bulkListingPrefix}${index}`,
           index,
           null,
           `Source row ${index}`,
-          "Bulk Import Sale",
+          bulkListTitle,
           cultivarReferenceId,
         ]),
       ]),
@@ -310,7 +324,7 @@ test.describe("Playground workbook round trip", () => {
     await expectResult(page, 350, 0);
     expect(batchSizes).toEqual([100, 100, 100, 50]);
     const list = await db.list.findFirstOrThrow({
-      where: { userId: await sellerId(), title: "Bulk Import Sale" },
+      where: { userId: await sellerId(), title: bulkListTitle },
       include: {
         listings: {
           orderBy: { price: "asc" },
@@ -320,7 +334,7 @@ test.describe("Playground workbook round trip", () => {
     });
     expect(list.listings).toEqual(
       Array.from({ length: 350 }, (_, index) => ({
-        title: `Batch Sale Bloom ${index}`,
+        title: `${bulkListingPrefix}${index}`,
         price: index,
         cultivarReferenceId,
       })),

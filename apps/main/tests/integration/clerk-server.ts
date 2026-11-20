@@ -9,6 +9,15 @@ const clerkUser = {
   },
 };
 
+const checkoutUser = {
+  ...clerkUser,
+  id: "user_integration_checkout",
+  email: "integration-stripe-success@example.com",
+  primaryEmailAddress: {
+    emailAddress: "integration-stripe-success@example.com",
+  },
+};
+
 const authResult = {
   isAuthenticated: true,
   userId: clerkUser.id,
@@ -23,6 +32,8 @@ const anonymousAuthResult = {
 
 function authResultForCookie(value: string | undefined) {
   if (value === "anonymous") return anonymousAuthResult;
+  if (value === "checkout-member")
+    return { ...authResult, userId: checkoutUser.id };
   return value === "other-member"
     ? { ...authResult, userId: "user_integration_other" }
     : authResult;
@@ -90,7 +101,8 @@ export async function clerkClient() {
             : { isAuthenticated: false },
     }),
     users: {
-      getUser: async () => clerkUser,
+      getUser: async (userId: string) =>
+        userId === checkoutUser.id ? checkoutUser : clerkUser,
     },
   };
 }

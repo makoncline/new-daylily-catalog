@@ -157,11 +157,6 @@ async function startServer() {
       DATABASE_URL: databaseUrl,
       NEXT_PUBLIC_POSTHOG_KEY: "",
       NEXT_PUBLIC_SENTRY_ENABLED: "false",
-      PLAYWRIGHT_LOCAL_E2E: flows.some(
-        (flow) => flow.id === "onboarding-membership",
-      )
-        ? "true"
-        : process.env.PLAYWRIGHT_LOCAL_E2E,
       RUNTIME_FEATURE_FLAGS_PATH: runtimeFlagsPath,
       TURSO_DATABASE_AUTH_TOKEN: "",
       TURSO_EMBEDDED_REPLICA_URL: "",

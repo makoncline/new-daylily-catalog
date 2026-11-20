@@ -299,6 +299,9 @@ describe("sitemap and robots host selection", () => {
     expect(await (await mainSitemap()).text()).toContain(
       "<loc>http://localhost:4123/playground</loc>",
     );
+    expect(await (await mainSitemap()).text()).not.toContain(
+      "<loc>http://localhost:4123/catalog-importer",
+    );
   });
 
   it("rejects cultivar sitemap pages beyond the current replica count", async () => {

@@ -1,26 +1,87 @@
-import { createCatalogImporterCheckoutSource } from "@/lib/catalog-importer-membership";
+import path from "node:path";
+import { withTempE2EDb } from "@/lib/test-utils/e2e-db";
 import { expect, test } from "./fixtures";
 
-test("checkout success still loads for a session created before the Playground handoff was removed", async ({
-  context,
-  page,
-  baseURL,
-}) => {
-  await context.addCookies([
-    { name: "integration-auth", value: "anonymous", url: baseURL! },
-  ]);
-  const checkout = await context.request.post(
-    "/api/trpc/catalogImporter.createCheckout",
-    { data: { json: createCatalogImporterCheckoutSource("previous-import") } },
-  );
-  expect(checkout.ok(), await checkout.text()).toBe(true);
-  const { url } = (await checkout.json()).result.data.json as { url: string };
-  const sessionId = new URL(url).searchParams.get("session_id");
-  expect(sessionId).toBe("cs_test_integration_catalog_importer");
+const clerkUserId = "user_integration_checkout";
+const stripeCustomerId = "cus_integration_catalog_importer";
 
-  await page.goto(`/onboarding/checkout/success?session_id=${sessionId}`);
-  await expect(page).toHaveURL(url);
-  await expect(
-    page.getByRole("heading", { name: "Verify your email to continue." }),
-  ).toBeVisible();
-});
+const checkouts = [
+  {
+    name: "catalog importer checkout",
+    entry: "/catalog-importer/checkout/success",
+    sessionId: "cs_test_integration_catalog_importer",
+  },
+  {
+    name: "onboarding checkout",
+    entry: "/onboarding/checkout/success",
+    sessionId: "cs_test_integration_onboarding",
+  },
+];
+
+for (const { name, entry, sessionId } of checkouts) {
+  test(`claims an existing ${name} and opens the Importer`, async ({
+    context,
+    page,
+    baseURL,
+  }) => {
+    await withTempE2EDb(
+      async (db) => {
+        await db.user.updateMany({
+          where: { clerkUserId },
+          data: { stripeCustomerId: null },
+        });
+        await db.keyValue.deleteMany({
+          where: { key: `stripe:customer:${stripeCustomerId}` },
+        });
+      },
+      { clearFirst: false },
+    );
+
+    const isDirectReturn = entry === "/catalog-importer/checkout/success";
+    const authCookie = { name: "integration-auth", url: baseURL! };
+    const signedIn = { ...authCookie, value: "checkout-member" };
+    if (isDirectReturn) {
+      await context.addCookies([signedIn]);
+      await page.goto("/dashboard/imports");
+      await expect(page.getByText("Import listings with Pro")).toBeVisible();
+    }
+
+    await context.addCookies([{ ...authCookie, value: "anonymous" }]);
+    await page.goto(`${entry}?session_id=${sessionId}`);
+    await expect(page).toHaveURL(
+      `/catalog-importer/checkout/success?session_id=${sessionId}`,
+    );
+    await expect(
+      page.getByRole("heading", { name: "Verify your email to continue." }),
+    ).toBeVisible();
+
+    await context.addCookies([signedIn]);
+    await page.reload();
+    await expect(page.getByLabel("Playground file")).toBeVisible();
+    await expect(page).toHaveURL("/dashboard/imports");
+
+    await withTempE2EDb(
+      async (db) => {
+        const user = await db.user.findUniqueOrThrow({
+          where: { clerkUserId },
+        });
+        expect(user.stripeCustomerId).toBe(stripeCustomerId);
+        const subscription = await db.keyValue.findUniqueOrThrow({
+          where: { key: `stripe:customer:${stripeCustomerId}` },
+        });
+        expect(JSON.parse(subscription.value)).toMatchObject({
+          status: "active",
+        });
+      },
+      { clearFirst: false },
+    );
+
+    const evidenceDirectory = process.env.CHECKOUT_EVIDENCE_DIR;
+    if (evidenceDirectory && isDirectReturn) {
+      await page.screenshot({
+        path: path.join(evidenceDirectory, "checkout-imports.png"),
+        animations: "disabled",
+      });
+    }
+  });
+}

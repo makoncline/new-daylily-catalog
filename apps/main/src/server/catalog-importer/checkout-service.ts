@@ -2,54 +2,23 @@ import type { PrismaClient } from "@prisma/client";
 import type Stripe from "stripe";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { type SubscriptionBillingOption } from "@/config/subscription-config";
-import {
-  CATALOG_IMPORTER_ENTRY_SOURCE,
-  CATALOG_IMPORTER_MEMBERSHIP_RETURN_PATH,
-  CATALOG_IMPORTER_RETURN_PATH,
-  catalogImporterCheckoutSourceSchema,
-} from "@/lib/catalog-importer-membership";
-import { getCanonicalBaseUrl, getRequestBaseUrl } from "@/lib/utils/getBaseUrl";
+import { subscriptionBillingOptionSchema } from "@/config/subscription-config";
 import { captureServerPosthogEvent } from "@/server/analytics/posthog-server";
 import type { TRPCInternalContext } from "@/server/api/trpc";
 import { getStripeClient } from "@/server/stripe/client";
-import { createSubscriptionCheckout } from "@/server/stripe/create-subscription-checkout";
 import {
   getCheckoutSessionBillingOption,
-  getMembershipCheckoutPrice,
   HOSTED_BILLING_CHOICE,
 } from "@/server/stripe/membership-checkout-price";
 import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
-import {
-  createLocalE2ECheckoutSession,
-  getLocalE2ECheckoutDetails,
-  isLocalE2ECheckoutEnabled,
-} from "./local-checkout";
 
 const checkoutSessionIdSchema = z.string().trim().min(1).max(255);
-
-export const catalogImporterCheckoutInputSchema =
-  catalogImporterCheckoutSourceSchema;
-
-export const signedInCatalogImporterCheckoutInputSchema =
-  catalogImporterCheckoutSourceSchema;
 
 export const claimCatalogImporterCheckoutInputSchema = z
   .object({
     sessionId: checkoutSessionIdSchema,
   })
   .strict();
-
-interface CatalogImporterCheckoutDetails {
-  sessionId: string;
-  returnTo: "/playground";
-  customerId: string;
-  email: string;
-  importId: string;
-  billingOption: SubscriptionBillingOption | null;
-  source: string | null;
-  status: string | null;
-}
 
 type AuthenticatedUser = NonNullable<TRPCInternalContext["_authUser"]>;
 
@@ -98,17 +67,14 @@ async function getSubscriptionStatus(
   return subscription.status;
 }
 
-async function getStripeCheckoutDetails(
-  sessionId: string,
-): Promise<CatalogImporterCheckoutDetails> {
+async function getCheckoutDetails(sessionId: string) {
   const stripe = getStripeClient();
   const session = await stripe.checkout.sessions.retrieve(sessionId, {
     expand: ["customer", "subscription"],
   });
 
   if (
-    session.metadata?.entry_source !== CATALOG_IMPORTER_ENTRY_SOURCE ||
-    session.metadata?.return_to !== CATALOG_IMPORTER_RETURN_PATH ||
+    session.metadata?.entry_source !== "catalog_importer" ||
     !session.metadata.import_id
   ) {
     throw new TRPCError({
@@ -122,15 +88,12 @@ async function getStripeCheckoutDetails(
   if (!customerId || !email) {
     throw new TRPCError({
       code: "BAD_REQUEST",
-      message:
-        "This checkout is missing your details. Please start checkout again.",
+      message: "This checkout is missing your details. Contact support.",
     });
   }
 
   return {
-    billingOption: await getCheckoutSessionBillingOption(session),
-    sessionId: session.id,
-    returnTo: CATALOG_IMPORTER_RETURN_PATH,
+    session,
     customerId,
     email,
     importId: session.metadata.import_id,
@@ -139,158 +102,12 @@ async function getStripeCheckoutDetails(
   };
 }
 
-async function getCheckoutDetails(db: PrismaClient, sessionId: string) {
-  if (isLocalE2ECheckoutEnabled()) {
-    const localDetails = await getLocalE2ECheckoutDetails(db, sessionId);
-    if (localDetails) {
-      return localDetails;
-    }
-
-    throw new TRPCError({
-      code: "NOT_FOUND",
-      message: "This local checkout session was not found.",
-    });
-  }
-
-  return getStripeCheckoutDetails(sessionId);
-}
-
-function isLocalBaseUrl(value: string) {
-  try {
-    const { hostname } = new URL(value);
-    return (
-      hostname === "localhost" ||
-      hostname === "127.0.0.1" ||
-      hostname === "[::1]"
-    );
-  } catch {
-    return false;
-  }
-}
-
-function getCheckoutBaseUrl(headers?: Headers | null) {
-  const canonicalBaseUrl = getCanonicalBaseUrl();
-  const requestBaseUrl = getRequestBaseUrl(headers);
-
-  if (isLocalBaseUrl(canonicalBaseUrl) && isLocalBaseUrl(requestBaseUrl)) {
-    return requestBaseUrl;
-  }
-
-  return canonicalBaseUrl;
-}
-
-export async function createCatalogImporterCheckout({
-  db,
-  headers,
-  input,
-}: {
-  db: PrismaClient;
-  headers?: Headers | null;
-  input: z.infer<typeof catalogImporterCheckoutInputSchema>;
-}) {
-  const baseUrl = getCheckoutBaseUrl(headers);
-
-  if (isLocalE2ECheckoutEnabled()) {
-    const session = await createLocalE2ECheckoutSession({
-      db,
-      importId: input.importId,
-      returnTo: input.returnTo,
-    });
-
-    return {
-      url: `${baseUrl}/catalog-importer/checkout/success?session_id=${encodeURIComponent(
-        session.sessionId,
-      )}`,
-    };
-  }
-
-  const sourceMetadata = {
-    source: "catalog_importer",
-    import_id: input.importId,
-    entry_source: input.entrySource,
-    return_to: input.returnTo,
-  };
-  const stripe = getStripeClient();
-  const checkoutPrice = await getMembershipCheckoutPrice();
-  const session = await stripe.checkout.sessions.create({
-    mode: "subscription",
-    line_items: [
-      {
-        price: checkoutPrice.priceId,
-        quantity: 1,
-      },
-    ],
-    subscription_data: {
-      metadata: {
-        billing_choice: HOSTED_BILLING_CHOICE,
-        membership_currency: checkoutPrice.currency,
-        membership_product_id: checkoutPrice.productId,
-        ...sourceMetadata,
-      },
-    },
-    success_url: `${baseUrl}/catalog-importer/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${baseUrl}${input.returnTo}?checkout=canceled&import_id=${encodeURIComponent(
-      input.importId,
-    )}`,
-    metadata: {
-      billing_choice: HOSTED_BILLING_CHOICE,
-      membership_currency: checkoutPrice.currency,
-      membership_product_id: checkoutPrice.productId,
-      ...sourceMetadata,
-    },
-    client_reference_id: input.importId,
-  });
-
-  if (!session.url) {
-    throw new TRPCError({
-      code: "INTERNAL_SERVER_ERROR",
-      message: "We could not start checkout. Please try again.",
-    });
-  }
-
-  return { url: session.url };
-}
-
-export async function createSignedInCatalogImporterCheckout({
-  db,
-  input,
-  user,
-}: {
-  db: TRPCInternalContext["db"];
-  input: z.infer<typeof signedInCatalogImporterCheckoutInputSchema>;
-  user: AuthenticatedUser;
-}) {
-  const metadata = {
-    source: "catalog_importer",
-    import_id: input.importId,
-    entry_source: input.entrySource,
-  };
-
-  return createSubscriptionCheckout({
-    cancelPath: `${input.returnTo}?checkout=canceled&import_id=${encodeURIComponent(
-      input.importId,
-    )}`,
-    db,
-    metadata,
-    successPath: `/subscribe/success?redirect=${encodeURIComponent(
-      CATALOG_IMPORTER_MEMBERSHIP_RETURN_PATH,
-    )}`,
-    user,
-  });
-}
-
-export async function getCatalogImporterCheckoutStatus(
-  db: PrismaClient,
-  sessionId: string,
-) {
-  const details = await getCheckoutDetails(db, sessionId);
+export async function getCatalogImporterCheckoutStatus(sessionId: string) {
+  const details = await getCheckoutDetails(sessionId);
 
   return {
-    sessionId: details.sessionId,
-    returnTo: details.returnTo,
+    sessionId: details.session.id,
     email: details.email,
-    importId: details.importId,
-    status: details.status,
     isActive: hasActiveSubscription(details.status),
   };
 }
@@ -304,7 +121,7 @@ export async function claimCatalogImporterCheckout({
   input: z.infer<typeof claimCatalogImporterCheckoutInputSchema>;
   user: AuthenticatedUser;
 }) {
-  const details = await getCheckoutDetails(db, input.sessionId);
+  const details = await getCheckoutDetails(input.sessionId);
 
   if (!hasActiveSubscription(details.status)) {
     throw new TRPCError({
@@ -354,13 +171,22 @@ export async function claimCatalogImporterCheckout({
         : null;
   const clerkUserId = user.clerkUserId;
   if (activationEvent && clerkUserId) {
+    const metadata = details.session.metadata;
+    const billingOption =
+      subscriptionBillingOptionSchema.safeParse(metadata?.billing_option)
+        .data ??
+      (metadata?.billing_choice === HOSTED_BILLING_CHOICE
+        ? await getCheckoutSessionBillingOption(details.session).catch(
+            () => null,
+          )
+        : null);
     await captureServerPosthogEvent({
       distinctId: clerkUserId,
       event: activationEvent,
       properties: {
-        $insert_id: `catalog-importer:${activationEvent}:${details.sessionId}`,
+        $insert_id: `catalog-importer:${activationEvent}:${details.session.id}`,
         import_id: details.importId,
-        billing_option: details.billingOption ?? undefined,
+        billing_option: billingOption ?? undefined,
         source: details.source ?? "catalog-importer-checkout-claim",
         source_page: "/catalog-importer/checkout/success",
         stripe_customer_id: details.customerId,

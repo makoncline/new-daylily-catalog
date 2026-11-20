@@ -580,7 +580,7 @@ export const ATLAS_FLOWS = [
           path: "src/app/start-membership/page.tsx",
         },
         {
-          label: "Existing checkout return",
+          label: "Claim an existing catalog-importer checkout",
           path: "src/app/catalog-importer/checkout/success/page.tsx",
         },
         {
@@ -594,7 +594,8 @@ export const ATLAS_FLOWS = [
       ],
       invariants: [
         "Send growers to the Playground to build and download a catalog. The dashboard Importer accepts that file.",
-        "Keep the checkout success page and account claims for existing sessions.",
+        "The Playground does not start membership checkout. Use the standard dashboard membership action.",
+        "Keep the original checkout success URLs for existing catalog-importer sessions. Validate the entry source and account ownership, link the Stripe customer, and open the dashboard Importer.",
       ],
     },
     tests: {

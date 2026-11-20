@@ -278,3 +278,5 @@ check current code before applying them.
 - [2026-11-19] Next.js agent upgrade notice: Next 16.4 can exit before a local integration run when a security upgrade is available. Report the notice separately. For an isolated test run, set `CI=1 __NEXT_AGENT_UPGRADE=security` to use the CLI's non-interactive CI path.
 
 - [2026-11-19] Playground match fixtures: The public search index needs a `V2AhsCultivar` link. The legacy-only onboarding fixtures do not match by ID in the Playground. Seed V2 links before building the test index.
+
+- [2026-11-19] Bulk import fixture isolation: The 350 imported rows filled the shared seller's first Listings page and hid a seeded row from later list tests. Remove the bulk fixture rows after checking their persistence. Run the complete browser suite to catch shared database effects.
