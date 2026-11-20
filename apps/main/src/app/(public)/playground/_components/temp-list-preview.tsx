@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { Download, Flower2, Pencil, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { CatalogListingCard } from "@/components/catalog-listing-card";
@@ -64,6 +65,7 @@ import { TempCatalogPrint } from "./temp-catalog-print";
 export function TempListPreview({
   rows,
   busy,
+  storageError,
   onEdit,
   onUpdate,
   onRemove,
@@ -71,10 +73,11 @@ export function TempListPreview({
 }: {
   rows: TempPreviewRow[];
   busy: boolean;
+  storageError: string | null;
   onEdit: (listing: TempListing) => void;
-  onUpdate: (listing: TempListing) => void;
-  onRemove: (ids: string[]) => void;
-  onAddToList: (ids: string[], title: string) => void;
+  onUpdate: (listing: TempListing) => boolean;
+  onRemove: (ids: string[]) => boolean;
+  onAddToList: (ids: string[], title: string) => boolean;
 }) {
   const listNames = JSON.stringify(
     [...new Set(rows.flatMap((row) => row.listing.lists ?? []))].sort(),
@@ -222,7 +225,8 @@ export function TempListPreview({
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onSelect={() => {
-                    onRemove(selected.map((row) => row.listing.id));
+                    if (!onRemove(selected.map((row) => row.listing.id)))
+                      return;
                     setSelection({});
                     setShowSelected(false);
                   }}
@@ -274,6 +278,11 @@ export function TempListPreview({
             multiple={false}
             label="Choose a list"
           />
+          {storageError ? (
+            <p role="alert" className="text-destructive text-sm">
+              {storageError}
+            </p>
+          ) : null}
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddingToList(false)}>
               Cancel
@@ -281,11 +290,13 @@ export function TempListPreview({
             <Button
               disabled={!targetList.length}
               onClick={() => {
-                onAddToList(
-                  selected.map((row) => row.listing.id),
-                  targetList[0]!,
-                );
-                setAddingToList(false);
+                if (
+                  onAddToList(
+                    selected.map((row) => row.listing.id),
+                    targetList[0]!,
+                  )
+                )
+                  setAddingToList(false);
               }}
             >
               Add to list
@@ -422,6 +433,17 @@ export function TempListPreview({
           disabled={!filtered.length || busy || missingDetails}
         />
       </div>
+      <p className="text-muted-foreground max-w-prose text-sm">
+        With a Pro membership, you can publish your catalog. Download the
+        spreadsheet, then{" "}
+        <Link
+          href="/dashboard/imports"
+          className="text-foreground underline underline-offset-4"
+        >
+          import it in your dashboard
+        </Link>
+        . Extra spreadsheet columns are not imported.
+      </p>
     </section>
   );
 }

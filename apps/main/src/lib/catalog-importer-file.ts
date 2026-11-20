@@ -5,7 +5,7 @@ import type {
   SpreadsheetCell,
   SpreadsheetSheet,
 } from "@/lib/catalog-importer";
-import { createSpreadsheetCsv, detectHeaderRow } from "@/lib/catalog-importer";
+import { detectHeaderRow } from "@/lib/catalog-importer";
 
 export const MAX_CATALOG_IMPORT_FILE_BYTES = 10 * 1024 * 1024;
 export const MAX_CATALOG_IMPORT_ROWS_PER_SHEET = 5_000;
@@ -136,20 +136,8 @@ export async function parseCatalogImportFile(
 
   return {
     fileName: file.name,
-    source: "upload",
     sheets,
   };
-}
-
-function downloadBlob(blob: Blob, fileName: string) {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = fileName;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
 }
 
 export async function downloadCatalogImportFile({
@@ -159,15 +147,6 @@ export async function downloadCatalogImportFile({
   fileName: string;
   spreadsheet: ParsedSpreadsheet;
 }) {
-  if (fileName.toLowerCase().endsWith(".csv")) {
-    const csv = createSpreadsheetCsv(spreadsheet.sheets[0]?.rows ?? []);
-    downloadBlob(
-      new Blob([csv], { type: "text/csv;charset=utf-8;" }),
-      fileName,
-    );
-    return;
-  }
-
   const { default: writeExcelFile } = await import("write-excel-file/browser");
   await writeExcelFile(
     spreadsheet.sheets.map((sheet) => ({
@@ -176,20 +155,4 @@ export async function downloadCatalogImportFile({
       sheet: sheet.name.slice(0, 31) || "Sheet",
     })),
   ).toFile(fileName);
-}
-
-export function getCatalogImporterDownloadFileName(
-  fileName: string,
-  kind: "clean" | "enriched",
-) {
-  const extension = fileName.toLowerCase().endsWith(".csv") ? "csv" : "xlsx";
-  const baseName = fileName.replace(/\.[^.]+$/, "");
-  const safeName =
-    baseName
-      .trim()
-      .replace(/[^a-zA-Z0-9_-]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .toLowerCase() || "daylily-catalog";
-
-  return `${safeName}-${kind === "clean" ? "prepared-import" : "enhanced-original"}.${extension}`;
 }

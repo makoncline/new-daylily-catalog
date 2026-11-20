@@ -71,7 +71,11 @@ describe("temp list browser store", () => {
       .mockImplementation(() => {
         throw new DOMException("Quota exceeded", "QuotaExceededError");
       });
-    act(() => store.writeTempList([draft]));
+    act(() => {
+      expect(store.writeTempList([draft], { keepUnsavedRows: true })).toBe(
+        false,
+      );
+    });
     expect(view.result.current.listings).toEqual([draft]);
     expect(view.result.current.storageError).toContain("could not save");
     expect(store.getTempListSnapshot()).toBe(view.result.current);

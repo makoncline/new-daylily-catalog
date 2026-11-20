@@ -43,9 +43,10 @@ export function getTempDuplicateIds(
   );
   return new Set(
     rows
-      .filter(({ listing }) => {
+      .filter(({ listing, preserveName }) => {
         const key = tempListingKey(listing);
         const nameOnly =
+          !preserveName &&
           listing.price === null &&
           !listing.description.trim() &&
           !listing.privateNote.trim() &&
@@ -85,8 +86,8 @@ export async function matchReviewListings(
   added.forEach((listing, index) => {
     const result = results[index];
     if (result?.invalidCultivarReferenceId) {
-      issues.push(
-        createTempImportIssue(
+      issues.push({
+        ...createTempImportIssue(
           toTempListingDraft(listing),
           [
             {
@@ -97,7 +98,8 @@ export async function matchReviewListings(
           undefined,
           true,
         ),
-      );
+        preserveNames: preserveNames || preserveLinks,
+      });
       return;
     }
     rows.push({

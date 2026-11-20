@@ -43,7 +43,7 @@ export const tempListVisibleColumns = [
 ];
 
 export function getTempListColumns(
-  onUpdate: (listing: TempListing) => void,
+  onUpdate: (listing: TempListing) => boolean,
   onRemove: (id: string) => void,
   lists: string[],
   onEdit: ((listing: TempListing) => void) | undefined,
@@ -88,14 +88,14 @@ export function getTempListColumns(
                 }
                 label={`${tempListColumnNames[column.id]} for ${listing.name}`}
                 field={column.id}
-                onSave={(value) => {
-                  if (key === "price")
-                    onUpdate({
-                      ...listing,
-                      price: value.trim() ? Number(value) : null,
-                    });
-                  else onUpdate({ ...listing, [key]: value });
-                }}
+                onSave={(value) =>
+                  key === "price"
+                    ? onUpdate({
+                        ...listing,
+                        price: value.trim() ? Number(value) : null,
+                      })
+                    : onUpdate({ ...listing, [key]: value })
+                }
               />
               {key === "name" &&
               row.original.match &&

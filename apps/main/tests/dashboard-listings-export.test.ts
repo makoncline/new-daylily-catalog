@@ -5,14 +5,13 @@ import {
   DASHBOARD_LISTINGS_EXPORT_HEADERS,
 } from "@/app/dashboard/listings/_lib/dashboard-listings-export";
 import {
-  createCatalogImportRows,
-  getSourceColumns,
-  suggestColumnMapping,
-} from "@/lib/catalog-importer";
+  readTempListSheet,
+  suggestTempColumnMapping,
+} from "@/app/(public)/playground/_lib/temp-list-spreadsheet";
 import { parseCatalogImportFile } from "@/lib/catalog-importer-file";
 
 describe("dashboard listings export", () => {
-  it("round trips seller fields and cultivar identity through the import builder", async () => {
+  it("round trips seller fields and cultivar identity through the Playground", async () => {
     const listing = {
       ahsListing: {
         bloomHabit: "Reblooms",
@@ -52,31 +51,28 @@ describe("dashboard listings export", () => {
     Object.defineProperty(file, "text", {
       value: async () => csv,
     });
-    const spreadsheet = await parseCatalogImportFile(file);
-    const rows = spreadsheet.sheets[0]?.rows ?? [];
-    const columns = getSourceColumns(rows, 0);
-    const mapping = suggestColumnMapping(rows, 0, columns);
-    const importRows = createCatalogImportRows({
-      headerRowIndex: 0,
-      mapping,
-      rows,
-    });
+    const {
+      sheets: [sheet],
+    } = await parseCatalogImportFile(file);
+    const { listings, issues } = readTempListSheet(
+      sheet!,
+      0,
+      suggestTempColumnMapping(sheet!, 0),
+    );
+    const { rows } = sheet!;
 
     expect(rows[0]).toEqual([...DASHBOARD_LISTINGS_EXPORT_HEADERS]);
-    expect(mapping).toMatchObject({
-      cultivarReferenceId: 4,
-      description: 2,
-      price: 1,
-      privateNote: 3,
-      title: 0,
-    });
-    expect(importRows[0]).toMatchObject({
-      description: 'Rose flower, 6" bloom',
-      price: 25,
-      privateNote: "Keep for fall",
-      sourceCultivarReferenceId: "cr-example-1",
-      sourceTitle: 'Seller "A" Daylily',
-    });
+    expect(issues).toEqual([]);
+    expect(listings).toMatchObject([
+      {
+        description: 'Rose flower, 6" bloom',
+        price: 25,
+        privateNote: "Keep for fall",
+        cultivarReferenceId: "cr-example-1",
+        name: 'Seller "A" Daylily',
+        lists: ["Front, display", "Sale"],
+      },
+    ]);
     expect(rows[1]?.[6]).toBe(
       "https://daylilycatalog.com/cultivar/a-~22quoted~22-daylily",
     );

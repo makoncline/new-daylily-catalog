@@ -375,7 +375,7 @@ export const ATLAS_FLOWS = [
     audience: "public",
     title: "Daylily Catalog Playground",
     description:
-      "Add one cultivar, paste names, or upload a spreadsheet without an account. Keep separate entries and download their data.",
+      "Build and edit a catalog in the browser without an account. Download a spreadsheet for the dashboard Importer or print catalog cards.",
     implementation: {
       entryPoints: [
         {
@@ -383,8 +383,8 @@ export const ATLAS_FLOWS = [
           path: "src/app/(public)/playground/_components/temp-list-cultivar-search.tsx",
         },
         {
-          label: "Save accepted rows to the dashboard importer",
-          path: "src/app/(public)/playground/_lib/temp-catalog-save.ts",
+          label: "Spreadsheet download and dashboard Importer link",
+          path: "src/app/(public)/playground/_components/temp-list-preview.tsx",
         },
         {
           label: "Printable cards preview and generation",
@@ -453,12 +453,17 @@ export const ATLAS_FLOWS = [
         "Preserve extra columns through browser storage, editing, and spreadsheet download. Re-import restores explicit links, unlinks, edited names, and lists. Reuse shared listing validation. Open the full editor from each table row. Catalog cards use edited names; cultivar detail image cards keep registered names. Printable cards preview page one before full generation, show progress, and reuse generated images for the PDF. Stack PDF cards in one column with tight gaps.",
         "Show actual remaining capacity before input and review. Support 5,000 new rows. Read saved rows above this limit and restore removed rows by ID without truncation. Block writes to unreadable storage until an explicit reset and offer the raw data download. Match in ordered chunks of at most 250. Keep the source and prior review after a later chunk fails.",
         "Keep Ready rows collapsed while a batch needs review. Show full-width name fields for corrections. Boost phrase-match confidence only for whole tokens, not text inside another word.",
-        "Use the shared dashboard table and editor fields. Put editable fields before cultivar details. Keep database fields read-only and show list badges until their picker opens. Match dashboard editor section order, allow local list edits, and use the shared ProUpgrade photo prompt. Keep search filters expanded. Keep temp-list edits in this browser and protect unsaved fields before leaving the editor.",
+        "Use the shared dashboard table and editor fields. Put editable fields before read-only cultivar details. Keep search filters expanded and protect unsaved editor fields.",
+        "Skip exact spreadsheet duplicates. Keep rows with different names or cultivar links. Apply the broader name-or-link rule only to pasted names. Keep overlong cultivar IDs in row review.",
+        "When the browser cannot save the catalog, show an error. Keep the review, edit, or bulk selection available to retry. Do not show success.",
+        "Keep the catalog in this browser. Link to the dashboard Importer next to the spreadsheet download. Do not start checkout or write an account draft. Redirect old Playground URLs without redirecting checkout success.",
       ],
     },
     tests: {
       unit: [],
       integration: [
+        testRef("integration", "tests/catalog-importer-file.test.ts"),
+        testRef("integration", "tests/catalog-importer.test.ts"),
         testRef("integration", "tests/temp-list.test.ts"),
         testRef("integration", "tests/temp-list-input.test.tsx"),
         testRef("integration", "tests/temp-list-store.test.tsx"),
@@ -567,12 +572,16 @@ export const ATLAS_FLOWS = [
     audience: "member",
     title: "Create a catalog and start membership",
     description:
-      "Understand the grower offer, transform an existing catalog, and continue to Stripe-hosted membership checkout.",
+      "Understand the grower offer and start a catalog. Keep email verification available for existing checkouts.",
     implementation: {
       entryPoints: [
         {
-          label: "Importer finish membership offer",
-          path: "src/components/catalog-builder/membership-actions.tsx",
+          label: "Grower membership offer",
+          path: "src/app/start-membership/page.tsx",
+        },
+        {
+          label: "Existing checkout return",
+          path: "src/app/catalog-importer/checkout/success/page.tsx",
         },
         {
           label: "Optional Pro feedback",
@@ -584,15 +593,12 @@ export const ATLAS_FLOWS = [
         },
       ],
       invariants: [
-        "Keep the Playground draft through checkout and email verification. Return to the dashboard Importer for an explicit save confirmation.",
-        "Keep checkout and account claims on the existing server procedures. Keep cancel and retry links on Playground.",
+        "Send growers to the Playground to build and download a catalog. The dashboard Importer accepts that file.",
+        "Keep the checkout success page and account claims for existing sessions.",
       ],
     },
     tests: {
-      unit: [
-        testRef("unit", "tests/catalog-importer-draft.test.ts"),
-        testRef("unit", "tests/catalog-importer-file.test.ts"),
-      ],
+      unit: [],
       integration: [
         testRef("integration", "tests/pro-membership-feedback.test.tsx"),
         fullAppIntegrationRef(

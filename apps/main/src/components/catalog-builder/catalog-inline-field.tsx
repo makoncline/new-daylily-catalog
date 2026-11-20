@@ -10,7 +10,7 @@ export interface CatalogInlineFieldProps {
   value: string;
   label: string;
   field: "title" | "price" | "description" | "privateNote";
-  onSave: (value: string) => void;
+  onSave: (value: string) => boolean;
   disabled?: boolean;
   className?: string;
 }
@@ -54,10 +54,13 @@ export function CatalogInlineField({
       );
       return;
     }
+    if (next !== value && !onSave(next)) {
+      setError("Could not save this change. Try again.");
+      return;
+    }
     setError(null);
     restoreFocusRef.current = restoreFocus;
     setEditing(false);
-    if (next !== value) onSave(next);
   }
 
   if (!editing) {

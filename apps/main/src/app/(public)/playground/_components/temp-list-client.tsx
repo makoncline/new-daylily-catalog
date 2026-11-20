@@ -54,56 +54,54 @@ import {
 import { TempListInput } from "./temp-list-input";
 import { TempListEditor } from "./temp-list-editor";
 import { TempListPreview } from "./temp-list-preview";
-import { TempCatalogSave } from "./temp-catalog-save";
+
+function showUndo(message: string, undo: () => boolean) {
+  toast(message, {
+    duration: 30_000,
+    action: {
+      label: "Undo",
+      onClick: (event) => {
+        if (!undo()) event.preventDefault();
+      },
+    },
+  });
+}
 
 function updateTempListing(updated: TempListing) {
-  const previous = getTempListSnapshot().listings.find(
-    (row) => row.id === updated.id,
-  );
-  const written = writeTempList(
-    getTempListSnapshot().listings.map((listing) =>
-      listing.id === updated.id ? updated : listing,
-    ),
-  );
+  const current = getTempListSnapshot().listings;
+  const previous = current.find((row) => row.id === updated.id);
   if (
-    written &&
-    previous?.cultivarReferenceId &&
-    !updated.cultivarReferenceId
-  ) {
-    toast("Cultivar link removed", {
-      duration: 30_000,
-      action: {
-        label: "Undo",
-        onClick: () => {
-          writeTempList(
-            getTempListSnapshot().listings.map((row) =>
-              row.id === previous.id && !row.cultivarReferenceId
-                ? { ...row, cultivarReferenceId: previous.cultivarReferenceId }
-                : row,
-            ),
-          );
-        },
-      },
-    });
+    !writeTempList(
+      current.map((row) => (row.id === updated.id ? updated : row)),
+    )
+  )
+    return false;
+
+  if (previous?.cultivarReferenceId && !updated.cultivarReferenceId) {
+    showUndo("Cultivar link removed", () =>
+      writeTempList(
+        getTempListSnapshot().listings.map((row) =>
+          row.id === previous.id && !row.cultivarReferenceId
+            ? { ...row, cultivarReferenceId: previous.cultivarReferenceId }
+            : row,
+        ),
+      ),
+    );
   }
+  return true;
 }
 
 function removeTempListings(ids: string[]) {
   const current = getTempListSnapshot().listings;
   const removed = current.filter((listing) => ids.includes(listing.id));
   if (!writeTempList(current.filter((listing) => !ids.includes(listing.id))))
-    return;
-  toast("Removed from Playground", {
-    duration: 30_000,
-    action: {
-      label: "Undo",
-      onClick: () => restoreTempListings(removed),
-    },
-  });
+    return false;
+  showUndo("Removed from Playground", () => restoreTempListings(removed));
+  return true;
 }
 
 function addTempListingsToList(ids: string[], title: string) {
-  writeTempList(
+  return writeTempList(
     getTempListSnapshot().listings.map((listing) =>
       ids.includes(listing.id)
         ? { ...listing, lists: [...new Set([...(listing.lists ?? []), title])] }
@@ -235,7 +233,11 @@ export function TempListClient() {
     setError(null);
   }
 
-  function save(next: TempListing[], found: CultivarMatchCandidate[] = []) {
+  function save(
+    next: TempListing[],
+    found: CultivarMatchCandidate[] = [],
+    keepUnsavedRows = false,
+  ) {
     if (getTempListSnapshot().writeBlocked) return false;
     const known = {
       ...matches,
@@ -251,7 +253,7 @@ export function TempListClient() {
     ) {
       queryClient.setQueryData(getTempCultivarQueryKey(next), known);
     }
-    return writeTempList(next);
+    return writeTempList(next, { keepUnsavedRows });
   }
 
   async function checkListings({
@@ -401,10 +403,13 @@ export function TempListClient() {
       setError(`There is room for ${remainingCapacity} more flowers.`);
       return;
     }
-    save(
-      [...listings, ...added.map(({ listing }) => listing)],
-      added.flatMap(({ match }) => (match ? [match] : [])),
-    );
+    if (
+      !save(
+        [...listings, ...added.map(({ listing }) => listing)],
+        added.flatMap(({ match }) => (match ? [match] : [])),
+      )
+    )
+      return;
     if (!remaining.length && !reviewIssues.length) resetTempReview();
     else setReview(remaining);
 
@@ -424,40 +429,40 @@ export function TempListClient() {
   );
   return (
     <>
+      {storageError && !editing ? (
+        <Alert variant="destructive">
+          <AlertTitle>Browser storage unavailable</AlertTitle>
+          <AlertDescription>
+            <p>{storageError}</p>
+            {writeBlocked ? (
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  disabled={recoveryRaw === null}
+                  onClick={() => {
+                    const url = URL.createObjectURL(
+                      new Blob([recoveryRaw ?? ""], {
+                        type: "application/json",
+                      }),
+                    );
+                    const link = document.createElement("a");
+                    link.href = url;
+                    link.download = "playground-saved-data.json";
+                    link.click();
+                    setTimeout(() => URL.revokeObjectURL(url), 1000);
+                  }}
+                >
+                  Download saved data
+                </Button>
+                <Button variant="outline" onClick={() => setResetOpen(true)}>
+                  Reset saved data
+                </Button>
+              </div>
+            ) : null}
+          </AlertDescription>
+        </Alert>
+      ) : null}
       <div className={editing ? "hidden" : "flex flex-col gap-6"}>
-        {storageError ? (
-          <Alert variant="destructive">
-            <AlertTitle>Browser storage unavailable</AlertTitle>
-            <AlertDescription>
-              <p>{storageError}</p>
-              {writeBlocked ? (
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant="outline"
-                    disabled={recoveryRaw === null}
-                    onClick={() => {
-                      const url = URL.createObjectURL(
-                        new Blob([recoveryRaw ?? ""], {
-                          type: "application/json",
-                        }),
-                      );
-                      const link = document.createElement("a");
-                      link.href = url;
-                      link.download = "playground-saved-data.json";
-                      link.click();
-                      setTimeout(() => URL.revokeObjectURL(url), 1000);
-                    }}
-                  >
-                    Download saved data
-                  </Button>
-                  <Button variant="outline" onClick={() => setResetOpen(true)}>
-                    Reset saved data
-                  </Button>
-                </div>
-              ) : null}
-            </AlertDescription>
-          </Alert>
-        ) : null}
         {reviewStorageError ? (
           <Alert variant="destructive">
             <AlertTitle>Review storage unavailable</AlertTitle>
@@ -512,16 +517,20 @@ export function TempListClient() {
               );
               return;
             }
-            save(
-              [
-                ...listings,
-                {
-                  ...createTempListing(cultivar.displayName),
-                  cultivarReferenceId: cultivar.cultivarReferenceId,
-                },
-              ],
-              [cultivar],
-            );
+            if (
+              !save(
+                [
+                  ...listings,
+                  {
+                    ...createTempListing(cultivar.displayName),
+                    cultivarReferenceId: cultivar.cultivarReferenceId,
+                  },
+                ],
+                [cultivar],
+                true,
+              )
+            )
+              return;
             setError(null);
             toast.success(`${cultivar.displayName} added`);
           }}
@@ -621,13 +630,9 @@ export function TempListClient() {
                 </Button>
               </div>
             </div>
-            <TempCatalogSave
-              listings={listings}
-              matches={matches}
-              disabled={busy || !ready || writeBlocked}
-            />
             <TempListPreview
               rows={rows}
+              storageError={storageError}
               busy={!ready || busy || writeBlocked}
               onEdit={setEditing}
               onUpdate={updateTempListing}
@@ -641,6 +646,7 @@ export function TempListClient() {
         <TempListEditor
           key={editing.id}
           listing={editing}
+          storageError={storageError}
           listOptions={[
             ...new Set(listings.flatMap((row) => row.lists ?? [])),
           ].sort()}
@@ -651,19 +657,18 @@ export function TempListClient() {
           }
           onClose={() => setEditing(null)}
           onSave={(listing, match) => {
-            save(
-              listings.some((row) => row.id === listing.id)
-                ? listings.map((row) => (row.id === listing.id ? listing : row))
-                : [...listings, listing],
-              match ? [match] : [],
-            );
-            setEditing(null);
+            if (
+              save(
+                listings.map((row) => (row.id === listing.id ? listing : row)),
+                match ? [match] : [],
+              )
+            )
+              setEditing(null);
           }}
           onRemove={
             listings.some((row) => row.id === editing.id)
               ? () => {
-                  removeTempListings([editing.id]);
-                  setEditing(null);
+                  if (removeTempListings([editing.id])) setEditing(null);
                 }
               : undefined
           }
@@ -683,6 +688,11 @@ export function TempListClient() {
                 : `This removes all ${listings.length} listings from this browser. Download a copy first to keep them.`}
             </DialogDescription>
           </DialogHeader>
+          {storageError && !writeBlocked ? (
+            <p role="alert" className="text-destructive text-sm">
+              {storageError}
+            </p>
+          ) : null}
           <DialogFooter>
             <Button variant="outline" onClick={() => setResetOpen(false)}>
               Cancel
@@ -695,16 +705,9 @@ export function TempListClient() {
                   setResetOpen(false);
                   return;
                 }
-                const previous = listings;
-                save([]);
+                if (!save([])) return;
                 setResetOpen(false);
-                toast("List reset", {
-                  duration: 30_000,
-                  action: {
-                    label: "Undo",
-                    onClick: () => restoreTempListings(previous),
-                  },
-                });
+                showUndo("List reset", () => restoreTempListings(listings));
               }}
             >
               Reset to empty

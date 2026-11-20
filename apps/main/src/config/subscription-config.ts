@@ -28,7 +28,7 @@ export const SUBSCRIPTION_CONFIG = {
         "Build and preview your catalog for free. Choose a paid membership when you are ready to publish it.",
       MEMBERSHIP_FAQ_QUESTION: "When do I choose a membership?",
       PUBLISH_STEP:
-        "Choose a paid membership, select your public URL, and import the ready listings.",
+        "With a paid membership, import the spreadsheet in your dashboard and publish your catalog.",
       VALUE_PANEL:
         "Build and preview first. Choose a paid membership only when you are ready to publish your catalog.",
     },

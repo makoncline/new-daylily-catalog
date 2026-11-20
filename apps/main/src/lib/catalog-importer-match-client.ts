@@ -7,7 +7,7 @@ async function requestCultivarMatchChunk({
   names,
   signal,
 }: {
-  cultivarReferenceIds?: Array<string | null>;
+  cultivarReferenceIds: Array<string | null>;
   includeCandidates: boolean;
   names: string[];
   signal?: AbortSignal;
@@ -43,7 +43,7 @@ export async function requestCultivarMatches({
   includeCandidates,
   signal,
 }: {
-  cultivarReferenceIds?: Array<string | null>;
+  cultivarReferenceIds: Array<string | null>;
   includeCandidates: boolean;
   names: string[];
   signal?: AbortSignal;
@@ -65,7 +65,7 @@ export async function requestCultivarMatches({
     signal?.throwIfAborted();
     const chunk = await requestCultivarMatchChunk({
       names: names.slice(offset, end),
-      cultivarReferenceIds: cultivarReferenceIds?.slice(offset, end),
+      cultivarReferenceIds: cultivarReferenceIds.slice(offset, end),
       includeCandidates,
       signal,
     });

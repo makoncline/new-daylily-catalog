@@ -3,17 +3,49 @@ import path from "node:path";
 import readExcelFile from "read-excel-file/node";
 import writeExcelFile from "write-excel-file/node";
 import type { Page } from "@playwright/test";
+import { PrismaLibSql } from "@prisma/adapter-libsql";
+import { PrismaClient } from "@prisma/client";
 import { expect, test } from "./fixtures";
 
-import { installPlaygroundSearchFixture } from "./playground-spreadsheet";
+import {
+  checkPlaygroundCsv,
+  installPlaygroundSearchFixture,
+} from "./playground-spreadsheet";
 
+const secondCultivarId = "integration-playground-rose";
+const db = new PrismaClient({
+  adapter: new PrismaLibSql({ url: process.env.DATABASE_URL! }),
+});
 let restoreSearch:
   | Awaited<ReturnType<typeof installPlaygroundSearchFixture>>
   | undefined;
 test.beforeAll(async () => {
+  await db.cultivarReference.create({
+    data: {
+      id: secondCultivarId,
+      normalizedName: "playground rose",
+      v2AhsCultivar: {
+        create: {
+          id: "integration-playground-rose-v2",
+          link_normalized_name: "playground rose",
+          post_title: "Playground Rose",
+        },
+      },
+    },
+  });
   restoreSearch = await installPlaygroundSearchFixture();
 });
-test.afterAll(async () => restoreSearch?.());
+test.afterAll(async () => {
+  try {
+    await restoreSearch?.();
+    await db.cultivarReference.deleteMany({ where: { id: secondCultivarId } });
+    await db.v2AhsCultivar.deleteMany({
+      where: { id: "integration-playground-rose-v2" },
+    });
+  } finally {
+    await db.$disconnect();
+  }
+});
 
 test.beforeEach(async ({ context, baseURL, page }) => {
   await context.addCookies([
@@ -255,7 +287,7 @@ test("invalid input is kept for correction without adding partial rows", async (
   ]);
 });
 
-test("spreadsheet match choices keep sale names, notes and extra fields before account save", async ({
+test("spreadsheet match choices keep sale names, notes and extra fields in the local catalog", async ({
   page,
 }) => {
   await page.getByRole("tab", { name: "Spreadsheet", exact: true }).click();
@@ -320,9 +352,6 @@ test("spreadsheet match choices keep sale names, notes and extra fields before a
       exact: true,
     }),
   ).toBeFocused();
-  await expect(
-    page.getByText(/Download-only fields stay in Playground/),
-  ).toContainText("Donor");
   await page.getByRole("tab", { name: "Paste names", exact: true }).click();
   await page
     .getByLabel("Cultivar names", { exact: true })
@@ -335,6 +364,217 @@ test("spreadsheet match choices keep sale names, notes and extra fields before a
     { price: 22 },
     { price: 10 },
   ]);
+});
+
+async function rejectNextCatalogWrite(page: Page) {
+  await page.evaluate(() => {
+    const write = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key: string, value: string) {
+      if (key === "daylily-catalog:temp-list") {
+        Storage.prototype.setItem = write;
+        throw new DOMException("Quota exceeded", "QuotaExceededError");
+      }
+      return write.call(this, key, value);
+    };
+  });
+}
+
+test("Add ready keeps review rows after a failed catalog write", async ({
+  page,
+}) => {
+  await page.getByRole("tab", { name: "Paste names", exact: true }).click();
+  await page
+    .getByRole("textbox", { name: "Cultivar names" })
+    .fill("Integration Bloom");
+  await page.getByRole("button", { name: "Check names", exact: true }).click();
+  const review = page.getByRole("region", { name: "Verify names" });
+  const addReady = review.getByRole("button", {
+    name: "Add ready",
+    exact: true,
+  });
+  await expect(
+    review.getByText("Integration Bloom", { exact: true }),
+  ).toBeVisible();
+  await rejectNextCatalogWrite(page);
+  await addReady.click();
+
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: "This browser could not save the list" }),
+  ).toBeVisible();
+  await expect(
+    review.getByText("Integration Bloom", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("1 added", { exact: true })).toHaveCount(0);
+  expect(await savedListings(page)).toEqual([]);
+
+  await addReady.click();
+  await expect(review).toHaveCount(0);
+  await expect(page.getByText("1 added", { exact: true })).toBeVisible();
+  expect(await savedListings(page)).toMatchObject([
+    { name: "Integration Bloom" },
+  ]);
+});
+
+test("catalog edits, bulk removal, and Undo stay available after a failed write", async ({
+  page,
+}) => {
+  await checkPlaygroundCsv(
+    page,
+    "Name,Cultivar reference ID\nRetry rose,\nRetry gold,",
+  );
+  await page.getByRole("button", { name: "Add ready", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Edit Retry rose", exact: true })
+    .click();
+  const name = page.getByRole("textbox", { name: "Name", exact: true });
+  await name.fill("New rose name");
+  await rejectNextCatalogWrite(page);
+  const save = page.getByRole("button", { name: "Save Changes", exact: true });
+  await save.click();
+  await expect(
+    page.getByText("This browser could not save the list. Try again."),
+  ).toBeVisible();
+  await expect(name).toHaveValue("New rose name");
+  expect(await savedListings(page)).toMatchObject([
+    { name: "Retry rose" },
+    { name: "Retry gold" },
+  ]);
+  await save.click();
+  await expect(
+    page.getByRole("button", { name: "Edit New rose name", exact: true }),
+  ).toBeVisible();
+
+  await page
+    .getByRole("checkbox", { name: "Select New rose name", exact: true })
+    .click();
+  const bulk = page.getByRole("button", {
+    name: "Bulk actions (1)",
+    exact: true,
+  });
+  await rejectNextCatalogWrite(page);
+  await bulk.click();
+  await page.getByRole("menuitem", { name: "Remove selected" }).click();
+  await expect(
+    page.getByText("This browser could not save the list. Try again."),
+  ).toBeVisible();
+  await expect(bulk).toBeVisible();
+  await expect(
+    page.getByText("Removed from Playground", { exact: true }),
+  ).toHaveCount(0);
+  expect(await savedListings(page)).toHaveLength(2);
+
+  await bulk.click();
+  await page.getByRole("menuitem", { name: "Remove selected" }).click();
+  const undo = page.getByRole("button", { name: "Undo", exact: true });
+  await expect(undo).toBeVisible();
+  await rejectNextCatalogWrite(page);
+  await undo.click();
+  await expect(
+    page.getByText("This browser could not save the list. Try again."),
+  ).toBeVisible();
+  await expect(undo).toBeVisible();
+  expect(await savedListings(page)).toHaveLength(1);
+  await undo.click();
+  await expect(
+    page.getByRole("heading", { name: "Your catalog (2)", exact: true }),
+  ).toBeVisible();
+});
+
+test("spreadsheet skips only exact repeats and links to dashboard imports", async ({
+  page,
+}) => {
+  await checkPlaygroundCsv(
+    page,
+    [
+      "Name,Cultivar reference ID",
+      "Garden Bloom,integration-cultivar-reference",
+      `Garden Bloom,${secondCultivarId}`,
+      `Rose division,${secondCultivarId}`,
+      "Garden Bloom,integration-cultivar-reference",
+    ].join("\n"),
+  );
+  await expect(
+    page.getByRole("button", { name: "1 duplicate · skipped" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Ready (3)", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Add ready", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Your catalog (3)", exact: true }),
+  ).toBeVisible();
+  expect(await savedListings(page)).toMatchObject([
+    {
+      name: "Garden Bloom",
+      cultivarReferenceId: "integration-cultivar-reference",
+    },
+    { name: "Garden Bloom", cultivarReferenceId: secondCultivarId },
+    { name: "Rose division", cultivarReferenceId: secondCultivarId },
+  ]);
+  await expect(
+    page.getByRole("link", { name: "import it in your dashboard" }),
+  ).toHaveAttribute("href", "/dashboard/imports");
+  await page.reload();
+  await expect(
+    page.getByRole("button", { name: "Download spreadsheet", exact: true }),
+  ).toBeEnabled();
+  await capture(page, "playground-desktop");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await capture(page, "playground-phone");
+});
+
+test("an overlong cultivar ID stays in review without blocking valid rows", async ({
+  page,
+}) => {
+  await checkPlaygroundCsv(
+    page,
+    [
+      "Name,Cultivar reference ID",
+      "Valid Bloom,integration-cultivar-reference",
+      `ID to correct,${"x".repeat(201)}`,
+      "Valid seedling,",
+    ].join("\n"),
+  );
+  const invalid = page.getByRole("region", {
+    name: "Invalid data",
+    exact: true,
+  });
+  await expect(
+    invalid.getByText("Use 200 characters or fewer for the cultivar ID."),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Ready (2)", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Add ready", exact: true }).click();
+  await expect(invalid).toBeVisible();
+  expect(await savedListings(page)).toMatchObject([
+    {
+      name: "Valid Bloom",
+      cultivarReferenceId: "integration-cultivar-reference",
+    },
+    { name: "Valid seedling", cultivarReferenceId: null },
+  ]);
+  await invalid.getByRole("textbox", { name: /ID to correct/ }).clear();
+  await invalid.getByRole("button", { name: "Check again" }).click();
+  await expect(invalid).toHaveCount(0);
+  await page.getByRole("button", { name: "Add ready", exact: true }).click();
+  expect(await savedListings(page)).toHaveLength(3);
+});
+
+test("legacy Playground URLs redirect permanently without catching checkout success", async ({
+  request,
+}) => {
+  for (const url of ["/catalog-importer", "/temp-list"]) {
+    const response = await request.get(url, { maxRedirects: 0 });
+    expect(response.status()).toBe(308);
+    expect(response.headers().location).toBe("/playground");
+  }
+  const checkout = await request.get("/catalog-importer/checkout/success", {
+    maxRedirects: 0,
+  });
+  expect(checkout.status()).toBe(200);
 });
 
 test("capacity Undo and corrupt-storage recovery preserve the local source", async ({
@@ -443,16 +683,7 @@ test("capacity Undo and corrupt-storage recovery preserve the local source", asy
   await page
     .getByRole("button", { name: "Reset to empty", exact: true })
     .click();
-  await page.evaluate(() => {
-    const write = Storage.prototype.setItem;
-    Storage.prototype.setItem = function (key: string, value: string) {
-      if (key === "daylily-catalog:temp-list") {
-        Storage.prototype.setItem = write;
-        throw new DOMException("Quota exceeded", "QuotaExceededError");
-      }
-      return write.call(this, key, value);
-    };
-  });
+  await rejectNextCatalogWrite(page);
   await page.getByLabel("Search cultivars").fill("Integration Blo");
   await page
     .getByRole("button", { name: "Add Integration Bloom", exact: true })

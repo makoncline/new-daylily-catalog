@@ -1,55 +1,25 @@
-import type { Page } from "@playwright/test";
-import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
+import { createCatalogImporterCheckoutSource } from "@/lib/catalog-importer-membership";
 import { expect, test } from "./fixtures";
-import { mockCultivarMatches } from "../e2e/utils/catalog-importer";
 
-async function reachCheckout(page: Page) {
-  await mockCultivarMatches(page);
-  for (const imagePattern of [
-    "https://media.daylilycatalog.com/**",
-    "https://media.example.com/**",
-  ]) {
-    await page.route(imagePattern, async (route) => {
-      await route.fulfill({
-        body: Buffer.from("R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=", "base64"),
-        contentType: "image/gif",
-        status: 200,
-      });
-    });
-  }
-  await page.getByRole("tab", { name: "Paste names", exact: true }).click();
-  await page
-    .getByLabel("Cultivar names", { exact: true })
-    .fill("Stella de Oro");
-  await page.getByRole("button", { name: "Check names", exact: true }).click();
-  await page.getByRole("button", { name: "Add ready", exact: true }).click();
-  await page
-    .getByRole("button", { name: "Save to my catalog", exact: true })
-    .click();
-  await page
-    .getByRole("button", {
-      name: SUBSCRIPTION_CONFIG.COPY.CTA.CONTINUE_TO_CHECKOUT,
-    })
-    .first()
-    .click();
-}
-
-test("successful checkout returns to the real account handoff UI", async ({
+test("checkout success still loads for a session created before the Playground handoff was removed", async ({
   context,
   page,
   baseURL,
 }) => {
-  if (!baseURL) throw new Error("Integration baseURL is required.");
   await context.addCookies([
-    { name: "integration-auth", value: "anonymous", url: baseURL },
+    { name: "integration-auth", value: "anonymous", url: baseURL! },
   ]);
-  await page.goto("/playground");
-  await reachCheckout(page);
-
-  await expect(page).toHaveURL(
-    /\/catalog-importer\/checkout\/success\?session_id=cs_test_integration_catalog_importer/,
-    { timeout: 15_000 },
+  const checkout = await context.request.post(
+    "/api/trpc/catalogImporter.createCheckout",
+    { data: { json: createCatalogImporterCheckoutSource("previous-import") } },
   );
+  expect(checkout.ok(), await checkout.text()).toBe(true);
+  const { url } = (await checkout.json()).result.data.json as { url: string };
+  const sessionId = new URL(url).searchParams.get("session_id");
+  expect(sessionId).toBe("cs_test_integration_catalog_importer");
+
+  await page.goto(`/onboarding/checkout/success?session_id=${sessionId}`);
+  await expect(page).toHaveURL(url);
   await expect(
     page.getByRole("heading", { name: "Verify your email to continue." }),
   ).toBeVisible();

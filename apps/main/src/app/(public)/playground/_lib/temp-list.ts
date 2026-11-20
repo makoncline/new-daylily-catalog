@@ -68,6 +68,10 @@ export const tempListingInputSchema = tempListingSchema.extend({
     .trim()
     .min(1, "Name is required")
     .max(200, "Use 200 characters or fewer."),
+  cultivarReferenceId: z
+    .string()
+    .max(200, "Use 200 characters or fewer for the cultivar ID.")
+    .nullable(),
   description: z.string().max(10_000, "Use 10,000 characters or fewer."),
   privateNote: z.string().max(10_000, "Use 10,000 characters or fewer."),
   lists: z
@@ -287,7 +291,7 @@ export function toTempPreviewRow(
   };
 }
 
-export function prepareTempCatalogListing(
+function prepareTempCatalogListing(
   listing: TempListing,
 ): CatalogImportPreparedListing {
   return {
@@ -312,7 +316,6 @@ export function createTempListSpreadsheet(
   ];
   return {
     fileName: "playground-catalog.xlsx",
-    source: "manual",
     sheets: [
       {
         name: "Playground catalog",

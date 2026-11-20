@@ -1,12 +1,10 @@
 "use client";
 
 import { useState, useLayoutEffect, useRef } from "react";
-import Link from "next/link";
 import { AhsListingLinkPanel } from "@/components/ahs-listing-link-panel";
 import { Button } from "@/components/ui/button";
 import { useForm, useWatch } from "react-hook-form";
 import { ArrowLeft, ChevronsUpDown } from "lucide-react";
-import { LISTING_CONFIG } from "@/config/constants";
 import { ListingEditorLayout } from "@/components/forms/listing-editor-layout";
 import {
   ListingNameField,
@@ -41,12 +39,6 @@ import {
 } from "@/components/ui/dialog";
 import { TempListCultivarSearch } from "./temp-list-cultivar-search";
 import { CatalogListSelect } from "@/components/catalog-builder/catalog-list-select";
-import {
-  ProUpgrade,
-  ProUpgradeHeader,
-  ProUpgradeDescription,
-  ProUpgradeActions,
-} from "@/components/pro-upgrade";
 import type { CultivarMatchCandidate } from "@/lib/catalog-importer";
 import {
   getCandidateAhsDisplayListing,
@@ -59,6 +51,7 @@ export function TempListEditor({
   listing,
   initialMatch,
   listOptions,
+  storageError,
   onClose,
   onSave,
   onRemove,
@@ -66,6 +59,7 @@ export function TempListEditor({
   listing: TempListing;
   initialMatch: CultivarMatchCandidate | null;
   listOptions: string[];
+  storageError: string | null;
   onClose: () => void;
   onSave: (listing: TempListing, match: CultivarMatchCandidate | null) => void;
   onRemove?: () => void;
@@ -146,31 +140,6 @@ export function TempListEditor({
       >
         <FieldGroup>
           <ListingNameField form={form} disabled={false} help={null} />
-          <Field>
-            <FieldTitle>Images</FieldTitle>
-            <ProUpgrade className="gap-3" aria-label="Add photos with Pro">
-              <ProUpgradeHeader>
-                <ProUpgradeDescription>
-                  Add up to {LISTING_CONFIG.IMAGES.MAX_COUNT} of your own photos
-                  per listing with Pro.
-                </ProUpgradeDescription>
-              </ProUpgradeHeader>
-              <ProUpgradeActions>
-                <div>
-                  <Button asChild variant="gradient">
-                    <Link
-                      href="/start-membership"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Create a Pro catalog
-                      <span className="sr-only"> (opens in a new tab)</span>
-                    </Link>
-                  </Button>
-                </div>
-              </ProUpgradeActions>
-            </ProUpgrade>
-          </Field>
           <ListingDescriptionField form={form} disabled={false} help={null} />
           <Field data-invalid={Boolean(form.formState.errors.price)}>
             <FieldLabel htmlFor="temp-price">Price</FieldLabel>
@@ -298,6 +267,11 @@ export function TempListEditor({
                 ))}
               </dl>
             </section>
+          ) : null}
+          {storageError ? (
+            <p role="alert" className="text-destructive text-sm">
+              {storageError}
+            </p>
           ) : null}
           <div className="flex flex-wrap justify-end gap-2">
             <Button type="submit" disabled={!name?.trim()}>

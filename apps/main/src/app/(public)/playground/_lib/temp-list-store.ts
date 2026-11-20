@@ -60,31 +60,32 @@ export function getTempListSnapshot() {
   return snapshot;
 }
 
-export function writeTempList(listings: TempListing[]) {
+export function writeTempList(
+  listings: TempListing[],
+  { keepUnsavedRows = false } = {},
+) {
   if (getTempListSnapshot().writeBlocked) {
     listeners.forEach((listener) => listener());
     return false;
   }
   const raw = JSON.stringify(listings);
-  let storageError: string | null = null;
   try {
     localStorage.setItem(TEMP_LIST_STORAGE_KEY, raw);
     lastRaw = raw;
     memoryOnly = false;
+    snapshot = { ...snapshot, listings, storageError: null };
   } catch {
-    memoryOnly = true;
-    storageError =
-      "This browser could not save the list. Download it before you leave this page.";
+    if (keepUnsavedRows) memoryOnly = true;
+    snapshot = {
+      ...snapshot,
+      listings: keepUnsavedRows ? listings : snapshot.listings,
+      storageError: memoryOnly
+        ? "This browser could not save the list. Download it before you leave this page."
+        : "This browser could not save the list. Try again.",
+    };
   }
-  snapshot = {
-    listings,
-    storageError,
-    recoveryRaw: null,
-    writeBlocked: false,
-    ready: true,
-  };
   listeners.forEach((listener) => listener());
-  return true;
+  return snapshot.storageError === null;
 }
 
 export function restoreTempListings(removed: TempListing[]) {

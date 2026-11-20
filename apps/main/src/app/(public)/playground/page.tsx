@@ -12,12 +12,7 @@ export const metadata: Metadata = {
     : { index: false, follow: false },
 };
 
-export default async function PlaygroundPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ checkout?: string }>;
-}) {
-  const { checkout } = await searchParams;
+export default function PlaygroundPage() {
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-3 py-8 lg:px-8 lg:py-12">
       <header>
@@ -26,16 +21,9 @@ export default async function PlaygroundPage({
         </h1>
         <p className="text-muted-foreground mt-3 max-w-3xl">
           Build, edit, and download a catalog of up to 5,000 flowers without an
-          account. Your work is saved in this browser. Use Pro to import it into
-          your account.
+          account. Your work is saved in this browser.
         </p>
       </header>
-      {checkout === "canceled" ? (
-        <p role="status">
-          Checkout was canceled. Your local catalog is still here. You can
-          continue editing or retry Save to my catalog.
-        </p>
-      ) : null}
       <TempListClient />
     </div>
   );
