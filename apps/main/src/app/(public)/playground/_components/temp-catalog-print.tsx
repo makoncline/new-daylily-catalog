@@ -125,6 +125,7 @@ export function TempCatalogPrint({
   if (!open)
     return (
       <Button
+        variant="outline"
         disabled={disabled || rows.length === 0}
         onClick={() => {
           setOpen(true);

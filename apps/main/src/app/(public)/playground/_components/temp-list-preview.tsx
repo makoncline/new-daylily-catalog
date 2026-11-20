@@ -411,7 +411,6 @@ export function TempListPreview({
       ) : null}
       <div className="flex flex-wrap gap-2">
         <Button
-          variant="outline"
           disabled={!filtered.length || busy || downloading}
           onClick={() => void downloadSpreadsheet()}
         >
