@@ -36,7 +36,10 @@ describe("dashboard listings export", () => {
       cultivarReferenceNormalizedName: 'a "quoted" daylily',
       description: 'Rose flower, 6" bloom',
       images: [],
-      lists: [{ id: "list-1", title: "Front, display" }],
+      lists: [
+        { id: "list-1", title: "Front, display" },
+        { id: "list-2", title: "Sale" },
+      ],
       price: 25,
       privateNote: "Keep for fall",
       status: "ACTIVE",
@@ -77,6 +80,6 @@ describe("dashboard listings export", () => {
     expect(rows[1]?.[6]).toBe(
       "https://daylilycatalog.com/cultivar/a-~22quoted~22-daylily",
     );
-    expect(rows[1]?.[8]).toBe("Front, display");
+    expect(rows[1]?.[8]).toBe("Front, display\nSale");
   });
 });

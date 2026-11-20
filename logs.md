@@ -274,3 +274,5 @@ check current code before applying them.
 - [2026-11-12] Next dev cache in integration checks: A stable-source checkout test entered a repeated HMR reload loop from this worktree's generated .next/dev cache. With the owned server stopped, removing only that cache let the same complete 12-test run pass. If the first integration page repeatedly reloads, inspect the trace, stop this checkout's server, and rebuild its generated dev cache before changing product behavior.
 
 - [2026-11-12] Prepared import read race: Rewriting the current draft during a read can replace a newer completion or refresh result. A concurrent read reproduced stale refreshPending state. Keep current-draft reads read-only and save progress through the session write queue.
+
+- [2026-11-19] Next.js agent upgrade notice: Next 16.4 can exit before a local integration run when a security upgrade is available. Report the notice separately. For an isolated test run, set `CI=1 __NEXT_AGENT_UPGRADE=security` to use the CLI's non-interactive CI path.

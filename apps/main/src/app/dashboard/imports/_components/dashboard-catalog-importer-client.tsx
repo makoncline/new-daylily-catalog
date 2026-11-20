@@ -1,62 +1,41 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { IMPORT_BUILDER_HREF } from "./dashboard-import-config";
-import { Spinner } from "@/components/ui/spinner";
+import { ProMembershipAction } from "@/components/pro-membership-action";
 import {
-  readCatalogImporterDraft,
-  type CatalogImporterDraft,
-} from "@/lib/catalog-importer-draft";
+  ProUpgrade,
+  ProUpgradeActions,
+  ProUpgradeDescription,
+  ProUpgradeHeader,
+  ProUpgradeTitle,
+} from "@/components/pro-upgrade";
+import { Spinner } from "@/components/ui/spinner";
 import { usePro } from "@/hooks/use-pro";
 import { DashboardCatalogImporter } from "./dashboard-catalog-importer";
-import { DashboardImportProGate } from "./dashboard-import-pro-gate";
 
 export function DashboardCatalogImporterClient() {
-  const { isLoading: isSubscriptionLoading, isPro } = usePro();
-  const startedLoading = useRef(false);
-  const [initialDraft, setInitialDraft] = useState<
-    CatalogImporterDraft | null | undefined
-  >(undefined);
-  const loadDraft = useCallback((node: HTMLDivElement | null) => {
-    if (!node || startedLoading.current) return;
-
-    startedLoading.current = true;
-    void readCatalogImporterDraft()
-      .then(setInitialDraft)
-      .catch(() => setInitialDraft(null));
-  }, []);
-
+  const { isLoading, isPro } = usePro();
+  if (isLoading) {
+    return (
+      <p
+        className="text-muted-foreground flex items-center gap-2 py-8 text-sm"
+        role="status"
+      >
+        <Spinner /> Checking your membership…
+      </p>
+    );
+  }
+  if (isPro) return <DashboardCatalogImporter />;
   return (
-    <div
-      id="dashboard-catalog-import-workflow"
-      ref={loadDraft}
-      className="scroll-mt-4"
-      data-ph-capture-attribute-flow="catalog-importer"
-      data-ph-capture-attribute-import_id={initialDraft?.projectId}
-      data-ph-capture-attribute-step="dashboard-import"
-    >
-      {initialDraft === undefined || isSubscriptionLoading ? (
-        <p
-          className="text-muted-foreground flex items-center gap-2 py-8 text-sm"
-          role="status"
-        >
-          <Spinner />
-          Checking your import…
-        </p>
-      ) : !initialDraft?.matchedRows?.length ? (
-        <div className="flex flex-col items-start gap-4 py-4">
-          <p>Prepare a spreadsheet or name list for import.</p>
-          <Button asChild>
-            <Link href={IMPORT_BUILDER_HREF}>Import a spreadsheet or list</Link>
-          </Button>
-        </div>
-      ) : !isPro ? (
-        <DashboardImportProGate initialDraft={initialDraft} />
-      ) : (
-        <DashboardCatalogImporter initialDraft={initialDraft} />
-      )}
-    </div>
+    <ProUpgrade>
+      <ProUpgradeHeader>
+        <ProUpgradeTitle>Import listings with Pro</ProUpgradeTitle>
+        <ProUpgradeDescription>
+          Pro lets you add listings to your catalog from a Playground export.
+        </ProUpgradeDescription>
+      </ProUpgradeHeader>
+      <ProUpgradeActions>
+        <ProMembershipAction />
+      </ProUpgradeActions>
+    </ProUpgrade>
   );
 }

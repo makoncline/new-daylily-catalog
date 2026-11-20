@@ -8,7 +8,7 @@ export default function DashboardImportsPage() {
     <div className="min-w-0">
       <PageHeader
         heading="Importer"
-        text="Review and save your Playground catalog."
+        text="Add new listings from a Playground export."
       />
       <DashboardCatalogImporterClient />
     </div>

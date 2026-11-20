@@ -90,6 +90,7 @@ function assertSheetSize(sheet: SpreadsheetSheet) {
 
 export async function parseCatalogImportFile(
   file: File,
+  { firstSheetOnly = false } = {},
 ): Promise<ParsedSpreadsheet> {
   if (file.size > MAX_CATALOG_IMPORT_FILE_BYTES) {
     throw new Error("Choose a spreadsheet smaller than 10 MB.");
@@ -106,8 +107,15 @@ export async function parseCatalogImportFile(
       },
     ];
   } else if (extension === "xlsx") {
-    const { default: readExcelFile } = await import("read-excel-file/browser");
-    const workbookSheets = await readExcelFile(file, { trim: false });
+    const reader = await import("read-excel-file/browser");
+    const workbookSheets = firstSheetOnly
+      ? [
+          {
+            sheet: "First sheet",
+            data: await reader.readSheet(file, { trim: false }),
+          },
+        ]
+      : await reader.default(file, { trim: false });
     sheets = workbookSheets.map((sheet) => ({
       name: sheet.sheet,
       rows: trimEmptyTrailingRows(sheet.data as SpreadsheetCell[][]),

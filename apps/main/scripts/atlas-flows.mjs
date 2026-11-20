@@ -473,52 +473,44 @@ export const ATLAS_FLOWS = [
   {
     id: "dashboard-catalog-importer",
     audience: "member",
-    title: "Create listings from a prepared catalog",
+    title: "Add new listings from a Playground file",
     description:
-      "Build one browser-local import, select its eligible listings, and create new catalog listings.",
+      "Upload a Playground workbook or CSV, preview the rows, and add only new listings to the member catalog.",
     implementation: {
       entryPoints: [
         {
-          label: "Prepared import view",
+          label: "File upload and preview",
           path: "src/app/dashboard/imports/_components/dashboard-catalog-importer.tsx",
         },
         {
-          label: "Import writes and refresh",
-          path: "src/app/dashboard/imports/_components/use-dashboard-catalog-import.ts",
+          label: "File validation and batch limits",
+          path: "src/app/dashboard/imports/_components/dashboard-import-file.ts",
         },
         {
-          label: "Import server validation",
+          label: "Shared listing skip rule",
+          path: "src/lib/catalog-import-existing-listings.ts",
+        },
+        {
+          label: "Transactional import writes",
           path: "src/server/api/routers/dashboard-db/listing.ts",
         },
       ],
       invariants: [
-        "Keep the prepared draft, handled row IDs, account-scoped result, unfinished rows, skipped rows, and pending refresh across reloads and rejected writes.",
-        "Create eligible, selected rows in batches of at most 100. Block a second submission before render and until refresh finishes.",
-        "Keep Playground names, prices, notes, and explicit cultivar links through import.",
-        "Save named lists and memberships atomically. Reuse only an owned listing with equivalent title, price, description, private note, and cultivar link, or the receipt for the same source import key. Keep existing details unchanged and skip ambiguous matches.",
-        "Advance the saved list version for each import batch so incremental sync includes its membership.",
-        "After a saved write, retry a failed dashboard refresh without writing the rows again.",
+        "Accept XLSX and CSV files that start with the six Playground export headers. Ignore extra columns. Read list names from separate lines in one cell.",
+        "Preview New, Already in your catalog (will be skipped), and Invalid rows with reasons. Link unrecognized files to the Playground.",
+        "Compare a normalized name and the exact cultivar link. Skip matching listings and later repeats in the file. Do not change skipped listings or their list memberships.",
+        "Check again on the server inside the write transaction. Create new listings and their list memberships atomically. Advance changed list versions for dashboard sync.",
+        "Import at most 100 rows and 100 distinct lists per request. Show batch progress and report created and skipped counts with the skipped names. Safe re-uploads need no saved progress or row receipts.",
+        "Show the standard Pro membership action to members without Pro.",
       ],
     },
     tests: {
       unit: [],
       integration: [
-        testRef("integration", "tests/dashboard-catalog-importer.test.tsx"),
-        testRef(
-          "integration",
-          "tests/dashboard-catalog-importer-client.test.tsx",
-        ),
-        testRef("integration", "tests/dashboard-import-pro-gate.test.tsx"),
-        testRef(
-          "integration",
-          "tests/catalog-import-existing-listings.test.ts",
-        ),
-        testRef("integration", "tests/dashboard-import-table.test.tsx"),
         testRef(
           "integration",
           "tests/dashboard-db-listing-entitlements.integration.test.ts",
         ),
-        testRef("integration", "tests/dashboard-import-start-over.test.tsx"),
         fullAppIntegrationRef(
           "tests/integration/dashboard-imports.integration.ts",
         ),
@@ -527,96 +519,42 @@ export const ATLAS_FLOWS = [
     },
     steps: [
       {
-        title: "Open the shared builder",
+        title: "Choose a Playground file",
         states: [
           dashboardImporterState(
             "dashboard-importer-start",
             "Dashboard importer start",
-            "The signed-in handoff to the shared browser-local import builder.",
+            "The file input and link to the Playground.",
             "/dashboard/imports",
           ),
         ],
       },
       {
-        title: "Select listings to create",
+        title: "Preview the rows",
         states: [
           dashboardImporterState(
             "dashboard-importer-ready",
-            "Dashboard listings ready",
-            "Eligible prepared rows with only final import selection controls.",
+            "Dashboard import preview",
+            "Separate counts and rows for new, skipped, and invalid listings.",
             "/dashboard/imports",
             false,
           ),
           dashboardImporterState(
             "dashboard-importer-mobile-ready",
-            "Mobile dashboard listings ready",
-            "The same final selection table at phone width without page-level overflow.",
+            "Mobile import preview",
+            "The same preview groups at phone width without page overflow.",
             "/dashboard/imports",
             false,
           ),
         ],
       },
       {
-        title: "Explain excluded rows",
+        title: "Import new listings",
         states: [
-          dashboardImporterState(
-            "dashboard-importer-review",
-            "Unreviewed listings excluded",
-            "Rows that still need a cultivar decision are excluded and link back to the builder.",
-            "/dashboard/imports",
-            false,
-          ),
-          dashboardImporterState(
-            "dashboard-importer-mobile-review",
-            "Mobile unreviewed listings",
-            "The same exclusion summary and builder return path at phone width.",
-            "/dashboard/imports",
-            false,
-          ),
-          dashboardImporterState(
-            "dashboard-importer-issues",
-            "Unresolved data excluded",
-            "Rows with unresolved spreadsheet issues are excluded without repair controls.",
-            "/dashboard/imports",
-            false,
-          ),
-          dashboardImporterState(
-            "dashboard-importer-mobile-issues",
-            "Mobile unresolved data",
-            "The same issue exclusion summary at phone width.",
-            "/dashboard/imports",
-            false,
-          ),
-          dashboardImporterState(
-            "dashboard-importer-existing",
-            "Equivalent listing unchanged",
-            "A prepared row already represented in the member catalog, with no create override.",
-            "/dashboard/imports",
-            false,
-          ),
-          dashboardImporterState(
-            "dashboard-importer-mobile-existing",
-            "Mobile existing listing",
-            "The same unchanged-listing plan at phone width.",
-            "/dashboard/imports",
-            false,
-          ),
-        ],
-      },
-      {
-        title: "Confirm and create",
-        states: [
-          dashboardImporterState(
-            "dashboard-importer-confirm",
-            "Review unchanged and skipped rows",
-            "Show a confirmation when a plan includes unchanged or skipped rows. All-create plans save from the selection view.",
-            "/dashboard/imports",
-            false,
-          ),
           dashboardImporterState(
             "dashboard-importer-complete",
             "Catalog import complete",
-            "The terminal state after retry-safe listing creation succeeds.",
+            "A report of the new listings and the rows that were skipped.",
             "/dashboard/imports",
             false,
           ),

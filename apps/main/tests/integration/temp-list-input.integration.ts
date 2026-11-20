@@ -1,45 +1,19 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import readExcelFile from "read-excel-file/node";
 import writeExcelFile from "write-excel-file/node";
 import type { Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
 
-const searchDirectory = path.resolve(".tmp/search");
-const savedSearchDirectory = `${searchDirectory}-input-test-${process.pid}`;
-let hadSearch = false;
-let flags: Buffer | undefined;
+import { installPlaygroundSearchFixture } from "./playground-spreadsheet";
 
+let restoreSearch:
+  | Awaited<ReturnType<typeof installPlaygroundSearchFixture>>
+  | undefined;
 test.beforeAll(async () => {
-  flags = await fs
-    .readFile(process.env.RUNTIME_FEATURE_FLAGS_PATH!)
-    .catch(() => undefined);
-  await fs.writeFile(
-    process.env.RUNTIME_FEATURE_FLAGS_PATH!,
-    JSON.stringify({ publicCultivarSearch: true }),
-  );
-  hadSearch = await fs.stat(searchDirectory).then(
-    () => true,
-    () => false,
-  );
-  if (hadSearch) await fs.rename(searchDirectory, savedSearchDirectory);
-  await promisify(execFile)(process.execPath, [
-    "scripts/build-public-search-index.mjs",
-    "--source",
-    process.env.DATABASE_URL!,
-    "--target",
-    path.join(searchDirectory, "public-search-candidate.sqlite"),
-  ]);
+  restoreSearch = await installPlaygroundSearchFixture();
 });
-
-test.afterAll(async () => {
-  await fs.rm(searchDirectory, { recursive: true, force: true });
-  if (hadSearch) await fs.rename(savedSearchDirectory, searchDirectory);
-  if (flags) await fs.writeFile(process.env.RUNTIME_FEATURE_FLAGS_PATH!, flags);
-  else await fs.rm(process.env.RUNTIME_FEATURE_FLAGS_PATH!, { force: true });
-});
+test.afterAll(async () => restoreSearch?.());
 
 test.beforeEach(async ({ context, baseURL, page }) => {
   await context.addCookies([
@@ -508,102 +482,4 @@ test("capacity Undo and corrupt-storage recovery preserve the local source", asy
   await expect
     .poll(() => savedListings(page))
     .toMatchObject([{ name: "Integration Bloom", price: 10 }]);
-});
-
-test("350 spreadsheet sale rows use the real matcher and import through four account batches", async ({
-  page,
-  context,
-  baseURL,
-}) => {
-  test.setTimeout(120_000);
-  await context.addCookies([
-    { name: "integration-auth", value: "seller", url: baseURL! },
-  ]);
-  await page.route("**/api/catalog-importer/viewer-state", (route) =>
-    route.fulfill({ json: { viewerState: "pro" } }),
-  );
-  const matchSizes: number[] = [];
-  const writeSizes: number[] = [];
-  page.on("request", (request) => {
-    const pathname = new URL(request.url()).pathname;
-    if (pathname === "/api/v1/cultivars/match") {
-      const body = request.postDataJSON() as { names: string[] };
-      matchSizes.push(body.names.length);
-    }
-    if (pathname === "/api/trpc/dashboardV2.listing.importRows") {
-      const body = request.postDataJSON() as {
-        "0": { json: { rows: unknown[] } };
-      };
-      writeSizes.push(body["0"].json.rows.length);
-    }
-  });
-  await page.getByRole("tab", { name: "Spreadsheet", exact: true }).click();
-  await page.locator('input[type="file"]').setInputFiles({
-    name: "real-matcher-350.csv",
-    mimeType: "text/csv",
-    buffer: Buffer.from(
-      [
-        "Name,Price,Private note",
-        ...Array.from(
-          { length: 350 },
-          (_, index) => `Integration Bloom,${1000 + index},Source row ${index}`,
-        ),
-      ].join("\n"),
-    ),
-  });
-  await page.getByRole("button", { name: "Check names", exact: true }).click();
-  await expect(
-    page.getByRole("button", { name: "Ready (350)", exact: true }),
-  ).toBeVisible();
-  expect(matchSizes).toEqual([250, 100]);
-  await page.getByRole("button", { name: "Add ready", exact: true }).click();
-  await expect.poll(() => savedListings(page)).toHaveLength(350);
-  await page.reload();
-  await expect(
-    page.getByRole("heading", { name: "Your catalog (350)", exact: true }),
-  ).toBeVisible();
-  const stored = (await savedListings(page)) as {
-    name: string;
-    price: number;
-    privateNote: string;
-    cultivarReferenceId: string;
-  }[];
-  expect(stored.map(({ price }) => price)).toEqual(
-    Array.from({ length: 350 }, (_, index) => 1000 + index),
-  );
-  expect(
-    stored.every(
-      ({ cultivarReferenceId }) =>
-        cultivarReferenceId === "integration-cultivar-reference",
-    ),
-  ).toBe(true);
-  await page
-    .getByRole("button", { name: "Save to my catalog", exact: true })
-    .click();
-  for (const count of [350, 250, 150, 50]) {
-    await expect(
-      page.getByRole("heading", {
-        name: `${count} ready to import`,
-        exact: true,
-      }),
-    ).toBeVisible();
-    await page
-      .getByRole("button", {
-        name: `Import ${Math.min(count, 100)} listings`,
-        exact: true,
-      })
-      .click();
-  }
-  await expect(
-    page.getByRole("heading", { name: "Selected rows saved", exact: true }),
-  ).toBeVisible();
-  expect(writeSizes).toEqual([100, 100, 100, 50]);
-  await page.reload();
-  await expect(
-    page.getByRole("heading", { name: "Selected rows saved", exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: /Import \d+ listings/ }),
-  ).toHaveCount(0);
-  expect(await savedListings(page)).toEqual(stored);
 });
