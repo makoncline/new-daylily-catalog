@@ -114,6 +114,7 @@ export function resetTempList() {
 
 function handleStorage(event: StorageEvent) {
   if (event.key !== TEMP_LIST_STORAGE_KEY && event.key !== null) return;
+  if (memoryOnly && !snapshot.writeBlocked) return;
   memoryOnly = false;
   lastRaw = undefined;
   listeners.forEach((listener) => listener());

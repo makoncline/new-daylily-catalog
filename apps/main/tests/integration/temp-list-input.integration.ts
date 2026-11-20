@@ -201,9 +201,36 @@ test("spreadsheet preserves donor rows, quantities and multiline notes through r
       ],
     },
   ]);
+  const downloadButton = page.getByRole("button", {
+    name: "Download spreadsheet",
+  });
+  const search = page.getByPlaceholder("Search listings...");
+  await search.fill("No matching listing");
+  await expect(
+    page.getByText("0 of 2 listings", { exact: true }),
+  ).toBeVisible();
+  const filteredDownload = page.waitForEvent("download");
+  await downloadButton.click();
+  const filteredOutput = await readExcelFile(
+    await (await filteredDownload).path(),
+  );
+  expect(filteredOutput[0]?.data).toHaveLength(3);
+  await search.clear();
+  await page
+    .getByRole("checkbox", { name: "Select Integration Bloom", exact: true })
+    .first()
+    .click();
+  await page
+    .getByRole("button", { name: "Show selected", exact: true })
+    .click();
+  await expect(
+    page.getByText("1 of 2 listings", { exact: true }),
+  ).toBeVisible();
+
   const downloaded = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Download spreadsheet" }).click();
+  await downloadButton.click();
   const output = await readExcelFile(await (await downloaded).path());
+  expect(output).toEqual(filteredOutput);
   const headers = output[0]!.data[0]!;
   expect(output[0]!.data[1]![headers.indexOf("Imported: Donor")]).toBe(
     "Garden A",
@@ -379,22 +406,39 @@ async function rejectNextCatalogWrite(page: Page) {
   });
 }
 
-test("Add ready keeps review rows after a failed catalog write", async ({
+test("Add ready keeps a failed batch and retries without exceeding the combined quota", async ({
   page,
 }) => {
-  await page.getByRole("tab", { name: "Paste names", exact: true }).click();
-  await page
-    .getByRole("textbox", { name: "Cultivar names" })
-    .fill("Integration Bloom");
-  await page.getByRole("button", { name: "Check names", exact: true }).click();
+  const note = "x".repeat(4_400);
+  await checkPlaygroundCsv(
+    page,
+    `Name,Private note,Cultivar reference ID\nGarden seedling,${note},`,
+  );
   const review = page.getByRole("region", { name: "Verify names" });
   const addReady = review.getByRole("button", {
     name: "Add ready",
     exact: true,
   });
   await expect(
-    review.getByText("Integration Bloom", { exact: true }),
+    review.getByText("Garden seedling", { exact: true }),
   ).toBeVisible();
+  const savedDraft = () =>
+    page.evaluate(() => localStorage.getItem("daylily-catalog:temp-review"));
+  const original = await savedDraft();
+  expect(original?.length).toBeGreaterThan(8_800);
+  await page.evaluate(() => {
+    const write = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key: string, value: string) {
+      const draftSize =
+        this.getItem("daylily-catalog:temp-review")?.length ?? 0;
+      if (
+        key === "daylily-catalog:temp-list" &&
+        value.length + draftSize > 12_000
+      )
+        throw new DOMException("Quota exceeded", "QuotaExceededError");
+      return write.call(this, key, value);
+    };
+  });
   await rejectNextCatalogWrite(page);
   await addReady.click();
 
@@ -404,16 +448,18 @@ test("Add ready keeps review rows after a failed catalog write", async ({
       .filter({ hasText: "This browser could not save the list" }),
   ).toBeVisible();
   await expect(
-    review.getByText("Integration Bloom", { exact: true }),
+    review.getByText("Garden seedling", { exact: true }),
   ).toBeVisible();
   await expect(page.getByText("1 added", { exact: true })).toHaveCount(0);
   expect(await savedListings(page)).toEqual([]);
+  expect(await savedDraft()).toBe(original);
 
   await addReady.click();
   await expect(review).toHaveCount(0);
   await expect(page.getByText("1 added", { exact: true })).toBeVisible();
+  expect(await savedDraft()).toBeNull();
   expect(await savedListings(page)).toMatchObject([
-    { name: "Integration Bloom" },
+    { name: "Garden seedling", privateNote: note },
   ]);
 });
 
@@ -470,16 +516,68 @@ test("catalog edits, bulk removal, and Undo stay available after a failed write"
   const undo = page.getByRole("button", { name: "Undo", exact: true });
   await expect(undo).toBeVisible();
   await rejectNextCatalogWrite(page);
-  await undo.click();
+  await undo.press("Enter");
   await expect(
     page.getByText("This browser could not save the list. Try again."),
   ).toBeVisible();
   await expect(undo).toBeVisible();
   expect(await savedListings(page)).toHaveLength(1);
-  await undo.click();
+  await undo.press("Enter");
   await expect(
     page.getByRole("heading", { name: "Your catalog (2)", exact: true }),
   ).toBeVisible();
+});
+
+test("a listing cannot get a 101st list through the picker or bulk actions", async ({
+  page,
+}) => {
+  const lists = Array.from({ length: 100 }, (_, index) => `List ${index + 1}`);
+  await checkPlaygroundCsv(
+    page,
+    [
+      "Name,Lists,Cultivar reference ID",
+      `Limit rose,"${lists.join("\n")}",`,
+      "Extra rose,List 101,",
+    ].join("\n"),
+  );
+  await page.getByRole("button", { name: "Add ready", exact: true }).click();
+  const picker = page.getByRole("combobox", { name: "Lists for Limit rose" });
+  const search = page.getByRole("combobox", { name: "Find or create a list" });
+  await picker.click();
+  await search.fill("List 101");
+  await expect(
+    page.getByRole("option", { name: "List 101", exact: true }),
+  ).toBeDisabled();
+  await search.fill("New list");
+  await expect(page.getByRole("option", { name: /Create/ })).toHaveCount(0);
+  await expect(
+    page.getByText("Remove a list before you add another."),
+  ).toBeVisible();
+  await search.fill("List 1");
+  await page.getByRole("option", { name: "List 1", exact: true }).click();
+  if ((await picker.getAttribute("aria-expanded")) === "false")
+    await picker.click();
+  await search.fill("New list");
+  await page
+    .getByRole("option", { name: "Create “New list”", exact: true })
+    .click();
+  await page.keyboard.press("Escape");
+
+  await page.getByRole("checkbox", { name: "Select Limit rose" }).click();
+  await page.getByRole("button", { name: "Bulk actions (1)" }).click();
+  await page.getByRole("menuitem", { name: "Add to list" }).click();
+  const dialog = page.getByRole("dialog", { name: "Add 1 to list" });
+  await dialog.getByRole("combobox", { name: "Choose a list" }).click();
+  await search.fill("List 101");
+  await page.getByRole("option", { name: "List 101", exact: true }).click();
+  await dialog.getByRole("button", { name: "Add to list" }).click();
+  await expect(
+    page.getByText("A listing can be on at most 100 lists."),
+  ).toBeVisible();
+  expect(await savedListings(page)).toMatchObject([
+    { name: "Limit rose", lists: [...lists.slice(1), "New list"] },
+    { name: "Extra rose", lists: ["List 101"] },
+  ]);
 });
 
 test("spreadsheet skips only exact repeats and links to dashboard imports", async ({

@@ -17,6 +17,7 @@ import {
   CommandGroup,
   CommandEmpty,
 } from "@/components/ui/command";
+import { CATALOG_IMPORT_BATCH_LIST_LIMIT } from "@/lib/catalog-import-rows";
 import { cn } from "@/lib/utils";
 
 export interface CatalogListSelectProps {
@@ -59,10 +60,15 @@ export function CatalogListSelect({
   const filtered = names.filter((name) =>
     listKey(name).includes(listKey(search)),
   );
+  const atLimit =
+    multiple && selectedKeys.size >= CATALOG_IMPORT_BATCH_LIST_LIMIT;
   const canCreate =
-    title.length > 0 && !names.some((name) => listKey(name) === listKey(title));
+    !atLimit &&
+    title.length > 0 &&
+    !names.some((name) => listKey(name) === listKey(title));
 
   function select(name: string) {
+    if (atLimit && !selectedKeys.has(listKey(name))) return;
     onChange(
       multiple
         ? selectedKeys.has(listKey(name))
@@ -138,6 +144,11 @@ export function CatalogListSelect({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-64" align="start">
+        {atLimit ? (
+          <p role="status" className="text-muted-foreground pb-2 text-sm">
+            Remove a list before you add another.
+          </p>
+        ) : null}
         <Command shouldFilter={false}>
           <CommandInput
             aria-label="Find or create a list"
@@ -155,6 +166,7 @@ export function CatalogListSelect({
                 <CommandItem
                   key={name}
                   value={name}
+                  disabled={atLimit && !selectedKeys.has(listKey(name))}
                   onSelect={() => select(name)}
                 >
                   <Check

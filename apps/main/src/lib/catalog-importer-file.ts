@@ -5,10 +5,14 @@ import type {
   SpreadsheetCell,
   SpreadsheetSheet,
 } from "@/lib/catalog-importer";
-import { detectHeaderRow } from "@/lib/catalog-importer";
+import {
+  CATALOG_LISTING_HEADERS,
+  cellToText,
+  detectHeaderRow,
+} from "@/lib/catalog-importer";
 
 export const MAX_CATALOG_IMPORT_FILE_BYTES = 10 * 1024 * 1024;
-export const MAX_CATALOG_IMPORT_ROWS_PER_SHEET = 5_000;
+const MAX_CATALOG_IMPORT_ROWS_PER_SHEET = 5_000;
 
 function parseCsv(text: string): SpreadsheetCell[][] {
   const rows: SpreadsheetCell[][] = [];
@@ -79,6 +83,14 @@ function trimEmptyTrailingRows(rows: SpreadsheetCell[][]) {
 }
 
 function assertSheetSize(sheet: SpreadsheetSheet) {
+  if (
+    CATALOG_LISTING_HEADERS.every(
+      (header, index) =>
+        cellToText(sheet.rows[0]?.[index]).toLowerCase() ===
+        header.toLowerCase(),
+    )
+  )
+    return;
   const header = detectHeaderRow(sheet.rows);
   const dataRowCount = sheet.rows.length - (header === null ? 0 : header + 1);
   if (dataRowCount > MAX_CATALOG_IMPORT_ROWS_PER_SHEET) {

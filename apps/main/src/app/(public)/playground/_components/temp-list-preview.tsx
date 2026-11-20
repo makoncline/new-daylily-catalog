@@ -158,7 +158,7 @@ export function TempListPreview({
     try {
       await downloadCatalogImportFile({
         fileName: "playground-catalog.xlsx",
-        spreadsheet: createTempListSpreadsheet(filtered),
+        spreadsheet: createTempListSpreadsheet(rows),
       });
       toast.success("Spreadsheet downloaded.");
     } catch (error) {
@@ -411,7 +411,7 @@ export function TempListPreview({
       ) : null}
       <div className="flex flex-wrap gap-2">
         <Button
-          disabled={!filtered.length || busy || downloading}
+          disabled={busy || downloading}
           onClick={() => void downloadSpreadsheet()}
         >
           <Download data-icon="inline-start" />

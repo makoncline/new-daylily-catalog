@@ -14,7 +14,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { CultivarMatchCandidate } from "@/lib/catalog-importer";
+import {
+  normalizeCatalogListNames,
+  type CultivarMatchCandidate,
+} from "@/lib/catalog-importer";
+import { CATALOG_IMPORT_BATCH_LIST_LIMIT } from "@/lib/catalog-import-rows";
 import { getQueryClient } from "@/trpc/query-client";
 import {
   createTempListing,
@@ -43,7 +47,7 @@ import {
   getTempReviewServerSnapshot,
   subscribeToTempReview,
   updateTempReview,
-  resetTempReview,
+  commitTempReview,
 } from "../_lib/temp-list-review-store";
 import { TempListVerify } from "./temp-list-verify";
 import {
@@ -101,13 +105,28 @@ function removeTempListings(ids: string[]) {
 }
 
 function addTempListingsToList(ids: string[], title: string) {
-  return writeTempList(
-    getTempListSnapshot().listings.map((listing) =>
-      ids.includes(listing.id)
-        ? { ...listing, lists: [...new Set([...(listing.lists ?? []), title])] }
-        : listing,
-    ),
+  const selectedIds = new Set(ids);
+  const next = getTempListSnapshot().listings.map((listing) =>
+    selectedIds.has(listing.id)
+      ? {
+          ...listing,
+          lists: normalizeCatalogListNames([...(listing.lists ?? []), title]),
+        }
+      : listing,
   );
+  if (
+    next.some(
+      (listing) =>
+        selectedIds.has(listing.id) &&
+        (listing.lists?.length ?? 0) > CATALOG_IMPORT_BATCH_LIST_LIMIT,
+    )
+  ) {
+    toast.error(
+      `A listing can be on at most ${CATALOG_IMPORT_BATCH_LIST_LIMIT} lists.`,
+    );
+    return false;
+  }
+  return writeTempList(next);
 }
 
 export function TempListClient() {
@@ -404,14 +423,18 @@ export function TempListClient() {
       return;
     }
     if (
-      !save(
-        [...listings, ...added.map(({ listing }) => listing)],
-        added.flatMap(({ match }) => (match ? [match] : [])),
+      !commitTempReview(
+        remaining.length || reviewIssues.length
+          ? { ...draft, review: remaining }
+          : null,
+        () =>
+          save(
+            [...listings, ...added.map(({ listing }) => listing)],
+            added.flatMap(({ match }) => (match ? [match] : [])),
+          ),
       )
     )
       return;
-    if (!remaining.length && !reviewIssues.length) resetTempReview();
-    else setReview(remaining);
 
     setError(null);
     toast.success(

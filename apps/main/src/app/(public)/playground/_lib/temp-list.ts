@@ -16,7 +16,7 @@ import {
   getCultivarImage,
   getCultivarTraitSummary,
 } from "@/lib/catalog-presentation";
-import { MAX_CATALOG_IMPORT_ROWS_PER_SHEET } from "@/lib/catalog-importer-file";
+import { CATALOG_IMPORT_BATCH_LIST_LIMIT } from "@/lib/catalog-import-rows";
 import { requestCultivarMatches } from "@/lib/catalog-importer-match-client";
 
 export const TEMP_TEXT_CARD_COLORS = {
@@ -47,7 +47,7 @@ export const TEMP_LIST_CULTIVAR_HEADERS = [
 ] as const;
 
 export const TEMP_LIST_STORAGE_KEY = "daylily-catalog:temp-list";
-export const MAX_TEMP_LISTINGS = MAX_CATALOG_IMPORT_ROWS_PER_SHEET;
+export const MAX_TEMP_LISTINGS = 5_000;
 export const tempListingSchema = z.object({
   id: z.string(),
   name: listingFormSchema.shape.title.unwrap(),
@@ -82,7 +82,10 @@ export const tempListingInputSchema = tempListingSchema.extend({
         .min(1)
         .max(200, "Use 200 characters or fewer for each list name."),
     )
-    .max(100, "Use 100 lists or fewer for each row.")
+    .max(
+      CATALOG_IMPORT_BATCH_LIST_LIMIT,
+      `Use ${CATALOG_IMPORT_BATCH_LIST_LIMIT} lists or fewer for each row.`,
+    )
     .optional(),
 });
 export type TempListing = z.infer<typeof tempListingSchema>;
@@ -144,7 +147,7 @@ export function validateTempListingDraft(
     cultivarReferenceId: (draft.cultivarReferenceId ?? "").trim() || null,
   });
   const errors: TempFieldError[] = price.warning
-    ? [{ field: "price", message: "Use zero or a positive price." }]
+    ? [{ field: "price", message: price.warning }]
     : [];
   if (!parsed.success) {
     const fields: TempImportField[] = [

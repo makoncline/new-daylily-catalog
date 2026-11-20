@@ -29,6 +29,7 @@ const serverSnapshot: TempReviewSnapshot = {
 };
 let snapshot = serverSnapshot;
 let initialized = false;
+let unsaved = false;
 const listeners = new Set<() => void>();
 
 export function getTempReviewServerSnapshot() {
@@ -159,11 +160,7 @@ export function getTempReviewSnapshot() {
   return snapshot;
 }
 
-export function updateTempReview(
-  update: (draft: TempReviewDraft) => TempReviewDraft,
-) {
-  const draft = update(getTempReviewSnapshot().draft);
-  let error = null;
+function persistTempReview(draft: TempReviewDraft) {
   try {
     if (
       draft.review.length ||
@@ -173,20 +170,42 @@ export function updateTempReview(
     )
       localStorage.setItem(KEY, JSON.stringify(draft));
     else localStorage.removeItem(KEY);
+    return null;
   } catch {
-    error =
-      "This browser could not save the unfinished batch. Keep this page open.";
+    return "This browser could not save the unfinished batch. Keep this page open.";
   }
+}
+
+function writeTempReview(draft: TempReviewDraft) {
+  const error = persistTempReview(draft);
+  unsaved = error !== null;
   snapshot = { draft, ready: true, error };
   listeners.forEach((listener) => listener());
 }
 
-export function resetTempReview() {
-  updateTempReview(() => empty);
+export function updateTempReview(
+  update: (draft: TempReviewDraft) => TempReviewDraft,
+) {
+  writeTempReview(update(getTempReviewSnapshot().draft));
+}
+
+export function commitTempReview(
+  remaining: TempReviewDraft | null,
+  saveCatalog: () => boolean,
+) {
+  const original = getTempReviewSnapshot().draft;
+  persistTempReview(empty);
+  let saved = false;
+  try {
+    saved = saveCatalog();
+    return saved;
+  } finally {
+    writeTempReview(saved ? (remaining ?? empty) : original);
+  }
 }
 
 function handleStorage(event: StorageEvent) {
-  if (event.key !== KEY && event.key !== null) return;
+  if (unsaved || (event.key !== KEY && event.key !== null)) return;
   initialized = false;
   listeners.forEach((listener) => listener());
 }
