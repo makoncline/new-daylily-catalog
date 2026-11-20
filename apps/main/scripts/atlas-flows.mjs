@@ -596,6 +596,7 @@ export const ATLAS_FLOWS = [
         "Send growers to the Playground to build and download a catalog. The dashboard Importer accepts that file.",
         "The Playground does not start membership checkout. Use the standard dashboard membership action.",
         "Keep the original checkout success URLs for existing catalog-importer sessions. Validate the entry source and account ownership, link the Stripe customer, and open the dashboard Importer.",
+        "Use the same email verification and membership status messages for both checkout returns. Do not assume the member used the Playground.",
       ],
     },
     tests: {

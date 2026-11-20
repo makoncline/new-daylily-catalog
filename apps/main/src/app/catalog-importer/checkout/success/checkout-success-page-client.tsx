@@ -110,8 +110,8 @@ export function CheckoutSuccessPageClient({
     return (
       <CheckoutShell
         eyebrow={SUBSCRIPTION_CONFIG.COPY.STATUS.ACTIVE_EYEBROW}
-        title="Opening your import"
-        description="Download your catalog from the Playground, then import the file here."
+        title="Opening your dashboard"
+        description="We are linking your membership to your account."
       >
         {claimCheckout.error ? (
           <div className="space-y-3">
@@ -188,7 +188,6 @@ function CheckoutAuthShell({
           </h1>
           <p className="text-muted-foreground max-w-xl text-base leading-7">
             Use the email from checkout. We will send your one-time login code.
-            Your Playground catalog stays in this browser.
           </p>
         </div>
 

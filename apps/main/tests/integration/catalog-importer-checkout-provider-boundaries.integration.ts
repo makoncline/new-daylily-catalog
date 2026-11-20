@@ -51,12 +51,42 @@ for (const { name, entry, sessionId } of checkouts) {
     await expect(page).toHaveURL(
       `/catalog-importer/checkout/success?session_id=${sessionId}`,
     );
+    const checkout = page.getByTestId("catalog-importer-checkout-success");
     await expect(
-      page.getByRole("heading", { name: "Verify your email to continue." }),
+      checkout.getByRole("heading", { name: "Verify your email to continue." }),
+    ).toBeVisible();
+    await expect(
+      checkout.getByText(
+        "Use the email from checkout. We will send your one-time login code.",
+        { exact: true },
+      ),
     ).toBeVisible();
 
+    let continueClaim!: () => void;
+    const claimGate = new Promise<void>((resolve) => {
+      continueClaim = resolve;
+    });
+    await page.route(
+      "**/api/trpc/*catalogImporter.claimCheckout*",
+      async (route) => {
+        await claimGate;
+        await route.fallback();
+      },
+      { times: 1 },
+    );
     await context.addCookies([signedIn]);
-    await page.reload();
+    try {
+      await page.reload();
+      await expect(checkout.getByText("Membership active")).toBeVisible();
+      await expect(
+        checkout.getByRole("heading", { name: "Opening your dashboard" }),
+      ).toBeVisible();
+      await expect(
+        checkout.getByText("We are linking your membership to your account."),
+      ).toBeVisible();
+    } finally {
+      continueClaim();
+    }
     await expect(page.getByLabel("Playground file")).toBeVisible();
     await expect(page).toHaveURL("/dashboard/imports");
 
