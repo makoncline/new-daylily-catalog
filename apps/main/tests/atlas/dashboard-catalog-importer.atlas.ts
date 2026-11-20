@@ -99,49 +99,98 @@ async function openDashboardImporter(page: Page, viewport: typeof desktop) {
   await mockCultivarMatches(page);
   await page.goto("/dashboard/imports");
   await expect(
-    page.getByRole("heading", { name: "Import catalog" }),
+    page.getByRole("heading", { name: "Importer", exact: true }),
   ).toBeVisible({ timeout: 30_000 });
 }
 
 async function expectNoPageOverflow(page: Page) {
-  const width = await page.evaluate(() => ({
-    client: document.documentElement.clientWidth,
-    scroll: document.documentElement.scrollWidth,
-  }));
-  expect(width.scroll).toBeLessThanOrEqual(width.client);
+  expect(
+    await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth <=
+        document.documentElement.clientWidth,
+    ),
+  ).toBe(true);
 }
 
-async function prepareListings(page: Page, csv = sampleCsv()) {
-  await page.getByRole("link", { name: "Build import" }).click();
+async function prepareListings(
+  page: Page,
+  csv = sampleCsv(),
+  keepUnresolved = false,
+) {
+  await page
+    .getByRole("link", { name: "Import a spreadsheet or list", exact: true })
+    .click();
+  await page.getByRole("tab", { name: "Spreadsheet", exact: true }).click();
+  await page
+    .locator('input[type="file"]')
+    .setInputFiles({
+      name: "dashboard-import.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from(csv),
+    });
+  await page.getByRole("button", { name: "Check names", exact: true }).click();
+  if (keepUnresolved) {
+    const keep = page.getByRole("button", {
+      name: "Keep unlinked",
+      exact: true,
+    });
+    while (await keep.count()) await keep.first().click();
+    const price = page.getByRole("textbox", {
+      name: "Price for Happy Returns",
+      exact: true,
+    });
+    if (await price.count()) {
+      await price.fill("30");
+      await page
+        .getByRole("button", { name: "Check again", exact: true })
+        .click();
+    }
+  }
+  await page.getByRole("button", { name: "Add ready", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Save to my catalog", exact: true })
+    .click();
   await expect(
-    page.getByRole("heading", {
-      name: "Turn the catalog you already have into one buyers can browse",
-    }),
-  ).toBeVisible();
-  await page.locator('input[type="file"]').setInputFiles({
-    name: "dashboard-import.csv",
-    mimeType: "text/csv",
-    buffer: Buffer.from(csv),
-  });
-  await page.getByRole("button", { name: "Build catalog preview" }).click();
-  await expect(
-    page.getByRole("heading", { name: "Your catalog preview" }),
+    page.getByRole("heading", { name: "Importer", exact: true }),
   ).toBeVisible({ timeout: 30_000 });
-  await page.getByRole("button", { name: "Finish", exact: true }).click();
-  await expect(
-    page.getByRole("heading", {
-      name: /Your (current )?import is ready/,
-    }),
-  ).toBeVisible({ timeout: 30_000 });
-  await page.getByRole("link", { name: "Continue to import" }).click();
-  await expect(
-    page.getByRole("heading", { name: "Import catalog" }),
-  ).toBeVisible({ timeout: 30_000 });
+}
+
+async function setUnfinishedState(page: Page, kind: "review" | "issues") {
+  // Seed a recovered prepared draft to capture the account recovery surface.
+  await page.evaluate(async (kind) => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("keyval-store");
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    await new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction("keyval", "readwrite");
+      const store = transaction.objectStore("keyval");
+      const request = store.get("catalog-importer-draft:v2");
+      request.onsuccess = () => {
+        const draft = request.result as {
+          matchedRows: { linkState: string; priceWarning: string | null }[];
+        };
+        draft.matchedRows[0]!.linkState =
+          kind === "review" ? "pending" : "intentionally-unmatched";
+        draft.matchedRows[0]!.priceWarning =
+          kind === "issues" ? "Price needs review" : null;
+        store.put(draft, "catalog-importer-draft:v2");
+      };
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+    });
+    db.close();
+  }, kind);
+  await page.reload();
 }
 
 test("Dashboard importer start", async ({ page }) => {
   await openDashboardImporter(page, desktop);
-  await expect(page.getByRole("link", { name: "Build import" })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Import a spreadsheet or list" }),
+  ).toBeVisible();
   await captureAtlasState(page, "dashboard-importer-start");
 });
 
@@ -149,7 +198,7 @@ test("Dashboard importer ready", async ({ page }) => {
   await openDashboardImporter(page, desktop);
   await prepareListings(page);
   await expect(
-    page.getByRole("heading", { name: "3 listings are ready to import" }),
+    page.getByRole("heading", { name: "3 ready to import" }),
   ).toBeVisible();
   await captureAtlasState(page, "dashboard-importer-ready");
 });
@@ -158,7 +207,7 @@ test("Dashboard importer mobile ready", async ({ page }) => {
   await openDashboardImporter(page, mobile);
   await prepareListings(page);
   await expect(
-    page.getByRole("heading", { name: "3 listings are ready to import" }),
+    page.getByRole("heading", { name: "3 ready to import" }),
   ).toBeVisible();
   await expectNoPageOverflow(page);
   await captureAtlasState(page, "dashboard-importer-mobile-ready");
@@ -166,7 +215,8 @@ test("Dashboard importer mobile ready", async ({ page }) => {
 
 test("Dashboard importer excludes unreviewed listings", async ({ page }) => {
   await openDashboardImporter(page, desktop);
-  await prepareListings(page, reviewCsv());
+  await prepareListings(page, reviewCsv(), true);
+  await setUnfinishedState(page, "review");
   await expect(page.getByText("1 listing has not been reviewed")).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Import 1 listing" }),
@@ -176,7 +226,8 @@ test("Dashboard importer excludes unreviewed listings", async ({ page }) => {
 
 test("Dashboard importer mobile unreviewed listings", async ({ page }) => {
   await openDashboardImporter(page, mobile);
-  await prepareListings(page, reviewCsv());
+  await prepareListings(page, reviewCsv(), true);
+  await setUnfinishedState(page, "review");
   await expect(page.getByText("1 listing has not been reviewed")).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Import 1 listing" }),
@@ -187,47 +238,67 @@ test("Dashboard importer mobile unreviewed listings", async ({ page }) => {
 
 test("Dashboard importer excludes unresolved issues", async ({ page }) => {
   await openDashboardImporter(page, desktop);
-  await prepareListings(page, issuesCsv());
+  await prepareListings(page, issuesCsv(), true);
+  await setUnfinishedState(page, "issues");
   await expect(
-    page.getByText("2 listings have unresolved issues"),
+    page.getByText("1 listing has an unresolved issue"),
   ).toBeVisible();
   await captureAtlasState(page, "dashboard-importer-issues");
 });
 
 test("Dashboard importer mobile unresolved issues", async ({ page }) => {
   await openDashboardImporter(page, mobile);
-  await prepareListings(page, issuesCsv());
+  await prepareListings(page, issuesCsv(), true);
+  await setUnfinishedState(page, "issues");
   await expect(
-    page.getByText("2 listings have unresolved issues"),
+    page.getByText("1 listing has an unresolved issue"),
   ).toBeVisible();
   await expectNoPageOverflow(page);
   await captureAtlasState(page, "dashboard-importer-mobile-issues");
 });
 
-test("Dashboard importer skips existing listings", async ({ page }) => {
-  await openDashboardImporter(page, desktop);
+async function prepareEquivalentListing(page: Page) {
+  await page.route("**/api/trpc/dashboardV2.listing.list**", async (route) => {
+    const response = await route.fetch();
+    const payload = (await response.json()) as {
+      result: { data: { json: Record<string, unknown>[] } };
+    };
+    payload.result.data.json.push({
+      id: "atlas-equivalent",
+      title: "Arcane Pattern",
+      cultivarReferenceId: "cr-ahs-181653",
+      price: 20,
+      description: "Imported description",
+      privateNote: "Imported note",
+    });
+    await route.fulfill({ json: payload });
+  });
   await prepareListings(page, existingListingCsv());
-  await expect(page.getByText("1 listing is in your catalog")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Create anyway" })).toHaveCount(
-    0,
-  );
-  await captureAtlasState(page, "dashboard-importer-existing");
-});
+  await expect(
+    page.getByText("Already saved · details unchanged", { exact: true }),
+  ).toBeVisible();
+}
 
-test("Dashboard importer mobile existing listing", async ({ page }) => {
-  await openDashboardImporter(page, mobile);
-  await prepareListings(page, existingListingCsv());
-  await expect(page.getByText("1 listing is in your catalog")).toBeVisible();
-  await expectNoPageOverflow(page);
-  await captureAtlasState(page, "dashboard-importer-mobile-existing");
-});
+for (const [viewport, state] of [
+  [desktop, "dashboard-importer-existing"],
+  [mobile, "dashboard-importer-mobile-existing"],
+] as const) {
+  test(state, async ({ page }) => {
+    await openDashboardImporter(page, viewport);
+    await prepareEquivalentListing(page);
+    await expectNoPageOverflow(page);
+    await captureAtlasState(page, state);
+  });
+}
 
 test("Dashboard importer confirmation", async ({ page }) => {
   await openDashboardImporter(page, desktop);
-  await prepareListings(page);
-  await page.getByRole("button", { name: "Import 3 listings" }).click();
+  await prepareEquivalentListing(page);
+  await page
+    .getByRole("button", { name: "Import 1 listing", exact: true })
+    .click();
   await expect(
-    page.getByRole("heading", { name: "Import 3 listings?" }),
+    page.getByRole("heading", { name: "Import 1 listing?", exact: true }),
   ).toBeVisible();
   await captureAtlasState(page, "dashboard-importer-confirm");
 });
@@ -236,10 +307,9 @@ test("Dashboard importer complete", async ({ page }) => {
   await openDashboardImporter(page, desktop);
   await prepareListings(page);
   await page.getByRole("button", { name: "Import 3 listings" }).click();
-  await page.getByRole("button", { name: "Import listings" }).click();
   await expect(
     page.getByRole("heading", {
-      name: "All ready listings are in your catalog",
+      name: "Selected rows saved",
     }),
   ).toBeVisible({ timeout: 30_000 });
   await captureAtlasState(page, "dashboard-importer-complete");

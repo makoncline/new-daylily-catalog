@@ -1,8 +1,5 @@
 import path from "node:path";
-import { execFile } from "node:child_process";
-import { existsSync } from "node:fs";
-import { promisify } from "node:util";
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { PrismaLibSql } from "@prisma/adapter-libsql";
 import { PrismaClient } from "@prisma/client";
 import type { Page } from "@playwright/test";
@@ -84,7 +81,7 @@ test.beforeEach(async ({ page }) => {
     where: { id: { startsWith: "imports-ref-" } },
   });
   await db.cultivarReference.createMany({
-    data: Array.from({ length: 105 }, (_, i) => ({
+    data: Array.from({ length: 350 }, (_, i) => ({
       id: `imports-ref-${i + 1}`,
       normalizedName: `reference bloom ${i + 1}`,
     })),
@@ -106,22 +103,37 @@ async function capture(page: Page, name: string) {
     fullPage: (await page.getByRole("alertdialog").count()) === 0,
   });
 }
-async function prepare(page: Page, count = 3, extra: string[] = []) {
+async function prepare(
+  page: Page,
+  count = 3,
+  extra: string[] = [],
+  failLaterChunk = false,
+) {
+  let failed = false;
   await page.route("**/api/v1/cultivars/match", async (route) => {
-    const { names } = route.request().postDataJSON() as { names: string[] };
+    const { names, cultivarReferenceIds } = route.request().postDataJSON() as {
+      names: string[];
+      cultivarReferenceIds?: (string | null)[];
+    };
+    expect(names.length).toBeLessThanOrEqual(250);
+    if (failLaterChunk && !failed && names[0] === "Reference Bloom 251") {
+      failed = true;
+      await route.fulfill({
+        status: 503,
+        json: { error: "Injected later chunk failure" },
+      });
+      return;
+    }
     await route.fulfill({
-      contentType: "application/json",
-      body: JSON.stringify({
-        results: names.map((name) => {
-          const needsReview = name === "Unreviewed Bloom";
+      json: {
+        results: names.map((name, index) => {
           const candidate = {
             cultivarReferenceId:
-              name === "Existing Bloom"
-                ? "integration-cultivar-reference"
-                : `imports-ref-${name.match(/\d+/)?.[0] ?? "1"}`,
+              cultivarReferenceIds?.[index] ??
+              `imports-ref-${/\d+/.exec(name)?.[0] ?? "1"}`,
             displayName: name,
             normalizedName: name.toLowerCase(),
-            confidence: needsReview ? 85 : 100,
+            confidence: 100,
             hybridizer: "Reference Garden",
             year: 2026,
             color: "Rose",
@@ -137,24 +149,26 @@ async function prepare(page: Page, count = 3, extra: string[] = []) {
           };
           return {
             inputName: name,
+            inputCultivarReferenceId: cultivarReferenceIds?.[index],
             normalizedInput: name.toLowerCase(),
-            exactMatch: needsReview ? null : candidate,
+            exactMatch: candidate,
             candidates: [candidate],
           };
         }),
-      }),
+      },
     });
   });
   await page.goto("/dashboard/imports");
-  await expect(
-    page.getByRole("link", { name: "Build import", exact: true }),
-  ).toBeVisible();
-  await page.getByRole("link", { name: "Build import", exact: true }).click();
+  await page
+    .getByRole("link", { name: "Import a spreadsheet or list", exact: true })
+    .click();
   await expect(
     page.getByRole("heading", {
-      name: "Turn the catalog you already have into one buyers can browse",
+      name: "Daylily Catalog Playground",
+      exact: true,
     }),
   ).toBeVisible();
+  await page.getByRole("tab", { name: "Spreadsheet", exact: true }).click();
   const csv = [
     "name,price,description,private note",
     ...Array.from(
@@ -169,18 +183,45 @@ async function prepare(page: Page, count = 3, extra: string[] = []) {
     mimeType: "text/csv",
     buffer: Buffer.from(csv),
   });
-  await page
-    .getByRole("button", { name: "Build catalog preview", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Check names", exact: true }).click();
+  if (failLaterChunk) {
+    await expect(
+      page.getByText("Injected later chunk failure", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("reference-import.csv", { exact: true }),
+    ).toBeVisible();
+    expect(
+      await page.evaluate(() =>
+        localStorage.getItem("daylily-catalog:temp-list"),
+      ),
+    ).toBeNull();
+    await page
+      .getByRole("button", { name: "Check names", exact: true })
+      .click();
+  }
+  await page.getByRole("button", { name: "Add ready", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "Your catalog preview", exact: true }),
+    page.getByRole("heading", {
+      name: `Your catalog (${count + extra.length})`,
+      exact: true,
+    }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Finish", exact: true }).click();
+  await page.reload();
+  await expect(
+    page.getByRole("heading", {
+      name: `Your catalog (${count + extra.length})`,
+      exact: true,
+    }),
+  ).toBeVisible();
   await page
-    .getByRole("link", { name: "Continue to import", exact: true })
+    .getByRole("button", { name: "Save to my catalog", exact: true })
     .click();
   await expect(
-    page.getByRole("heading", { name: "Import catalog", exact: true }),
+    page.getByRole("heading", {
+      name: `${count + extra.length} ready to import`,
+      exact: true,
+    }),
   ).toBeVisible();
 }
 async function pinned(
@@ -218,9 +259,11 @@ async function pinned(
   });
   expect(position.after).toBe(position.before);
   await expect(left.locator("th").filter({ hasText: /^Name$/ })).toBeVisible();
-  expect(
-    await middle.evaluate((element) => element.scrollLeft),
-  ).toBeGreaterThan(0);
+  const horizontal = await middle.evaluate((element) => ({
+    left: element.scrollLeft,
+    maximum: element.scrollWidth - element.clientWidth,
+  }));
+  expect(horizontal.left).toBe(horizontal.maximum);
   const width = await page.evaluate(() => [
     document.documentElement.scrollWidth,
     document.documentElement.clientWidth,
@@ -228,97 +271,54 @@ async function pinned(
   expect(width[0]).toBeLessThanOrEqual(width[1]!);
 }
 
-for (const [device, viewport] of [
-  ["desktop", { width: 1024, height: 1000 }],
-  ["mobile", { width: 402, height: 874 }],
+for (const [device, viewport, count] of [
+  ["desktop", { width: 1440, height: 1000 }, 350],
+  ["mobile", { width: 390, height: 844 }, 105],
 ] as const) {
   test(`prepared import writes, batches and persists on ${device}`, async ({
     page,
   }) => {
-    test.setTimeout(150_000);
+    test.setTimeout(180_000);
     await page.setViewportSize(viewport);
-    await page.goto("/dashboard/imports");
-    await expect(
-      page.getByRole("link", { name: "Build import", exact: true }),
-    ).toBeVisible();
-    await capture(page, `${device}-empty`);
-    await prepare(page, 105);
-    await expect(
-      page.getByRole("heading", { name: "105 listings are ready to import" }),
-    ).toBeVisible();
-    if (device === "desktop")
-      await page
-        .getByRole("button", { name: "Toggle Sidebar", exact: true })
-        .click();
+    await prepare(page, count, [], device === "desktop");
     await capture(page, `${device}-ready`);
     await pinned(page);
     await page.reload();
     await expect(
-      page.getByRole("heading", { name: "105 listings are ready to import" }),
+      page.getByRole("heading", {
+        name: `${count} ready to import`,
+        exact: true,
+      }),
     ).toBeVisible();
-    await expect(
-      page.getByRole("checkbox", {
-        name: "Include Reference Bloom 1",
-        exact: true,
-      }),
-    ).toBeChecked();
-    const scroll = page.locator('[data-slot="dashboard-import-scroll-area"]');
-    await scroll.evaluate((element) => {
-      element.scrollTop = element.scrollHeight;
-    });
-    await page.getByRole("button", { name: "Show 5 more" }).click();
-    await expect(
-      page.getByRole("checkbox", {
-        name: "Include Reference Bloom 105",
-        exact: true,
-      }),
-    ).toBeDisabled();
-    await page.getByRole("button", { name: "Return to top" }).click();
-    expect(await scroll.evaluate((element) => element.scrollTop)).toBe(0);
-    await page
-      .getByRole("checkbox", { name: "Include Reference Bloom 1", exact: true })
-      .click();
-    await expect(
-      page.getByRole("button", { name: "Import 99 listings" }),
-    ).toBeEnabled();
-    await page
-      .getByRole("checkbox", { name: "Include Reference Bloom 1", exact: true })
-      .click();
-    const button = page.getByRole("button", {
-      name: "Import 100 listings",
+    const firstRow = page.getByRole("checkbox", {
+      name: "Include Reference Bloom 1",
       exact: true,
     });
-    await button.click();
+    await expect(firstRow).toBeChecked();
+    await firstRow.click();
     await expect(
-      page.getByRole("button", { name: "Cancel", exact: true }),
-    ).toBeFocused();
-    await capture(page, `${device}-confirm`);
-    await page.getByRole("button", { name: "Cancel", exact: true }).click();
-    // Final source must return focus to the confirmation trigger.
-    await expect(button).toBeFocused();
-    let fail = true;
+      page.getByRole("button", { name: "Import 99 listings", exact: true }),
+    ).toBeEnabled();
+    await firstRow.click();
     let requests = 0;
+    let failWrite = true;
+    let rejectRefresh = false;
     let releaseWrite!: () => void;
     const heldWrite = new Promise<void>((resolve) => {
       releaseWrite = resolve;
     });
     let writeStarted!: () => void;
-    const writeReady = new Promise<void>((resolve) => {
+    const started = new Promise<void>((resolve) => {
       writeStarted = resolve;
     });
-    let rejectRefresh = false;
-    const successfulWrite: { request?: { url: string; body: string } } = {};
+    const successful: { url?: string; body?: string } = {};
     await page.route(
       /\/api\/trpc\/dashboardV2\.bootstrap\.catalog/,
       async (route) => {
-        if (!rejectRefresh) {
-          await route.continue();
-          return;
-        }
+        if (!rejectRefresh) return route.continue();
         await route.fulfill({
           status: 500,
-          contentType: "application/json",
-          body: JSON.stringify([
+          json: [
             {
               error: {
                 json: {
@@ -328,7 +328,7 @@ for (const [device, viewport] of [
                 },
               },
             },
-          ]),
+          ],
         });
       },
     );
@@ -336,12 +336,11 @@ for (const [device, viewport] of [
       "**/api/trpc/dashboardV2.listing.importRows**",
       async (route) => {
         requests++;
-        if (fail) {
-          fail = false;
+        if (failWrite) {
+          failWrite = false;
           await route.fulfill({
             status: 500,
-            contentType: "application/json",
-            body: JSON.stringify({
+            json: {
               error: {
                 json: {
                   message: "Injected rejected write",
@@ -349,24 +348,23 @@ for (const [device, viewport] of [
                   data: { code: "INTERNAL_SERVER_ERROR", httpStatus: 500 },
                 },
               },
-            }),
+            },
           });
-        } else {
-          successfulWrite.request = {
-            url: route.request().url(),
-            body: route.request().postData()!,
-          };
+          return;
+        }
+        if (requests === 2) {
+          successful.url = route.request().url();
+          successful.body = route.request().postData()!;
           writeStarted();
           await heldWrite;
-          const response = await route.fetch();
-          rejectRefresh = requests === 2;
-          await route.fulfill({ response });
         }
+        const response = await route.fetch();
+        rejectRefresh = requests === 2;
+        await route.fulfill({ response });
       },
     );
-    await button.click();
     await page
-      .getByRole("button", { name: "Import listings", exact: true })
+      .getByRole("button", { name: "Import 100 listings", exact: true })
       .click();
     await expect(
       page.getByText("Import did not finish", { exact: true }),
@@ -375,93 +373,81 @@ for (const [device, viewport] of [
       await db.listing.count({ where: { importKey: { not: null } } }),
     ).toBe(0);
     await capture(page, `${device}-failed-write`);
-    await button.click();
     await page
-      .getByRole("button", { name: "Import listings", exact: true })
+      .getByRole("button", { name: "Import 100 listings", exact: true })
       .click();
-    await writeReady;
-    await expect(
-      page.getByRole("checkbox", {
-        name: "Select up to 100 visible listings",
-        exact: true,
-      }),
-    ).toBeDisabled();
-    await expect(
-      page.getByRole("checkbox", {
-        name: "Include Reference Bloom 1",
-        exact: true,
-      }),
-    ).toBeDisabled();
+    await started;
+    await expect(firstRow).toBeDisabled();
     await expect(
       page.getByRole("button", { name: "Start over", exact: true }),
     ).toBeDisabled();
     await page.keyboard.press("Enter");
-    await page.keyboard.press("Enter");
-    await expect(page.getByRole("alertdialog")).toHaveCount(0);
     expect(requests).toBe(2);
-    expect(
-      await db.listing.count({ where: { importKey: { not: null } } }),
-    ).toBe(0);
     releaseWrite();
     await expect(
-      page.getByRole("heading", { name: "5 listings remain", exact: true }),
-    ).toBeVisible();
-    await expect(
-      page.getByText("Listings were saved. Dashboard refresh did not finish.", {
+      page.getByRole("heading", {
+        name: `${count - 100} ready to import`,
         exact: true,
       }),
-    ).toBeVisible({ timeout: 15_000 });
-    await capture(page, `${device}-refresh-failed-after-write`);
+    ).toBeVisible();
     await expect(
-      page.getByText("Import did not finish", { exact: true }),
-    ).toHaveCount(0);
+      page.getByText("Saved. Dashboard refresh did not finish.", {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await capture(page, `${device}-refresh-failed`);
+    await page.reload();
+    await expect(
+      page.getByText("Saved. Dashboard refresh did not finish.", {
+        exact: true,
+      }),
+    ).toBeVisible();
     rejectRefresh = false;
     await page
       .getByRole("button", { name: "Retry refresh", exact: true })
       .click();
     await expect(
-      page.getByText("Listings were saved. Dashboard refresh did not finish.", {
+      page.getByText("Saved. Dashboard refresh did not finish.", {
         exact: true,
       }),
     ).toHaveCount(0);
     expect(requests).toBe(2);
-    expect(
-      await db.listing.count({ where: { importKey: { not: null } } }),
-    ).toBe(100);
-    await capture(page, `${device}-next-batch`);
-    if (!successfulWrite.request)
-      throw Error("Successful write request was not captured");
-    const replay = await page.request.post(successfulWrite.request.url, {
+    const replay = await page.request.post(successful.url!, {
       headers: {
         "content-type": "application/json",
         "x-dashboard-member-id": "integration-user",
       },
-      data: successfulWrite.request.body,
+      data: successful.body!,
     });
     expect(replay.ok()).toBe(true);
     expect(JSON.stringify(await replay.json())).toContain('"createdCount":0');
     expect(
       await db.listing.count({ where: { importKey: { not: null } } }),
     ).toBe(100);
-    await page
-      .getByRole("button", { name: "Import 5 listings", exact: true })
-      .click();
-    await page
-      .getByRole("button", { name: "Import listings", exact: true })
-      .click();
-    await expect(
-      page.getByRole("heading", {
-        name: "All ready listings are in your catalog",
-        exact: true,
-      }),
-    ).toBeVisible();
+    for (let remaining = count - 100; remaining > 0; remaining -= 100) {
+      const selected = Math.min(remaining, 100);
+      await page
+        .getByRole("button", {
+          name: `Import ${selected} listings`,
+          exact: true,
+        })
+        .click();
+      await expect(
+        page.getByRole("heading", {
+          name:
+            remaining > 100
+              ? `${remaining - 100} ready to import`
+              : "Selected rows saved",
+          exact: true,
+        }),
+      ).toBeVisible();
+    }
     await capture(page, `${device}-complete`);
     const saved = await db.listing.findMany({
       where: { importKey: { not: null } },
-      orderBy: { title: "asc" },
     });
-    expect(saved).toHaveLength(105);
-    expect(new Set(saved.map((row) => row.importKey)).size).toBe(105);
+    expect(saved).toHaveLength(count);
+    expect(new Set(saved.map((row) => row.importKey)).size).toBe(count);
     expect(
       saved.find((row) => row.title === "Reference Bloom 1"),
     ).toMatchObject({
@@ -472,200 +458,111 @@ for (const [device, viewport] of [
     });
     await page.reload();
     await expect(
-      page.getByText("105 listings are in your catalog", { exact: true }),
+      page.getByRole("heading", { name: "Selected rows saved", exact: true }),
     ).toBeVisible();
-    const [reopened] = await Promise.all([
-      page.waitForEvent("popup"),
-      page
-        .getByRole("link", { name: "Reference Bloom 1", exact: true })
-        .click(),
-    ]);
-    const editor = reopened.getByRole("region", {
-      name: "Edit listing",
-      exact: true,
-    });
-    await expect(editor.getByLabel("Name", { exact: true })).toHaveValue(
-      "Reference Bloom 1",
-    );
-    await expect(editor.getByLabel("Description", { exact: true })).toHaveValue(
-      "Reference description 1",
-    );
-    await expect(editor.getByLabel("Price", { exact: true })).toHaveValue("15");
-    await expect(
-      editor.getByLabel("Private Notes", { exact: true }),
-    ).toHaveValue("Reference note 1");
-    await reopened.reload();
-    await expect(editor.getByLabel("Name", { exact: true })).toHaveValue(
-      "Reference Bloom 1",
-    );
-    await reopened.close();
+    expect(
+      await page.evaluate(
+        () =>
+          JSON.parse(localStorage.getItem("daylily-catalog:temp-list")!).length,
+      ),
+    ).toBe(count);
     await page.getByRole("button", { name: "Start over", exact: true }).click();
-    await page.getByRole("button", { name: "Cancel", exact: true }).click();
     await expect(
-      page.getByText("105 listings are in your catalog", { exact: true }),
-    ).toBeVisible();
+      page.getByRole("button", { name: "Cancel", exact: true }),
+    ).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(
+      page.getByRole("button", { name: "Start over", exact: true }),
+    ).toBeFocused();
     await page.getByRole("button", { name: "Start over", exact: true }).click();
-    await capture(page, `${device}-start-over`);
     await page
       .getByRole("button", { name: "Discard import", exact: true })
       .click();
     await expect(
-      page.getByRole("link", { name: "Build import", exact: true }),
-    ).toBeVisible();
-    await page.reload();
-    await expect(
-      page.getByRole("link", { name: "Build import", exact: true }),
+      page.getByRole("link", {
+        name: "Import a spreadsheet or list",
+        exact: true,
+      }),
     ).toBeVisible();
     expect(
       await db.listing.count({ where: { importKey: { not: null } } }),
-    ).toBe(105);
+    ).toBe(count);
+    await page
+      .getByRole("link", { name: "Import a spreadsheet or list", exact: true })
+      .click();
+    await expect(
+      page.getByRole("heading", {
+        name: `Your catalog (${count})`,
+        exact: true,
+      }),
+    ).toBeVisible();
   });
 }
 
-test("excluded source context, builder return and non-Pro downloads", async ({
+test("source variants and download-only fields survive account handoff", async ({
   page,
 }) => {
-  test.setTimeout(120_000);
-  await prepare(page, 3, [
-    "Unreviewed Bloom,22,Review description,Review note",
-    "Reference Bloom 4,trade,Invalid price,Source note",
-    "Existing Bloom,20,Incoming description,Incoming note",
+  await prepare(page, 0, [
+    "Double fan,20,Two fans,North bed",
+    "Single fan,10,One fan,South bed",
   ]);
-  await expect(
-    page.getByText("1 listing has not been reviewed", { exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByText("1 listing has an unresolved issue", { exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByText("1 listing is in your catalog", { exact: true }),
-  ).toBeVisible();
-  await page.setViewportSize({ width: 1024, height: 1000 });
   await page
-    .getByRole("button", { name: "Toggle Sidebar", exact: true })
+    .getByRole("button", { name: "Import 2 listings", exact: true })
     .click();
-  await capture(page, "desktop-excluded");
-  const issue = page.getByRole("region", {
-    name: "1 listing has an unresolved issue",
-    exact: true,
+  await expect(
+    page.getByRole("heading", { name: "Selected rows saved", exact: true }),
+  ).toBeVisible();
+  const saved = await db.listing.findMany({
+    where: { importKey: { not: null } },
+    orderBy: { price: "asc" },
   });
-  await expect(issue.getByText("trade", { exact: true })).toHaveAttribute(
-    "data-issue-highlight",
-    "true",
-  );
-  await pinned(page, issue);
-  await page.setViewportSize({ width: 402, height: 874 });
-  await capture(page, "mobile-excluded");
-  await pinned(page, issue);
-  await page
-    .getByRole("link", { name: "Return to import builder", exact: true })
-    .click();
-  await expect(
-    page.getByRole("heading", { name: "Your catalog preview", exact: true }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Finish", exact: true }).click();
-  await page
-    .getByRole("link", { name: "Continue to import", exact: true })
-    .click();
-  await expect(
-    page.getByRole("heading", {
-      name: "3 listings are ready to import",
-      exact: true,
-    }),
-  ).toBeVisible();
+  expect(
+    saved.map(({ title, price, privateNote }) => ({
+      title,
+      price,
+      privateNote,
+    })),
+  ).toEqual([
+    { title: "Single fan", price: 10, privateNote: "South bed" },
+    { title: "Double fan", price: 20, privateNote: "North bed" },
+  ]);
   await subscription(false);
   await page.evaluate(() =>
     localStorage.removeItem("stripe-subscription:1:user_integration_seller"),
   );
   await page.reload();
-  await expect(page.getByText("Pro required", { exact: true })).toBeVisible();
-  await capture(page, "mobile-non-pro");
-  await page.setViewportSize({ width: 1024, height: 1000 });
-  await capture(page, "desktop-non-pro");
-  await page.evaluate(() => {
-    const createObjectURL = URL.createObjectURL;
-    URL.createObjectURL = () => {
-      URL.createObjectURL = createObjectURL;
-      throw new Error("Injected download failure");
-    };
-  });
-  await page
-    .getByRole("button", { name: "Download prepared import file", exact: true })
-    .click();
-  await page
-    .getByRole("button", { name: "Download anyway", exact: true })
-    .click();
   await expect(
     page.getByRole("heading", {
-      name: "Spreadsheet download did not finish",
+      name: /Save 2 listings to your account with Pro/,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("$12.99 per month. Billing options are shown at checkout.", {
       exact: true,
     }),
   ).toBeVisible();
-  await expect(page.getByText(/Injected download failure/)).toBeVisible();
-  for (const name of [
-    "Download prepared import file",
-    "Download enhanced original",
-  ]) {
-    await page.getByRole("button", { name, exact: true }).click();
-    await expect(
-      page.getByRole("heading", {
-        name: "Download before review is complete?",
-        exact: true,
-      }),
-    ).toBeVisible();
-    await page.getByRole("button", { name: "Cancel", exact: true }).click();
-    await page.getByRole("button", { name, exact: true }).click();
-    const download = page.waitForEvent("download");
-    await page
-      .getByRole("button", { name: "Download anyway", exact: true })
-      .click();
-    const file = await download;
-    expect(await file.failure()).toBeNull();
-    const filePath = (await file.path())!;
-    const content = await readFile(filePath);
-    if (file.suggestedFilename().endsWith(".xlsx")) {
-      const rows = await readXlsxFile(filePath);
-      expect(JSON.stringify(rows)).toContain("Reference Bloom 1");
-      expect(JSON.stringify(rows)).toContain("Reference description 1");
-    } else {
-      expect(content.toString()).toContain("Reference Bloom 1");
-      expect(content.toString()).toContain("Reference description 1");
-    }
-  }
-  await expect(
-    page.getByRole("heading", {
-      name: "Spreadsheet download did not finish",
-      exact: true,
-    }),
-  ).toHaveCount(0);
-  expect(await db.listing.count({ where: { importKey: { not: null } } })).toBe(
-    0,
-  );
+  await page
+    .getByRole("link", { name: "Back to Playground", exact: true })
+    .click();
+  const download = page.waitForEvent("download");
+  await page
+    .getByRole("button", { name: "Download spreadsheet", exact: true })
+    .click();
+  const workbook = await readXlsxFile(await (await download).path());
+  expect(JSON.stringify(workbook)).toContain("North bed");
+  expect(JSON.stringify(workbook)).toContain("South bed");
 });
 
-test("existing catalog retry and builder exclusions keep the source rows", async ({
+test("an existing-catalog check can fail and retry without losing source rows", async ({
   page,
 }) => {
-  test.setTimeout(90_000);
-  await page.setViewportSize({ width: 1024, height: 1000 });
-  await prepare(page, 3, [
-    "Unreviewed Bloom,22,Review description,Review note",
-  ]);
-  let releaseCheck!: () => void;
-  const heldCheck = new Promise<void>((resolve) => {
-    releaseCheck = resolve;
-  });
-  let failCheck = true;
+  await prepare(page, 3);
+  let fail = true;
   await page.route("**/api/trpc/dashboardV2.listing.list**", async (route) => {
-    await heldCheck;
-    if (!failCheck) {
-      await route.continue();
-      return;
-    }
+    if (!fail) return route.continue();
     await route.fulfill({
       status: 500,
-      contentType: "application/json",
-      body: JSON.stringify({
+      json: {
         error: {
           json: {
             message: "Injected catalog check failure",
@@ -673,258 +570,85 @@ test("existing catalog retry and builder exclusions keep the source rows", async
             data: { code: "INTERNAL_SERVER_ERROR", httpStatus: 500 },
           },
         },
-      }),
+      },
     });
   });
-  await page.reload({ waitUntil: "domcontentloaded" });
-  await expect(
-    page.getByText("Checking your existing catalog…", { exact: true }),
-  ).toBeVisible();
-  await capture(page, "desktop-catalog-check-loading-after-only");
-  releaseCheck();
-  await expect(
-    page.getByText("Your existing catalog could not be checked", {
-      exact: true,
-    }),
-  ).toBeVisible({ timeout: 20_000 });
-  await capture(page, "desktop-catalog-check-failed-after-only");
-  await expect(
-    page.getByRole("button", { name: "Import 3 listings", exact: true }),
-  ).toHaveCount(0);
-  failCheck = false;
-  await page.getByRole("button", { name: "Retry check", exact: true }).click();
-  await expect(
-    page.getByRole("heading", {
-      name: "3 listings are ready to import",
-      exact: true,
-    }),
-  ).toBeVisible();
-  await page
-    .getByRole("link", { name: "Return to import builder", exact: true })
-    .click();
-  await expect(
-    page.getByRole("heading", { name: "Your catalog preview", exact: true }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Review 0/1", exact: true }).click();
-  await page
-    .getByRole("button", { name: "Exclude from catalog", exact: true })
-    .click();
-  await page.getByRole("button", { name: "Finish", exact: true }).click();
-  await page
-    .getByRole("link", { name: "Continue to import", exact: true })
-    .click();
-  await expect(
-    page.getByRole("heading", {
-      name: "3 listings are ready to import",
-      exact: true,
-    }),
-  ).toBeVisible();
   await page.reload();
-  const excluded = page.getByRole("region", {
-    name: "1 listing was excluded in the builder",
-    exact: true,
-  });
   await expect(
-    excluded.getByText("Unreviewed Bloom", { exact: true }),
+    page.getByText("Could not check your catalog", { exact: true }),
   ).toBeVisible();
-  await expect(
-    excluded.getByText("Review description", { exact: true }),
-  ).toBeVisible();
-  await expect(
-    excluded.getByText("Review note", { exact: true }),
-  ).toBeVisible();
-  await expect(
-    excluded.getByText("Excluded in the import builder", { exact: true }),
-  ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Toggle Sidebar", exact: true })
-    .click();
-  await capture(page, "desktop-builder-excluded-after-only");
-  await pinned(page, excluded);
-  await page.setViewportSize({ width: 402, height: 874 });
-  await capture(page, "mobile-builder-excluded-after-only");
-  await pinned(page, excluded);
   expect(await db.listing.count({ where: { importKey: { not: null } } })).toBe(
     0,
   );
+  fail = false;
+  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "3 ready to import", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("link", { name: "Back to Playground", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Your catalog (3)", exact: true }),
+  ).toBeVisible();
 });
 
-function deferred() {
-  let resolve!: () => void;
-  const promise = new Promise<void>((complete) => {
-    resolve = complete;
-  });
-  return { promise, resolve };
-}
-
-test("public preparation restores an interrupted match and clear rejects its late result", async ({
+test("public preparation keeps the source across an interrupted check and rejects its late result", async ({
   page,
 }) => {
-  test.setTimeout(90_000);
-  const candidateDirectory = path.resolve(".tmp/search");
-  const preservedDirectory = path.resolve(
-    `tests/.tmp/imports-search-${process.pid}`,
-  );
-  const hadCandidate = existsSync(candidateDirectory);
-  if (hadCandidate) await rename(candidateDirectory, preservedDirectory);
-  const attempts = [0, 1, 2].map(() => ({
-    started: deferred(),
-    held: deferred(),
-    finished: deferred(),
-  }));
-  try {
-    await promisify(execFile)(process.execPath, [
-      "scripts/build-public-search-index.mjs",
-      "--source",
-      process.env.DATABASE_URL!,
-      "--target",
-      path.join(candidateDirectory, "public-search-candidate.sqlite"),
-    ]);
-    await page.goto("/catalog-importer");
-    await page.locator('input[type="file"]').setInputFiles({
-      name: "interrupted.csv",
-      mimeType: "text/csv",
-      buffer: Buffer.from(
-        "name,price,description,private note\nIntegration Bloom,15,Rose flower,West bed",
-      ),
+  await page.goto("/playground");
+  await page.getByRole("tab", { name: "Spreadsheet", exact: true }).click();
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "interrupted.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("name,price\nIntegration Bloom,15"),
+  });
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let markStarted!: () => void;
+  const started = new Promise<void>((resolve) => {
+    markStarted = resolve;
+  });
+  await page.route("**/api/v1/cultivars/match", async (route) => {
+    markStarted();
+    await held;
+    await route.fulfill({
+      json: {
+        results: [
+          { inputName: "Integration Bloom", exactMatch: null, candidates: [] },
+        ],
+      },
     });
-    await capture(page, "public-mapping");
-    let requestIndex = 0;
-    await page.route("**/api/v1/cultivars/match", async (route) => {
-      const attempt = attempts[requestIndex++]!;
-      try {
-        const response = await route.fetch();
-        expect(response.ok()).toBe(true);
-        const payload = (await response.json()) as {
-          results: Array<{
-            exactMatch: { cultivarReferenceId: string } | null;
-          }>;
-        };
-        expect(payload.results[0]?.exactMatch?.cultivarReferenceId).toBe(
-          "integration-cultivar-reference",
-        );
-        attempt.started.resolve();
-        await attempt.held.promise;
-        await route.fulfill({ response });
-      } finally {
-        attempt.finished.resolve();
-      }
-    });
-    await page
-      .getByRole("button", { name: "Build catalog preview", exact: true })
-      .click();
-    await attempts[0]!.started.promise;
-    await page.reload();
-    attempts[0]!.held.resolve();
-    await attempts[0]!.finished.promise;
-    await expect(
-      page.getByRole("heading", { name: "Map your columns", exact: true }),
-    ).toBeVisible();
-    await expect(
-      page.getByText("interrupted.csv", { exact: true }),
-    ).toBeVisible();
-    const nextMatchRequest = page.waitForEvent("request", {
-      predicate: (request) =>
-        new URL(request.url()).pathname === "/api/v1/cultivars/match",
-    });
-    await page
-      .getByRole("button", { name: "Build catalog preview", exact: true })
-      .click();
-    await attempts[1]!.started.promise;
-    const heldMatchRequest = await nextMatchRequest;
-    const oldDocument = await page.locator("html").elementHandle();
-    const oldMapping = await page
-      .getByRole("heading", { name: "Map your columns", exact: true })
-      .elementHandle();
-    const canceledMatch = page.waitForEvent("requestfailed", {
-      predicate: (request) => request === heldMatchRequest,
-    });
-    await page
-      .getByRole("contentinfo")
-      .getByRole("link", { name: "Privacy", exact: true })
-      .click();
-    await expect(page).toHaveURL("/privacy");
-    expect((await canceledMatch).failure()?.errorText).toBe("net::ERR_ABORTED");
-    expect(await oldMapping!.evaluate((element) => element.isConnected)).toBe(
-      false,
-    );
-    await page.goBack();
-    await expect(
-      page.getByRole("heading", { name: "Map your columns", exact: true }),
-    ).toBeVisible();
-    expect(
-      await oldDocument!.evaluate(
-        (element) => element === document.documentElement,
-      ),
-    ).toBe(true);
-    const returnedMapping = await page
-      .getByRole("heading", { name: "Map your columns", exact: true })
-      .elementHandle();
-    expect(
-      await oldMapping!.evaluate(
-        (element, returned) => element === returned,
-        returnedMapping,
-      ),
-    ).toBe(false);
-    await page.getByRole("button", { name: "Start", exact: true }).click();
-    await page
-      .getByRole("button", { name: "Clear local progress", exact: true })
-      .click();
-    await page
-      .getByRole("alertdialog")
-      .getByRole("button", { name: "Clear local progress", exact: true })
-      .click();
-    await page.locator('input[type="file"]').setInputFiles({
-      name: "replacement.csv",
-      mimeType: "text/csv",
-      buffer: Buffer.from("name,price\nIntegration Bloom,27"),
-    });
-    await expect(
-      page.getByText("replacement.csv", { exact: true }),
-    ).toBeVisible();
-    attempts[1]!.held.resolve();
-    await attempts[1]!.finished.promise;
-    await page.reload();
-    await expect(
-      page.getByText("replacement.csv", { exact: true }),
-    ).toBeVisible();
-    await capture(page, "public-remount-replacement");
-    await page
-      .getByRole("button", { name: "Build catalog preview", exact: true })
-      .click();
-    await attempts[2]!.started.promise;
-    await page.getByRole("button", { name: "Start", exact: true }).click();
-    await page
-      .getByRole("button", { name: "Clear local progress", exact: true })
-      .click();
-    await page
-      .getByRole("alertdialog")
-      .getByRole("button", { name: "Clear local progress", exact: true })
-      .click();
-    attempts[2]!.held.resolve();
-    await attempts[2]!.finished.promise;
-    await expect(
-      page.getByText("Drop a spreadsheet here, or choose a file", {
-        exact: true,
-      }),
-    ).toBeVisible();
-    await page.reload();
-    await expect(
-      page.getByText("Drop a spreadsheet here, or choose a file", {
-        exact: true,
-      }),
-    ).toBeVisible();
-    await page.goto("/dashboard/imports");
-    await expect(
-      page.getByRole("link", { name: "Build import", exact: true }),
-    ).toBeVisible();
-    expect(
-      await db.listing.count({ where: { importKey: { not: null } } }),
-    ).toBe(0);
-  } finally {
-    for (const attempt of attempts) attempt.held.resolve();
-    await page.unrouteAll({ behavior: "wait" });
-    await rm(candidateDirectory, { recursive: true, force: true });
-    if (hadCandidate) await rename(preservedDirectory, candidateDirectory);
-  }
+  });
+  await page.getByRole("button", { name: "Check names", exact: true }).click();
+  await started;
+  await page.reload();
+  release();
+  await expect(
+    page.getByText("interrupted.csv", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Verify names", exact: true }),
+  ).toHaveCount(0);
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "replacement.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("name,price\nNew seedling,27"),
+  });
+  await page.reload();
+  await expect(
+    page.getByText("replacement.csv", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Check names", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Keep unlinked", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Add ready", exact: true }).click();
+  expect(
+    await page.evaluate(() =>
+      JSON.parse(localStorage.getItem("daylily-catalog:temp-list")!),
+    ),
+  ).toMatchObject([{ name: "New seedling", price: 27 }]);
 });

@@ -8,7 +8,7 @@ export type SubscriptionBillingOption = z.infer<
 export const SUBSCRIPTION_CONFIG = {
   PATHS: {
     DASHBOARD_SIGN_IN: "/sign-in",
-    NEW_USER_ONBOARDING: "/catalog-importer",
+    NEW_USER_ONBOARDING: "/playground",
     SELLER_SIGNUP: "/sign-up",
   },
   OFFER: {

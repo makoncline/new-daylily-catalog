@@ -35,7 +35,7 @@ test.describe("dashboard setup journey @local", () => {
       // Phase 1: auth and profile completion
       // Direct signup URLs should enter the importer, not Clerk signup.
       await page.goto("/sign-up");
-      await expect(page).toHaveURL(/\/catalog-importer/);
+      await expect(page).toHaveURL(/\/playground/);
 
       // arrive on the home page
       await homePage.goto();

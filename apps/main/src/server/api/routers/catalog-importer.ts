@@ -12,7 +12,18 @@ import {
   signedInCatalogImporterCheckoutInputSchema,
 } from "@/server/catalog-importer/checkout-service";
 
+import { getMembershipCheckoutPrice } from "@/server/stripe/membership-checkout-price";
+
 export const catalogImporterRouter = createTRPCRouter({
+  membershipOffer: publicProcedure.query(async () => {
+    const { amount, currency } = await getMembershipCheckoutPrice();
+    return {
+      monthlyPrice: new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency,
+      }).format(amount / 100),
+    };
+  }),
   createCheckout: publicProcedure
     .input(catalogImporterCheckoutInputSchema)
     .mutation(async ({ ctx, input }) => {

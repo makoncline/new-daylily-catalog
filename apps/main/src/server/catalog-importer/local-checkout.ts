@@ -8,6 +8,7 @@ export const LOCAL_E2E_CHECKOUT_EMAIL =
 
 interface PendingCatalogImporterCheckout {
   sessionId: string;
+  returnTo: "/playground";
   customerId: string;
   email: string;
   importId: string;
@@ -19,6 +20,7 @@ interface PendingCatalogImporterCheckout {
 
 export interface LocalCatalogImporterCheckoutDetails {
   sessionId: string;
+  returnTo: "/playground";
   customerId: string;
   email: string;
   importId: string;
@@ -46,9 +48,11 @@ export function isLocalE2ECheckoutEnabled() {
 export async function createLocalE2ECheckoutSession({
   db,
   importId,
+  returnTo = "/playground",
 }: {
   db: PrismaClient;
   importId: string;
+  returnTo?: "/playground";
 }) {
   const sessionId = `cs_test_catalog_importer_${randomUUID()}`;
   const customerId = `cus_e2e_${randomUUID().replace(/-/g, "").slice(0, 24)}`;
@@ -56,6 +60,7 @@ export async function createLocalE2ECheckoutSession({
   const billingOption: SubscriptionBillingOption = "annual";
   const pendingSession: PendingCatalogImporterCheckout = {
     sessionId,
+    returnTo,
     customerId,
     email: LOCAL_E2E_CHECKOUT_EMAIL,
     importId,
@@ -113,6 +118,7 @@ export async function getLocalE2ECheckoutDetails(
 
     return {
       sessionId: parsed.sessionId,
+      returnTo: parsed.returnTo,
       customerId: parsed.customerId,
       email: parsed.email.toLowerCase(),
       importId: parsed.importId,

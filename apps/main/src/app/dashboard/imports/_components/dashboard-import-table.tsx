@@ -3,10 +3,11 @@
 import { useMemo, useRef, useState } from "react";
 import { type ColumnDef, useReactTable } from "@tanstack/react-table";
 import { ArrowUp } from "lucide-react";
-import { CatalogImporterCultivarSummary } from "@/app/(public)/catalog-importer/_components/catalog-importer-cultivar-summary";
+import { CatalogImporterCultivarSummary } from "@/components/catalog-builder/cultivar-summary";
 import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import {
   prepareCatalogImportListing,
   type CatalogImportRow,
@@ -16,6 +17,7 @@ import { cn, formatPrice } from "@/lib/utils";
 
 interface DashboardImportTableProps {
   rows: CatalogImportRow[];
+  rowActions?: ReadonlyMap<string, string>;
   disabled: boolean;
   onRowSelectionChange: (rowId: string, selected: boolean) => void;
   onRowsSelectionChange: (rowIds: string[], selected: boolean) => void;
@@ -25,6 +27,7 @@ interface DashboardImportTableProps {
 
 export function DashboardImportTable({
   rows,
+  rowActions,
   disabled,
   onRowSelectionChange,
   onRowsSelectionChange,
@@ -108,6 +111,15 @@ export function DashboardImportTable({
         },
       },
       {
+        id: "action",
+        header: "Import",
+        cell: ({ row }) => (
+          <span className="text-muted-foreground text-sm">
+            {rowActions ? (rowActions.get(row.original.id) ?? "—") : "Create"}
+          </span>
+        ),
+      },
+      {
         id: "price",
         header: "Price",
         cell: ({ row: tableRow }) => {
@@ -151,6 +163,19 @@ export function DashboardImportTable({
         ),
       },
       {
+        id: "lists",
+        header: "Lists",
+        cell: ({ row }) => (
+          <div className="flex flex-wrap gap-1">
+            {(row.original.lists ?? []).map((title) => (
+              <Badge key={title} variant="secondary">
+                {title}
+              </Badge>
+            ))}
+          </div>
+        ),
+      },
+      {
         id: "cultivar",
         header: "Linked cultivar",
         cell: ({ row: tableRow }) =>
@@ -160,13 +185,18 @@ export function DashboardImportTable({
               className="w-max max-w-96"
             />
           ) : (
-            <span className="text-muted-foreground">Not linked</span>
+            <span className="text-muted-foreground">
+              {tableRow.original.linkState === "linked"
+                ? "Linked cultivar"
+                : "Not linked"}
+            </span>
           ),
       },
     ];
 
     return nextColumns;
   }, [
+    rowActions,
     disabled,
     allVisibleRowsIncluded,
     onRowSelectionChange,
@@ -198,7 +228,7 @@ export function DashboardImportTable({
       <div className="relative">
         <div
           ref={scrollAreaRef}
-          className="max-h-[60vh] overflow-y-auto lg:max-h-[42rem]"
+          className="max-h-96 overflow-y-auto lg:max-h-168"
           data-slot="dashboard-import-scroll-area"
           onScroll={(event) => {
             const shouldShow = event.currentTarget.scrollTop > 32;

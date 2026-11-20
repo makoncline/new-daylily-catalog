@@ -9,7 +9,19 @@ import type {
   ParsedSpreadsheet,
 } from "@/lib/catalog-importer";
 
+export interface CatalogImportProgress {
+  userId: string;
+  handledRowIds: string[];
+  skippedRowIds: string[];
+  createdCount: number;
+  unchangedCount: number;
+  skippedNames: string[];
+  refreshPending: boolean;
+}
+
 export interface CatalogImporterDraft {
+  importProgress?: CatalogImportProgress;
+  source?: "playground";
   activeReviewRowId: string | null;
   headerRowIndex: number | null;
   initialIssueCount?: number;
@@ -27,6 +39,8 @@ export interface CatalogImporterDraft {
 }
 
 export interface CatalogImporterSession {
+  importProgress?: CatalogImportProgress;
+  source?: "playground";
   activeReviewRowId: string | null;
   headerRowIndex: number | null;
   initialIssueCount: number;
@@ -119,6 +133,7 @@ function normalizeCatalogImporterDraft(draft: CatalogImporterDraft) {
       description: draft.mapping.description,
       price: draft.mapping.price,
       privateNote: draft.mapping.privateNote,
+      lists: draft.mapping.lists ?? null,
       title: draft.mapping.title,
     },
     matchedRows,
@@ -332,12 +347,7 @@ export async function readCatalogImporterDraft(
   try {
     const draft = await selectedStorage.get(CATALOG_IMPORT_DRAFT_STORAGE_KEY);
     if (isCatalogImporterDraft(draft)) {
-      const normalizedDraft = normalizeCatalogImporterDraft(draft);
-      await selectedStorage.set(
-        CATALOG_IMPORT_DRAFT_STORAGE_KEY,
-        normalizedDraft,
-      );
-      return normalizedDraft;
+      return normalizeCatalogImporterDraft(draft);
     }
     const migratedDraft = migrateDraft(draft);
     if (migratedDraft) {

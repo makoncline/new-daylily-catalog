@@ -3,99 +3,74 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useCatalogImporterSession } from "@/hooks/use-catalog-importer-session";
 import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
-
 import {
   getCatalogImportRowDisposition,
   prepareCatalogImportListing,
+  normalizeCatalogListNames,
 } from "@/lib/catalog-importer";
 import type { CatalogImporterDraft } from "@/lib/catalog-importer-draft";
 import { getCatalogImportExistingListingMatch } from "@/lib/catalog-import-existing-listings";
 import { capturePosthogEvent } from "@/lib/analytics/posthog";
 import { api } from "@/trpc/react";
-
-import { IMPORT_BATCH_SIZE } from "./dashboard-import-config";
-
-function getImportErrorMessage(error: unknown) {
-  if (
-    error instanceof Error &&
-    (error.message.includes("Upgrade to Pro") ||
-      error.message.includes("Cultivar reference not found") ||
-      error.message.includes("Review the existing listing") ||
-      error.message.includes("This import already has a named list") ||
-      error.message.includes("Request ID was already used"))
-  ) {
-    return error.message;
-  }
-
-  return "Your import is still saved. Try creating the listings again.";
-}
+import {
+  IMPORT_BATCH_SIZE,
+  IMPORT_BUILDER_HREF,
+} from "./dashboard-import-config";
 
 export function useDashboardCatalogImport(
   initialDraft: CatalogImporterDraft | null,
 ) {
-  const { refreshDashboardCatalog } = useDashboardDb();
+  const { refreshDashboardCatalog, userId } = useDashboardDb();
   const {
     session,
+    sessionRef,
     commitSession,
     storageWarning,
     resetSession,
     getSourceCellsForRow,
   } = useCatalogImporterSession(initialDraft);
-  const listTitle = session.importListTitle ?? "";
-  const hasList = listTitle.trim().length > 0;
-  const setListTitle = (value: string) => {
-    if (busy.current || session.importListId) return;
-    void commitSession({ importListTitle: value });
-    setSelectedRowIds(null);
-    if (Boolean(value.trim()) !== hasList) setImportedRowIds(new Set());
-  };
-  const [liveAnnouncement, setLiveAnnouncement] = useState("");
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string> | null>(
     null,
   );
-  const [importedRowIds, setImportedRowIds] = useState(() => new Set<string>());
-  const busy = useRef(false);
+  const progress =
+    session.importProgress?.userId === userId
+      ? session.importProgress
+      : undefined;
+  const importedRowIds = useMemo(
+    () => new Set(progress?.handledRowIds ?? []),
+    [progress],
+  );
+  const skippedRowIds = useMemo(
+    () => new Set(progress?.skippedRowIds ?? []),
+    [progress],
+  );
   const [isImporting, setIsImporting] = useState(false);
-  const refreshing = useRef(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [refreshWarning, setRefreshWarning] = useState(false);
+  const refreshWarning = progress?.refreshPending ?? false;
   const [importError, setImportError] = useState<string | null>(null);
-  const [batchResult, setBatchResult] = useState<{
-    alreadyExistedCount: number;
-    createdCount: number;
-    remainingCount: number;
-  } | null>(null);
-  const importCompleted = useRef(false);
-  const importTotals = useRef({
-    createdCount: 0,
-    existingCount: 0,
-    importedCount: 0,
-  });
+  const [liveAnnouncement, setLiveAnnouncement] = useState("");
+  const busy = useRef(false);
+  const refreshing = useRef(false);
   const importRows = api.dashboardV2.listing.importRows.useMutation();
   const existingListings = api.dashboardV2.listing.list.useQuery(undefined, {
-    refetchOnMount: false,
+    refetchOnMount: "always",
+    retry: false,
     refetchOnWindowFocus: false,
-    staleTime: Infinity,
   });
-
+  const builderHref = IMPORT_BUILDER_HREF;
   const listingRows = useMemo(
     () =>
       (session.matchedRows ?? []).filter((row) => row.rowKind === "listing"),
     [session.matchedRows],
   );
-  const reviewRows = useMemo(
-    () =>
-      listingRows.filter(
-        (row) => getCatalogImportRowDisposition(row) === "review",
-      ),
-    [listingRows],
+  const reviewRows = listingRows.filter(
+    (row) => getCatalogImportRowDisposition(row) === "review",
   );
-  const issueRows = useMemo(
-    () =>
-      listingRows.filter(
-        (row) => getCatalogImportRowDisposition(row) === "issue",
-      ),
-    [listingRows],
+  const issueRows = listingRows.filter(
+    (row) => getCatalogImportRowDisposition(row) === "issue",
+  );
+  const builderExcludedRows = listingRows.filter(
+    (row) => getCatalogImportRowDisposition(row) === "excluded",
   );
   const eligibleRows = useMemo(
     () =>
@@ -116,50 +91,89 @@ export function useDashboardCatalogImport(
       }),
     [eligibleRows, existingListings.data],
   );
-  const existingMatchKinds = useMemo(
+  const ambiguousIds = useMemo(
     () =>
-      new Map(existingMatchRows.map(({ match, row }) => [row.id, match.kind])),
+      new Set(
+        existingMatchRows
+          .filter((item) => item.match.kind === "ambiguous")
+          .map((item) => item.row.id),
+      ),
     [existingMatchRows],
   );
   const readyRows = useMemo(
     () =>
       eligibleRows.filter(
         (row) =>
-          (!existingMatchKinds.has(row.id) ||
-            (hasList && existingMatchKinds.get(row.id) === "exact")) &&
-          !importedRowIds.has(row.id),
+          !ambiguousIds.has(row.id) &&
+          !importedRowIds.has(row.id) &&
+          !skippedRowIds.has(row.id),
       ),
-    [eligibleRows, existingMatchKinds, importedRowIds, hasList],
+    [eligibleRows, ambiguousIds, importedRowIds, skippedRowIds],
   );
   const readyRowIds = useMemo(
     () => new Set(readyRows.map((row) => row.id)),
     [readyRows],
   );
   const defaultSelectedRowIds = useMemo(
-    () =>
-      new Set(
-        readyRows
-          .slice(0, IMPORT_BATCH_SIZE)
-          .map((currentRow) => currentRow.id),
-      ),
+    () => new Set(readyRows.slice(0, IMPORT_BATCH_SIZE).map((row) => row.id)),
     [readyRows],
   );
   const effectiveSelectedRowIds = selectedRowIds ?? defaultSelectedRowIds;
-  const selectedReadyRows = useMemo(
-    () => readyRows.filter((row) => effectiveSelectedRowIds.has(row.id)),
-    [effectiveSelectedRowIds, readyRows],
+  const selectedReadyRows = readyRows.filter((row) =>
+    effectiveSelectedRowIds.has(row.id),
   );
-  const importedRows = useMemo(
-    () =>
-      eligibleRows.filter(
-        (row) => importedRowIds.has(row.id) && !existingMatchKinds.has(row.id),
+  const importPlan = (() => {
+    const candidates = (existingListings.data ?? []).map(
+      ({
+        id,
+        title,
+        cultivarReferenceId,
+        price,
+        description,
+        privateNote,
+      }) => ({
+        id,
+        title,
+        cultivarReferenceId,
+        price,
+        description,
+        privateNote,
+      }),
+    );
+    const rowActions = new Map<string, string>();
+    let newRowCount = 0;
+    let reusedRowCount = 0;
+    let skippedRowCount = 0;
+    for (const row of selectedReadyRows) {
+      const comparable = prepareCatalogImportListing(row);
+      const match = getCatalogImportExistingListingMatch(
+        comparable,
+        candidates,
+      );
+      if (match.kind === "none") {
+        candidates.push({
+          id: `draft:${row.id}`,
+          ...comparable,
+        });
+        rowActions.set(row.id, "Create");
+        newRowCount++;
+      } else if (match.kind === "duplicate") {
+        rowActions.set(row.id, "Already saved · details unchanged");
+        reusedRowCount++;
+      } else {
+        rowActions.set(row.id, "Skip");
+        skippedRowCount++;
+      }
+    }
+    return { rowActions, newRowCount, reusedRowCount, skippedRowCount };
+  })();
+  const listCount = new Set(
+    selectedReadyRows.flatMap((row) =>
+      normalizeCatalogListNames(row.lists ?? []).map((title) =>
+        title.toLowerCase(),
       ),
-    [eligibleRows, existingMatchKinds, importedRowIds],
-  );
-  const builderExcludedRows = listingRows.filter(
-    (row) => getCatalogImportRowDisposition(row) === "excluded",
-  );
-  const builderExcludedCount = builderExcludedRows.length;
+    ),
+  ).size;
 
   const setRowsSelected = useCallback(
     (rowIds: string[], selected: boolean) => {
@@ -187,113 +201,104 @@ export function useDashboardCatalogImport(
   const startOver = () => {
     if (busy.current) return;
     resetSession();
-    setLiveAnnouncement("Local progress cleared.");
-    setRefreshWarning(false);
+    setLiveAnnouncement(
+      "Import progress cleared. Your Playground catalog is unchanged.",
+    );
     setSelectedRowIds(null);
-    setImportedRowIds(new Set());
     setImportError(null);
-    setBatchResult(null);
-    importCompleted.current = false;
-    importTotals.current = {
-      createdCount: 0,
-      existingCount: 0,
-      importedCount: 0,
-    };
   };
-
   const retryRefresh = async () => {
     if (refreshing.current) return;
     refreshing.current = true;
     setIsRefreshing(true);
-    setRefreshWarning(false);
     try {
       await refreshDashboardCatalog();
+      const refreshed = await existingListings.refetch();
+      if (refreshed.isError) throw new Error("Catalog refresh failed");
+      const current = sessionRef.current.importProgress;
+      if (current?.userId === userId)
+        await commitSession({
+          importProgress: { ...current, refreshPending: false },
+        });
     } catch {
-      setRefreshWarning(true);
+      // Keep the persisted refresh warning. The database write is complete.
     } finally {
       refreshing.current = false;
       setIsRefreshing(false);
     }
   };
-
   const runImport = async () => {
-    if (busy.current) return;
+    if (busy.current || refreshWarning) return;
     setImportError(null);
-    setBatchResult(null);
     const rows = selectedReadyRows.map((row) => ({
       ...prepareCatalogImportListing(row),
-      allowExistingDuplicate: false,
+      lists: normalizeCatalogListNames(row.lists ?? []),
       importKey: `${session.projectId}:${row.id}`,
     }));
-
-    if (rows.length === 0) {
-      setImportError("Select at least one listing to import.");
+    if (rows.length === 0 || rows.length > IMPORT_BATCH_SIZE) {
+      setImportError("Select between 1 and 100 listings.");
       return;
     }
-    if (rows.length > IMPORT_BATCH_SIZE) {
-      setImportError("Select no more than 100 listings.");
-      return;
-    }
-
-    const oversizedRow = rows.find(
-      (row) =>
-        (row.description?.length ?? 0) > 10_000 ||
-        (row.privateNote?.length ?? 0) > 10_000,
-    );
-    if (oversizedRow) {
-      setImportError(
-        `Shorten the description or private note for ${oversizedRow.title} to 10,000 characters or fewer in the import builder.`,
-      );
-      return;
-    }
-
     busy.current = true;
     setIsImporting(true);
-    setRefreshWarning(false);
     try {
-      const result = await importRows.mutateAsync({
-        rows,
-        list: hasList
-          ? { key: session.projectId, title: listTitle.trim() }
-          : undefined,
+      const result = await importRows.mutateAsync({ rows });
+      const skippedKeys = new Set(
+        result.skippedRows.map((row) => row.importKey),
+      );
+      const completed = selectedReadyRows.filter(
+        (row) => !skippedKeys.has(`${session.projectId}:${row.id}`),
+      );
+      const skipped = selectedReadyRows.filter((row) =>
+        skippedKeys.has(`${session.projectId}:${row.id}`),
+      );
+      const previous =
+        sessionRef.current.importProgress?.userId === userId
+          ? sessionRef.current.importProgress
+          : undefined;
+      await commitSession({
+        importProgress: {
+          userId,
+          handledRowIds: [
+            ...new Set([
+              ...(previous?.handledRowIds ?? []),
+              ...completed.map((row) => row.id),
+            ]),
+          ],
+          skippedRowIds: [
+            ...new Set([
+              ...(previous?.skippedRowIds ?? []),
+              ...skipped.map((row) => row.id),
+            ]),
+          ],
+          createdCount: (previous?.createdCount ?? 0) + result.createdCount,
+          unchangedCount:
+            (previous?.unchangedCount ?? 0) +
+            result.reusedCount +
+            result.alreadyImportedCount,
+          skippedNames: [
+            ...(previous?.skippedNames ?? []),
+            ...result.skippedRows.map((row) => row.title),
+          ],
+          refreshPending: true,
+        },
       });
-      if (result.listId) void commitSession({ importListId: result.listId });
-      const importedIds = selectedReadyRows.map((row) => row.id);
-      const remainingCount = Math.max(0, readyRows.length - rows.length);
-      const nextTotals = {
-        createdCount: importTotals.current.createdCount + result.createdCount,
-        existingCount:
-          importTotals.current.existingCount +
-          result.existingCount +
-          result.skippedExactCount,
-        importedCount: importTotals.current.importedCount + rows.length,
-      };
-      importTotals.current = nextTotals;
-      setImportedRowIds((current) => new Set([...current, ...importedIds]));
       setSelectedRowIds(null);
-      setBatchResult({
-        alreadyExistedCount: result.existingCount + result.skippedExactCount,
-        createdCount: result.createdCount,
-        remainingCount,
+      const message = `${result.createdCount} created, ${result.reusedCount + result.alreadyImportedCount} already saved with unchanged details, ${result.skippedCount} skipped.`;
+      setLiveAnnouncement(message);
+      capturePosthogEvent("catalog_import_completed", {
+        import_id: session.projectId,
+        created_count: result.createdCount,
+        existing_count: result.reusedCount + result.alreadyImportedCount,
+        skipped_count: result.skippedCount,
       });
-      if (remainingCount === 0 && !importCompleted.current) {
-        importCompleted.current = true;
-        capturePosthogEvent("catalog_import_completed", {
-          created_count: nextTotals.createdCount,
-          existing_count:
-            existingMatchRows.filter(
-              ({ row }) =>
-                !importedRowIds.has(row.id) && !importedIds.includes(row.id),
-            ).length + nextTotals.existingCount,
-          import_id: session.projectId,
-          imported_count: nextTotals.importedCount,
-          skipped_count:
-            reviewRows.length + issueRows.length + builderExcludedCount,
-        });
-      }
       await retryRefresh();
     } catch (error) {
-      setImportError(getImportErrorMessage(error));
+      setImportError(
+        error instanceof Error
+          ? `${error.message} Your prepared import is still saved. You can retry safely.`
+          : "Import did not finish. Your prepared import is still saved. You can retry safely.",
+      );
       capturePosthogEvent("catalog_import_failed", {
         error_code: "catalog_write_failed",
         import_id: session.projectId,
@@ -304,25 +309,35 @@ export function useDashboardCatalogImport(
       setIsImporting(false);
     }
   };
-
   return {
-    batchResult,
+    batchResult: progress
+      ? {
+          createdCount: progress.createdCount,
+          alreadyExistedCount: progress.unchangedCount,
+          skippedCount: progress.skippedRowIds.length,
+          skippedNames: progress.skippedNames,
+          remainingCount: listingRows.length - progress.handledRowIds.length,
+        }
+      : null,
+    remainingCount: listingRows.length - importedRowIds.size,
+    retrySkipped: () => {
+      if (busy.current) return;
+      if (progress)
+        void commitSession({
+          importProgress: { ...progress, skippedRowIds: [], skippedNames: [] },
+        });
+    },
     builderExcludedRows,
+    builderHref,
     existingListings,
-    existingMatchRows,
     getSourceCellsForRow,
     hasPreparedRows: session.matchedRows !== null,
-    hasSpreadsheet: session.parsedSpreadsheet !== null,
-    importedRows,
     importedRowCount: importedRowIds.size,
     importError,
     isImporting,
     isRefreshing,
     issueRows,
     liveAnnouncement,
-    listTitle,
-    listId: session.importListId,
-    setListTitle,
     storageWarning,
     projectId: session.projectId,
     readyRows,
@@ -335,5 +350,10 @@ export function useDashboardCatalogImport(
     setRowSelected,
     setRowsSelected,
     startOver,
+    ...importPlan,
+    listCount,
+    ambiguousRows: existingMatchRows.filter(
+      (item) => item.match.kind === "ambiguous",
+    ),
   };
 }

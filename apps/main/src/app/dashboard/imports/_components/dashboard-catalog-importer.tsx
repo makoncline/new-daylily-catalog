@@ -1,6 +1,5 @@
 "use client";
 
-import { AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -15,18 +14,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import type { CatalogImporterDraft } from "@/lib/catalog-importer-draft";
 import { DashboardImportExcludedRows } from "./dashboard-import-excluded-rows";
-import { DashboardImportAlreadyExistingRows } from "./dashboard-import-existing-listings";
 import { DashboardImportStartOver } from "./dashboard-import-start-over";
 import { DashboardImportTable } from "./dashboard-import-table";
-import {
-  IMPORT_BATCH_SIZE,
-  IMPORT_BUILDER_HREF,
-} from "./dashboard-import-config";
+import { IMPORT_BATCH_SIZE } from "./dashboard-import-config";
 import { useDashboardCatalogImport } from "./use-dashboard-catalog-import";
 
 export function DashboardCatalogImporter({
@@ -34,333 +27,266 @@ export function DashboardCatalogImporter({
 }: {
   initialDraft: CatalogImporterDraft | null;
 }) {
-  const {
-    batchResult,
-    builderExcludedRows,
-    existingListings,
-    existingMatchRows,
-    getSourceCellsForRow,
-    hasPreparedRows,
-    hasSpreadsheet,
-    importedRows,
-    importedRowCount,
-    importError,
-    isImporting,
-    isRefreshing,
-    issueRows,
-    liveAnnouncement,
-    listTitle,
-    listId,
-    setListTitle,
-    storageWarning,
-    projectId,
-    readyRows,
-    refreshWarning,
-    retryRefresh,
-    reviewRows,
-    runImport,
-    selectedReadyRows,
-    selectedRowIds,
-    setRowSelected,
-    setRowsSelected,
-    startOver,
-  } = useDashboardCatalogImport(initialDraft);
-  if (!hasPreparedRows) {
+  const state = useDashboardCatalogImport(initialDraft);
+  if (!state.hasPreparedRows) {
     return (
-      <section
-        className="flex max-w-xl flex-col gap-6 py-4"
-        aria-labelledby="dashboard-import-empty-heading"
-      >
-        <div className="flex flex-col gap-2">
-          <h2
-            id="dashboard-import-empty-heading"
-            className="text-xl font-semibold tracking-tight"
-          >
-            {hasSpreadsheet
-              ? "Finish building your import"
-              : "Build an import first"}
-          </h2>
-          <p className="text-muted-foreground text-sm leading-6">
-            Map the spreadsheet, review cultivar matches, and fix data in the
-            shared import builder.
-          </p>
-        </div>
-        <div>
-          <Button asChild>
-            <Link href={IMPORT_BUILDER_HREF}>
-              {hasSpreadsheet ? "Continue building import" : "Build import"}
-            </Link>
-          </Button>
-        </div>
-      </section>
-    );
-  }
-
-  if (existingListings.isLoading) {
-    return (
-      <p className="text-muted-foreground flex items-center gap-2 py-8 text-sm">
-        <Spinner />
-        Checking your existing catalog…
-      </p>
-    );
-  }
-
-  if (existingListings.isError) {
-    return (
-      <div className="flex flex-col gap-4">
-        <Alert variant="destructive">
-          <AlertCircle />
-          <AlertTitle>Your existing catalog could not be checked</AlertTitle>
-          <AlertDescription>
-            Your import is still saved locally.
-          </AlertDescription>
-        </Alert>
-        <Button
-          type="button"
-          variant="outline"
-          className="self-start"
-          onClick={() => void existingListings.refetch()}
-        >
-          Retry check
+      <div className="flex flex-col items-start gap-4 py-4">
+        <p>Prepare a spreadsheet or name list for import.</p>
+        <Button asChild>
+          <Link href={state.builderHref}>Import a spreadsheet or list</Link>
         </Button>
       </div>
     );
   }
-
+  if (
+    state.existingListings.isLoading ||
+    (state.existingListings.isFetching &&
+      !state.isImporting &&
+      state.importedRowCount === 0)
+  )
+    return (
+      <p className="text-muted-foreground flex items-center gap-2 py-8 text-sm">
+        <Spinner />
+        Checking your catalog…
+      </p>
+    );
+  if (state.existingListings.isError && !state.importedRowCount)
+    return (
+      <div className="flex flex-col items-start gap-4">
+        <Alert variant="destructive">
+          <AlertTitle>Could not check your catalog</AlertTitle>
+          <AlertDescription>
+            Your prepared import is still saved.
+          </AlertDescription>
+        </Alert>
+        <Button
+          variant="outline"
+          onClick={() => void state.existingListings.refetch()}
+        >
+          Retry
+        </Button>
+      </div>
+    );
   return (
     <AlertDialog>
       <div
-        className="flex min-w-0 flex-col gap-10"
+        className="flex min-w-0 flex-col gap-6"
         data-ph-capture-attribute-flow="catalog-importer"
-        data-ph-capture-attribute-import_id={projectId}
-        data-ph-capture-attribute-step="dashboard-import"
+        data-ph-capture-attribute-import_id={state.projectId}
       >
-        <section
-          className="flex flex-col gap-8"
-          aria-labelledby="import-summary-heading"
-        >
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="flex flex-col gap-2">
-              <h2
-                id="import-summary-heading"
-                className="text-xl font-semibold tracking-tight"
-              >
-                {readyRows.length === 0
-                  ? importedRows.length + existingMatchRows.length > 0
-                    ? "All ready listings are in your catalog"
-                    : "No listings can be imported yet"
-                  : batchResult
-                    ? readyRows.length === 1
-                      ? "1 listing remains"
-                      : `${readyRows.length.toLocaleString()} listings remain`
-                    : readyRows.length === 1
-                      ? "1 listing is ready to import"
-                      : `${readyRows.length.toLocaleString()} listings are ready to import`}
-              </h2>
-              {readyRows.length > 0 ? (
-                <p className="text-muted-foreground">
-                  Import up to 100 listings at a time.{" "}
-                  <span className="text-foreground font-medium">
-                    {selectedReadyRows.length.toLocaleString()} of{" "}
-                    {Math.min(
-                      IMPORT_BATCH_SIZE,
-                      readyRows.length,
-                    ).toLocaleString()}{" "}
-                    selected.
-                  </span>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex flex-col gap-2">
+            <h2 className="text-xl font-semibold">
+              {state.readyRows.length
+                ? `${state.readyRows.length} ready to import`
+                : state.importedRowCount
+                  ? state.remainingCount
+                    ? "Import needs attention"
+                    : "Selected rows saved"
+                  : "Nothing ready to import"}
+            </h2>
+            {state.readyRows.length ? (
+              <p className="text-muted-foreground text-sm">
+                {state.newRowCount} new · {state.reusedRowCount} already saved
+                {state.skippedRowCount
+                  ? ` · ${state.skippedRowCount} skipped`
+                  : ""}{" "}
+                · {state.listCount} {state.listCount === 1 ? "list" : "lists"}
+              </p>
+            ) : null}
+          </div>
+          <DashboardImportStartOver
+            disabled={state.isImporting}
+            onStartOver={state.startOver}
+          />
+        </div>
+        {state.readyRows.length ? (
+          <p className="text-muted-foreground text-sm">
+            Different names, prices, descriptions, private notes, or cultivar
+            links create separate listings. Equivalent listings keep their
+            current details. Explicit lists can gain membership. Each source row
+            is saved once.
+          </p>
+        ) : null}
+        {state.storageWarning ? (
+          <Alert variant="destructive">
+            <AlertDescription>{state.storageWarning}</AlertDescription>
+          </Alert>
+        ) : null}
+        {state.batchResult ? (
+          <Alert>
+            <AlertTitle>
+              {state.batchResult.createdCount} created ·{" "}
+              {state.batchResult.alreadyExistedCount} already saved · details
+              unchanged
+            </AlertTitle>
+            <AlertDescription>
+              {state.batchResult.skippedCount ? (
+                <p>
+                  {state.batchResult.skippedCount} skipped:{" "}
+                  {state.batchResult.skippedNames.join(", ")}. Check these
+                  manually after checking your catalog.
                 </p>
               ) : null}
-            </div>
-            <DashboardImportStartOver
-              disabled={isImporting}
-              onStartOver={startOver}
-            />
-          </div>
-
-          <div className="flex max-w-md flex-col gap-2">
-            <Label htmlFor="import-list-title">
-              Save together in a named list (optional)
-            </Label>
-            <Input
-              id="import-list-title"
-              value={listTitle}
-              maxLength={200}
-              disabled={isImporting || !!listId}
-              onChange={(event) => setListTitle(event.target.value)}
-              placeholder="Club plant sale"
-              aria-describedby="import-list-help"
-            />
-            <p id="import-list-help" className="text-muted-foreground text-sm">
-              Leave blank to add listings to your catalog only. Exact matches
-              already in your catalog can join the list without being
-              duplicated.
-            </p>
-            {listId ? (
-              <Link className="underline" href={`/dashboard/lists/${listId}`}>
-                View saved list
-              </Link>
-            ) : null}
-            {storageWarning ? <p role="alert">{storageWarning}</p> : null}
-          </div>
-
-          {batchResult ? (
-            <Alert>
-              <AlertTitle>
-                {batchResult.createdCount.toLocaleString()}{" "}
-                {batchResult.createdCount === 1 ? "listing" : "listings"}{" "}
-                imported
-              </AlertTitle>
-              <AlertDescription>
-                {batchResult.alreadyExistedCount > 0
-                  ? `${batchResult.alreadyExistedCount.toLocaleString()} already ${
-                      batchResult.alreadyExistedCount === 1 ? "exists" : "exist"
-                    }. `
-                  : null}
-                {batchResult.remainingCount.toLocaleString()}{" "}
-                {batchResult.remainingCount === 1
-                  ? "listing remains"
-                  : "listings remain"}
-                .
-              </AlertDescription>
-            </Alert>
-          ) : null}
-
-          {importError ? (
-            <Alert variant="destructive">
-              <AlertCircle />
-              <AlertTitle>Import did not finish</AlertTitle>
-              <AlertDescription>{importError}</AlertDescription>
-            </Alert>
-          ) : null}
-
-          {refreshWarning ? (
-            <Alert>
-              <AlertTitle>
-                Listings were saved. Dashboard refresh did not finish.
-              </AlertTitle>
-              <AlertDescription>
-                <p>
-                  Your import progress is saved. Retry the dashboard refresh.
-                </p>
+              {state.batchResult.skippedCount ? (
                 <Button
-                  type="button"
                   variant="outline"
-                  onClick={() => void retryRefresh()}
-                  disabled={isImporting || isRefreshing}
+                  disabled={state.isImporting || state.refreshWarning}
+                  onClick={state.retrySkipped}
                 >
-                  Retry refresh
+                  Retry skipped rows
                 </Button>
-              </AlertDescription>
-            </Alert>
-          ) : null}
-
-          {readyRows.length > 0 ? (
-            <DashboardImportTable
-              key={importedRowCount}
-              rows={readyRows}
-              disabled={isImporting}
-              onRowSelectionChange={setRowSelected}
-              onRowsSelectionChange={setRowsSelected}
-              selectionLimit={IMPORT_BATCH_SIZE}
-              selectedRowIds={selectedRowIds}
-            />
-          ) : null}
-
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            {isImporting ? (
-              <Button variant="outline" disabled>
-                Return to import builder
+              ) : null}
+              {state.batchResult.remainingCount ? (
+                <p>{state.batchResult.remainingCount} remain.</p>
+              ) : null}
+              <p>Your local copy is unchanged.</p>
+            </AlertDescription>
+          </Alert>
+        ) : null}
+        {state.importError ? (
+          <Alert variant="destructive">
+            <AlertTitle>Import did not finish</AlertTitle>
+            <AlertDescription>{state.importError}</AlertDescription>
+          </Alert>
+        ) : null}
+        {state.refreshWarning ? (
+          <Alert>
+            <AlertTitle>Saved. Dashboard refresh did not finish.</AlertTitle>
+            <AlertDescription>
+              <Button
+                variant="outline"
+                disabled={state.isImporting || state.isRefreshing}
+                onClick={() => void state.retryRefresh()}
+              >
+                Retry refresh
               </Button>
-            ) : (
-              <Button asChild variant="outline">
-                <Link href={IMPORT_BUILDER_HREF}>Return to import builder</Link>
-              </Button>
-            )}
-            {readyRows.length > 0 ? (
+            </AlertDescription>
+          </Alert>
+        ) : null}
+        {state.readyRows.length ? (
+          <DashboardImportTable
+            key={state.importedRowCount}
+            rows={state.readyRows}
+            rowActions={state.rowActions}
+            disabled={state.isImporting}
+            onRowSelectionChange={state.setRowSelected}
+            onRowsSelectionChange={state.setRowsSelected}
+            selectionLimit={IMPORT_BATCH_SIZE}
+            selectedRowIds={state.selectedRowIds}
+          />
+        ) : null}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {state.isImporting ? (
+            <Button variant="outline" disabled>
+              Back to Playground
+            </Button>
+          ) : (
+            <Button asChild variant="outline">
+              <Link href={state.builderHref}>Back to Playground</Link>
+            </Button>
+          )}
+          {state.readyRows.length ? (
+            state.reusedRowCount ||
+            state.skippedRowCount ||
+            state.remainingCount > state.readyRows.length ? (
               <AlertDialogTrigger asChild>
                 <Button
-                  type="button"
-                  disabled={selectedReadyRows.length === 0 || isImporting}
+                  disabled={
+                    !state.selectedReadyRows.length ||
+                    state.isImporting ||
+                    state.refreshWarning
+                  }
                 >
-                  {isImporting ? (
+                  {state.isImporting ? (
                     <>
-                      <Spinner />
+                      <Spinner data-icon="inline-start" />
                       Importing…
                     </>
                   ) : (
-                    `Import ${selectedReadyRows.length.toLocaleString()} ${
-                      selectedReadyRows.length === 1 ? "listing" : "listings"
-                    }`
+                    `Import ${state.selectedReadyRows.length} ${state.selectedReadyRows.length === 1 ? "listing" : "listings"}`
                   )}
                 </Button>
               </AlertDialogTrigger>
-            ) : importedRows.length + existingMatchRows.length > 0 ? (
-              <Button asChild>
-                <Link href="/dashboard/listings">View listings</Link>
+            ) : (
+              <Button
+                data-ph-capture-attribute-action="import-catalog"
+                disabled={
+                  !state.selectedReadyRows.length ||
+                  state.isImporting ||
+                  state.refreshWarning
+                }
+                onClick={() => void state.runImport()}
+              >
+                {state.isImporting
+                  ? "Importing…"
+                  : `Import ${state.selectedReadyRows.length} ${state.selectedReadyRows.length === 1 ? "listing" : "listings"}`}
               </Button>
-            ) : null}
-          </div>
-
-          <DashboardImportAlreadyExistingRows
-            importedRows={importedRows}
-            rows={existingMatchRows}
-          />
-
-          <div className="flex flex-col gap-10">
-            <DashboardImportExcludedRows
-              getSourceCellsForRow={getSourceCellsForRow}
-              kind="review"
-              rows={reviewRows}
-            />
-            <DashboardImportExcludedRows
-              getSourceCellsForRow={getSourceCellsForRow}
-              kind="issues"
-              rows={issueRows}
-            />
-            <DashboardImportExcludedRows
-              getSourceCellsForRow={getSourceCellsForRow}
-              kind="builder"
-              rows={builderExcludedRows}
-            />
-          </div>
-        </section>
-
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              Import {selectedReadyRows.length.toLocaleString()}{" "}
-              {selectedReadyRows.length === 1 ? "listing" : "listings"}?
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {listTitle.trim()
-                ? `These listings will be added to your catalog and the list “${listTitle.trim()}”. Exact existing listings will be reused.`
-                : "These listings will be added to your catalog."}
-              {readyRows.length - selectedReadyRows.length > 0
-                ? ` ${(
-                    readyRows.length - selectedReadyRows.length
-                  ).toLocaleString()} ${
-                    readyRows.length - selectedReadyRows.length === 1
-                      ? "listing will"
-                      : "listings will"
-                  } remain.`
-                : null}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              data-ph-capture-attribute-action="import-catalog"
-              disabled={isImporting || selectedReadyRows.length === 0}
-              onClick={() => void runImport()}
-            >
-              Import listings
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
+            )
+          ) : (
+            <Button asChild>
+              <Link href="/dashboard/listings">View catalog</Link>
+            </Button>
+          )}
+        </div>
+        {state.ambiguousRows.length ? (
+          <Alert>
+            <AlertTitle>
+              {state.ambiguousRows.length} need manual review
+            </AlertTitle>
+            <AlertDescription>
+              <p>
+                More than one equivalent listing matches:{" "}
+                {state.ambiguousRows
+                  .map((item) => item.comparable.title)
+                  .join(", ")}
+                . These will be skipped.
+              </p>
+              <p>Review these equivalent listings in your dashboard.</p>
+            </AlertDescription>
+          </Alert>
+        ) : null}
+        <DashboardImportExcludedRows
+          getSourceCellsForRow={state.getSourceCellsForRow}
+          kind="review"
+          rows={state.reviewRows}
+        />
+        <DashboardImportExcludedRows
+          getSourceCellsForRow={state.getSourceCellsForRow}
+          kind="issues"
+          rows={state.issueRows}
+        />
+        <DashboardImportExcludedRows
+          getSourceCellsForRow={state.getSourceCellsForRow}
+          kind="builder"
+          rows={state.builderExcludedRows}
+        />
         <div className="sr-only" aria-live="polite" aria-atomic="true">
-          {liveAnnouncement}
+          {state.liveAnnouncement}
         </div>
       </div>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            Import {state.selectedReadyRows.length}{" "}
+            {state.selectedReadyRows.length === 1 ? "listing" : "listings"}?
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            New listings and missing lists will be created. Existing listing
+            details stay unchanged. Your Playground catalog stays in this
+            browser.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            disabled={state.isImporting || !state.selectedReadyRows.length}
+            onClick={() => void state.runImport()}
+          >
+            Import listings
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
     </AlertDialog>
   );
 }

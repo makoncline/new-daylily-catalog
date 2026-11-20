@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  getCatalogImportExistingListingDifferences,
   getCatalogImportExistingListingMatch,
   type CatalogImportComparableListing,
   type CatalogImportExistingListing,
@@ -8,10 +7,10 @@ import {
 
 const incoming: CatalogImportComparableListing = {
   cultivarReferenceId: "cultivar-1",
-  description: "Display row",
-  price: 15,
-  privateNote: "Front bed",
   title: "Happy Returns",
+  price: null,
+  description: null,
+  privateNote: null,
 };
 
 const existing: CatalogImportExistingListing = {
@@ -20,27 +19,31 @@ const existing: CatalogImportExistingListing = {
 };
 
 describe("catalog import existing-listing classification", () => {
-  it("separates exact rows from same-cultivar rows with different data", () => {
+  it("reuses only equivalent persisted sale details", () => {
     expect(getCatalogImportExistingListingMatch(incoming, [existing])).toEqual({
-      kind: "exact",
+      kind: "duplicate",
       listings: [existing],
     });
 
-    const changed = { ...existing, price: 18 };
-    expect(getCatalogImportExistingListingMatch(incoming, [changed])).toEqual({
-      kind: "possible",
-      listings: [changed],
-    });
-    expect(
-      getCatalogImportExistingListingDifferences(incoming, changed),
-    ).toEqual(["price"]);
+    for (const details of [
+      { price: 18 },
+      { title: "Happy Returns single fan" },
+      { description: "Two fans" },
+      { privateNote: "North bed" },
+    ]) {
+      expect(
+        getCatalogImportExistingListingMatch(incoming, [
+          { ...existing, ...details },
+        ]),
+      ).toEqual({ kind: "none", listings: [] });
+    }
   });
 
-  it("uses an exact normalized name only when one side has no cultivar link", () => {
+  it("keeps a different cultivar link distinct", () => {
     const unlinkedIncoming = { ...incoming, cultivarReferenceId: null };
     expect(
       getCatalogImportExistingListingMatch(unlinkedIncoming, [existing]).kind,
-    ).toBe("possible");
+    ).toBe("none");
 
     expect(
       getCatalogImportExistingListingMatch(incoming, [

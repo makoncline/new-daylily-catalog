@@ -31,7 +31,7 @@ vi.mock(
 
 describe("DashboardCatalogImporterClient", () => {
   it("shows the Pro gate instead of the import workflow for free accounts", async () => {
-    mocks.readDraft.mockResolvedValue(null);
+    mocks.readDraft.mockResolvedValue({ matchedRows: [{ id: "ready-row" }] });
     mocks.usePro.mockReturnValue({ isLoading: false, isPro: false });
 
     render(<DashboardCatalogImporterClient />);
@@ -43,7 +43,7 @@ describe("DashboardCatalogImporterClient", () => {
   });
 
   it("shows the import workflow for Pro accounts", async () => {
-    mocks.readDraft.mockResolvedValue(null);
+    mocks.readDraft.mockResolvedValue({ matchedRows: [{ id: "ready-row" }] });
     mocks.usePro.mockReturnValue({ isLoading: false, isPro: true });
 
     render(<DashboardCatalogImporterClient />);

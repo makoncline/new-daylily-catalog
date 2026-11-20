@@ -64,7 +64,7 @@ export function clerkMiddleware(
 
 export async function clerkClient() {
   return {
-    // Substitute only the external OAuth provider. App admission and account lookup stay real.
+    // Substitute the external provider. App admission and account lookup stay real.
     authenticateRequest: async (request: Request) => ({
       toAuth: () =>
         request.headers.get("authorization") ===
@@ -75,7 +75,19 @@ export async function clerkClient() {
               clientId: "integration-oauth-client",
               scopes: ["catalog:read", "catalog:write"],
             }
-          : { isAuthenticated: false },
+          : request.headers
+                .get("cookie")
+                ?.split(";")
+                .some((cookie) => cookie.trim() === "__session=integration")
+            ? authResultForCookie(
+                request.headers
+                  .get("cookie")
+                  ?.split(";")
+                  .map((cookie) => cookie.trim())
+                  .find((cookie) => cookie.startsWith("integration-auth="))
+                  ?.split("=")[1],
+              )
+            : { isAuthenticated: false },
     }),
     users: {
       getUser: async () => clerkUser,

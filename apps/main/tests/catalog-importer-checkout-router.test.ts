@@ -154,7 +154,7 @@ describe("catalog importer checkout", () => {
       },
       success_url:
         "https://daylilycatalog.test/catalog-importer/checkout/success?session_id={CHECKOUT_SESSION_ID}",
-      cancel_url: `https://daylilycatalog.test/catalog-importer?checkout=canceled&import_id=${checkoutInput().importId}`,
+      cancel_url: `https://daylilycatalog.test/playground?checkout=canceled&import_id=${checkoutInput().importId}`,
       metadata: {
         billing_choice: "stripe_checkout_upsell",
         membership_currency: "usd",
@@ -198,7 +198,7 @@ describe("catalog importer checkout", () => {
         success_url:
           "http://localhost:3007/catalog-importer/checkout/success?session_id={CHECKOUT_SESSION_ID}",
         cancel_url:
-          "http://localhost:3007/catalog-importer?checkout=canceled&import_id=123e4567-e89b-42d3-a456-426614174000",
+          "http://localhost:3007/playground?checkout=canceled&import_id=123e4567-e89b-42d3-a456-426614174000",
       }),
     );
   });
@@ -411,7 +411,7 @@ describe("catalog importer checkout", () => {
     expect(stripeMocks.checkoutCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         cancel_url:
-          "https://daylilycatalog.test/catalog-importer?checkout=canceled&import_id=123e4567-e89b-42d3-a456-426614174000",
+          "https://daylilycatalog.test/playground?checkout=canceled&import_id=123e4567-e89b-42d3-a456-426614174000",
         metadata: {
           userId: "user-importer",
           billing_choice: "stripe_checkout_upsell",

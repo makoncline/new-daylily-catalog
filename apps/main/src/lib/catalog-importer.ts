@@ -3,6 +3,8 @@ import {
   toCultivarRouteSegment,
 } from "@/lib/utils/cultivar-utils";
 
+export const MAX_CULTIVAR_MATCH_NAME_LENGTH = 160;
+
 export type SpreadsheetCell = string | number | boolean | Date | null;
 
 export interface SpreadsheetSheet {
@@ -23,6 +25,7 @@ export interface SourceColumn {
 }
 
 export interface CatalogColumnMapping {
+  lists?: number | null;
   cultivarReferenceId: number | null;
   description: number | null;
   price: number | null;
@@ -177,6 +180,8 @@ export type CatalogImportLinkProvenance =
   | "user-confirmed";
 
 export interface CatalogImportRow {
+  extraFields?: { label: string; value: string }[];
+  lists?: string[];
   cultivarReferenceIdWarning: string | null;
   description: string;
   duplicateAccepted: boolean;
@@ -207,11 +212,59 @@ export type CatalogImportRowDisposition =
   | "ready";
 
 export interface CatalogImportPreparedListing {
+  lists: string[];
   cultivarReferenceId: string | null;
   description: string | null;
   price: number | null;
   privateNote: string | null;
   title: string;
+}
+
+export const CATALOG_LISTING_HEADERS = [
+  "Cultivar name",
+  "Price",
+  "Description",
+  "Private note",
+  "Lists",
+  "Cultivar reference ID",
+] as const;
+
+export function normalizeCatalogListNames(names: readonly string[]) {
+  const namesByKey = new Map<string, string>();
+  for (const value of names) {
+    const name = value.trim().replace(/\s+/g, " ");
+    if (name && !namesByKey.has(name.toLowerCase())) {
+      namesByKey.set(name.toLowerCase(), name);
+    }
+  }
+  return [...namesByKey.values()];
+}
+
+export function parseCatalogListNames(value: SpreadsheetCell | undefined) {
+  return normalizeCatalogListNames(String(value ?? "").split(/\r\n|\n|\r/));
+}
+
+export function createCatalogListingCells(
+  listing: CatalogImportPreparedListing,
+) {
+  return [
+    listing.title,
+    listing.price,
+    listing.description,
+    listing.privateNote,
+    normalizeCatalogListNames(listing.lists).join("\n"),
+    listing.cultivarReferenceId,
+  ];
+}
+
+export function isCatalogListingSpreadsheet(
+  headers: readonly SpreadsheetCell[],
+) {
+  const labels = headers.map((cell) => cellToText(cell).toLowerCase());
+  return [...CATALOG_LISTING_HEADERS, "Registered name"].every(
+    (header) =>
+      labels.filter((label) => label === header.toLowerCase()).length === 1,
+  );
 }
 
 export function appendCatalogImportOriginalPriceNote(
@@ -256,9 +309,11 @@ export function prepareCatalogImportListing(
   row: CatalogImportRow,
 ): CatalogImportPreparedListing {
   return {
+    lists: normalizeCatalogListNames(row.lists ?? []),
     cultivarReferenceId:
-      row.cultivarReferenceIdWarning === null
-        ? (row.match?.cultivarReferenceId ?? null)
+      row.linkState === "linked" && row.cultivarReferenceIdWarning === null
+        ? (row.match?.cultivarReferenceId ?? row.sourceCultivarReferenceId) ||
+          null
         : null,
     description: row.description.trim() || null,
     price: row.priceWarning === null ? row.price : null,
@@ -271,19 +326,6 @@ export function prepareCatalogImportListing(
       ? row.title
       : (row.match?.displayName ?? row.title),
   };
-}
-
-export interface CatalogImportDownloadSummary {
-  appliedCorrectionCount: number;
-  fileType: "csv" | "xlsx";
-  intentionallyUnmatchedCount: number;
-  linkedIdentityCount: number;
-  removedRowCount: number;
-  retainedSourceRowCount: number;
-  retainedWorksheetCount: number;
-  unresolvedCultivarCount: number;
-  unresolvedValueCount: number;
-  unresolvedWarningCount: number;
 }
 
 function getDuplicateGroupKey(row: CatalogImportRow) {
@@ -448,6 +490,7 @@ export function getCatalogImportState(
 }
 
 const HEADER_PATTERNS = {
+  lists: [/^lists?$/],
   cultivarReferenceId: [
     /^daylily catalog id$/,
     /^cultivar reference id$/,
@@ -485,21 +528,18 @@ const CATALOG_IMPORT_TEMPLATE_HEADERS = [
   "private note",
 ] as const;
 const CATALOG_MAPPED_OUTPUT_HEADERS = {
+  lists: "Lists",
   description: "Description",
   price: "Price",
-  privateNote: "Private Note",
-  title: "Name",
-} as const;
-const CATALOG_ENRICHMENT_HEADERS = {
-  cultivarReferenceId: "Daylily Catalog ID",
-  registeredCultivarName: "Daylily Catalog Cultivar Name",
-  cultivarUrl: "Daylily Catalog Cultivar URL",
+  privateNote: "Private note",
+  title: "Cultivar name",
 } as const;
 const CATALOG_IMPORT_DISPLAY_HEADERS: Record<
   keyof CatalogColumnMapping,
   string
 > = {
-  cultivarReferenceId: CATALOG_ENRICHMENT_HEADERS.cultivarReferenceId,
+  lists: CATALOG_MAPPED_OUTPUT_HEADERS.lists,
+  cultivarReferenceId: "Cultivar reference ID",
   description: CATALOG_MAPPED_OUTPUT_HEADERS.description,
   price: CATALOG_MAPPED_OUTPUT_HEADERS.price,
   privateNote: CATALOG_MAPPED_OUTPUT_HEADERS.privateNote,
@@ -531,10 +571,13 @@ export function getCatalogImportOrderedColumnIndexes(
     mapping.price,
     mapping.description,
     mapping.privateNote,
+    mapping.lists,
     mapping.cultivarReferenceId,
   ].filter(
     (columnIndex): columnIndex is number =>
-      columnIndex !== null && availableColumnIndexes.has(columnIndex),
+      columnIndex !== null &&
+      columnIndex !== undefined &&
+      availableColumnIndexes.has(columnIndex),
   );
   const uniqueMappedColumnIndexes = [...new Set(mappedColumnIndexes)];
   const mappedColumnIndexSet = new Set(uniqueMappedColumnIndexes);
@@ -546,18 +589,6 @@ export function getCatalogImportOrderedColumnIndexes(
     ),
   ];
 }
-const LEGACY_CATALOG_ENRICHMENT_HEADERS = {
-  cultivarReferenceId: [
-    "cultivar reference id",
-    "cultivarreferenceid",
-    "daylily catalog cultivar id",
-  ],
-  registeredCultivarName: [
-    "registered cultivar name",
-    "registeredcultivarname",
-  ],
-  cultivarUrl: ["cultivar url", "cultivarurl"],
-} as const;
 const DAYLILY_CATALOG_BASE_URL = "https://daylilycatalog.com";
 function isBlankCell(cell: SpreadsheetCell | undefined) {
   return cell === null || cell === undefined || cellToText(cell).length === 0;
@@ -643,7 +674,7 @@ export function detectHeaderRow(rows: SpreadsheetCell[][]): number | null {
     }
 
     if (
-      fields.size >= 2 &&
+      (fields.size >= 2 || fields.has("title")) &&
       (!best ||
         fields.size > best.fieldCount ||
         (fields.size === best.fieldCount &&
@@ -707,7 +738,7 @@ function getColumnValues(
     .filter((value) => !isBlankCell(value));
 }
 
-function parsePriceValue(value: SpreadsheetCell | undefined) {
+export function parsePriceValue(value: SpreadsheetCell | undefined) {
   const source = cellToText(value);
   if (!source) {
     return { price: null, source, warning: null };
@@ -824,6 +855,7 @@ export function suggestColumnMapping(
       (header, index) => templateHeaders[index] === header,
     );
   const mapping: CatalogColumnMapping = {
+    lists: findHeaderMappedColumn("lists", columns),
     cultivarReferenceId: findHeaderMappedColumn("cultivarReferenceId", columns),
     description: isCatalogImportTemplate
       ? findHeaderMappedColumn("description", columns)
@@ -890,19 +922,13 @@ export function createCatalogImportRows({
 
   const dataStart = headerRowIndex === null ? 0 : headerRowIndex + 1;
   const result: CatalogImportRow[] = [];
-  // Native exports contain explicit listing names and cultivar links.
+  const headers = headerRowIndex === null ? [] : (rows[headerRowIndex] ?? []);
   const preserveTitle =
-    headerRowIndex !== null &&
-    [
-      "Cultivar name",
-      "Price",
-      "Description",
-      "Private note",
-      "Cultivar reference ID",
-      "Registered name",
-    ].every((header, index) => rows[headerRowIndex]?.[index] === header) &&
-    mapping.title === 0 &&
-    mapping.cultivarReferenceId === 4;
+    isCatalogListingSpreadsheet(headers) &&
+    cellToText(headers[mapping.title]).toLowerCase() === "cultivar name" &&
+    mapping.cultivarReferenceId !== null &&
+    cellToText(headers[mapping.cultivarReferenceId]).toLowerCase() ===
+      "cultivar reference id";
 
   for (let rowIndex = dataStart; rowIndex < rows.length; rowIndex += 1) {
     const row = rows[rowIndex] ?? [];
@@ -944,6 +970,11 @@ export function createCatalogImportRows({
         : "listing";
 
     result.push({
+      lists: parseCatalogListNames(
+        mapping.lists === null || mapping.lists === undefined
+          ? undefined
+          : row[mapping.lists],
+      ),
       cultivarReferenceIdWarning: null,
       description,
       duplicateAccepted: false,
@@ -973,52 +1004,6 @@ export function createCatalogImportRows({
   return assignCatalogImportDuplicateGroups(result);
 }
 
-export function getCatalogImportDownloadSummary({
-  matchedRows,
-  parsedSpreadsheet,
-}: {
-  matchedRows: CatalogImportRow[];
-  parsedSpreadsheet: ParsedSpreadsheet;
-}): CatalogImportDownloadSummary {
-  const state = getCatalogImportState(matchedRows);
-  const removedRowCount = new Set(
-    matchedRows
-      .filter((row) => row.outputState === "removed")
-      .map((row) => row.sourceRow),
-  ).size;
-  const appliedCorrectionCount = matchedRows.reduce((count, row) => {
-    if (row.rowKind !== "listing" || row.outputState === "removed") {
-      return count;
-    }
-
-    const originalPriceHadIssue =
-      parsePriceValue(row.sourcePrice).warning !== null;
-    const priceWasCorrected =
-      originalPriceHadIssue && row.priceWarning === null;
-
-    return count + Number(priceWasCorrected);
-  }, 0);
-
-  return {
-    appliedCorrectionCount,
-    fileType: parsedSpreadsheet.fileName.toLowerCase().endsWith(".csv")
-      ? "csv"
-      : "xlsx",
-    intentionallyUnmatchedCount: state.counts.intentionallyUnmatchedCount,
-    linkedIdentityCount: state.counts.linkedListingCount,
-    removedRowCount,
-    retainedSourceRowCount:
-      parsedSpreadsheet.sheets.reduce(
-        (total, sheet) => total + sheet.rows.length,
-        0,
-      ) - removedRowCount,
-    retainedWorksheetCount: parsedSpreadsheet.sheets.length,
-    unresolvedCultivarCount: state.counts.pendingCultivarDecisionCount,
-    unresolvedValueCount: state.counts.requiredDataDecisionCount,
-    unresolvedWarningCount: state.counts.warningCount,
-  };
-}
-
 export function escapeCsv(value: SpreadsheetCell | undefined) {
   const stringValue = value === null ? "" : String(value);
   return /[",\n\r]/.test(stringValue)
@@ -1026,301 +1011,13 @@ export function escapeCsv(value: SpreadsheetCell | undefined) {
     : stringValue;
 }
 
-function cloneSheetRows(rows: SpreadsheetCell[][]) {
-  return rows.map((row) => [...row]);
-}
-
-function getFilledColumnCount(rows: SpreadsheetCell[][]) {
-  return rows.reduce((largest, row) => {
-    for (
-      let columnIndex = row.length - 1;
-      columnIndex >= largest;
-      columnIndex--
-    ) {
-      if (!isBlankCell(row[columnIndex])) {
-        return columnIndex + 1;
-      }
-    }
-
-    return largest;
-  }, 0);
-}
-
-function ensureEnrichmentColumns(
-  rows: SpreadsheetCell[][],
-  headerRowIndex: number,
-) {
-  const headerRow = rows[headerRowIndex] ?? [];
-  rows[headerRowIndex] = headerRow;
-  let nextColumnIndex = getFilledColumnCount(rows);
-
-  return Object.fromEntries(
-    Object.entries(CATALOG_ENRICHMENT_HEADERS).map(([field, header]) => {
-      const canonicalIndex = headerRow.findIndex(
-        (cell) => cellToText(cell).toLowerCase() === header.toLowerCase(),
-      );
-      const legacyHeaders: readonly string[] =
-        LEGACY_CATALOG_ENRICHMENT_HEADERS[
-          field as keyof typeof LEGACY_CATALOG_ENRICHMENT_HEADERS
-        ];
-      const legacyIndex = headerRow.findIndex((cell) =>
-        legacyHeaders.includes(cellToText(cell).toLowerCase()),
-      );
-      const existingIndex = canonicalIndex >= 0 ? canonicalIndex : legacyIndex;
-      const index = existingIndex >= 0 ? existingIndex : nextColumnIndex++;
-      headerRow[index] = header;
-      return [field, index];
-    }),
-  ) as Record<keyof typeof CATALOG_ENRICHMENT_HEADERS, number>;
-}
-
-function renameMappedColumns(
-  rows: SpreadsheetCell[][],
-  headerRowIndex: number,
-  mapping: CatalogColumnMapping,
-) {
-  const headerRow = rows[headerRowIndex] ?? [];
-  rows[headerRowIndex] = headerRow;
-
-  for (const [field, header] of Object.entries(CATALOG_MAPPED_OUTPUT_HEADERS)) {
-    const columnIndex = mapping[field as keyof CatalogColumnMapping];
-    if (columnIndex !== null) {
-      headerRow[columnIndex] = header;
-    }
-  }
-}
-
 export function getCultivarUrl(candidate: CultivarMatchCandidate | null) {
   const segment = toCultivarRouteSegment(candidate?.normalizedName);
   return segment ? `${DAYLILY_CATALOG_BASE_URL}/cultivar/${segment}` : "";
-}
-
-export function createCatalogEnrichedSpreadsheet({
-  headerRowIndex,
-  mapping,
-  matchedRows,
-  parsedSpreadsheet,
-  retainExcludedRows = false,
-  selectedSheetIndex,
-}: {
-  headerRowIndex: number | null;
-  mapping: CatalogColumnMapping;
-  matchedRows: CatalogImportRow[];
-  parsedSpreadsheet: ParsedSpreadsheet;
-  retainExcludedRows?: boolean;
-  selectedSheetIndex: number;
-}): ParsedSpreadsheet {
-  const sheets = parsedSpreadsheet.sheets.map((sheet) => ({
-    ...sheet,
-    rows: cloneSheetRows(sheet.rows),
-  }));
-  const selectedSheet = sheets[selectedSheetIndex];
-  if (!selectedSheet) {
-    return { ...parsedSpreadsheet, sheets };
-  }
-
-  const originalRows = selectedSheet.rows;
-  let outputHeaderRowIndex = headerRowIndex;
-  let insertedHeaderRow = false;
-
-  if (outputHeaderRowIndex === null) {
-    const firstRow = originalRows[0] ?? [];
-    const firstRowIsBlank = firstRow.every((cell) => isBlankCell(cell));
-    if (firstRowIsBlank) {
-      outputHeaderRowIndex = 0;
-      const sourceColumnCount = getFilledColumnCount(originalRows);
-      originalRows[0] = Array.from(
-        { length: sourceColumnCount },
-        (_, index) => `Column ${columnIndexToLabel(index)}`,
-      );
-    } else {
-      const sourceColumnCount = getFilledColumnCount(originalRows);
-      originalRows.unshift(
-        Array.from(
-          { length: sourceColumnCount },
-          (_, index) => `Column ${columnIndexToLabel(index)}`,
-        ),
-      );
-      outputHeaderRowIndex = 0;
-      insertedHeaderRow = true;
-    }
-  }
-
-  renameMappedColumns(originalRows, outputHeaderRowIndex, mapping);
-  const enrichmentColumns = ensureEnrichmentColumns(
-    originalRows,
-    outputHeaderRowIndex,
-  );
-  const removedSourceRows = new Set(
-    matchedRows
-      .filter((row) => row.outputState === "removed")
-      .map((row) => row.sourceRow),
-  );
-
-  for (const row of matchedRows) {
-    if (row.outputState === "removed") {
-      continue;
-    }
-
-    const outputRowIndex = row.sourceRow - 1 + (insertedHeaderRow ? 1 : 0);
-    const outputRow = originalRows[outputRowIndex] ?? [];
-    originalRows[outputRowIndex] = outputRow;
-
-    if (mapping.title !== null && row.match) {
-      outputRow[mapping.title] = prepareCatalogImportListing(row).title;
-    }
-    if (mapping.price !== null && row.priceWarning === null) {
-      outputRow[mapping.price] = row.price ?? "";
-    }
-    if (mapping.description !== null) {
-      outputRow[mapping.description] = row.description;
-    }
-    if (mapping.privateNote !== null) {
-      outputRow[mapping.privateNote] = row.privateNote;
-    }
-    outputRow[enrichmentColumns.cultivarReferenceId] =
-      row.cultivarReferenceIdWarning === null
-        ? (row.match?.cultivarReferenceId ?? row.sourceCultivarReferenceId)
-        : "";
-    outputRow[enrichmentColumns.registeredCultivarName] =
-      row.match?.displayName ?? "";
-    outputRow[enrichmentColumns.cultivarUrl] = getCultivarUrl(row.match);
-  }
-
-  selectedSheet.rows = retainExcludedRows
-    ? originalRows
-    : originalRows.filter((_, outputRowIndex) => {
-        if (outputRowIndex === outputHeaderRowIndex) {
-          return true;
-        }
-        const sourceRow = outputRowIndex + 1 - (insertedHeaderRow ? 1 : 0);
-        return !removedSourceRows.has(sourceRow);
-      });
-
-  return {
-    ...parsedSpreadsheet,
-    sheets,
-  };
-}
-
-export function createCatalogCleanSpreadsheet({
-  matchedRows,
-  parsedSpreadsheet,
-}: {
-  matchedRows: CatalogImportRow[];
-  parsedSpreadsheet: ParsedSpreadsheet;
-}): ParsedSpreadsheet {
-  const headers = [
-    "Name",
-    "Price",
-    "Description",
-    "Private Note",
-    CATALOG_ENRICHMENT_HEADERS.cultivarReferenceId,
-    CATALOG_ENRICHMENT_HEADERS.registeredCultivarName,
-    CATALOG_ENRICHMENT_HEADERS.cultivarUrl,
-  ];
-  const rows = matchedRows
-    .filter(
-      (row) => row.rowKind === "listing" && row.outputState === "included",
-    )
-    .map((row) => [
-      prepareCatalogImportListing(row).title,
-      row.priceWarning === null ? (row.price ?? "") : row.sourcePrice,
-      row.description,
-      row.privateNote,
-      row.cultivarReferenceIdWarning === null
-        ? (row.match?.cultivarReferenceId ?? row.sourceCultivarReferenceId)
-        : "",
-      row.match?.displayName ?? "",
-      getCultivarUrl(row.match),
-    ]);
-
-  return {
-    fileName: parsedSpreadsheet.fileName,
-    source: parsedSpreadsheet.source,
-    sheets: [{ name: "Catalog", rows: [headers, ...rows] }],
-  };
 }
 
 export function createSpreadsheetCsv(rows: SpreadsheetCell[][]) {
   return rows
     .map((row) => row.map((value) => escapeCsv(value)).join(","))
     .join("\r\n");
-}
-
-export function createCatalogImportTemplateCsv() {
-  return [
-    CATALOG_IMPORT_TEMPLATE_HEADERS.join(","),
-    [
-      "Stella de Oro",
-      "12.00",
-      "Golden yellow reblooming daylily",
-      "Front garden",
-    ]
-      .map(escapeCsv)
-      .join(","),
-  ].join("\r\n");
-}
-
-export function createCatalogImportSampleSpreadsheet(): ParsedSpreadsheet {
-  return {
-    fileName: "Sample daylily catalog.csv",
-    source: "sample",
-    sheets: [
-      {
-        name: "Sample catalog",
-        rows: [
-          ["name", "price", "description", "private note"],
-          ["Stella de Oro", "12.00", "Golden yellow rebloomer", "Front border"],
-          [
-            "Happy Returns",
-            "15.00",
-            "Soft yellow fragrant flowers",
-            "Display row",
-          ],
-          ["Ruby Spider", "18.00", "Large ruby red unusual form", "North bed"],
-          [
-            "Primal Scream",
-            "20.00",
-            "Bright tangerine unusual form",
-            "Feature bed",
-          ],
-          ["Orange Velvet", "16.00", "Rich orange self", "South border"],
-          [
-            "Action Figure",
-            "24.00",
-            "Pleated sculpted form",
-            "New introductions",
-          ],
-          [
-            "My Favorite Martian",
-            "28.00",
-            "Cristate extra-large bloom",
-            "Seedling garden",
-          ],
-          ["Vanguard 2", "22.00", "Name needs confirmation", "Holding area"],
-          ["Stella de Oro", "10.00", "Second-size division", "Pot row"],
-          [
-            "Aerial Art",
-            "two for $30",
-            "Graceful unusual form",
-            "Price needs cleanup",
-          ],
-        ],
-      },
-    ],
-  };
-}
-
-export function getHeaderRowSummary(
-  row: SpreadsheetCell[] | undefined,
-  rowIndex: number,
-) {
-  const summary = (row ?? [])
-    .map(cellToText)
-    .filter(Boolean)
-    .slice(0, 4)
-    .join(" · ");
-
-  return `Row ${rowIndex + 1}${summary ? `: ${summary}` : ""}`;
 }

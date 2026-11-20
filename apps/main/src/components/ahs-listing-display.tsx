@@ -5,7 +5,7 @@ import { ExternalLink } from "lucide-react";
 import type { ReactNode } from "react";
 import { Separator } from "@/components/ui/separator";
 import { H3, Muted } from "@/components/typography";
-import { ImagePopover } from "@/components/image-popover";
+import { TableImagePreview } from "@/components/data-table/table-image-preview";
 import type { OptimizedImageSource } from "@/components/optimized-image";
 import type { AhsDisplayListing } from "@/lib/utils/ahs-display";
 
@@ -58,12 +58,15 @@ export function AhsListingDisplay({
   return (
     <div className={className}>
       <div className="mb-4 flex items-center gap-2">
-        {images.length > 0 && <ImagePopover images={images} size="sm" />}
+        {images.length > 0 && (
+          <TableImagePreview
+            images={images}
+            imageAlt={ahsListing.name ?? "Cultivar image"}
+          />
+        )}
         <div className="flex flex-col">
           <div className="flex items-center gap-2">
-            <H3 className="text-[clamp(12px,5vw,24px)]">
-              {ahsListing.name}
-            </H3>
+            <H3>{ahsListing.name}</H3>
             {cultivarHref && (
               <Link
                 href={cultivarHref}

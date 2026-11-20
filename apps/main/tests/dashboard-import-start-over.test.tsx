@@ -13,7 +13,7 @@ describe("DashboardImportStartOver", () => {
       name: "Discard this import?",
     });
     expect(dialog).toHaveTextContent(
-      "Your original spreadsheet and existing listings are not changed.",
+      "Your Playground catalog, original spreadsheet, and saved listings stay unchanged.",
     );
 
     fireEvent.click(

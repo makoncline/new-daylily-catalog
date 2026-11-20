@@ -39,6 +39,8 @@ export function useCatalogImporterSession(
   );
   const initialReviewedIssueActions = initialDraft?.reviewedIssueActions ?? [];
   const [session, setSession] = useState<CatalogImporterSession>(() => ({
+    source: initialDraft?.source,
+    importProgress: initialDraft?.importProgress,
     activeReviewRowId: initialDraft?.activeReviewRowId ?? null,
     headerRowIndex: initialDraft?.headerRowIndex ?? null,
     initialIssueCount:
@@ -63,13 +65,17 @@ export function useCatalogImporterSession(
   const draftWriteChain = useRef(Promise.resolve());
   const commitSession = useCallback(
     (updates: Partial<CatalogImporterSession> = {}) => {
-      const nextSession = { ...sessionRef.current, ...updates };
+      const nextSession = {
+        ...sessionRef.current,
+        ...updates,
+        ...(updates.parsedSpreadsheet ? { source: undefined } : {}),
+      };
       sessionRef.current = nextSession;
       setSession(nextSession);
       const draft = serializeCatalogImporterSession(nextSession);
 
       draftWriteChain.current = draftWriteChain.current.then(async () => {
-        if (!draft.parsedSpreadsheet) {
+        if (!draft.parsedSpreadsheet && !draft.matchedRows) {
           await clearCatalogImporterDraft();
           setStorageWarning(null);
           return;
@@ -91,6 +97,8 @@ export function useCatalogImporterSession(
   const resetSession = useCallback(() => {
     const nextProjectId = createCatalogImporterProjectId();
     void commitSession({
+      source: undefined,
+      importProgress: undefined,
       activeReviewRowId: null,
       headerRowIndex: null,
       initialIssueCount: 0,

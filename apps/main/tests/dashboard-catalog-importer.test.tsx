@@ -1,3 +1,4 @@
+import "fake-indexeddb/auto";
 import {
   act,
   fireEvent,
@@ -9,6 +10,10 @@ import {
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useDashboardCatalogImport } from "@/app/dashboard/imports/_components/use-dashboard-catalog-import";
 import { DashboardCatalogImporter } from "@/app/dashboard/imports/_components/dashboard-catalog-importer";
+import {
+  clearCatalogImporterDraft,
+  readCatalogImporterDraft,
+} from "@/lib/catalog-importer-draft";
 import type { CatalogImporterDraft } from "@/lib/catalog-importer-draft";
 import type { CatalogImportRow } from "@/lib/catalog-importer";
 
@@ -45,7 +50,7 @@ vi.mock("@/trpc/react", () => ({
             data: [],
             isError: false,
             isLoading: false,
-            refetch: vi.fn(),
+            refetch: vi.fn().mockResolvedValue({ isError: false }),
           }),
         },
       },
@@ -61,13 +66,6 @@ vi.mock(
   "@/app/dashboard/imports/_components/dashboard-import-excluded-rows",
   () => ({
     DashboardImportExcludedRows: () => null,
-  }),
-);
-
-vi.mock(
-  "@/app/dashboard/imports/_components/dashboard-import-existing-listings",
-  () => ({
-    DashboardImportAlreadyExistingRows: () => null,
   }),
 );
 
@@ -122,7 +120,8 @@ function createReadyRow(index: number): CatalogImportRow {
 }
 
 describe("DashboardCatalogImporter", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await clearCatalogImporterDraft();
     mocks.importRows.mockReset();
     mocks.capturePosthogEvent.mockReset();
     mocks.revalidate.mockReset();
@@ -155,8 +154,10 @@ describe("DashboardCatalogImporter", () => {
     let finishRefresh!: () => void;
     mocks.importRows.mockResolvedValue({
       createdCount: 100,
-      existingCount: 0,
-      skippedExactCount: 0,
+      reusedCount: 0,
+      alreadyImportedCount: 0,
+      skippedCount: 0,
+      skippedRows: [],
     });
     mocks.revalidate.mockImplementationOnce(
       () =>
@@ -166,10 +167,11 @@ describe("DashboardCatalogImporter", () => {
     );
     const { result } = renderHook(() => useDashboardCatalogImport(mocks.draft));
     let first!: Promise<void>;
-    await act(async () => {
+    act(() => {
       first = result.current.runImport();
-      await result.current.runImport();
+      void result.current.runImport();
     });
+    await waitFor(() => expect(mocks.revalidate).toHaveBeenCalledOnce());
     expect(mocks.importRows).toHaveBeenCalledTimes(1);
     expect(result.current.batchResult?.createdCount).toBe(100);
     expect(result.current.isImporting).toBe(true);
@@ -185,132 +187,141 @@ describe("DashboardCatalogImporter", () => {
     expect(result.current.readyRows).toHaveLength(101);
   });
 
-  it("selects the next import group after one import finishes", async () => {
+  it("selects the next batch and persists handled rows without clearing unfinished work", async () => {
     mocks.importRows.mockResolvedValue({
       createdCount: 100,
-      existingCount: 0,
-      skippedExactCount: 0,
+      reusedCount: 0,
+      alreadyImportedCount: 0,
+      skippedCount: 0,
+      skippedRows: [],
     });
-
     render(<DashboardCatalogImporter initialDraft={mocks.draft} />);
-
     expect(
-      screen.getByRole("heading", {
-        name: "201 listings are ready to import",
-      }),
+      screen.getByRole("heading", { name: "201 ready to import" }),
     ).toBeVisible();
-    expect(
-      screen.getByText("Import up to 100 listings at a time."),
-    ).toBeVisible();
-    expect(screen.getByText("100 of 100 selected.")).toBeVisible();
-
     fireEvent.click(
       screen.getByRole("button", { name: "Import 100 listings" }),
     );
-    expect(
-      screen.getByText(
-        "These listings will be added to your catalog. 101 listings will remain.",
-      ),
-    ).toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: "Import listings" }));
-
-    await waitFor(() => {
-      expect(mocks.importRows).toHaveBeenCalledTimes(1);
-    });
-
-    expect(
-      screen.getByRole("heading", { name: "101 listings remain" }),
-    ).toBeVisible();
-    expect(screen.getByText("100 listings imported")).toBeVisible();
-    expect(screen.getByText("101 listings remain.")).toBeVisible();
-    expect(
-      screen.getByText("Import up to 100 listings at a time."),
-    ).toBeVisible();
-    expect(screen.getByText("100 of 100 selected.")).toBeVisible();
-    expect(
-      screen.getByRole("button", { name: "Import 100 listings" }),
-    ).toBeVisible();
+    await screen.findByRole("heading", { name: "101 ready to import" });
+    const saved = await readCatalogImporterDraft();
+    expect(saved?.matchedRows).toHaveLength(201);
+    expect(saved?.importProgress?.handledRowIds).toHaveLength(100);
+    expect(saved?.importProgress?.handledRowIds).not.toContain(
+      "source-row-201",
+    );
+    expect(saved?.importProgress?.createdCount).toBe(100);
+    expect(mocks.importRows).toHaveBeenCalledOnce();
   });
 
-  it("records the completed catalog after the final database write", async () => {
+  it("keeps the completed result on remount", async () => {
     mocks.draft!.matchedRows = [createReadyRow(1)];
     mocks.importRows.mockResolvedValue({
       createdCount: 1,
-      existingCount: 0,
-      skippedExactCount: 0,
+      reusedCount: 0,
+      alreadyImportedCount: 0,
+      skippedCount: 0,
+      skippedRows: [],
     });
-
-    render(<DashboardCatalogImporter initialDraft={mocks.draft} />);
-
-    fireEvent.click(screen.getByRole("button", { name: "Import 1 listing" }));
-    const confirm = screen.getByRole("button", { name: "Import listings" });
-    expect(confirm).toHaveAttribute(
-      "data-ph-capture-attribute-action",
-      "import-catalog",
+    const view = render(
+      <DashboardCatalogImporter initialDraft={mocks.draft} />,
     );
-    fireEvent.click(confirm);
-
-    await waitFor(() => {
-      expect(mocks.capturePosthogEvent).toHaveBeenCalledWith(
-        "catalog_import_completed",
-        {
-          created_count: 1,
-          existing_count: 0,
-          import_id: "project-1",
-          imported_count: 1,
-          skipped_count: 0,
-        },
-      );
-    });
+    fireEvent.click(screen.getByRole("button", { name: "Import 1 listing" }));
+    await screen.findByRole("heading", { name: "Selected rows saved" });
+    await waitFor(async () =>
+      expect(
+        (await readCatalogImporterDraft())?.importProgress?.refreshPending,
+      ).toBe(false),
+    );
+    const saved = await readCatalogImporterDraft();
+    view.unmount();
+    render(<DashboardCatalogImporter initialDraft={saved} />);
+    expect(
+      screen.getByRole("heading", { name: "Selected rows saved" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Import 1 listing" }),
+    ).toBeNull();
+    expect(mocks.capturePosthogEvent).toHaveBeenCalledWith(
+      "catalog_import_completed",
+      {
+        created_count: 1,
+        existing_count: 0,
+        import_id: "project-1",
+        skipped_count: 0,
+      },
+    );
   });
 
-  it("keeps saved import progress when refresh is canceled and retries only refresh", async () => {
+  it("persists a refresh failure and retries only refresh after remount", async () => {
     mocks.importRows.mockResolvedValue({
       createdCount: 100,
-      existingCount: 0,
-      skippedExactCount: 0,
+      reusedCount: 0,
+      alreadyImportedCount: 0,
+      skippedCount: 0,
+      skippedRows: [],
     });
     mocks.revalidate
       .mockRejectedValueOnce(new Error("Refresh failed"))
       .mockResolvedValueOnce(undefined);
-
-    render(<DashboardCatalogImporter initialDraft={mocks.draft} />);
+    const view = render(
+      <DashboardCatalogImporter initialDraft={mocks.draft} />,
+    );
     fireEvent.click(
       screen.getByRole("button", { name: "Import 100 listings" }),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Import listings" }));
-
-    await screen.findByText(
-      "Listings were saved. Dashboard refresh did not finish.",
-    );
+    await screen.findByText("Saved. Dashboard refresh did not finish.");
+    const saved = await readCatalogImporterDraft();
+    expect(saved?.importProgress?.refreshPending).toBe(true);
+    view.unmount();
+    render(<DashboardCatalogImporter initialDraft={saved} />);
     expect(
-      screen.getByRole("heading", { name: "101 listings remain" }),
+      screen.getByRole("heading", { name: "101 ready to import" }),
     ).toBeVisible();
-    expect(screen.getByText("100 listings imported")).toBeVisible();
-    expect(screen.queryByText("Import did not finish")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Retry refresh" }));
+    await waitFor(() =>
+      expect(
+        screen.queryByText("Saved. Dashboard refresh did not finish."),
+      ).toBeNull(),
+    );
+    expect(mocks.revalidate).toHaveBeenCalledTimes(2);
     expect(mocks.importRows).toHaveBeenCalledOnce();
     expect(mocks.importRows.mock.calls[0]?.[0].rows[0].importKey).toBe(
       "project-1:source-row-1",
     );
-    expect(mocks.capturePosthogEvent).not.toHaveBeenCalledWith(
-      "catalog_import_failed",
-      expect.anything(),
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Retry refresh" }));
-    await waitFor(() => expect(mocks.revalidate).toHaveBeenCalledTimes(2));
-    await waitFor(() =>
-      expect(
-        screen.queryByText(
-          "Listings were saved. Dashboard refresh did not finish.",
-        ),
-      ).not.toBeInTheDocument(),
-    );
-    expect(mocks.revalidate).toHaveBeenNthCalledWith(1);
-    expect(mocks.revalidate).toHaveBeenNthCalledWith(2);
-    expect(mocks.importRows).toHaveBeenCalledOnce();
+  });
+  it("retains skipped and unresolved rows after a partial save", async () => {
+    mocks.draft!.matchedRows = [
+      createReadyRow(1),
+      createReadyRow(2),
+      { ...createReadyRow(3), linkState: "pending" },
+      createReadyRow(4),
+    ];
+    mocks.importRows.mockResolvedValue({
+      createdCount: 2,
+      reusedCount: 0,
+      alreadyImportedCount: 0,
+      skippedCount: 1,
+      skippedRows: [
+        {
+          importKey: "project-1:source-row-2",
+          title: "Listing 2",
+          reason: "ambiguous-list",
+        },
+      ],
+    });
+    render(<DashboardCatalogImporter initialDraft={mocks.draft} />);
+    fireEvent.click(screen.getByRole("button", { name: "Import 3 listings" }));
+    fireEvent.click(screen.getByRole("button", { name: "Import listings" }));
+    await screen.findByText("2 created · 0 already saved · details unchanged");
+    const saved = await readCatalogImporterDraft();
+    expect(saved?.matchedRows).toHaveLength(4);
+    expect(saved?.importProgress?.handledRowIds).toEqual([
+      "source-row-1",
+      "source-row-4",
+    ]);
+    expect(saved?.importProgress?.skippedRowIds).toEqual(["source-row-2"]);
     expect(
-      screen.getByRole("heading", { name: "101 listings remain" }),
-    ).toBeVisible();
+      saved?.matchedRows?.find((row) => row.id === "source-row-3")?.linkState,
+    ).toBe("pending");
   });
 });

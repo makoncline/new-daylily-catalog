@@ -33,9 +33,8 @@ export function DashboardImportStartOver({
         <AlertDialogHeader>
           <AlertDialogTitle>Discard this import?</AlertDialogTitle>
           <AlertDialogDescription>
-            This removes the spreadsheet and its saved import progress from this
-            browser. Your original spreadsheet and existing listings are not
-            changed.
+            This removes this prepared import. Your Playground catalog, original
+            spreadsheet, and saved listings stay unchanged.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

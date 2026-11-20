@@ -56,8 +56,8 @@ export interface PublicCatalogSearchAdvancedPanelProps<
   facetOptions: PublicCatalogSearchFacetOptions;
   mode: PublicCatalogSearchMode;
   onModeChange: (mode: PublicCatalogSearchMode) => void;
-  collapsed: boolean;
-  onCollapsedChange: (collapsed: boolean) => void;
+  collapsed?: boolean;
+  onCollapsedChange?: (collapsed: boolean) => void;
   onSearchSubmit?: () => void;
   showCultivarFacets?: boolean;
   toolbarFilterIds?: string[];

@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const CATALOG_IMPORTER_ENTRY_SOURCE = "catalog_importer";
-export const CATALOG_IMPORTER_RETURN_PATH = "/catalog-importer";
+export const CATALOG_IMPORTER_RETURN_PATH = "/playground";
 export const CATALOG_IMPORTER_MEMBERSHIP_RETURN_PATH = "/dashboard/imports";
 
 export const catalogImporterImportIdSchema = z.string().trim().min(1).max(100);

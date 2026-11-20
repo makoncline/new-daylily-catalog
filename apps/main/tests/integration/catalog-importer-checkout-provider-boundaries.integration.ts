@@ -17,8 +17,15 @@ async function reachCheckout(page: Page) {
       });
     });
   }
-  await page.getByRole("button", { name: "Use sample catalog" }).click();
-  await page.getByRole("button", { name: "Build catalog preview" }).click();
+  await page.getByRole("tab", { name: "Paste names", exact: true }).click();
+  await page
+    .getByLabel("Cultivar names", { exact: true })
+    .fill("Stella de Oro");
+  await page.getByRole("button", { name: "Check names", exact: true }).click();
+  await page.getByRole("button", { name: "Add ready", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Save to my catalog", exact: true })
+    .click();
   await page
     .getByRole("button", {
       name: SUBSCRIPTION_CONFIG.COPY.CTA.CONTINUE_TO_CHECKOUT,
@@ -36,7 +43,7 @@ test("successful checkout returns to the real account handoff UI", async ({
   await context.addCookies([
     { name: "integration-auth", value: "anonymous", url: baseURL },
   ]);
-  await page.goto("/catalog-importer");
+  await page.goto("/playground");
   await reachCheckout(page);
 
   await expect(page).toHaveURL(

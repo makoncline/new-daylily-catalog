@@ -276,7 +276,7 @@ describe("sitemap and robots host selection", () => {
       "<loc>http://localhost:4123/cultivars</loc>",
     );
     expect(await (await mainSitemap()).text()).not.toContain(
-      "<loc>http://localhost:4123/catalog-importer</loc>",
+      "<loc>http://localhost:4123/playground</loc>",
     );
 
     writeFileSync(runtimeFlagsPath, '{"publicCultivarSearch":true}');
@@ -285,7 +285,7 @@ describe("sitemap and robots host selection", () => {
       "<loc>http://localhost:4123/cultivars</loc>",
     );
     expect(await (await mainSitemap()).text()).not.toContain(
-      "<loc>http://localhost:4123/catalog-importer</loc>",
+      "<loc>http://localhost:4123/playground</loc>",
     );
 
     writeFileSync(
@@ -297,7 +297,7 @@ describe("sitemap and robots host selection", () => {
       "<loc>http://localhost:4123/cultivars</loc>",
     );
     expect(await (await mainSitemap()).text()).toContain(
-      "<loc>http://localhost:4123/catalog-importer</loc>",
+      "<loc>http://localhost:4123/playground</loc>",
     );
   });
 

@@ -4,16 +4,9 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { LISTING_CONFIG } from "@/config/constants";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardHeader } from "@/components/ui/card";
 import { AhsListingSelect, type AhsSearchResult } from "./ahs-listing-select";
-import { AhsListingDisplay } from "./ahs-listing-display";
+import { AhsListingLinkPanel } from "./ahs-listing-link-panel";
 
 import {
   getErrorMessage,
@@ -122,50 +115,20 @@ export function AhsListingLink({
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      {linkedAhs ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Linked to {linkedAhs.name}</CardTitle>
-            <CardDescription>Data from the AHS database.</CardDescription>
-            <div className="flex flex-wrap gap-2">
-              {listing.title !== linkedAhs.name && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={syncName}
-                  disabled={isSaving}
-                >
-                  {isSaving ? "Syncing..." : "Sync Name"}
-                </Button>
-              )}
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => updateAhsListing(null)}
-                disabled={isSaving}
-              >
-                {isSaving ? "Unlinking..." : "Unlink"}
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <AhsListingDisplay
-              ahsListing={linkedAhs}
-              cultivarHref={cultivarHref}
-              cultivarReferenceImage={cultivarReferenceImage}
-            />
-          </CardContent>
-        </Card>
-      ) : (
-        <AhsListingSelect
-          onSelect={(result) => updateAhsListing(result)}
-          disabled={isSaving}
-        />
-      )}
-    </div>
+    <AhsListingLinkPanel
+      linkedAhs={linkedAhs}
+      listingName={listing.title}
+      cultivarHref={cultivarHref}
+      cultivarReferenceImage={cultivarReferenceImage}
+      isSaving={isSaving}
+      onSyncName={() => void syncName()}
+      onUnlink={() => void updateAhsListing(null)}
+    >
+      <AhsListingSelect
+        onSelect={(result) => updateAhsListing(result)}
+        disabled={isSaving}
+      />
+    </AhsListingLinkPanel>
   );
 }
 

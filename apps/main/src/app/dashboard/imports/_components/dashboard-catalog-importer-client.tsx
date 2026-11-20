@@ -1,6 +1,9 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { IMPORT_BUILDER_HREF } from "./dashboard-import-config";
 import { Spinner } from "@/components/ui/spinner";
 import {
   readCatalogImporterDraft,
@@ -42,6 +45,13 @@ export function DashboardCatalogImporterClient() {
           <Spinner />
           Checking your import…
         </p>
+      ) : !initialDraft?.matchedRows?.length ? (
+        <div className="flex flex-col items-start gap-4 py-4">
+          <p>Prepare a spreadsheet or name list for import.</p>
+          <Button asChild>
+            <Link href={IMPORT_BUILDER_HREF}>Import a spreadsheet or list</Link>
+          </Button>
+        </div>
       ) : !isPro ? (
         <DashboardImportProGate initialDraft={initialDraft} />
       ) : (

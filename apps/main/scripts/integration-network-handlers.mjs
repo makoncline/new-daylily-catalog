@@ -2,6 +2,7 @@ import { http, HttpResponse } from "msw";
 
 const capturedEmails = [];
 let catalogImporterImportId = "integration-catalog-import";
+let catalogImporterReturnTo = "/playground";
 
 function queryValues(params, prefix) {
   return [...params.entries()]
@@ -86,6 +87,7 @@ export const integrationNetworkHandlers = [
   http.post("*/v1/checkout/sessions", async ({ request }) => {
     const body = await request.formData();
 
+    catalogImporterReturnTo = body.get("metadata[return_to]");
     const importId = body.get("metadata[import_id]");
     if (typeof importId === "string" && importId.length > 0) {
       catalogImporterImportId = importId;
@@ -113,7 +115,7 @@ export const integrationNetworkHandlers = [
         import_id: catalogImporterImportId,
         membership_currency: "usd",
         membership_product_id: "prod_integration_membership",
-        return_to: "/catalog-importer",
+        return_to: catalogImporterReturnTo,
         source: "catalog_importer",
       },
       subscription: {

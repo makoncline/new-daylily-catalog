@@ -36,7 +36,7 @@ describe("Atlas flow contract", () => {
       expect.arrayContaining([
         "public-catalog",
         "cultivar-search",
-        "catalog-importer",
+        "playground",
         "dashboard-catalog-importer",
         "onboarding-membership",
         "dashboard-home",

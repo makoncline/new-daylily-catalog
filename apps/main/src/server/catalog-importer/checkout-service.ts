@@ -42,6 +42,7 @@ export const claimCatalogImporterCheckoutInputSchema = z
 
 interface CatalogImporterCheckoutDetails {
   sessionId: string;
+  returnTo: "/playground";
   customerId: string;
   email: string;
   importId: string;
@@ -129,6 +130,7 @@ async function getStripeCheckoutDetails(
   return {
     billingOption: await getCheckoutSessionBillingOption(session),
     sessionId: session.id,
+    returnTo: CATALOG_IMPORTER_RETURN_PATH,
     customerId,
     email,
     importId: session.metadata.import_id,
@@ -192,6 +194,7 @@ export async function createCatalogImporterCheckout({
     const session = await createLocalE2ECheckoutSession({
       db,
       importId: input.importId,
+      returnTo: input.returnTo,
     });
 
     return {
@@ -226,7 +229,7 @@ export async function createCatalogImporterCheckout({
       },
     },
     success_url: `${baseUrl}/catalog-importer/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${baseUrl}${CATALOG_IMPORTER_RETURN_PATH}?checkout=canceled&import_id=${encodeURIComponent(
+    cancel_url: `${baseUrl}${input.returnTo}?checkout=canceled&import_id=${encodeURIComponent(
       input.importId,
     )}`,
     metadata: {
@@ -284,6 +287,7 @@ export async function getCatalogImporterCheckoutStatus(
 
   return {
     sessionId: details.sessionId,
+    returnTo: details.returnTo,
     email: details.email,
     importId: details.importId,
     status: details.status,

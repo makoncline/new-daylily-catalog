@@ -141,7 +141,7 @@ export function PublicCatalogSearchAdvancedPanel<TData>({
     sectionDefinitions.filter((section) => section.id === "details"),
   ];
 
-  if (collapsed) {
+  if (collapsed && onCollapsedChange) {
     return (
       <div
         data-testid="advanced-search-panel"
@@ -172,16 +172,18 @@ export function PublicCatalogSearchAdvancedPanel<TData>({
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => onCollapsedChange(true)}
-            data-testid="search-panel-collapse"
-          >
-            <PanelLeftClose aria-hidden="true" />
-            <span className="sr-only">Collapse search panel</span>
-          </Button>
+          {onCollapsedChange ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => onCollapsedChange(true)}
+              data-testid="search-panel-collapse"
+            >
+              <PanelLeftClose aria-hidden="true" />
+              <span className="sr-only">Collapse search panel</span>
+            </Button>
+          ) : null}
           <span className="text-sm font-semibold">Search</span>
         </div>
         <label

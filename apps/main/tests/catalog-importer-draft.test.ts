@@ -60,6 +60,7 @@ describe("catalog importer browser draft", () => {
     const restored = await readCatalogImporterDraft(storage);
     expect(restored).toMatchObject(draft);
     expect(restored?.projectId).toEqual(expect.any(String));
+    expect(storage.values.get(CATALOG_IMPORT_DRAFT_STORAGE_KEY)).toBe(draft);
     await expect(clearCatalogImporterDraft(storage)).resolves.toBe(true);
     expect(storage.values.has(CATALOG_IMPORT_DRAFT_STORAGE_KEY)).toBe(false);
   });

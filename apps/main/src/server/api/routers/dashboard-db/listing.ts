@@ -10,7 +10,11 @@ import { APP_CONFIG } from "@/config/constants";
 import { getStripeSubscriptionResult } from "@/server/stripe/sync-subscription";
 import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
 import { slugify } from "@/lib/utils/slugify";
-import { getCatalogImportExistingListingMatch } from "@/lib/catalog-import-existing-listings";
+import {
+  getCatalogImportExistingListingMatch,
+  normalizeCatalogImportName,
+} from "@/lib/catalog-import-existing-listings";
+import { normalizeCatalogListNames } from "@/lib/catalog-importer";
 import {
   memberCreateId,
   reserveMemberCreateRequest,
@@ -31,10 +35,10 @@ const listingSelect = {
 } as const;
 
 const importListingSchema = z.object({
-  allowExistingDuplicate: z.boolean().default(false),
   cultivarReferenceId: z.string().trim().min(1).nullable(),
   description: z.string().trim().max(10_000).nullable(),
   importKey: z.string().trim().min(1).max(300),
+  lists: z.array(z.string().trim().min(1).max(200)).max(100).default([]),
   price: z.number().nonnegative().nullable(),
   privateNote: z.string().trim().max(10_000).nullable(),
   title: z.string().trim().min(1).max(200),
@@ -60,31 +64,45 @@ function nextListingVersion(updatedAt: Date) {
 
 export const dashboardDbListingRouter = createTRPCRouter({
   importRows: protectedProcedure
-    .input(
-      z.object({
-        rows: z.array(importListingSchema).min(1).max(100),
-        list: z
-          .object({
-            key: z.string().trim().min(1).max(200),
-            title: z.string().trim().min(1).max(200),
-          })
-          .optional(),
-      }),
-    )
+    .input(z.object({ rows: z.array(importListingSchema).min(1).max(100) }))
     .mutation(async ({ ctx, input }) => {
-      const rowsByImportKey = new Map(
-        input.rows.map((row) => [row.importKey, row]),
-      );
-      if (rowsByImportKey.size !== input.rows.length) {
+      const rows = input.rows.map((row) => ({
+        ...row,
+        lists: normalizeCatalogListNames(row.lists),
+      }));
+      const rowsByImportKey = new Map(rows.map((row) => [row.importKey, row]));
+      if (rowsByImportKey.size !== rows.length) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "Each imported row must have a unique import key.",
         });
       }
 
+      const listRequests = new Map<
+        string,
+        { title: string; requestId: string }
+      >();
+      for (const row of rows) {
+        for (const title of row.lists) {
+          const name = normalizeCatalogImportName(title);
+          if (!listRequests.has(name)) {
+            listRequests.set(name, {
+              title,
+              requestId: `catalog-import:${row.importKey}:${name}`,
+            });
+          }
+        }
+      }
+      if (listRequests.size > 100) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Import at most 100 lists at a time.",
+        });
+      }
+
       const cultivarReferenceIds = [
         ...new Set(
-          input.rows.flatMap((row) =>
+          rows.flatMap((row) =>
             row.cultivarReferenceId ? [row.cultivarReferenceId] : [],
           ),
         ),
@@ -95,11 +113,11 @@ export const dashboardDbListingRouter = createTRPCRouter({
           select: { id: true },
         });
         const validIds = new Set(references.map((reference) => reference.id));
-        const invalidId = cultivarReferenceIds.find((id) => !validIds.has(id));
-        if (invalidId) {
+        if (cultivarReferenceIds.some((id) => !validIds.has(id))) {
           throw new TRPCError({
             code: "NOT_FOUND",
-            message: `Cultivar reference not found: ${invalidId}`,
+            message:
+              "A linked cultivar is no longer available. Review its link before importing.",
           });
         }
       }
@@ -108,176 +126,276 @@ export const dashboardDbListingRouter = createTRPCRouter({
         ctx._confirmedActiveMembership === undefined
           ? await getStripeSubscriptionResult(ctx.user.stripeCustomerId)
           : null;
-
-      if (
-        input.list &&
-        !(
-          ctx._confirmedActiveMembership === true ||
-          (subscriptionResult?.confirmed &&
-            hasActiveSubscription(subscriptionResult.subscription.status))
-        )
-      ) {
+      const hasPro =
+        ctx._confirmedActiveMembership === true ||
+        (subscriptionResult?.confirmed === true &&
+          hasActiveSubscription(subscriptionResult.subscription.status));
+      if (listRequests.size > 0 && !hasPro) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message:
-            "Upgrade to Pro to import a named list. If you already have Pro, retry once membership is confirmed.",
+            "Upgrade to Pro to import lists. If you already have Pro, retry once membership is confirmed.",
         });
       }
-      const listId = input.list
-        ? memberCreateId(
-            "list",
-            ctx.user.id,
-            `catalog-import:${input.list.key}`,
-          )
-        : null;
 
       return ctx.db.$transaction(async (tx) => {
-        let listUpdatedAt = new Date();
-        if (listId && input.list) {
-          const fresh = await reserveMemberCreateRequest(
-            tx,
-            "list",
-            ctx.user.id,
-            `catalog-import:${input.list.key}`,
-            { title: input.list.title },
-          );
-          const existingList = await tx.list.findUnique({
-            where: { id: listId },
-          });
-          if (
-            (!fresh && !existingList) ||
-            (existingList &&
-              (existingList.userId !== ctx.user.id ||
-                existingList.title !== input.list.title))
-          ) {
-            throw new TRPCError({
-              code: "CONFLICT",
-              message:
-                "This import already has a named list. If it was renamed or deleted, start a new import.",
-            });
-          }
-          if (existingList) {
-            listUpdatedAt = new Date(
-              Math.max(Date.now(), existingList.updatedAt.getTime() + 1),
-            );
-          }
-        }
-        const existingImportedRows = await tx.listing.findMany({
-          where: {
-            userId: ctx.user.id,
-            importKey: { in: [...rowsByImportKey.keys()] },
-          },
-          select: { id: true, importKey: true },
-        });
-        const existingImportKeys = new Set(
-          existingImportedRows.flatMap((row) =>
-            row.importKey ? [row.importKey] : [],
-          ),
-        );
-        const newImportRows = input.rows.filter(
-          (row) => !existingImportKeys.has(row.importKey),
-        );
-
         const existingListings = await tx.listing.findMany({
           where: { userId: ctx.user.id },
           select: {
-            cultivarReferenceId: true,
-            description: true,
             id: true,
+            importKey: true,
+            cultivarReferenceId: true,
+            title: true,
             price: true,
+            description: true,
             privateNote: true,
             slug: true,
-            title: true,
           },
         });
-        const rowsToCreate: z.infer<typeof importListingSchema>[] = [];
-        const reusedListingIds: string[] = [];
-        for (const row of newImportRows) {
-          const match = getCatalogImportExistingListingMatch(
-            row,
-            existingListings,
-          );
-          if (match.kind === "possible" && !row.allowExistingDuplicate) {
-            throw new TRPCError({
-              code: "CONFLICT",
-              message: `Review the existing listing for ${row.title} before importing.`,
-            });
+        const listingsById = new Map(
+          existingListings.map((row) => [row.id, row]),
+        );
+        const importedByKey = new Map(
+          existingListings.flatMap((row) =>
+            row.importKey ? [[row.importKey, row.id] as const] : [],
+          ),
+        );
+        const receiptKey = (importKey: string) =>
+          `catalog-import-row:${memberCreateId("listing", ctx.user.id, importKey)}`;
+        const receipts = await tx.keyValue.findMany({
+          where: { key: { in: rows.map((row) => receiptKey(row.importKey)) } },
+          select: { key: true, value: true },
+        });
+        const receiptTargets = new Map(
+          receipts.map((receipt) => [receipt.key, receipt.value]),
+        );
+        const existingLists = await tx.list.findMany({
+          where: { userId: ctx.user.id },
+          select: {
+            id: true,
+            title: true,
+            updatedAt: true,
+            listings: { select: { id: true } },
+          },
+        });
+        const listReceiptKeys = [...listRequests.values()].map(
+          (request) =>
+            `member-create:${memberCreateId("list", ctx.user.id, request.requestId)}`,
+        );
+        const listReceipts = await tx.keyValue.findMany({
+          where: { key: { in: listReceiptKeys } },
+          select: { key: true },
+        });
+        const priorListRequests = new Set(
+          listReceipts.map((receipt) => receipt.key),
+        );
+        const listPlans = new Map<
+          string,
+          {
+            id: string;
+            title: string;
+            requestId: string;
+            existing: (typeof existingLists)[number] | undefined;
+            ambiguous: boolean;
+            listingIds: Set<string>;
           }
-          if (match.kind === "exact" && !row.allowExistingDuplicate) {
-            reusedListingIds.push(match.listings[0]!.id);
+        >();
+        for (const [name, request] of listRequests) {
+          const matches = existingLists.filter(
+            (list) => normalizeCatalogImportName(list.title) === name,
+          );
+          const id =
+            matches[0]?.id ??
+            memberCreateId("list", ctx.user.id, request.requestId);
+          const renamed = existingLists.some(
+            (list) =>
+              list.id === id && normalizeCatalogImportName(list.title) !== name,
+          );
+          listPlans.set(name, {
+            ...request,
+            id,
+            existing: matches.length === 1 ? matches[0] : undefined,
+            ambiguous:
+              matches.length > 1 ||
+              renamed ||
+              (matches.length === 0 &&
+                priorListRequests.has(
+                  `member-create:${memberCreateId("list", ctx.user.id, request.requestId)}`,
+                )),
+            listingIds: new Set(),
+          });
+        }
+
+        const rowsToCreate: (z.infer<typeof importListingSchema> & {
+          id: string;
+          slug: string;
+        })[] = [];
+        const receiptsToCreate: { key: string; value: string }[] = [];
+        const listingIds = new Set<string>();
+        const reservedSlugs = new Set(existingListings.map((row) => row.slug));
+        const skippedRows: {
+          importKey: string;
+          title: string;
+          reason: "ambiguous-listing" | "ambiguous-list" | "deleted-listing";
+        }[] = [];
+        let reusedCount = 0;
+        let alreadyImportedCount = 0;
+
+        for (const row of rows) {
+          if (
+            row.lists.some(
+              (title) =>
+                listPlans.get(normalizeCatalogImportName(title))?.ambiguous,
+            )
+          ) {
+            skippedRows.push({
+              importKey: row.importKey,
+              title: row.title,
+              reason: "ambiguous-list",
+            });
+            continue;
+          }
+          const key = receiptKey(row.importKey);
+          const previousId =
+            receiptTargets.get(key) ?? importedByKey.get(row.importKey);
+          let listingId: string;
+          if (previousId) {
+            if (!listingsById.has(previousId)) {
+              skippedRows.push({
+                importKey: row.importKey,
+                title: row.title,
+                reason: "deleted-listing",
+              });
+              continue;
+            }
+            listingId = previousId;
+            alreadyImportedCount += 1;
           } else {
-            rowsToCreate.push(row);
+            const match = getCatalogImportExistingListingMatch(
+              row,
+              existingListings,
+            );
+            if (match.kind === "ambiguous") {
+              skippedRows.push({
+                importKey: row.importKey,
+                title: row.title,
+                reason: "ambiguous-listing",
+              });
+              continue;
+            }
+            if (match.kind === "duplicate") {
+              listingId = match.listings[0]!.id;
+              reusedCount += 1;
+            } else {
+              listingId = memberCreateId(
+                "listing",
+                ctx.user.id,
+                `catalog-import:${row.importKey}`,
+              );
+              const created = {
+                ...row,
+                id: listingId,
+                slug: reserveUniqueSlug(row.title, reservedSlugs),
+              };
+              rowsToCreate.push(created);
+              existingListings.push(created);
+              listingsById.set(listingId, created);
+            }
+          }
+          if (!receiptTargets.has(key))
+            receiptsToCreate.push({ key, value: listingId });
+          listingIds.add(listingId);
+          for (const title of row.lists) {
+            listPlans
+              .get(normalizeCatalogImportName(title))!
+              .listingIds.add(listingId);
           }
         }
 
         if (
           rowsToCreate.length > 0 &&
           (ctx._confirmedActiveMembership === false ||
-            (subscriptionResult?.confirmed &&
+            (subscriptionResult?.confirmed === true &&
               !hasActiveSubscription(
                 subscriptionResult.subscription.status,
               ))) &&
-          existingListings.length + rowsToCreate.length >
-            APP_CONFIG.LISTING.FREE_TIER_MAX_LISTINGS
+          existingListings.length > APP_CONFIG.LISTING.FREE_TIER_MAX_LISTINGS
         ) {
           throw new TRPCError({
             code: "FORBIDDEN",
             message: "Upgrade to Pro to import this catalog.",
           });
         }
-
         if (rowsToCreate.length > 0) {
-          const reservedSlugs = new Set(
-            existingListings.map((listing) => listing.slug),
-          );
           await tx.listing.createMany({
             data: rowsToCreate.map((row) => ({
+              id: row.id,
+              userId: ctx.user.id,
+              importKey: row.importKey,
+              title: row.title,
               cultivarReferenceId: row.cultivarReferenceId,
               description: row.description,
-              importKey: row.importKey,
-              price: row.price,
               privateNote: row.privateNote,
-              slug: reserveUniqueSlug(row.title, reservedSlugs),
-              title: row.title,
-              userId: ctx.user.id,
+              price: row.price,
+              slug: row.slug,
             })),
           });
         }
+        if (receiptsToCreate.length > 0) {
+          await tx.keyValue.createMany({ data: receiptsToCreate });
+        }
 
-        const importedRows = await tx.listing.findMany({
-          where: {
-            userId: ctx.user.id,
-            importKey: { in: [...rowsByImportKey.keys()] },
-          },
-          select: { id: true },
-        });
-
-        const listingIds = [
-          ...new Set([
-            ...importedRows.map((row) => row.id),
-            ...reusedListingIds,
-          ]),
-        ];
-        if (listId && input.list) {
-          const listings = { connect: listingIds.map((id) => ({ id })) };
-          await tx.list.upsert({
-            where: { id: listId },
-            create: {
-              id: listId,
-              title: input.list.title,
-              userId: ctx.user.id,
-              listings,
-            },
-            update: { listings, updatedAt: listUpdatedAt },
-          });
+        const listIds: string[] = [];
+        for (const plan of listPlans.values()) {
+          if (plan.ambiguous || plan.listingIds.size === 0) continue;
+          const connect = [...plan.listingIds].filter(
+            (id) =>
+              !plan.existing?.listings.some((listing) => listing.id === id),
+          );
+          if (plan.existing) {
+            if (connect.length > 0) {
+              await tx.list.update({
+                where: { id: plan.existing.id, userId: ctx.user.id },
+                data: {
+                  listings: { connect: connect.map((id) => ({ id })) },
+                  updatedAt: nextListingVersion(plan.existing.updatedAt),
+                },
+              });
+            }
+          } else {
+            const fresh = await reserveMemberCreateRequest(
+              tx,
+              "list",
+              ctx.user.id,
+              plan.requestId,
+              { title: normalizeCatalogImportName(plan.title) },
+            );
+            if (!fresh) {
+              throw new TRPCError({
+                code: "CONFLICT",
+                message: `The imported list “${plan.title}” was renamed or deleted. Review its name before importing again.`,
+              });
+            }
+            await tx.list.create({
+              data: {
+                id: plan.id,
+                title: plan.title,
+                userId: ctx.user.id,
+                listings: { connect: connect.map((id) => ({ id })) },
+              },
+            });
+          }
+          listIds.push(plan.id);
         }
 
         return {
-          listId,
           createdCount: rowsToCreate.length,
-          existingCount: existingImportedRows.length,
-          listingIds,
-          skippedExactCount: reusedListingIds.length,
+          reusedCount,
+          alreadyImportedCount,
+          skippedCount: skippedRows.length,
+          skippedRows,
+          listingIds: [...listingIds],
+          listIds,
         };
       });
     }),

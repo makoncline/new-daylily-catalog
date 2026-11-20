@@ -5,7 +5,7 @@ import type {
   SpreadsheetCell,
   SpreadsheetSheet,
 } from "@/lib/catalog-importer";
-import { createSpreadsheetCsv } from "@/lib/catalog-importer";
+import { createSpreadsheetCsv, detectHeaderRow } from "@/lib/catalog-importer";
 
 export const MAX_CATALOG_IMPORT_FILE_BYTES = 10 * 1024 * 1024;
 export const MAX_CATALOG_IMPORT_ROWS_PER_SHEET = 5_000;
@@ -50,6 +50,12 @@ function parseCsv(text: string): SpreadsheetCell[][] {
     cell += character;
   }
 
+  if (inQuotes) {
+    throw new Error(
+      "This CSV has an unclosed quote. Close the quoted cell in your spreadsheet and upload the file again.",
+    );
+  }
+
   if (cell.length > 0 || row.length > 0) {
     row.push(cell);
     rows.push(row);
@@ -73,7 +79,9 @@ function trimEmptyTrailingRows(rows: SpreadsheetCell[][]) {
 }
 
 function assertSheetSize(sheet: SpreadsheetSheet) {
-  if (sheet.rows.length > MAX_CATALOG_IMPORT_ROWS_PER_SHEET) {
+  const header = detectHeaderRow(sheet.rows);
+  const dataRowCount = sheet.rows.length - (header === null ? 0 : header + 1);
+  if (dataRowCount > MAX_CATALOG_IMPORT_ROWS_PER_SHEET) {
     throw new Error(
       `${sheet.name} has more than ${MAX_CATALOG_IMPORT_ROWS_PER_SHEET.toLocaleString()} rows. Split the file into smaller sheets and try again.`,
     );

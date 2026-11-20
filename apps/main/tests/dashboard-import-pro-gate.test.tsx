@@ -1,5 +1,5 @@
 import "fake-indexeddb/auto";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DashboardImportProGate } from "@/app/dashboard/imports/_components/dashboard-import-pro-gate";
 import { createCatalogImportRows } from "@/lib/catalog-importer";
@@ -10,13 +10,11 @@ import {
   type CatalogImporterDraft,
 } from "@/lib/catalog-importer-draft";
 
-const downloadFile = vi.hoisted(() => vi.fn());
-vi.mock("@/lib/catalog-importer-file", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/catalog-importer-file")>()),
-  downloadCatalogImportFile: downloadFile,
-}));
-vi.mock("@/components/pro-membership-action", () => ({
-  ProMembershipAction: () => <button type="button">Upgrade to Pro</button>,
+vi.mock("@/components/catalog-builder/membership-actions", () => ({
+  CatalogImporterMembershipButton: () => (
+    <button>Continue to secure checkout</button>
+  ),
+  CatalogMembershipOffer: () => <p>$12.99 per month</p>,
 }));
 
 function preparedDraft(): CatalogImporterDraft {
@@ -60,51 +58,25 @@ function preparedDraft(): CatalogImporterDraft {
 describe("DashboardImportProGate", () => {
   beforeEach(async () => {
     await clearCatalogImporterDraft();
-    downloadFile.mockReset();
-    downloadFile.mockResolvedValue(undefined);
   });
-  it("restores prepared downloads without loading the public builder or changing the draft", async () => {
-    const draft = preparedDraft();
-    await writeCatalogImporterDraft(draft);
-    const restoredDraft = await readCatalogImporterDraft();
-    render(<DashboardImportProGate initialDraft={restoredDraft} />);
-    expect(screen.getByText("Pro required")).toBeVisible();
+  it("keeps prepared data and sends the member to the local download source", async () => {
+    await writeCatalogImporterDraft(preparedDraft());
+    const draft = await readCatalogImporterDraft();
+    render(<DashboardImportProGate initialDraft={draft} />);
     expect(
-      screen.getByRole("heading", { name: "Create 1 prepared listing" }),
+      screen.getByRole("heading", {
+        name: "Save 1 listing to your account with Pro",
+      }),
     ).toBeVisible();
     expect(
-      screen.getByRole("button", { name: "Upgrade to Pro" }),
+      screen.getByRole("button", { name: "Continue to secure checkout" }),
     ).toBeVisible();
-    for (const [name, fileName] of [
-      ["Download prepared import file", "garden-prepared-import.csv"],
-      ["Download enhanced original", "garden-enhanced-original.csv"],
-    ]) {
-      const button = screen.getByRole("button", { name });
-      await waitFor(() => expect(button).toBeEnabled());
-      fireEvent.click(button);
-      await waitFor(() =>
-        expect(downloadFile).toHaveBeenLastCalledWith(
-          expect.objectContaining({ fileName }),
-        ),
-      );
-    }
-    expect(JSON.stringify(downloadFile.mock.lastCall)).toContain("Rose flower");
-    expect(JSON.stringify(downloadFile.mock.lastCall)).toContain("West bed");
-    expect(await readCatalogImporterDraft()).toEqual(restoredDraft);
-  });
-  it("keeps a failed download available for retry", async () => {
-    downloadFile.mockRejectedValueOnce(new Error("Download blocked"));
-    render(<DashboardImportProGate initialDraft={preparedDraft()} />);
-    fireEvent.click(
-      screen.getByRole("button", { name: "Download prepared import file" }),
-    );
-    expect(await screen.findByText(/Download blocked/)).toBeVisible();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Download prepared import file" }),
-    );
-    await waitFor(() => expect(downloadFile).toHaveBeenCalledTimes(2));
-    await waitFor(() =>
-      expect(screen.queryByText(/Download blocked/)).not.toBeInTheDocument(),
-    );
+    expect(
+      screen.getByText(/After checkout, return in this browser/),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("link", { name: "Back to Playground" }),
+    ).toHaveAttribute("href", "/playground");
+    expect(await readCatalogImporterDraft()).toEqual(draft);
   });
 });

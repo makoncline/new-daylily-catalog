@@ -71,7 +71,7 @@ export function AppSidebar({
         isActive: pathname.startsWith("/dashboard/tags"),
       },
       {
-        title: "Import catalog",
+        title: "Importer",
         url: "/dashboard/imports",
         icon: FileUp,
         isActive: pathname.startsWith("/dashboard/imports"),

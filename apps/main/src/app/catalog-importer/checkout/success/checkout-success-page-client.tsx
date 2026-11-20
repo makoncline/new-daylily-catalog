@@ -14,6 +14,7 @@ import {
 } from "@/lib/catalog-importer-membership";
 
 interface CheckoutStatus {
+  returnTo?: "/playground";
   sessionId: string;
   email: string;
   status: string | null;
@@ -98,7 +99,9 @@ export function CheckoutSuccessPageClient({
       >
         <div className="flex flex-col gap-3 sm:flex-row">
           <Button asChild>
-            <Link href={CATALOG_IMPORTER_RETURN_PATH}>Retry checkout</Link>
+            <Link href={status.returnTo ?? CATALOG_IMPORTER_RETURN_PATH}>
+              Retry checkout
+            </Link>
           </Button>
           <Button asChild variant="outline">
             <Link href="mailto:support@daylilycatalog.com">
@@ -182,9 +185,9 @@ function CheckoutAuthShell({
       className="bg-muted/20"
       data-testid="catalog-importer-checkout-success"
     >
-      <div className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-10 sm:gap-12 sm:py-16 lg:grid-cols-[minmax(0,1fr)_28rem] lg:px-8">
+      <div className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-10 sm:gap-12 sm:py-16 lg:grid-cols-2 lg:px-8">
         <div className="flex max-w-2xl flex-col gap-3">
-          <p className="text-xs font-semibold tracking-wide text-[#b7791f] uppercase">
+          <p className="text-primary text-xs font-semibold tracking-wide uppercase">
             {SUBSCRIPTION_CONFIG.COPY.STATUS.ACTIVE_EYEBROW}
           </p>
           <h1 className="text-3xl leading-tight font-semibold tracking-tight text-balance sm:text-4xl">

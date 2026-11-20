@@ -133,10 +133,18 @@ describe("dashboard listing creation entitlements", () => {
 
       await expect(
         caller.dashboardV2.listing.importRows({ rows }),
-      ).resolves.toMatchObject({ createdCount: 2, existingCount: 0 });
+      ).resolves.toMatchObject({
+        createdCount: 2,
+        reusedCount: 0,
+        alreadyImportedCount: 0,
+      });
       await expect(
         caller.dashboardV2.listing.importRows({ rows }),
-      ).resolves.toMatchObject({ createdCount: 0, existingCount: 2 });
+      ).resolves.toMatchObject({
+        createdCount: 0,
+        reusedCount: 0,
+        alreadyImportedCount: 2,
+      });
 
       const listings = await db.listing.findMany({
         where: { userId: user.id },
@@ -190,7 +198,7 @@ describe("dashboard listing creation entitlements", () => {
     });
   });
 
-  it("skips exact existing listings and requires a decision for changed ones", async () => {
+  it("keeps an equivalent listing unchanged and creates different sale details", async () => {
     getStripeSubscriptionResult.mockResolvedValue({
       subscription: { status: "trialing" },
       confirmed: true,
@@ -221,7 +229,7 @@ describe("dashboard listing creation entitlements", () => {
         caller.dashboardV2.listing.importRows({ rows: [exactRow] }),
       ).resolves.toMatchObject({
         createdCount: 0,
-        skippedExactCount: 1,
+        reusedCount: 1,
       });
 
       const changedRow = {
@@ -230,17 +238,132 @@ describe("dashboard listing creation entitlements", () => {
         price: 18,
       };
       await expect(
-        caller.dashboardV2.listing.importRows({ rows: [changedRow] }),
-      ).rejects.toMatchObject({ code: "CONFLICT" });
-
-      await expect(
         caller.dashboardV2.listing.importRows({
-          rows: [{ ...changedRow, allowExistingDuplicate: true }],
+          rows: [changedRow],
         }),
-      ).resolves.toMatchObject({ createdCount: 1, skippedExactCount: 0 });
+      ).resolves.toMatchObject({ createdCount: 1, reusedCount: 0 });
       await expect(
         db.listing.count({ where: { userId: user.id } }),
       ).resolves.toBe(2);
+    });
+  });
+});
+
+describe("catalog sale rows across batches", () => {
+  it("keeps 350 distinct sale rows, merges explicit lists, and safely retries response loss", async () => {
+    getStripeSubscriptionResult.mockResolvedValue({
+      subscription: { status: "active" },
+      confirmed: true,
+    });
+    await withTempAppDb(async ({ user }) => {
+      const { caller, db } = await createAuthedCaller(user.id);
+      const reference = await db.cultivarReference.create({
+        data: { normalizedName: "batch bloom" },
+      });
+      const rows = Array.from({ length: 350 }, (_, index) => ({
+        title: index < 3 ? `Batch Bloom ${index}` : "Batch Bloom",
+        cultivarReferenceId: reference.id,
+        price: index,
+        description: index % 2 ? "Single fan" : "Double fan",
+        privateNote: `Bed ${index}`,
+        importKey: `large-project:${index}`,
+        lists: ["Sale"],
+      }));
+      const owned = await db.listing.create({
+        data: {
+          userId: user.id,
+          slug: "existing",
+          ...rows[0]!,
+          lists: undefined,
+          importKey: null,
+        },
+      });
+      const otherUser = await db.user.create({
+        data: { clerkUserId: "other-sale-owner" },
+      });
+      await db.listing.create({
+        data: {
+          ...rows[1]!,
+          lists: undefined,
+          userId: otherUser.id,
+          slug: "other-owned",
+          importKey: null,
+        },
+      });
+      let previousVersion = 0;
+      for (let offset = 0; offset < rows.length; offset += 100) {
+        const batch = rows.slice(offset, offset + 100);
+        const result = await caller.dashboardV2.listing.importRows({
+          rows: batch,
+        });
+        expect(result.createdCount).toBe(batch.length - (offset === 0 ? 1 : 0));
+        expect(result.skippedCount).toBe(0);
+        const sale = await db.list.findFirstOrThrow({
+          where: { userId: user.id, title: "Sale" },
+          include: { listings: true },
+        });
+        expect(sale.updatedAt.getTime()).toBeGreaterThan(previousVersion);
+        previousVersion = sale.updatedAt.getTime();
+        expect(sale.listings).toHaveLength(Math.min(offset + 100, 350));
+        const replay = await caller.dashboardV2.listing.importRows({
+          rows: batch,
+        });
+        expect(replay).toMatchObject({
+          createdCount: 0,
+          alreadyImportedCount: batch.length,
+          skippedCount: 0,
+        });
+        expect(
+          (
+            await db.list.findUniqueOrThrow({ where: { id: sale.id } })
+          ).updatedAt.getTime(),
+        ).toBe(previousVersion);
+      }
+      const saved = await db.listing.findMany({
+        where: { userId: user.id },
+        orderBy: { price: "asc" },
+      });
+      expect(saved).toHaveLength(350);
+      expect(
+        saved.map(
+          ({
+            title,
+            price,
+            description,
+            privateNote,
+            cultivarReferenceId,
+          }) => ({
+            title,
+            price,
+            description,
+            privateNote,
+            cultivarReferenceId,
+          }),
+        ),
+      ).toEqual(
+        rows.map(
+          ({
+            title,
+            price,
+            description,
+            privateNote,
+            cultivarReferenceId,
+          }) => ({
+            title,
+            price,
+            description,
+            privateNote,
+            cultivarReferenceId,
+          }),
+        ),
+      );
+      expect(saved[0]!.id).toBe(owned.id);
+      expect(await db.listing.count({ where: { userId: otherUser.id } })).toBe(
+        1,
+      );
+      await expect(
+        caller.dashboardV2.userProfile.checkSlug({ slug: "playground" }),
+      ).resolves.toEqual({ available: false });
     });
   });
 });
