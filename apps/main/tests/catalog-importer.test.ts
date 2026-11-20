@@ -57,6 +57,20 @@ describe("catalog importer normalization", () => {
     ).toBeGreaterThanOrEqual(90);
   });
 
+  it("accepts commas only as thousands separators in prices", () => {
+    expect(parsePriceValue("1,250")).toEqual({ price: 1250, warning: null });
+    expect(parsePriceValue("$1,250.50")).toEqual({
+      price: 1250.5,
+      warning: null,
+    });
+    for (const value of ["12,50", "12,345,67", "12.50,000", "1,,250"]) {
+      expect(parsePriceValue(value)).toEqual({
+        price: null,
+        warning: "Price is unclear. Use commas only as thousands separators.",
+      });
+    }
+  });
+
   it("keeps zero and decimal prices and treats not-for-sale prices as blank", () => {
     expect(parsePriceValue("0")).toMatchObject({ price: 0, warning: null });
     expect(parsePriceValue("$12.50")).toMatchObject({

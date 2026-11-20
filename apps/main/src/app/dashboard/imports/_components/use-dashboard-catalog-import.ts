@@ -9,7 +9,13 @@ import {
   readDashboardImportFile,
 } from "./dashboard-import-file";
 
-type ImportResult = { createdCount: number; skippedNames: string[] };
+const PREVIEW_CULTIVAR_ID_LIMIT = 5_000;
+
+type ImportResult = {
+  createdCount: number;
+  skippedNames: string[];
+  notImportedCount: number;
+};
 
 export function useDashboardCatalogImport() {
   const { refreshDashboardCatalog } = useDashboardDb();
@@ -47,15 +53,31 @@ export function useDashboardCatalogImport() {
           ),
         ),
       ];
-      const catalog = await readPreview.mutateAsync({ cultivarReferenceIds });
-      const nextPreview = previewDashboardImport(rows, catalog);
-      setPreview({ ...nextPreview, fileName: file.name });
-      if (nextPreview.newRows.length === 0) {
-        setResult({
-          createdCount: 0,
-          skippedNames: nextPreview.skippedRows.map(({ title }) => title),
+      const catalog = await readPreview.mutateAsync({
+        cultivarReferenceIds: cultivarReferenceIds.slice(
+          0,
+          PREVIEW_CULTIVAR_ID_LIMIT,
+        ),
+      });
+      const knownCultivarIds = [...catalog.cultivarReferenceIds];
+      for (
+        let offset = PREVIEW_CULTIVAR_ID_LIMIT;
+        offset < cultivarReferenceIds.length;
+        offset += PREVIEW_CULTIVAR_ID_LIMIT
+      ) {
+        const next = await readPreview.mutateAsync({
+          cultivarReferenceIds: cultivarReferenceIds.slice(
+            offset,
+            offset + PREVIEW_CULTIVAR_ID_LIMIT,
+          ),
         });
+        knownCultivarIds.push(...next.cultivarReferenceIds);
       }
+      const nextPreview = previewDashboardImport(rows, {
+        ...catalog,
+        cultivarReferenceIds: knownCultivarIds,
+      });
+      setPreview({ ...nextPreview, fileName: file.name });
     } catch {
       setFileError("preview");
     } finally {
@@ -65,14 +87,18 @@ export function useDashboardCatalogImport() {
   }
 
   async function runImport() {
-    if (!preview?.newRows.length || busy.current || result) return;
+    if (!preview || busy.current || result) return;
+    const rowsToImport = [...preview.newRows, ...preview.skippedRows]
+      .sort((left, right) => left.rowNumber - right.rowNumber)
+      .map(({ listing }) => listing);
+    if (rowsToImport.length === 0) return;
+
     busy.current = true;
-    const batches = batchDashboardImportRows(
-      preview.newRows.map(({ listing }) => listing),
-    );
-    const report = {
+    const batches = batchDashboardImportRows(rowsToImport);
+    const report: ImportResult = {
       createdCount: 0,
-      skippedNames: preview.skippedRows.map(({ title }) => title),
+      skippedNames: [],
+      notImportedCount: rowsToImport.length,
     };
     try {
       for (const [index, rows] of batches.entries()) {
@@ -80,6 +106,8 @@ export function useDashboardCatalogImport() {
         const batch = await importRows.mutateAsync({ rows });
         report.createdCount += batch.createdCount;
         report.skippedNames.push(...batch.skippedNames);
+        report.notImportedCount -=
+          batch.createdCount + batch.skippedNames.length;
       }
       capturePosthogEvent("catalog_import_completed", {
         created_count: report.createdCount,

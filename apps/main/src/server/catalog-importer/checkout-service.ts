@@ -149,17 +149,20 @@ export async function claimCatalogImporterCheckout({
     });
   }
 
-  if (user.stripeCustomerId && user.stripeCustomerId !== details.customerId) {
+  const binding = await db.user.updateMany({
+    where: {
+      id: user.id,
+      OR: [
+        { stripeCustomerId: null },
+        { stripeCustomerId: details.customerId },
+      ],
+    },
+    data: { stripeCustomerId: details.customerId },
+  });
+  if (binding.count === 0) {
     throw new TRPCError({
       code: "CONFLICT",
       message: "This account already has different billing details.",
-    });
-  }
-
-  if (user.stripeCustomerId !== details.customerId) {
-    await db.user.update({
-      where: { id: user.id },
-      data: { stripeCustomerId: details.customerId },
     });
   }
 

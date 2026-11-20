@@ -42,7 +42,7 @@ const session = {
 
 async function withClaimAccount(
   run: (account: {
-    claim: () => Promise<unknown>;
+    claim: (checkoutSessionId?: string) => Promise<unknown>;
     db: TRPCInternalContext["db"];
     id: string;
   }) => Promise<void>,
@@ -70,7 +70,8 @@ async function withClaimAccount(
     await run({
       db,
       id: user.id,
-      claim: () => caller.claimCheckout({ sessionId }),
+      claim: (checkoutSessionId = sessionId) =>
+        caller.claimCheckout({ sessionId: checkoutSessionId }),
     });
   });
 }
@@ -143,6 +144,43 @@ describe("catalog importer checkout claim", () => {
       await expect(claim()).rejects.toMatchObject({ code: "CONFLICT" });
       await expect(readCustomerId(db, id)).resolves.toBeNull();
       await expect(readCustomerId(db, owner.id)).resolves.toBe(customerId);
+    });
+  });
+
+  it("binds only one customer when two paid claims overlap", async () => {
+    const otherSessionId = "cs_test_other_claim";
+    const otherCustomerId = "cus_other_claim";
+    checkoutRetrieve.mockImplementation(async (id: string) => ({
+      ...session,
+      id,
+      customer: id === sessionId ? customerId : otherCustomerId,
+      metadata: { ...validMetadata, return_to: "/catalog-importer" },
+      subscription: { status: "active" },
+    }));
+
+    await withClaimAccount(async ({ claim, db, id }) => {
+      const results = await Promise.allSettled([
+        claim(),
+        claim(otherSessionId),
+      ]);
+      expect(results).toEqual(
+        expect.arrayContaining([
+          { status: "fulfilled", value: { ok: true } },
+          {
+            status: "rejected",
+            reason: expect.objectContaining({
+              code: "CONFLICT",
+              message: "This account already has different billing details.",
+            }),
+          },
+        ]),
+      );
+      const firstClaimWon = results[0].status === "fulfilled";
+      const winningCustomer = firstClaimWon ? customerId : otherCustomerId;
+      await expect(readCustomerId(db, id)).resolves.toBe(winningCustomer);
+      await expect(
+        claim(firstClaimWon ? sessionId : otherSessionId),
+      ).resolves.toEqual({ ok: true });
     });
   });
 

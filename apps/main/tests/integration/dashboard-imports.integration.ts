@@ -222,12 +222,15 @@ test.describe("Playground workbook round trip", () => {
     ).toHaveCount(0);
     await fileInput(page).setInputFiles(original);
     await expectPreview(page, 0, 3, 0);
+    await page
+      .getByRole("button", { name: "Check and import", exact: true })
+      .click();
     await expectResult(page, 0, 3);
     await expect(page.getByText(/^Skipped:/)).toContainText(
       "Import Double Fan, Import Single Fan, Import Garden Seedling",
     );
     expect(await count()).toBe(initialCount + 3);
-    expect(batchSizes).toEqual([3]);
+    expect(batchSizes).toEqual([3, 3]);
 
     await page.goto("/playground");
     await page
@@ -278,7 +281,7 @@ test.describe("Playground workbook round trip", () => {
       price: 15,
       lists: [{ title: "Import Sale" }],
     });
-    expect(batchSizes).toEqual([3, 1]);
+    expect(batchSizes).toEqual([3, 3, 2]);
   });
 
   test("imports 350 Playground rows in four requests", async ({ page }) => {
@@ -378,20 +381,26 @@ test("previews invalid CSV rows and splits valid rows at the list limit", async 
     page,
     createSpreadsheetCsv([
       [...CATALOG_LISTING_HEADERS],
-      ["CSV First Bloom", 20, null, null, lists.join("\n"), null],
+      ["CSV First Bloom", "1,250.50", null, null, lists.join("\n"), null],
       ["CSV Second Bloom", 30, null, null, "CSV Import List 101", null],
       ["csv first  bloom", 90, null, null, "Do Not Create This List", null],
+      ["CSV Unclear Price", "12,50", null, null, null, null],
       ["CSV Unknown Link", 10, null, null, null, "unknown-cultivar"],
       ["CSV Long Note", 10, null, "A".repeat(10_001), null, null],
     ]),
   );
-  await expectPreview(page, 2, 1, 2);
+  await expectPreview(page, 2, 1, 3);
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
   const invalid = page.getByRole("region", { name: "Invalid", exact: true });
+  await expect(
+    invalid.getByText(
+      "Price is unclear. Use commas only as thousands separators.",
+    ),
+  ).toBeVisible();
   await expect(invalid.getByText("Unknown cultivar link.")).toBeVisible();
   await expect(
     invalid.getByText("Private note exceeds 10,000 characters."),
@@ -400,8 +409,14 @@ test("previews invalid CSV rows and splits valid rows at the list limit", async 
     .getByRole("button", { name: "Import 2 listings", exact: true })
     .click();
   await expectResult(page, 2, 1);
-  expect(batchSizes).toEqual([1, 1]);
+  expect(batchSizes).toEqual([1, 2]);
   const userId = await sellerId();
+  expect(
+    await db.listing.findFirstOrThrow({
+      where: { userId, title: "CSV First Bloom" },
+      select: { price: true },
+    }),
+  ).toEqual({ price: 1250.5 });
   expect(
     await db.list.count({
       where: { userId, title: { startsWith: "CSV Import List " } },
@@ -414,9 +429,130 @@ test("previews invalid CSV rows and splits valid rows at the list limit", async 
   ).toBe(0);
   expect(
     await db.listing.count({
-      where: { userId, title: { in: ["CSV Unknown Link", "CSV Long Note"] } },
+      where: {
+        userId,
+        title: {
+          in: ["CSV Unclear Price", "CSV Unknown Link", "CSV Long Note"],
+        },
+      },
     }),
   ).toBe(0);
+});
+
+test("checks cultivar links beyond the first 5,000 distinct IDs", async ({
+  page,
+}) => {
+  const title = "Bloom Beyond Preview Limit";
+  await page.goto("/dashboard/imports");
+  await uploadCsv(
+    page,
+    createSpreadsheetCsv([
+      [...CATALOG_LISTING_HEADERS],
+      ...Array.from({ length: 5_000 }, (_, index) => [
+        `Unknown Bloom ${index}`,
+        null,
+        null,
+        null,
+        null,
+        `unknown-${index}`,
+      ]),
+      [title, 10, null, null, null, cultivarReferenceId],
+    ]),
+  );
+  await expectPreview(page, 1, 0, 5_000);
+  await expect(
+    page.getByRole("region", { name: "New", exact: true }),
+  ).toContainText(title);
+});
+
+test("rechecks a previewed duplicate deleted before import", async ({
+  page,
+}) => {
+  const userId = await sellerId();
+  const title = "Deleted After Preview";
+  const previous = await db.listing.create({
+    data: { userId, title, slug: "deleted-after-preview", price: 10 },
+  });
+  await page.goto("/dashboard/imports");
+  await uploadCsv(
+    page,
+    createSpreadsheetCsv([[...CATALOG_LISTING_HEADERS], [title, 25]]),
+  );
+  await expectPreview(page, 0, 1, 0);
+  await db.listing.delete({ where: { id: previous.id } });
+
+  await page
+    .getByRole("button", { name: "Check and import", exact: true })
+    .click();
+  await expectResult(page, 1, 0);
+  expect(
+    await db.listing.findMany({
+      where: { userId, title },
+      select: { price: true },
+    }),
+  ).toEqual([{ price: 25 }]);
+});
+
+test("reports failed and unsent rows as not imported", async ({ page }) => {
+  const userId = await sellerId();
+  const batchSizes = watchImportBatches(page);
+  const committed = "CSV Committed";
+  const failed = "CSV Failed";
+  const unsent = "CSV Unsent";
+  const changedList = "CSV Changed List";
+  const lists = [
+    changedList,
+    ...Array.from({ length: 99 }, (_, index) => `CSV Extra List ${index}`),
+  ];
+  await page.goto("/dashboard/imports");
+  await uploadCsv(
+    page,
+    createSpreadsheetCsv([
+      [...CATALOG_LISTING_HEADERS],
+      [committed, 10, null, null, "CSV Committed List", null],
+      [committed, 15],
+      [failed, 20, null, null, lists.join("\n"), null],
+      [failed, 25],
+      [unsent, 30, null, null, "CSV Unsent List", null],
+      [unsent, 35],
+    ]),
+  );
+  await expectPreview(page, 3, 3, 0);
+  await db.list.createMany({
+    data: [changedList, changedList.toLowerCase()].map((title) => ({
+      userId,
+      title,
+    })),
+  });
+
+  await page
+    .getByRole("button", { name: "Import 3 listings", exact: true })
+    .click();
+  const error = page
+    .getByRole("alert")
+    .filter({ hasText: "Import did not finish" });
+  await expect(error).toContainText(
+    `More than one list is named “${changedList}”.`,
+  );
+  await expect(error).toContainText(
+    "Upload the same file to import any remaining new listings.",
+  );
+  const result = page
+    .getByRole("status")
+    .filter({ hasText: "4 not imported." });
+  await expect(result).toContainText(
+    "1 created. 1 skipped because they are already in your catalog.",
+  );
+  await expect(
+    result.getByText(`Skipped: ${committed}`, { exact: true }),
+  ).toBeVisible();
+  expect(batchSizes).toEqual([2, 2]);
+  expect(
+    await db.listing.findMany({
+      where: { userId, title: { in: [committed, failed, unsent] } },
+      select: { title: true, price: true },
+    }),
+  ).toEqual([{ title: committed, price: 10 }]);
 });
 
 test("uses the usual billing action for a lapsed membership", async ({

@@ -314,12 +314,14 @@ export function parsePriceValue(value: SpreadsheetCell | undefined) {
     return { price: null, warning: null };
   }
 
+  const invalidPrice = {
+    price: null,
+    warning: "Use zero or a positive price.",
+  };
   if (typeof value === "number") {
-    if (!Number.isFinite(value) || value < 0) {
-      return { price: null, warning: source };
-    }
-
-    return { price: value, warning: null };
+    return Number.isFinite(value) && value >= 0
+      ? { price: value, warning: null }
+      : invalidPrice;
   }
 
   if (
@@ -330,17 +332,20 @@ export function parsePriceValue(value: SpreadsheetCell | undefined) {
     return { price: null, warning: null };
   }
 
-  const normalized = source.replaceAll(",", "").replace(/^\$/, "").trim();
-  if (!/^\d+(?:\.\d+)?$/.test(normalized)) {
-    return { price: null, warning: source };
+  const amount = source.replace(/^\$/, "").trim();
+  if (amount.includes(",")) {
+    if (!/^\d{1,3}(?:,\d{3})+(?:\.\d+)?$/.test(amount)) {
+      return {
+        price: null,
+        warning: "Price is unclear. Use commas only as thousands separators.",
+      };
+    }
+  } else if (!/^\d+(?:\.\d+)?$/.test(amount)) {
+    return invalidPrice;
   }
 
-  const price = Number(normalized);
-  if (!Number.isFinite(price) || price < 0) {
-    return { price: null, warning: source };
-  }
-
-  return { price, warning: null };
+  const price = Number(amount.replaceAll(",", ""));
+  return Number.isFinite(price) ? { price, warning: null } : invalidPrice;
 }
 
 function getHeaderMatchScore(

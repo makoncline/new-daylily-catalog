@@ -59,6 +59,7 @@ export function DashboardCatalogImporter() {
     runImport,
   } = useDashboardCatalogImport();
   const newCount = preview?.newRows.length ?? 0;
+  const skippedCount = preview?.skippedRows.length ?? 0;
   return (
     <div
       className="flex max-w-3xl flex-col gap-5"
@@ -126,6 +127,9 @@ export function DashboardCatalogImporter() {
               {result.createdCount} created. {result.skippedNames.length}{" "}
               skipped because they are already in your catalog.
             </p>
+            {result.notImportedCount > 0 && (
+              <p>{result.notImportedCount} not imported.</p>
+            )}
             {result.skippedNames.length > 0 && (
               <p className="wrap-anywhere">
                 Skipped: {result.skippedNames.join(", ")}
@@ -173,13 +177,15 @@ export function DashboardCatalogImporter() {
           />
         </div>
       )}
-      {newCount > 0 && !result && (
+      {newCount + skippedCount > 0 && !result && (
         <Button
           className="self-start"
           disabled={Boolean(progress)}
           onClick={() => void runImport()}
         >
-          Import {newCount} {newCount === 1 ? "listing" : "listings"}
+          {newCount > 0
+            ? `Import ${newCount} ${newCount === 1 ? "listing" : "listings"}`
+            : "Check and import"}
         </Button>
       )}
       {progress && (

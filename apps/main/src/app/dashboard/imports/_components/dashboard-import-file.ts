@@ -57,7 +57,7 @@ export async function readDashboardImportFile(
     const identity = { rowNumber: index + 2, title, cultivarReferenceId };
     const invalid = (reason: string) => [{ ...identity, reason }];
     const price = parsePriceValue(priceCell);
-    if (price.warning) return invalid("Price must be a nonnegative number.");
+    if (price.warning) return invalid(price.warning);
     if (
       cultivarReferenceId &&
       !catalogImportCultivarIdSchema.safeParse(cultivarReferenceId).success
@@ -89,17 +89,17 @@ export function previewDashboardImport(
   );
   const preview = {
     newRows: [] as ValidRow[],
-    skippedRows: [] as FileRowIdentity[],
+    skippedRows: [] as ValidRow[],
     invalidRows: [] as InvalidRow[],
   };
   for (const row of rows) {
+    if ("reason" in row) {
+      preview.invalidRows.push(row);
+      continue;
+    }
     const key = catalogImportListingKey(row);
     if (knownListings.has(key)) {
       preview.skippedRows.push(row);
-      continue;
-    }
-    if ("reason" in row) {
-      preview.invalidRows.push(row);
       continue;
     }
     const { cultivarReferenceId, listing } = row;
