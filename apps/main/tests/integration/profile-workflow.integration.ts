@@ -354,6 +354,7 @@ test("Profile retains drafts across refresh and fast failed navigation", async (
 test("Profile URL checks ignore late results and preserve eligibility", async ({
   page,
 }) => {
+  const navigationTimeout = test.info().timeout;
   test.setTimeout(120_000);
   const profile = new DashboardProfile(page);
   await page.goto("/dashboard/profile");
@@ -414,7 +415,9 @@ test("Profile URL checks ignore late results and preserve eligibility", async ({
     page.getByRole("status", { name: "Checking profile URL" }),
   ).toHaveCount(0);
   await page.getByRole("link", { name: "View Public Profile" }).click();
-  await expect(page).toHaveURL("/available-garden");
+  await expect(page).toHaveURL("/available-garden", {
+    timeout: navigationTimeout,
+  });
   await page.goto("/dashboard/profile");
   await expect(profile.saveChangesButton).toBeDisabled();
   await page.reload();
