@@ -6,19 +6,15 @@ import {
   parseRuntimeFeatureFlags,
   type RuntimeFeatureName,
 } from "@/config/runtime-feature-flags";
+import { getBrowserRuntimeConfig } from "@/lib/browser-runtime-config";
 
 export function useFeature(name: RuntimeFeatureName): boolean {
   const [features, setFeatures] = useState(DISABLED_RUNTIME_FEATURE_FLAGS);
 
   useEffect(() => {
-    void fetch("/api/runtime-config", { cache: "no-store" })
-      .then(async (response) => {
-        if (!response.ok) {
-          throw new Error(`Runtime config request failed: ${response.status}`);
-        }
-
-        const runtimeConfig = (await response.json()) as { features?: unknown };
-        setFeatures(parseRuntimeFeatureFlags(runtimeConfig.features));
+    void getBrowserRuntimeConfig()
+      .then(({ features }) => {
+        setFeatures(parseRuntimeFeatureFlags(features));
       })
       .catch(() => {
         // Keep the fail-closed initial snapshot.

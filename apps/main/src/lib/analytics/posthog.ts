@@ -1,6 +1,7 @@
 "use client";
 
 import posthog from "posthog-js";
+import { getBrowserRuntimeConfig } from "@/lib/browser-runtime-config";
 
 export type PosthogEventName =
   | "home_signup_cta_clicked"
@@ -54,14 +55,6 @@ export interface PosthogUserIdentity {
   email?: string;
 }
 
-interface RuntimeConfig {
-  posthog: {
-    enabled?: boolean;
-    key?: string;
-    host?: string;
-  };
-}
-
 function withDefaultSourcePage(properties?: PosthogEventProperties) {
   if (typeof window === "undefined") {
     return properties;
@@ -101,25 +94,14 @@ async function initializePosthog() {
     return false;
   }
 
-  const response = await fetch("/api/runtime-config", {
-    cache: "no-store",
-  });
-  if (!response.ok) {
-    throw new Error(`Runtime config request failed: ${response.status}`);
-  }
-
-  const runtimeConfig = (await response.json()) as RuntimeConfig;
-  if (
-    !runtimeConfig.posthog.enabled ||
-    !runtimeConfig.posthog.key ||
-    !runtimeConfig.posthog.host
-  ) {
+  const { posthog: config } = await getBrowserRuntimeConfig();
+  if (!config?.enabled || !config.key || !config.host) {
     return false;
   }
 
-  posthog.init(runtimeConfig.posthog.key, {
+  posthog.init(config.key, {
     advanced_enable_surveys: true,
-    api_host: runtimeConfig.posthog.host,
+    api_host: config.host,
     ui_host: "https://us.posthog.com",
     defaults: "2026-01-30",
     person_profiles: "identified_only",

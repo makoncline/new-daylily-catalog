@@ -24,6 +24,7 @@ export function PublicFooter() {
             <li>
               <Link
                 href="/privacy"
+                prefetch={false}
                 className={cn(
                   "text-[11px] leading-none font-medium underline-offset-4 transition-colors hover:underline",
                   usesDarkHeroFooter
@@ -37,6 +38,7 @@ export function PublicFooter() {
             <li>
               <Link
                 href="/terms"
+                prefetch={false}
                 className={cn(
                   "text-[11px] leading-none font-medium underline-offset-4 transition-colors hover:underline",
                   usesDarkHeroFooter
@@ -50,6 +52,7 @@ export function PublicFooter() {
             <li>
               <Link
                 href="/support"
+                prefetch={false}
                 className={cn(
                   "text-[11px] leading-none font-medium underline-offset-4 transition-colors hover:underline",
                   usesDarkHeroFooter
