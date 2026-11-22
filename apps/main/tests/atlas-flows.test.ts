@@ -4,12 +4,14 @@ import {
   mkdtempSync,
   mkdirSync,
   readFileSync,
+  readdirSync,
   rmSync,
   utimesSync,
   writeFileSync,
 } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import ts from "typescript";
 import {
   ATLAS_FLOWS,
   confidenceCommandsForFlow,
@@ -31,12 +33,57 @@ describe("Atlas flow contract", () => {
     expect(validateAtlasFlows({ appRoot })).toBe(true);
   });
 
+  it("registers every capture requested by each Atlas spec", () => {
+    const states = ATLAS_FLOWS.flatMap(statesForFlow);
+    const specDirectory = path.join(appRoot, "tests/atlas");
+    for (const file of readdirSync(specDirectory).filter((name) =>
+      name.endsWith(".atlas.ts"),
+    )) {
+      const spec = ts.createSourceFile(
+        file,
+        readFileSync(path.join(specDirectory, file), "utf8"),
+        ts.ScriptTarget.Latest,
+      );
+      const requestedIds: string[] = [];
+      function collectCaptures(node: ts.Node) {
+        if (
+          ts.isCallExpression(node) &&
+          ts.isIdentifier(node.expression) &&
+          node.expression.text === "captureAtlasState"
+        ) {
+          const id = node.arguments[1];
+          if (!id || !ts.isStringLiteral(id))
+            throw new Error(`${file}: use a literal Atlas state ID`);
+          requestedIds.push(id.text);
+        }
+        ts.forEachChild(node, collectCaptures);
+      }
+      collectCaptures(spec);
+      const registeredIds = states
+        .filter(({ captureSpec }) => captureSpec === `tests/atlas/${file}`)
+        .map(({ id }) => id);
+      expect(requestedIds.sort(), file).toEqual(registeredIds.sort());
+    }
+  });
+
+  it("rejects a flow with no steps and a step with no states", () => {
+    const flows = cloneFlows();
+    flows[0]!.steps[0]!.states = [];
+    expect(() => validateAtlasFlows({ flows, appRoot })).toThrow(
+      "Atlas step has no states: public-catalog",
+    );
+    flows[0]!.steps = [];
+    expect(() => validateAtlasFlows({ flows, appRoot })).toThrow(
+      "Atlas flow has no steps: public-catalog",
+    );
+  });
+
   it("keeps the required Atlas journeys", () => {
     expect(ATLAS_FLOWS.map(({ id }) => id)).toEqual(
       expect.arrayContaining([
         "public-catalog",
         "cultivar-search",
-        "catalog-importer",
+        "playground",
         "dashboard-catalog-importer",
         "onboarding-membership",
         "dashboard-home",

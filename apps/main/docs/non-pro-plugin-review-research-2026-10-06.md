@@ -70,11 +70,11 @@ Sources:
 
 The normal signup path does not show a free signup form:
 
-- `/sign-up` redirects to `/catalog-importer`.
+- `/sign-up` redirects to `/playground`. The Playground does not start checkout.
 - The sign-in component sets `withSignUp={false}`.
 - The dashboard route requires sign-in, not Pro membership.
 
-Chrome on production confirmed the `/sign-up` redirect. The research incognito
+Chrome confirmed the production `/sign-up` redirect at the time of this research. The research incognito
 window shared an existing signed-in test session. It therefore did not prove
 anonymous Clerk account-creation admission. The research tab was closed.
 

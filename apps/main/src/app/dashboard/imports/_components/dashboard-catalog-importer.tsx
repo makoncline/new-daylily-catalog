@@ -1,366 +1,202 @@
 "use client";
 
-import { AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  AlertDialog,
-  AlertDialogTrigger,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
-import type { CatalogImporterDraft } from "@/lib/catalog-importer-draft";
-import { DashboardImportExcludedRows } from "./dashboard-import-excluded-rows";
-import { DashboardImportAlreadyExistingRows } from "./dashboard-import-existing-listings";
-import { DashboardImportStartOver } from "./dashboard-import-start-over";
-import { DashboardImportTable } from "./dashboard-import-table";
-import {
-  IMPORT_BATCH_SIZE,
-  IMPORT_BUILDER_HREF,
-} from "./dashboard-import-config";
 import { useDashboardCatalogImport } from "./use-dashboard-catalog-import";
 
-export function DashboardCatalogImporter({
-  initialDraft,
+function PlaygroundLink() {
+  return (
+    <Link href="/playground" className="underline">
+      Playground
+    </Link>
+  );
+}
+
+function ImportGroup({
+  title,
+  rows,
 }: {
-  initialDraft: CatalogImporterDraft | null;
+  title: string;
+  rows: { rowNumber: number; title: string; detail?: string }[];
 }) {
+  return (
+    <section aria-label={title} className="flex flex-col gap-2">
+      <h3 className="font-semibold">
+        {title} ({rows.length})
+      </h3>
+      {rows.length > 0 && (
+        <ul
+          className="max-h-72 divide-y overflow-auto rounded-md border text-sm"
+          tabIndex={0}
+          aria-label={`${title} rows`}
+        >
+          {rows.map(({ rowNumber, title, detail }) => (
+            <li key={rowNumber} className="px-3 py-2 wrap-anywhere">
+              <span>{title || `Row ${rowNumber}`}</span>
+              {detail && (
+                <span className="text-muted-foreground block">{detail}</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+export function DashboardCatalogImporter() {
   const {
-    batchResult,
-    builderExcludedRows,
-    existingListings,
-    existingMatchRows,
-    getSourceCellsForRow,
-    hasPreparedRows,
-    hasSpreadsheet,
-    importedRows,
-    importedRowCount,
+    fileError,
     importError,
-    isImporting,
-    isRefreshing,
-    issueRows,
-    liveAnnouncement,
-    listTitle,
-    listId,
-    setListTitle,
-    storageWarning,
-    projectId,
-    readyRows,
-    refreshWarning,
-    retryRefresh,
-    reviewRows,
+    loadFile,
+    preview,
+    progress,
+    result,
     runImport,
-    selectedReadyRows,
-    selectedRowIds,
-    setRowSelected,
-    setRowsSelected,
-    startOver,
-  } = useDashboardCatalogImport(initialDraft);
-  if (!hasPreparedRows) {
-    return (
-      <section
-        className="flex max-w-xl flex-col gap-6 py-4"
-        aria-labelledby="dashboard-import-empty-heading"
+  } = useDashboardCatalogImport();
+  const newCount = preview?.newRows.length ?? 0;
+  const skippedCount = preview?.skippedRows.length ?? 0;
+  return (
+    <div
+      className="flex max-w-3xl flex-col gap-5"
+      data-ph-capture-attribute-flow="catalog-importer"
+    >
+      <Field
+        data-disabled={Boolean(progress)}
+        data-invalid={Boolean(fileError)}
       >
-        <div className="flex flex-col gap-2">
-          <h2
-            id="dashboard-import-empty-heading"
-            className="text-xl font-semibold tracking-tight"
-          >
-            {hasSpreadsheet
-              ? "Finish building your import"
-              : "Build an import first"}
-          </h2>
-          <p className="text-muted-foreground text-sm leading-6">
-            Map the spreadsheet, review cultivar matches, and fix data in the
-            shared import builder.
-          </p>
-        </div>
-        <div>
-          <Button asChild>
-            <Link href={IMPORT_BUILDER_HREF}>
-              {hasSpreadsheet ? "Continue building import" : "Build import"}
-            </Link>
-          </Button>
-        </div>
-      </section>
-    );
-  }
-
-  if (existingListings.isLoading) {
-    return (
-      <p className="text-muted-foreground flex items-center gap-2 py-8 text-sm">
-        <Spinner />
-        Checking your existing catalog…
-      </p>
-    );
-  }
-
-  if (existingListings.isError) {
-    return (
-      <div className="flex flex-col gap-4">
+        <FieldLabel htmlFor="catalog-import-file">Playground file</FieldLabel>
+        <Input
+          id="catalog-import-file"
+          type="file"
+          accept=".xlsx,.csv"
+          aria-describedby="catalog-import-file-help"
+          aria-invalid={Boolean(fileError)}
+          disabled={Boolean(progress)}
+          onChange={(event) => {
+            const file = event.currentTarget.files?.[0];
+            event.currentTarget.value = "";
+            if (file) void loadFile(file);
+          }}
+        />
+        <FieldDescription id="catalog-import-file-help">
+          Build or clean your catalog in the <PlaygroundLink />, then upload the
+          exported file.
+        </FieldDescription>
+      </Field>
+      {fileError && (
         <Alert variant="destructive">
-          <AlertCircle />
-          <AlertTitle>Your existing catalog could not be checked</AlertTitle>
           <AlertDescription>
-            Your import is still saved locally.
+            {fileError === "format" ? (
+              <p>
+                This file is not a Playground export. Clean it in the{" "}
+                <PlaygroundLink /> first.
+              </p>
+            ) : (
+              <p>
+                Could not check your catalog. Upload the file again to retry.
+              </p>
+            )}
           </AlertDescription>
         </Alert>
-        <Button
-          type="button"
-          variant="outline"
-          className="self-start"
-          onClick={() => void existingListings.refetch()}
-        >
-          Retry check
-        </Button>
-      </div>
-    );
-  }
-
-  return (
-    <AlertDialog>
-      <div
-        className="flex min-w-0 flex-col gap-10"
-        data-ph-capture-attribute-flow="catalog-importer"
-        data-ph-capture-attribute-import_id={projectId}
-        data-ph-capture-attribute-step="dashboard-import"
-      >
-        <section
-          className="flex flex-col gap-8"
-          aria-labelledby="import-summary-heading"
-        >
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="flex flex-col gap-2">
-              <h2
-                id="import-summary-heading"
-                className="text-xl font-semibold tracking-tight"
-              >
-                {readyRows.length === 0
-                  ? importedRows.length + existingMatchRows.length > 0
-                    ? "All ready listings are in your catalog"
-                    : "No listings can be imported yet"
-                  : batchResult
-                    ? readyRows.length === 1
-                      ? "1 listing remains"
-                      : `${readyRows.length.toLocaleString()} listings remain`
-                    : readyRows.length === 1
-                      ? "1 listing is ready to import"
-                      : `${readyRows.length.toLocaleString()} listings are ready to import`}
-              </h2>
-              {readyRows.length > 0 ? (
-                <p className="text-muted-foreground">
-                  Import up to 100 listings at a time.{" "}
-                  <span className="text-foreground font-medium">
-                    {selectedReadyRows.length.toLocaleString()} of{" "}
-                    {Math.min(
-                      IMPORT_BATCH_SIZE,
-                      readyRows.length,
-                    ).toLocaleString()}{" "}
-                    selected.
-                  </span>
-                </p>
-              ) : null}
-            </div>
-            <DashboardImportStartOver
-              disabled={isImporting}
-              onStartOver={startOver}
-            />
-          </div>
-
-          <div className="flex max-w-md flex-col gap-2">
-            <Label htmlFor="import-list-title">
-              Save together in a named list (optional)
-            </Label>
-            <Input
-              id="import-list-title"
-              value={listTitle}
-              maxLength={200}
-              disabled={isImporting || !!listId}
-              onChange={(event) => setListTitle(event.target.value)}
-              placeholder="Club plant sale"
-              aria-describedby="import-list-help"
-            />
-            <p id="import-list-help" className="text-muted-foreground text-sm">
-              Leave blank to add listings to your catalog only. Exact matches
-              already in your catalog can join the list without being
-              duplicated.
+      )}
+      {importError && (
+        <Alert variant="destructive">
+          <AlertTitle>Import did not finish</AlertTitle>
+          <AlertDescription>
+            <p>{importError}</p>
+            <p>Upload the same file to import any remaining new listings.</p>
+          </AlertDescription>
+        </Alert>
+      )}
+      {result && (
+        <Alert role="status">
+          {!importError && (
+            <AlertTitle>
+              {result.createdCount
+                ? "Import complete"
+                : "Nothing new to import"}
+            </AlertTitle>
+          )}
+          <AlertDescription>
+            <p>
+              {result.createdCount} created. {result.skippedNames.length}{" "}
+              skipped because they are already in your catalog.
             </p>
-            {listId ? (
-              <Link className="underline" href={`/dashboard/lists/${listId}`}>
-                View saved list
-              </Link>
-            ) : null}
-            {storageWarning ? <p role="alert">{storageWarning}</p> : null}
-          </div>
-
-          {batchResult ? (
-            <Alert>
-              <AlertTitle>
-                {batchResult.createdCount.toLocaleString()}{" "}
-                {batchResult.createdCount === 1 ? "listing" : "listings"}{" "}
-                imported
-              </AlertTitle>
-              <AlertDescription>
-                {batchResult.alreadyExistedCount > 0
-                  ? `${batchResult.alreadyExistedCount.toLocaleString()} already ${
-                      batchResult.alreadyExistedCount === 1 ? "exists" : "exist"
-                    }. `
-                  : null}
-                {batchResult.remainingCount.toLocaleString()}{" "}
-                {batchResult.remainingCount === 1
-                  ? "listing remains"
-                  : "listings remain"}
-                .
-              </AlertDescription>
-            </Alert>
-          ) : null}
-
-          {importError ? (
-            <Alert variant="destructive">
-              <AlertCircle />
-              <AlertTitle>Import did not finish</AlertTitle>
-              <AlertDescription>{importError}</AlertDescription>
-            </Alert>
-          ) : null}
-
-          {refreshWarning ? (
-            <Alert>
-              <AlertTitle>
-                Listings were saved. Dashboard refresh did not finish.
-              </AlertTitle>
-              <AlertDescription>
-                <p>
-                  Your import progress is saved. Retry the dashboard refresh.
-                </p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => void retryRefresh()}
-                  disabled={isImporting || isRefreshing}
-                >
-                  Retry refresh
-                </Button>
-              </AlertDescription>
-            </Alert>
-          ) : null}
-
-          {readyRows.length > 0 ? (
-            <DashboardImportTable
-              key={importedRowCount}
-              rows={readyRows}
-              disabled={isImporting}
-              onRowSelectionChange={setRowSelected}
-              onRowsSelectionChange={setRowsSelected}
-              selectionLimit={IMPORT_BATCH_SIZE}
-              selectedRowIds={selectedRowIds}
-            />
-          ) : null}
-
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            {isImporting ? (
-              <Button variant="outline" disabled>
-                Return to import builder
-              </Button>
-            ) : (
-              <Button asChild variant="outline">
-                <Link href={IMPORT_BUILDER_HREF}>Return to import builder</Link>
-              </Button>
+            {result.notImportedCount > 0 && (
+              <p>{result.notImportedCount} not imported.</p>
             )}
-            {readyRows.length > 0 ? (
-              <AlertDialogTrigger asChild>
-                <Button
-                  type="button"
-                  disabled={selectedReadyRows.length === 0 || isImporting}
-                >
-                  {isImporting ? (
-                    <>
-                      <Spinner />
-                      Importing…
-                    </>
-                  ) : (
-                    `Import ${selectedReadyRows.length.toLocaleString()} ${
-                      selectedReadyRows.length === 1 ? "listing" : "listings"
-                    }`
-                  )}
-                </Button>
-              </AlertDialogTrigger>
-            ) : importedRows.length + existingMatchRows.length > 0 ? (
-              <Button asChild>
-                <Link href="/dashboard/listings">View listings</Link>
-              </Button>
-            ) : null}
+            {result.skippedNames.length > 0 && (
+              <p className="wrap-anywhere">
+                Skipped: {result.skippedNames.join(", ")}
+              </p>
+            )}
+            <Link href="/dashboard/listings" className="underline">
+              View catalog
+            </Link>
+          </AlertDescription>
+        </Alert>
+      )}
+      {preview && (
+        <div className="flex flex-col gap-4">
+          <div>
+            <h2 className="text-xl font-semibold">Preview</h2>
+            <p className="text-muted-foreground text-sm wrap-anywhere">
+              {preview.fileName}
+            </p>
           </div>
-
-          <DashboardImportAlreadyExistingRows
-            importedRows={importedRows}
-            rows={existingMatchRows}
+          <ImportGroup
+            title="New"
+            rows={preview.newRows.map(({ rowNumber, listing }) => ({
+              rowNumber,
+              title: listing.title,
+              detail: [
+                listing.price === null ? "" : `Price: ${listing.price}`,
+                listing.lists.join(", "),
+                listing.cultivarReferenceId,
+              ]
+                .filter(Boolean)
+                .join(" · "),
+            }))}
           />
-
-          <div className="flex flex-col gap-10">
-            <DashboardImportExcludedRows
-              getSourceCellsForRow={getSourceCellsForRow}
-              kind="review"
-              rows={reviewRows}
-            />
-            <DashboardImportExcludedRows
-              getSourceCellsForRow={getSourceCellsForRow}
-              kind="issues"
-              rows={issueRows}
-            />
-            <DashboardImportExcludedRows
-              getSourceCellsForRow={getSourceCellsForRow}
-              kind="builder"
-              rows={builderExcludedRows}
-            />
-          </div>
-        </section>
-
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              Import {selectedReadyRows.length.toLocaleString()}{" "}
-              {selectedReadyRows.length === 1 ? "listing" : "listings"}?
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {listTitle.trim()
-                ? `These listings will be added to your catalog and the list “${listTitle.trim()}”. Exact existing listings will be reused.`
-                : "These listings will be added to your catalog."}
-              {readyRows.length - selectedReadyRows.length > 0
-                ? ` ${(
-                    readyRows.length - selectedReadyRows.length
-                  ).toLocaleString()} ${
-                    readyRows.length - selectedReadyRows.length === 1
-                      ? "listing will"
-                      : "listings will"
-                  } remain.`
-                : null}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              data-ph-capture-attribute-action="import-catalog"
-              disabled={isImporting || selectedReadyRows.length === 0}
-              onClick={() => void runImport()}
-            >
-              Import listings
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-        <div className="sr-only" aria-live="polite" aria-atomic="true">
-          {liveAnnouncement}
+          <ImportGroup
+            title="Already in your catalog (will be skipped)"
+            rows={preview.skippedRows}
+          />
+          <ImportGroup
+            title="Invalid"
+            rows={preview.invalidRows.map(({ rowNumber, title, reason }) => ({
+              rowNumber,
+              title,
+              detail: reason,
+            }))}
+          />
         </div>
-      </div>
-    </AlertDialog>
+      )}
+      {newCount + skippedCount > 0 && !result && (
+        <Button
+          className="self-start"
+          disabled={Boolean(progress)}
+          onClick={() => void runImport()}
+        >
+          {newCount > 0
+            ? `Import ${newCount} ${newCount === 1 ? "listing" : "listings"}`
+            : "Check and import"}
+        </Button>
+      )}
+      {progress && (
+        <p
+          className="text-muted-foreground flex items-center gap-2 text-sm"
+          role="status"
+        >
+          <Spinner />
+          {progress}
+        </p>
+      )}
+    </div>
   );
 }

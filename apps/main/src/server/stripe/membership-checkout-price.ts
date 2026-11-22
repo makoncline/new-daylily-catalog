@@ -7,6 +7,7 @@ export const MEMBERSHIP_CHECKOUT_LOOKUP_KEY =
 export const HOSTED_BILLING_CHOICE = "stripe_checkout_upsell";
 
 export interface MembershipCheckoutPrice {
+  amount: number;
   currency: string;
   priceId: string;
   productId: string;
@@ -42,6 +43,7 @@ export function validateMembershipCheckoutPrice(
   }
 
   return {
+    amount: Number(price.unit_amount_decimal ?? price.unit_amount),
     currency: price.currency,
     priceId: price.id,
     productId: getProductId(price.product),

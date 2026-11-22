@@ -1,5 +1,4 @@
 import fs from "node:fs/promises";
-import { existsSync } from "node:fs";
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -8,12 +7,8 @@ import { PrismaClient } from "@prisma/client";
 import type { Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
 
-const candidateDirectory = path.resolve(".tmp/search");
-const preservedDirectory = path.resolve(
-  `tests/.tmp/cultivar-url-search-${process.pid}`,
-);
 const candidatePath = path.join(
-  candidateDirectory,
+  process.env.INTEGRATION_SEARCH_DIRECTORY!,
   "public-search-candidate.sqlite",
 );
 const db = new PrismaClient({
@@ -23,8 +18,6 @@ const queryPlaceholder =
   "Search names, hybridizers, colors, awards, or parentage…";
 let savedFlags: Buffer | undefined;
 let flagsCaptured = false;
-let hadCandidate = false;
-let candidatePrepared = false;
 let errors: string[];
 let failures: string[];
 
@@ -62,9 +55,6 @@ test.beforeAll(async () => {
     process.env.RUNTIME_FEATURE_FLAGS_PATH!,
     JSON.stringify({ publicCultivarSearch: true }),
   );
-  hadCandidate = existsSync(candidateDirectory);
-  if (hadCandidate) await fs.rename(candidateDirectory, preservedDirectory);
-  candidatePrepared = true;
   for (let index = 0; index < 55; index++) {
     const id = `url-bloom-${String(index).padStart(2, "0")}`;
     await db.v2AhsCultivar.create({
@@ -122,10 +112,7 @@ test.afterAll(async () => {
     });
   } finally {
     await db.$disconnect();
-    if (candidatePrepared) {
-      await fs.rm(candidateDirectory, { recursive: true, force: true });
-      if (hadCandidate) await fs.rename(preservedDirectory, candidateDirectory);
-    }
+    await fs.rm(path.dirname(candidatePath), { recursive: true, force: true });
     if (flagsCaptured) {
       if (savedFlags)
         await fs.writeFile(process.env.RUNTIME_FEATURE_FLAGS_PATH!, savedFlags);

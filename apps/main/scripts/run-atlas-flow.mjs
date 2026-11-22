@@ -20,6 +20,7 @@ import {
   ATLAS_FLOWS,
   getAtlasFlow,
   missingFreshStateIds,
+  statesForFlow,
   validateAtlasFlows,
 } from "./atlas-flows.mjs";
 import { createDisposableRealisticDataSnapshot } from "./realistic-data-snapshot.mjs";
@@ -157,11 +158,6 @@ async function startServer() {
       DATABASE_URL: databaseUrl,
       NEXT_PUBLIC_POSTHOG_KEY: "",
       NEXT_PUBLIC_SENTRY_ENABLED: "false",
-      PLAYWRIGHT_LOCAL_E2E: flows.some(
-        (flow) => flow.id === "onboarding-membership",
-      )
-        ? "true"
-        : process.env.PLAYWRIGHT_LOCAL_E2E,
       RUNTIME_FEATURE_FLAGS_PATH: runtimeFlagsPath,
       TURSO_DATABASE_AUTH_TOKEN: "",
       TURSO_EMBEDDED_REPLICA_URL: "",
@@ -222,7 +218,7 @@ try {
         "test",
         "-c",
         "playwright.atlas.config.ts",
-        flow.steps[0].states[0].captureSpec,
+        ...new Set(statesForFlow(flow).map(({ captureSpec }) => captureSpec)),
       ],
       {
         cwd: appRoot,

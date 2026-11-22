@@ -1,3 +1,4 @@
+import type * as PublicNav from "@/components/public-nav";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -8,7 +9,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/components/public-nav", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/components/public-nav")>()),
+  ...(await importOriginal<typeof PublicNav>()),
   PublicHeader: () => <header>Public header</header>,
 }));
 
@@ -35,7 +36,7 @@ describe("PublicShell", () => {
     expect(main).toHaveClass("-mt-16", "lg:-mt-20");
     expect(main).not.toHaveClass("pt-16");
     expect(screen.getByText("Public page content")).toBeVisible();
-    expect(main.parentElement).toHaveClass("bg-[#f1f4ec]");
+    expect(main.parentElement).toHaveClass("bg-public-home");
   });
 
   it.each([
@@ -47,16 +48,16 @@ describe("PublicShell", () => {
 
     render(<PublicShell>Membership</PublicShell>);
 
-    expect(screen.getByRole("main").parentElement).toHaveClass("bg-[#07120e]");
+    expect(screen.getByRole("main").parentElement).toHaveClass("bg-public-hero");
     expect(screen.getByRole("main")).toHaveClass("-mt-16", "lg:-mt-20");
   });
 
   it("uses the neutral workspace shell for the catalog importer", () => {
-    navigationState.pathname = "/catalog-importer";
+    navigationState.pathname = "/playground";
 
     render(<PublicShell>Catalog importer</PublicShell>);
 
-    expect(screen.getByRole("main").parentElement).toHaveClass("bg-[#f6f8f3]");
+    expect(screen.getByRole("main").parentElement).toHaveClass("bg-public-surface");
     expect(screen.getByRole("main")).toHaveClass("flex", "flex-col");
     expect(screen.getByRole("main")).not.toHaveClass("-mt-16", "lg:-mt-20");
   });
@@ -66,7 +67,7 @@ describe("PublicShell", () => {
 
     render(<PublicShell>Catalogs</PublicShell>);
 
-    expect(screen.getByRole("main").parentElement).toHaveClass("bg-[#f6f8f3]");
+    expect(screen.getByRole("main").parentElement).toHaveClass("bg-public-surface");
     expect(screen.getByRole("main")).not.toHaveClass("-mt-16", "lg:-mt-20");
   });
 });

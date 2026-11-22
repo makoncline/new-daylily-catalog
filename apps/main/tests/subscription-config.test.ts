@@ -60,7 +60,7 @@ describe("subscription offer configuration", () => {
       MEMBERSHIP_FAQ_QUESTION: "When do I choose a membership?",
     });
     expect(SUBSCRIPTION_CONFIG.PATHS.NEW_USER_ONBOARDING).toBe(
-      "/catalog-importer",
+      "/playground",
     );
     expect(pageSource).toContain("Publish when you are ready");
     expect(pageSource).not.toMatch(/\btrial\b/i);

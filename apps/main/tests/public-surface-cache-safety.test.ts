@@ -226,15 +226,6 @@ describe("public surface cache safety", () => {
 
     for (const absolutePath of publicFiles) {
       const source = readFileSync(absolutePath, "utf8");
-      const isCatalogImporterServerPage = absolutePath.endsWith(
-        "src/app/(public)/catalog-importer/page.tsx",
-      );
-
-      if (isCatalogImporterServerPage) {
-        expect(source, absolutePath).toContain(
-          'export const dynamic = "force-dynamic"',
-        );
-      }
       expect(source, absolutePath).not.toContain("@clerk/nextjs");
       expect(source, absolutePath).not.toContain("useAuth(");
       expect(source, absolutePath).not.toContain("useUser(");

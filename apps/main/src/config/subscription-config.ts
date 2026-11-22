@@ -8,7 +8,7 @@ export type SubscriptionBillingOption = z.infer<
 export const SUBSCRIPTION_CONFIG = {
   PATHS: {
     DASHBOARD_SIGN_IN: "/sign-in",
-    NEW_USER_ONBOARDING: "/catalog-importer",
+    NEW_USER_ONBOARDING: "/playground",
     SELLER_SIGNUP: "/sign-up",
   },
   OFFER: {
@@ -28,16 +28,14 @@ export const SUBSCRIPTION_CONFIG = {
         "Build and preview your catalog for free. Choose a paid membership when you are ready to publish it.",
       MEMBERSHIP_FAQ_QUESTION: "When do I choose a membership?",
       PUBLISH_STEP:
-        "Choose a paid membership, select your public URL, and import the ready listings.",
+        "With a paid membership, import the spreadsheet in your dashboard and publish your catalog.",
       VALUE_PANEL:
         "Build and preview first. Choose a paid membership only when you are ready to publish your catalog.",
     },
     STATUS: {
-      ACTIVE_DESCRIPTION:
-        "Your membership is active. Review the ready listings, then import them into your dashboard.",
       ACTIVE_EYEBROW: "Membership active",
       INACTIVE_DESCRIPTION:
-        "Your membership is not active yet. You can retry checkout, or contact support if you already paid.",
+        "Your membership is not active yet. Contact support if you already paid.",
     },
   },
 } as const;

@@ -1,59 +1,6 @@
-import type { Page } from "@playwright/test";
-import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 import { captureAtlasState, expect, test } from "./atlas-test";
 
-async function mockCultivarMatches(page: Page) {
-  await page.route("**/api/v1/cultivars/match", async (route) => {
-    const payload = route.request().postDataJSON() as { names: string[] };
-    const results = payload.names.map((name, index) => {
-      const normalizedName = name.trim().toLowerCase();
-      const candidate = {
-        awardNames: null,
-        bloomSizeIn: 5,
-        bloomSeason: "Midseason",
-        color: "Example color",
-        confidence: 100,
-        cultivarReferenceId: `onboarding-${index}`,
-        displayName: name,
-        form: "Single",
-        hybridizer: "Example",
-        imageAsset: null,
-        imageUrl: null,
-        listingCount: 0,
-        normalizedName,
-        ploidy: "Diploid",
-        rebloom: true,
-        scapeHeightIn: 24,
-        year: 2020,
-      };
-
-      return {
-        candidates: [candidate],
-        exactMatch: candidate,
-        inputName: name,
-        normalizedInput: normalizedName,
-      };
-    });
-
-    await route.fulfill({
-      body: JSON.stringify({ results }),
-      contentType: "application/json",
-      status: 200,
-    });
-  });
-}
-
-async function openImporterResults(page: Page) {
-  await mockCultivarMatches(page);
-  await page.goto("/catalog-importer");
-  await page.getByRole("button", { name: "Use sample catalog" }).click();
-  await page.getByRole("button", { name: "Build catalog preview" }).click();
-  await expect(
-    page.getByRole("region", { name: "Catalog preview ready" }),
-  ).toBeVisible();
-}
-
-test("Membership offer", async ({ page }) => {
+test("Start membership", async ({ page }) => {
   await page.goto("/start-membership");
   await expect(
     page.getByRole("heading", {
@@ -73,43 +20,8 @@ test("Membership offer", async ({ page }) => {
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Create your catalog" }).first(),
-  ).toHaveAttribute("href", "/catalog-importer");
+  ).toHaveAttribute("href", "/playground");
   await expect(page.locator("body")).not.toContainText(/\btrial\b/i);
   await expect(page.locator("body")).not.toContainText(/\$\s*\d/);
-  await captureAtlasState(page, "onboarding-membership-offer");
-});
-
-test("Importer start", async ({ page }) => {
-  await page.goto("/catalog-importer");
-  await expect(
-    page.getByRole("heading", {
-      name: "Turn the catalog you already have into one buyers can browse",
-    }),
-  ).toBeVisible();
-  await captureAtlasState(page, "onboarding-importer-start");
-});
-
-test("Importer results", async ({ page }) => {
-  await openImporterResults(page);
-  await expect(
-    page.getByRole("heading", { name: "Publish this catalog with Pro" }),
-  ).toBeVisible();
-  await captureAtlasState(page, "onboarding-importer-results");
-});
-
-test("Download or publish", async ({ page }) => {
-  await openImporterResults(page);
-  await page.getByRole("button", { name: "Finish" }).click();
-  await expect(
-    page.getByRole("heading", { name: "Publish your catalog" }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("button", {
-      name: SUBSCRIPTION_CONFIG.COPY.CTA.CONTINUE_TO_CHECKOUT,
-    }),
-  ).toBeVisible();
-  await expect(
-    page.getByText("Choose monthly or yearly securely in Stripe."),
-  ).toBeVisible();
-  await captureAtlasState(page, "onboarding-importer-choice");
+  await captureAtlasState(page, "onboarding-start-membership");
 });

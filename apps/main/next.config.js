@@ -71,6 +71,16 @@ const config = {
         destination: "/sitemap.xml",
         permanent: true,
       },
+      {
+        source: "/catalog-importer",
+        destination: "/playground",
+        permanent: true,
+      },
+      {
+        source: "/temp-list",
+        destination: "/playground",
+        permanent: true,
+      },
     ];
   },
 

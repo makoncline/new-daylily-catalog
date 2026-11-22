@@ -21,17 +21,17 @@ const cultivarState = stateFor(
   "tests/atlas/cultivar-search.atlas.ts",
   "cultivar-search",
 );
-const importerState = stateFor(
-  "tests/atlas/catalog-importer.atlas.ts",
-  "catalog-importer",
+const playgroundState = stateFor(
+  "tests/atlas/playground.atlas.ts",
+  "playground",
+);
+const membershipState = stateFor(
+  "tests/atlas/onboarding-membership.atlas.ts",
+  "onboarding-membership",
 );
 const dashboardImporterState = stateFor(
   "tests/atlas/dashboard-catalog-importer.atlas.ts",
   "dashboard-catalog-importer",
-);
-const onboardingState = stateFor(
-  "tests/atlas/onboarding-membership.atlas.ts",
-  "onboarding-membership",
 );
 const dashboardHomeState = stateFor(
   "tests/atlas/dashboard-home.atlas.ts",
@@ -379,192 +379,152 @@ export const ATLAS_FLOWS = [
     ],
   },
   {
-    id: "catalog-importer",
+    id: "playground",
     audience: "public",
-    title: "Prepare a daylily catalog spreadsheet",
+    title: "Daylily Catalog Playground",
     description:
-      "Start from a spreadsheet, link registered cultivars, resolve catalog issues, preview the catalog, and download the prepared workbook.",
+      "Build and edit a catalog in the browser without an account. Download a spreadsheet for the dashboard Importer or print catalog cards.",
     implementation: {
       entryPoints: [
         {
-          label: "Preparation and request lifetimes",
-          path: "src/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench.ts",
+          label: "Single cultivar search and result refresh",
+          path: "src/app/(public)/playground/_components/temp-list-cultivar-search.tsx",
         },
         {
-          label: "Browser draft persistence",
-          path: "src/hooks/use-catalog-importer-session.ts",
+          label: "Spreadsheet download and dashboard Importer link",
+          path: "src/app/(public)/playground/_components/temp-list-preview.tsx",
+        },
+        {
+          label: "Printable cards preview and generation",
+          path: "src/app/(public)/playground/_components/temp-catalog-print.tsx",
+        },
+        {
+          label: "Unfinished import storage",
+          path: "src/app/(public)/playground/_lib/temp-list-review-store.ts",
+        },
+        {
+          label: "Inline temp-list fields",
+          path: "src/components/catalog-builder/catalog-inline-field.tsx",
+        },
+        {
+          label: "Local list picker",
+          path: "src/components/catalog-builder/catalog-list-select.tsx",
+        },
+        {
+          label: "Shared dashboard table composition",
+          path: "src/app/(public)/playground/_components/temp-list-columns.tsx",
+        },
+        {
+          label: "Shared listing fields",
+          path: "src/components/forms/listing-details-fields.tsx",
+        },
+        {
+          label: "Shared editor layout",
+          path: "src/components/forms/listing-editor-layout.tsx",
+        },
+        {
+          label: "Shared cultivar link panel",
+          path: "src/components/ahs-listing-link-panel.tsx",
+        },
+        {
+          label: "Cultivar details and image preview",
+          path: "src/components/ahs-listing-display.tsx",
+        },
+        {
+          label: "Review matching and duplicate rules",
+          path: "src/app/(public)/playground/_lib/temp-list-review.ts",
+        },
+        {
+          label: "Editable review rows",
+          path: "src/app/(public)/playground/_components/temp-list-review-rows.tsx",
+        },
+        {
+          label: "Batch review",
+          path: "src/app/(public)/playground/_components/temp-list-verify.tsx",
+        },
+        {
+          label: "Input choices",
+          path: "src/app/(public)/playground/_components/temp-list-input.tsx",
+        },
+        {
+          label: "Spreadsheet input",
+          path: "src/app/(public)/playground/_components/temp-list-spreadsheet-input.tsx",
+        },
+        {
+          label: "Spreadsheet rows",
+          path: "src/app/(public)/playground/_lib/temp-list-spreadsheet.ts",
         },
       ],
       invariants: [
-        "Cancel obsolete file, preparation, row-candidate, search, and saved-ID requests independently. Ignore their late results.",
-        "Keep row inclusion, identity, issue repairs, undo, and browser drafts separate from preparation progress.",
-        "Preserve edits made during saved-ID rematching and clear prepared data when the source changes.",
+        "Keep input, batch review, and the saved list on one page. Single search adds immediately. Spreadsheet match choices keep the source name. Pasted spelling corrections can use the registered name. Edit only saved listings. Only exact matches link automatically. Skip identical entries; keep rows with different donor or other details. Clear review when input changes, show distinguishing fields, and keep suggested matches at least 44px tall. Recognize name-only headers, reject unclosed CSV quotes, and allow retries without reloading.",
+        "Add resolved rows to the current list and keep unresolved rows for review. Show the header selector above source columns, sample values, and per-column mappings. Keep extra columns and allow explicit list and cultivar ID mappings. Replace the raw spreadsheet preview with a row count before checking and a live result summary after checking. Add ready adds only resolved rows and retains unresolved rows. Save the source, unfinished name and field edits, match choices, and review decisions in browser storage across refreshes. Keep failed file reads and failed name checks from clearing an existing review. Keep linked and explicitly unlinked rows in Ready. Show distinguishing sale details with potential matches. Recheck edited names and corrected issue fields through shared validation and matching. Hide stale suggestions while a name is edited. Group ready rows, potential matches, unknown names, and invalid data separately. Collapse skipped duplicates. Require an explicit choice before adding an unlinked unknown name. Keep different donor entries separate.",
+        "Preserve extra columns through browser storage, editing, and spreadsheet download. Re-import restores explicit links, unlinks, edited names, and lists. Reuse shared listing validation. Open the full editor from each table row. Catalog cards use edited names; cultivar detail image cards keep registered names. Printable cards preview page one before full generation, show progress, and reuse generated images for the PDF. Stack PDF cards in one column with tight gaps.",
+        "Show actual remaining capacity before input and review. Support 5,000 new rows. Read saved rows above this limit and restore removed rows by ID without truncation. Block writes to unreadable storage until an explicit reset and offer the raw data download. Match in ordered chunks of at most 250. Keep the source and prior review after a later chunk fails.",
+        "Keep Ready rows collapsed while a batch needs review. Show full-width name fields for corrections. Boost phrase-match confidence only for whole tokens, not text inside another word.",
+        "Use the shared dashboard table and editor fields. Put editable fields before read-only cultivar details. Keep search filters expanded and protect unsaved editor fields.",
+        "Skip exact spreadsheet duplicates. Keep rows with different names or cultivar links. Apply the broader name-or-link rule only to pasted names. Keep overlong cultivar IDs in row review.",
+        "When the browser cannot save the catalog, show an error. Keep the review, edit, or bulk selection available to retry. Do not show success.",
+        "Keep the catalog in this browser. Link to the dashboard Importer next to the spreadsheet download. Do not start checkout or write an account draft. Redirect old Playground URLs without redirecting checkout success.",
       ],
     },
     tests: {
       unit: [],
       integration: [
-        testRef("integration", "tests/cultivar-name-match.integration.test.ts"),
-        testRef("integration", "tests/cultivar-match-route.test.ts"),
+        testRef("integration", "tests/catalog-importer-file.test.ts"),
         testRef("integration", "tests/catalog-importer.test.ts"),
         testRef("integration", "tests/temp-list.test.ts"),
-        testRef("integration", "tests/catalog-importer-draft.test.ts"),
-        testRef("integration", "tests/catalog-importer-workbench.test.tsx"),
-        testRef("integration", "tests/catalog-importer-session.test.tsx"),
+        testRef("integration", "tests/temp-list-input.test.tsx"),
+        testRef("integration", "tests/temp-list-store.test.tsx"),
+        fullAppIntegrationRef(
+          "tests/integration/temp-list-input.integration.ts",
+        ),
       ],
-      e2e: [testRef("e2e", "tests/e2e/catalog-importer.e2e.ts")],
+      e2e: [],
     },
     steps: [
       {
-        title: "Start from a spreadsheet",
+        title: "Enter cultivar names",
         states: [
-          importerState(
-            "catalog-importer-desktop-upload",
-            "Desktop catalog upload",
-            "The spreadsheet starting point for catalog preparation on desktop.",
-            "/catalog-importer",
+          playgroundState(
+            "playground-input",
+            "Playground input",
+            "The empty Playground offers search, pasted names, and spreadsheet upload.",
+            "/playground",
           ),
-          importerState(
-            "catalog-importer-mobile-upload",
-            "Mobile catalog upload",
-            "The same upload state at phone width.",
-            "/catalog-importer",
-          ),
-          importerState(
-            "catalog-importer-desktop-mapping",
-            "Desktop column mapping",
-            "The source spreadsheet preview and compact field mapping before processing.",
-            "/catalog-importer",
-            false,
-          ),
-          importerState(
-            "catalog-importer-desktop-manual-empty",
-            "Desktop empty manual catalog",
-            "The manual builder before its first listing is added.",
-            "/catalog-importer",
-            false,
-          ),
-          importerState(
-            "catalog-importer-desktop-manual-linked",
-            "Desktop linked manual listing",
-            "Automatic cultivar search and the compact linked-cultivar row.",
-            "/catalog-importer",
+        ],
+      },
+      {
+        title: "Review the names",
+        states: [
+          playgroundState(
+            "playground-review",
+            "Name review",
+            "Check the matches and decide whether to keep unlinked names.",
+            "/playground",
             false,
           ),
         ],
       },
       {
-        title: "Reveal the prepared catalog",
+        title: "Preview the saved catalog",
         states: [
-          importerState(
-            "catalog-importer-desktop-results",
-            "Desktop catalog results",
-            "The personalized enrichment reveal, preparation status, and complete results workspace.",
-            "/catalog-importer",
-            false,
-          ),
-          importerState(
-            "catalog-importer-mobile-results",
-            "Mobile catalog results",
-            "The personalized reveal and persistent preparation actions at phone width.",
-            "/catalog-importer",
-            false,
-          ),
-          importerState(
-            "catalog-importer-desktop-details",
-            "Cultivar details sheet",
-            "A preview listing opened with the shared Daylily Database display.",
-            "/catalog-importer",
+          playgroundState(
+            "playground-catalog",
+            "Saved catalog",
+            "Preview linked and unlinked listings as cards.",
+            "/playground",
             false,
           ),
         ],
       },
       {
-        title: "Resolve uncertain matches",
+        title: "Download the catalog",
         states: [
-          importerState(
-            "catalog-importer-desktop-review",
-            "Desktop catalog review",
-            "The source spreadsheet row and focused registered-cultivar decision workspace.",
-            "/catalog-importer",
-            false,
-          ),
-          importerState(
-            "catalog-importer-mobile-review",
-            "Mobile catalog review",
-            "The phone-width source context and side-by-side candidate choice.",
-            "/catalog-importer",
-            false,
-          ),
-          importerState(
-            "catalog-importer-desktop-review-complete",
-            "Cultivar review complete",
-            "The compact outcome after the final uncertain name is resolved.",
-            "/catalog-importer",
-            false,
-          ),
-        ],
-      },
-      {
-        title: "Repair spreadsheet data",
-        states: [
-          importerState(
-            "catalog-importer-desktop-issues",
-            "Desktop spreadsheet issues",
-            "Duplicate and price decisions shown in spreadsheet-shaped tables.",
-            "/catalog-importer",
-            false,
-          ),
-          importerState(
-            "catalog-importer-mobile-issues",
-            "Mobile spreadsheet issues",
-            "The same repair work at phone width without clipped controls.",
-            "/catalog-importer",
-            false,
-          ),
-        ],
-      },
-      {
-        title: "Preview the catalog",
-        states: [
-          importerState(
-            "catalog-importer-desktop-preview",
-            "Desktop catalog preview",
-            "The customer-facing cards, full shared search panel, and collection analysis.",
-            "/catalog-importer",
-            false,
-          ),
-          importerState(
-            "catalog-importer-mobile-preview",
-            "Mobile catalog preview",
-            "The searchable cards, advanced filters, and persistent preparation actions at phone width.",
-            "/catalog-importer",
-            false,
-          ),
-        ],
-      },
-      {
-        title: "Download the prepared spreadsheet",
-        states: [
-          importerState(
-            "catalog-importer-desktop-download",
-            "Desktop spreadsheet download",
-            "Both prepared workbook choices with their exact output boundaries.",
-            "/catalog-importer",
-            false,
-          ),
-          importerState(
-            "catalog-importer-mobile-download",
-            "Mobile spreadsheet download",
-            "The prepared workbook choices at phone width without clipped actions.",
-            "/catalog-importer",
-            false,
-          ),
-          importerState(
-            "catalog-importer-desktop-download-confirm",
-            "Incomplete download confirmation",
-            "The explicit remaining-work confirmation before an early download.",
-            "/catalog-importer",
+          playgroundState(
+            "playground-download",
+            "Spreadsheet download",
+            "Download the spreadsheet and find the link to the dashboard Importer.",
+            "/playground",
             false,
           ),
         ],
@@ -574,145 +534,88 @@ export const ATLAS_FLOWS = [
   {
     id: "dashboard-catalog-importer",
     audience: "member",
-    title: "Create listings from a prepared catalog",
+    title: "Add new listings from a Playground file",
     description:
-      "Build one browser-local import, select its eligible listings, and create new catalog listings.",
+      "Upload a Playground workbook or CSV, preview the rows, and add only new listings to the member catalog.",
     implementation: {
       entryPoints: [
         {
-          label: "Prepared import view",
+          label: "File upload and preview",
           path: "src/app/dashboard/imports/_components/dashboard-catalog-importer.tsx",
         },
         {
-          label: "Import writes and refresh",
-          path: "src/app/dashboard/imports/_components/use-dashboard-catalog-import.ts",
+          label: "File validation and batch limits",
+          path: "src/app/dashboard/imports/_components/dashboard-import-file.ts",
         },
         {
-          label: "Import server validation",
+          label: "Shared listing skip rule",
+          path: "src/lib/catalog-import-existing-listings.ts",
+        },
+        {
+          label: "Transactional import writes",
           path: "src/server/api/routers/dashboard-db/listing.ts",
         },
       ],
       invariants: [
-        "Keep the prepared draft and source rows across reloads and rejected writes.",
-        "Create eligible, selected rows in batches of at most 100. Block a second submission before render and until refresh finishes.",
-        "Keep native temp-list names, prices, notes, and explicit cultivar links through import.",
-        "Save an optional named list atomically with its listings and reuse exact owned matches.",
-        "Advance the saved list version for each import batch so incremental sync includes its membership.",
-        "After a saved write, retry a failed dashboard refresh without writing the rows again.",
+        "Accept XLSX and CSV files that start with the six Playground export headers. Ignore extra columns. Read list names from separate lines in one cell.",
+        "Preview New, Already in your catalog (will be skipped), and Invalid rows with reasons. Link unrecognized files to the Playground.",
+        "Compare a normalized name and the exact cultivar link. Skip matching listings and later repeats in the file. Do not change skipped listings or their list memberships.",
+        "Check again on the server inside the write transaction. Create new listings and their list memberships atomically. Advance changed list versions for dashboard sync.",
+        "Import at most 100 rows and 100 distinct lists per request. Show batch progress and report created and skipped counts with the skipped names. Safe re-uploads need no saved progress or row receipts.",
+        "Show the standard Pro membership action to members without Pro.",
       ],
     },
     tests: {
       unit: [],
       integration: [
-        testRef("integration", "tests/dashboard-import-table.test.tsx"),
-        testRef("integration", "tests/dashboard-catalog-importer.test.tsx"),
         testRef(
           "integration",
           "tests/dashboard-db-listing-entitlements.integration.test.ts",
         ),
-        testRef(
-          "integration",
-          "tests/dashboard-import-existing-listings.test.tsx",
-        ),
-        testRef("integration", "tests/dashboard-import-start-over.test.tsx"),
         fullAppIntegrationRef(
           "tests/integration/dashboard-imports.integration.ts",
         ),
       ],
-      e2e: [testRef("e2e", "tests/e2e/catalog-importer.e2e.ts")],
+      e2e: [],
     },
     steps: [
       {
-        title: "Open the shared builder",
+        title: "Upload a Playground file",
         states: [
           dashboardImporterState(
             "dashboard-importer-start",
             "Dashboard importer start",
-            "The signed-in handoff to the shared browser-local import builder.",
+            "The file input and link to the Playground.",
             "/dashboard/imports",
           ),
         ],
       },
       {
-        title: "Select listings to create",
+        title: "Preview the rows",
         states: [
           dashboardImporterState(
             "dashboard-importer-ready",
-            "Dashboard listings ready",
-            "Eligible prepared rows with only final import selection controls.",
+            "Dashboard import preview",
+            "Separate counts and rows for new, skipped, and invalid listings.",
             "/dashboard/imports",
             false,
           ),
           dashboardImporterState(
             "dashboard-importer-mobile-ready",
-            "Mobile dashboard listings ready",
-            "The same final selection table at phone width without page-level overflow.",
+            "Mobile import preview",
+            "The same preview groups at phone width without page overflow.",
             "/dashboard/imports",
             false,
           ),
         ],
       },
       {
-        title: "Explain excluded rows",
+        title: "Check the import result",
         states: [
-          dashboardImporterState(
-            "dashboard-importer-review",
-            "Unreviewed listings excluded",
-            "Rows that still need a cultivar decision are excluded and link back to the builder.",
-            "/dashboard/imports",
-            false,
-          ),
-          dashboardImporterState(
-            "dashboard-importer-mobile-review",
-            "Mobile unreviewed listings",
-            "The same exclusion summary and builder return path at phone width.",
-            "/dashboard/imports",
-            false,
-          ),
-          dashboardImporterState(
-            "dashboard-importer-issues",
-            "Unresolved data excluded",
-            "Rows with unresolved spreadsheet issues are excluded without repair controls.",
-            "/dashboard/imports",
-            false,
-          ),
-          dashboardImporterState(
-            "dashboard-importer-mobile-issues",
-            "Mobile unresolved data",
-            "The same issue exclusion summary at phone width.",
-            "/dashboard/imports",
-            false,
-          ),
-          dashboardImporterState(
-            "dashboard-importer-existing",
-            "Existing listing skipped",
-            "A prepared row already represented in the member catalog, with no create override.",
-            "/dashboard/imports",
-            false,
-          ),
-          dashboardImporterState(
-            "dashboard-importer-mobile-existing",
-            "Mobile existing listing",
-            "The same skipped existing listing at phone width.",
-            "/dashboard/imports",
-            false,
-          ),
-        ],
-      },
-      {
-        title: "Confirm and create",
-        states: [
-          dashboardImporterState(
-            "dashboard-importer-confirm",
-            "Create-only confirmation",
-            "The exact new-listing count and create-only consequences before the write.",
-            "/dashboard/imports",
-            false,
-          ),
           dashboardImporterState(
             "dashboard-importer-complete",
             "Catalog import complete",
-            "The terminal state after retry-safe listing creation succeeds.",
+            "A report of the new listings and the rows that were skipped.",
             "/dashboard/imports",
             false,
           ),
@@ -722,15 +625,19 @@ export const ATLAS_FLOWS = [
   },
   {
     id: "onboarding-membership",
-    audience: "member",
+    audience: "public",
     title: "Create a catalog and start membership",
     description:
-      "Understand the grower offer, transform an existing catalog, and continue to Stripe-hosted membership checkout.",
+      "Understand the grower offer and start a catalog. Keep email verification available for existing checkouts.",
     implementation: {
       entryPoints: [
         {
-          label: "Importer finish membership offer",
-          path: "src/app/(public)/catalog-importer/_components/catalog-importer-publish-actions.tsx",
+          label: "Grower membership offer",
+          path: "src/app/start-membership/page.tsx",
+        },
+        {
+          label: "Claim an existing catalog-importer checkout",
+          path: "src/app/catalog-importer/checkout/success/page.tsx",
         },
         {
           label: "Optional Pro feedback",
@@ -742,21 +649,19 @@ export const ATLAS_FLOWS = [
         },
       ],
       invariants: [
-        "Offer feedback at the importer finish step, after the prepared catalog. Open it only on an explicit click. Keep downloads and checkout independent of the answer.",
-        "Use the active PostHog API survey and existing SDK identity. Keep support available when feedback is unavailable.",
+        "Send growers to the Playground to build and download a catalog. The dashboard Importer accepts that file.",
+        "The Playground does not start membership checkout. Use the standard dashboard membership action.",
+        "Keep the original checkout success URLs for existing catalog-importer sessions. Validate the entry source and account ownership, link the Stripe customer, and open the dashboard Importer.",
+        "Use the same email verification and membership status messages for both checkout returns. Do not assume the member used the Playground.",
       ],
     },
     tests: {
-      unit: [
-        testRef("unit", "tests/catalog-importer-draft.test.ts"),
-        testRef("unit", "tests/catalog-importer-file.test.ts"),
-      ],
+      unit: [],
       integration: [
         testRef("integration", "tests/pro-membership-feedback.test.tsx"),
         fullAppIntegrationRef(
           "tests/integration/pro-membership-feedback.integration.ts",
         ),
-        testRef("integration", "tests/catalog-importer-workbench.test.tsx"),
         testRef(
           "integration",
           "tests/catalog-importer-checkout-router.test.ts",
@@ -766,52 +671,17 @@ export const ATLAS_FLOWS = [
           "tests/integration/catalog-importer-checkout-provider-boundaries.integration.ts",
         ),
       ],
-      e2e: [testRef("e2e", "tests/e2e/catalog-importer-onboarding.e2e.ts")],
+      e2e: [],
     },
     steps: [
       {
-        title: "Understand the offer",
+        title: "Learn when to choose membership",
         states: [
-          onboardingState(
-            "onboarding-membership-offer",
-            "Membership offer",
-            "The public grower offer before setup begins.",
+          membershipState(
+            "onboarding-start-membership",
+            "Grower membership",
+            "Start a catalog in the Playground. Choose membership when ready to publish.",
             "/start-membership",
-          ),
-        ],
-      },
-      {
-        title: "Bring a catalog",
-        states: [
-          onboardingState(
-            "onboarding-importer-start",
-            "Catalog source choices",
-            "Upload, manual entry, and sample paths start the same private preview.",
-            "/catalog-importer",
-          ),
-        ],
-      },
-      {
-        title: "See the transformation",
-        states: [
-          onboardingState(
-            "onboarding-importer-results",
-            "Personalized catalog results",
-            "Matched listings, reference photos, cleanup work, and the Pro publishing bridge.",
-            "/catalog-importer",
-            false,
-          ),
-        ],
-      },
-      {
-        title: "Choose the outcome",
-        states: [
-          onboardingState(
-            "onboarding-importer-choice",
-            "Download or publish",
-            "The explicit choice between free prepared files and a live Pro catalog.",
-            "/catalog-importer",
-            false,
           ),
         ],
       },
@@ -852,7 +722,6 @@ export const ATLAS_FLOWS = [
         testRef("e2e", "tests/e2e/preview-sign-in.e2e.ts"),
         testRef("e2e", "tests/e2e/new-user-journey.e2e.ts"),
         testRef("e2e", "tests/e2e/create-edit-listing-flow.e2e.ts"),
-        testRef("e2e", "tests/e2e/catalog-importer-onboarding.e2e.ts"),
       ],
     },
     steps: [
@@ -1181,6 +1050,14 @@ export const ATLAS_FLOWS = [
         {
           label: "Listing edit form",
           path: "src/components/forms/listing-form.tsx",
+        },
+        {
+          label: "Shared listing editor layout",
+          path: "src/components/forms/listing-editor-layout.tsx",
+        },
+        {
+          label: "Shared listing fields",
+          path: "src/components/forms/listing-details-fields.tsx",
         },
         {
           label: "Bulk listing actions",
@@ -2126,6 +2003,12 @@ export function validateAtlasFlows({ flows = ATLAS_FLOWS, appRoot }) {
   const captures = new Set();
   const allowedLayers = new Set(["unit", "integration", "e2e"]);
   for (const flow of flows) {
+    if (!flow.steps.length)
+      throw new Error(`Atlas flow has no steps: ${flow.id}`);
+    for (const step of flow.steps) {
+      if (!step.states.length)
+        throw new Error(`Atlas step has no states: ${flow.id} / ${step.title}`);
+    }
     if (flow.implementation) {
       for (const entryPoint of flow.implementation.entryPoints) {
         if (!existsSync(path.resolve(appRoot, entryPoint.path)))

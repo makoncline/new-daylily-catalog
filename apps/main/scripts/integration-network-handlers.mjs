@@ -1,7 +1,30 @@
 import { http, HttpResponse } from "msw";
 
 const capturedEmails = [];
-let catalogImporterImportId = "integration-catalog-import";
+const checkoutReturnPaths = new Map([
+  ["cs_test_integration_catalog_importer", "/catalog-importer"],
+  ["cs_test_integration_onboarding", "/playground"],
+]);
+const checkoutCustomer = {
+  id: "cus_integration_catalog_importer",
+  object: "customer",
+  email: "integration-stripe-success@example.com",
+};
+const checkoutSubscription = {
+  id: "sub_integration_catalog_importer",
+  object: "subscription",
+  status: "active",
+  cancel_at_period_end: false,
+  items: {
+    data: [
+      {
+        price: { id: "price_integration_annual" },
+        current_period_start: 1_700_000_000,
+        current_period_end: 1_731_536_000,
+      },
+    ],
+  },
+};
 
 function queryValues(params, prefix) {
   return [...params.entries()]
@@ -64,89 +87,64 @@ export const integrationNetworkHandlers = [
       </SendEmailResponse>
     `);
   }),
-  http.get("*/v1/prices", () => {
+  http.get("*/v1/subscriptions", ({ request }) => {
+    const customerId = new URL(request.url).searchParams.get("customer");
+    if (customerId !== checkoutCustomer.id) {
+      return new HttpResponse(null, { status: 404 });
+    }
     return HttpResponse.json({
-      object: "price",
+      object: "list",
+      data: [checkoutSubscription],
+      has_more: false,
+    });
+  }),
+  http.get("*/v1/checkout/sessions/:sessionId", ({ params }) => {
+    const returnTo = checkoutReturnPaths.get(params.sessionId);
+    if (!returnTo) return new HttpResponse(null, { status: 404 });
+    return HttpResponse.json({
+      id: params.sessionId,
+      object: "checkout.session",
+      payment_status: "paid",
+      customer: checkoutCustomer,
+      metadata: {
+        ...(returnTo === "/playground" && {
+          billing_choice: "stripe_checkout_upsell",
+          membership_currency: "usd",
+          membership_product_id: "prod_integration_membership",
+        }),
+        entry_source: "catalog_importer",
+        import_id: "integration-catalog-import",
+        return_to: returnTo,
+        source: "catalog_importer",
+      },
+      subscription: checkoutSubscription,
+    });
+  }),
+  http.get("*/v1/checkout/sessions/:sessionId/line_items", ({ params }) => {
+    if (!checkoutReturnPaths.has(params.sessionId)) {
+      return new HttpResponse(null, { status: 404 });
+    }
+    return HttpResponse.json({
+      object: "list",
       data: [
         {
-          id: "price_integration_monthly",
-          object: "price",
-          active: true,
-          currency: "usd",
-          product: "prod_integration_membership",
-          recurring: { interval: "month", interval_count: 1 },
-          type: "recurring",
-          unit_amount: 1299,
-          unit_amount_decimal: "1299",
+          id: "li_integration_membership",
+          object: "item",
+          price: {
+            id: "price_integration_annual",
+            object: "price",
+            active: true,
+            currency: "usd",
+            product: "prod_integration_membership",
+            recurring: { interval: "year", interval_count: 1 },
+            type: "recurring",
+            unit_amount: 7999,
+            unit_amount_decimal: "7999",
+          },
+          quantity: 1,
         },
       ],
       has_more: false,
     });
   }),
-  http.post("*/v1/checkout/sessions", async ({ request }) => {
-    const body = await request.formData();
-
-    const importId = body.get("metadata[import_id]");
-    if (typeof importId === "string" && importId.length > 0) {
-      catalogImporterImportId = importId;
-    }
-
-    return HttpResponse.json({
-      id: "cs_test_integration_catalog_importer",
-      object: "checkout.session",
-      url: `${process.env.APP_BASE_URL ?? "http://localhost:3210"}/catalog-importer/checkout/success?session_id=cs_test_integration_catalog_importer`,
-    });
-  }),
-  http.get("*/v1/checkout/sessions/cs_test_integration_catalog_importer", () =>
-    HttpResponse.json({
-      id: "cs_test_integration_catalog_importer",
-      object: "checkout.session",
-      created: 1_700_000_000,
-      customer: {
-        id: "cus_integration_catalog_importer",
-        object: "customer",
-        email: "integration-stripe-success@example.com",
-      },
-      metadata: {
-        billing_choice: "stripe_checkout_upsell",
-        entry_source: "catalog_importer",
-        import_id: catalogImporterImportId,
-        membership_currency: "usd",
-        membership_product_id: "prod_integration_membership",
-        return_to: "/catalog-importer",
-        source: "catalog_importer",
-      },
-      subscription: {
-        id: "sub_integration_catalog_importer",
-        object: "subscription",
-        status: "active",
-      },
-    }),
-  ),
-  http.get(
-    "*/v1/checkout/sessions/cs_test_integration_catalog_importer/line_items",
-    () =>
-      HttpResponse.json({
-        object: "list",
-        data: [
-          {
-            id: "li_integration_membership",
-            object: "item",
-            price: {
-              id: "price_integration_annual",
-              object: "price",
-              active: true,
-              currency: "usd",
-              product: "prod_integration_membership",
-              recurring: { interval: "year", interval_count: 1 },
-              type: "recurring",
-              unit_amount: 7999,
-              unit_amount_decimal: "7999",
-            },
-            quantity: 1,
-          },
-        ],
-        has_more: false,
-      }),
-  ),
 ];

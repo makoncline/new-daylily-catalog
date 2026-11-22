@@ -54,6 +54,7 @@ const reservedProfileSlugs = new Set([
   "kitchen-sink",
   "onboarding",
   "privacy",
+  "playground",
   "sell-daylilies-online",
   "sign-in",
   "sign-up",

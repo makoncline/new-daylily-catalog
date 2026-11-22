@@ -77,17 +77,16 @@ const marketingDarkSecondaryButton = `${marketingButtonBase} border border-white
 
 const HOW_IT_WORKS_STEPS = [
   {
-    title: "Bring your catalog",
-    detail: "Upload a spreadsheet, add listings manually, or try a sample.",
+    title: "Build in the Playground",
+    detail: "Search for cultivars, paste names, or upload a spreadsheet.",
   },
   {
-    title: "See the transformation",
-    detail:
-      "Review matched cultivars, photos, details, and buyer-friendly filters.",
+    title: "Review your listings",
+    detail: "Check cultivar matches and edit your listings in the browser.",
   },
   {
-    title: "Prepare what matters",
-    detail: "Confirm uncertain names now, or continue with the ready listings.",
+    title: "Download your catalog",
+    detail: "Download the spreadsheet when your listings are ready.",
   },
   {
     title: "Publish with Pro",

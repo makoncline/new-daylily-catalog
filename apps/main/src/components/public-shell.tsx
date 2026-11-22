@@ -17,21 +17,21 @@ export function PublicShell({ children, mainClassName }: PublicShellProps) {
     pathname === "/" || isGrowerMarketingPage || pathname === "/cultivars";
   const shellBackgroundClassName =
     isGrowerMarketingPage || pathname === "/cultivars"
-      ? "bg-[#07120e]"
+      ? "bg-public-hero"
       : pathname === "/"
-        ? "bg-[#f1f4ec]"
-        : "bg-[#f6f8f3]";
+        ? "bg-public-home"
+        : "bg-public-surface";
 
   return (
     <div
       className={cn(
-        "flex min-h-svh flex-col text-[#142118]",
+        "text-public-ink flex min-h-svh flex-col",
         shellBackgroundClassName,
       )}
     >
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[60] focus:rounded-md focus:bg-[#142118] focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white"
+        className="focus:bg-public-ink sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-60 focus:rounded-md focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white"
       >
         Skip to content
       </a>
@@ -40,7 +40,7 @@ export function PublicShell({ children, mainClassName }: PublicShellProps) {
         id="main-content"
         className={cn(
           "w-full flex-1 scroll-mt-4 [&_[id]]:scroll-mt-4",
-          pathname === "/catalog-importer"
+          pathname === "/playground"
             ? "flex flex-col overflow-visible"
             : "overflow-hidden",
           overlapsHero && "-mt-16 lg:-mt-20",

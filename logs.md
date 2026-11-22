@@ -245,3 +245,38 @@ check current code before applying them.
 - [2026-11-08] Local Chrome reload loop: A Turbopack reload loop can abort dashboard requests before a browser assertion. Confirm repeated Fast Refresh in the trace. For a local proof, use a temporary Playwright wrapper that intercepts only `/_next/webpack-hmr`. Keep app requests and persistence real. Report the wrapper with the evidence.
 
 - [2026-11-08] Prisma in a managed checkout: Prisma can fail while it updates the timestamp of its cached schema engine. If the matching engine is already in the user cache, set `PRISMA_SCHEMA_ENGINE_BINARY` to its path and run `pnpm main db:generate` directly. The root Turbo task filters this variable.
+
+- [2026-10-27] Spreadsheet note whitespace: `cellToText` collapses line breaks and repeated spaces for matching. Use raw cell strings for imported notes and extra columns when the user must keep their formatting through browser storage and export.
+- [2026-10-27] Preview cultivar IDs: Integration seed records reuse real cultivar-reference IDs, including Coffee Frenzy's cr-ahs-176320. When loading public cultivar data into a disposable preview database, update matching IDs from the real data. INSERT OR IGNORE can silently leave fake names and omit real cultivars from search. Verify a known cultivar through the browser after rebuilding the index.
+
+- [2026-10-27] Selected table data: Filtering rows inline before passing them to TanStack Table with autoResetPageIndex enabled can cause a pagination reset render loop. Memoize derived table data by its rows and selection before passing it to the table.
+
+- [2026-10-27] PDF preview browser support: PDF.js 6 default browser builds use Map.getOrInsertComputed, which the current Playwright Chromium does not provide. Use the package-provided legacy display and worker builds together for the catalog preview; do not add an app-level polyfill.
+
+- [2026-10-27] Interactive browser commands: Long single-line commands sent through a PTY can be truncated by terminal input limits before their newline arrives. Keep UI-session commands short, or load longer commands from a temporary file. If the session stops responding, clear the pending input with Ctrl-U before retrying.
+
+- [2026-10-28] Bundled Poppler font setup: The bundled macOS pdftoppm can stall when its default Fontconfig path and cache are unavailable. For local PDF verification, set FONTCONFIG_FILE to a temporary config with /System/Library/Fonts/Supplemental and a writable temporary cache. Do not change system font settings.
+
+- [2026-10-31] Disposable macOS runtime paths: The integration guard compares the app root with DATABASE_URL. Resolve /var versus /private/var aliases before creating a disposable runtime. Turbopack also rejects a node_modules symlink that leaves the archived project root; use a self-contained APFS clone of installed dependencies for an isolated deployed-commit profile.
+
+- [2026-11-01] Temp Catalog handoff details: Save the existing cultivar candidate map with the prepared import. Cultivar IDs alone preserve links but leave the dashboard review without registered names or thumbnails. Check both the persisted values and the rendered import review.
+
+- [2026-11-04] Search preview cache: After rebuilding the local search index, a browser query with staleTime Infinity can keep an earlier empty result. For Playground search, keep results stale so re-entering a query requests current data. Verify the request as well as the index before changing matching logic.
+
+- [2026-11-05] libSQL transaction queue: Prisma 7.8 libSQL holds a shared client mutex until an interactive transaction ends. Other queries on that client can wait behind it. The list-add nested connect plus version/response reads emitted seven sequential SQL calls in a local trace; controlled delay reproduced both P2028 and TRANSACTION_CLOSED. When diagnosing these errors, inspect transaction work and queued reads. Keep local mechanism proof separate from the source of production database delay.
+
+- [2026-11-12] Local Node version: This computer defaults to Node 26, but this repository requires Node ^24.22.1. Node 26 gives false jsdom storage and Prisma failures. Use the verified Node 24.22.3 binary at /tmp/fable-review/node24/node-v24.22.3-darwin-arm64/bin/node for this run, and check its path and version before local verification.
+
+- [2026-11-12] Import download re-entry: Playwright stores downloads at a temporary path without the workbook extension. For a real re-import check, send the downloaded bytes through setInputFiles with the suggested XLSX or CSV file name. A bare temporary path tests an unsupported file type.
+
+- [2026-11-12] Inline table focus: TanStack cell render functions remount when the column definitions change. Rebuilding equivalent list options on each local edit caused Enter to lose focus. Keep unchanged list options stable and check keyboard focus in the actual table.
+
+- [2026-11-12] Next dev cache in integration checks: A stable-source checkout test entered a repeated HMR reload loop from this worktree's generated .next/dev cache. With the owned server stopped, removing only that cache let the same complete 12-test run pass. If the first integration page repeatedly reloads, inspect the trace, stop this checkout's server, and rebuild its generated dev cache before changing product behavior.
+
+- [2026-11-12] Prepared import read race: Rewriting the current draft during a read can replace a newer completion or refresh result. A concurrent read reproduced stale refreshPending state. Keep current-draft reads read-only and save progress through the session write queue.
+
+- [2026-11-19] Next.js agent upgrade notice: Next 16.4 can exit before a local integration run when a security upgrade is available. Report the notice separately. For an isolated test run, set `CI=1 __NEXT_AGENT_UPGRADE=security` to use the CLI's non-interactive CI path.
+
+- [2026-11-19] Playground match fixtures: The public search index needs a `V2AhsCultivar` link. The legacy-only onboarding fixtures do not match by ID in the Playground. Seed V2 links before building the test index.
+
+- [2026-11-19] Bulk import fixture isolation: The 350 imported rows filled the shared seller's first Listings page and hid a seeded row from later list tests. Remove the bulk fixture rows after checking their persistence. Run the complete browser suite to catch shared database effects.

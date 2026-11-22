@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { db } from "@/server/db";
 import { getCatalogImporterCheckoutStatus } from "@/server/catalog-importer/checkout-service";
 import { CheckoutSuccessPageClient } from "./checkout-success-page-client";
 
@@ -22,7 +21,7 @@ export default async function CatalogImporterCheckoutSuccessPage({
   const params = await searchParams;
   const sessionId = params.session_id;
   const status = sessionId
-    ? await getCatalogImporterCheckoutStatus(db, sessionId).catch(
+    ? await getCatalogImporterCheckoutStatus(sessionId).catch(
         (error: unknown) => {
           console.error(
             "Unable to load catalog importer checkout status",

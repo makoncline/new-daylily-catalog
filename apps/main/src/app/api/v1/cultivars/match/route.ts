@@ -6,9 +6,9 @@ import { reportError } from "@/lib/error-utils";
 import { toPublicSearchStatus } from "@/server/search/public-search-api-platform";
 import {
   matchCultivarNames,
-  MAX_CULTIVAR_MATCH_NAME_LENGTH,
   MAX_CULTIVAR_MATCH_NAMES,
 } from "@/server/search/cultivar-name-match";
+import { MAX_CULTIVAR_MATCH_NAME_LENGTH } from "@/lib/catalog-importer";
 import { PublicSearchIndexUnavailableError } from "@/server/search/public-search-index";
 
 export const runtime = "nodejs";

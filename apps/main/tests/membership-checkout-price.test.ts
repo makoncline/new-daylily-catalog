@@ -53,6 +53,7 @@ describe("Stripe-hosted membership pricing", () => {
 
   it("resolves the monthly Checkout entry price by stable lookup key", async () => {
     await expect(getMembershipCheckoutPrice()).resolves.toEqual({
+      amount: 1299,
       currency: "usd",
       priceId: "price_monthly",
       productId: "prod_membership",

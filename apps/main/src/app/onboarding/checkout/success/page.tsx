@@ -9,7 +9,7 @@ export default async function OnboardingCheckoutSuccessRedirect({
 }) {
   const sessionId = (await searchParams).session_id;
   if (!sessionId) {
-    redirect("/catalog-importer");
+    redirect("/playground");
   }
 
   redirect(

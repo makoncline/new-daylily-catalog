@@ -36,14 +36,14 @@ describe("PublicHeader", () => {
       name: "Search cultivars",
     });
     const importerLinks = screen.getAllByRole("link", {
-      name: "Import a catalog",
+      name: "Playground",
     });
     const growersLinks = screen.getAllByRole("link", { name: "For growers" });
 
     expect(screen.getByRole("banner")).toBeInTheDocument();
     expect(screen.getByRole("banner")).not.toHaveClass("sticky");
     expect(screen.getByRole("banner")).toHaveClass(
-      "before:backdrop-blur-[5px]",
+      "public-header",
     );
     expect(catalogsLinks).toHaveLength(2);
     expect(cultivarLinks).toHaveLength(2);
@@ -53,7 +53,7 @@ describe("PublicHeader", () => {
     expect(importerLinks).toHaveLength(2);
     expect(
       importerLinks.every(
-        (link) => link.getAttribute("href") === "/catalog-importer",
+        (link) => link.getAttribute("href") === "/playground",
       ),
     ).toBe(true);
     expect(
@@ -73,7 +73,7 @@ describe("PublicHeader", () => {
   });
 
   it("renders enabled cultivar search in the mobile navigation", () => {
-    navigationState.pathname = "/catalog-importer";
+    navigationState.pathname = "/playground";
     featureState.catalogImporterDiscovery = true;
     featureState.publicCultivarSearch = true;
     render(<PublicHeader />);
@@ -81,14 +81,14 @@ describe("PublicHeader", () => {
     const mobileNav = screen.getByTestId("mobile-public-nav");
     const catalogsLink = mobileNav.querySelector('a[href="/catalogs"]');
     const cultivarLink = mobileNav.querySelector('a[href="/cultivars"]');
-    const importerLink = mobileNav.querySelector('a[href="/catalog-importer"]');
+    const importerLink = mobileNav.querySelector('a[href="/playground"]');
     const growersLink = mobileNav.querySelector('a[href="/start-membership"]');
     const dashboardLink = mobileNav.querySelector('a[href="/sign-in"]');
 
     expect(screen.getByText("Open public navigation")).toBeInTheDocument();
     expect(catalogsLink).toHaveAttribute("href", "/catalogs");
     expect(cultivarLink).toHaveAttribute("href", "/cultivars");
-    expect(importerLink).toHaveAttribute("href", "/catalog-importer");
+    expect(importerLink).toHaveAttribute("href", "/playground");
     expect(importerLink).toHaveAttribute("aria-current", "page");
     expect(growersLink).toHaveAttribute("href", "/start-membership");
     expect(growersLink).not.toHaveAttribute("aria-current");
@@ -102,7 +102,7 @@ describe("PublicHeader", () => {
 
     expect(
       screen
-        .getAllByRole("link", { name: "Import a catalog" })
+        .getAllByRole("link", { name: "Playground" })
         .every((link) => !link.hasAttribute("aria-current")),
     ).toBe(true);
   });
@@ -135,7 +135,7 @@ describe("PublicHeader", () => {
       screen.queryByRole("link", { name: "Search cultivars" }),
     ).not.toBeInTheDocument();
     expect(
-      screen.getAllByRole("link", { name: "Import a catalog" }),
+      screen.getAllByRole("link", { name: "Playground" }),
     ).toHaveLength(2);
   });
 

@@ -54,7 +54,6 @@ if (!process.env.BASE_URL) {
 
   process.env.E2E_TEST_DB_URL = process.env.DATABASE_URL;
   process.env.SKIP_ENV_VALIDATION = "1";
-  process.env.PLAYWRIGHT_LOCAL_E2E = "true";
   process.env.APP_BASE_URL = baseURL;
 }
 
@@ -102,7 +101,6 @@ export default defineConfig({
           DATABASE_URL: process.env.DATABASE_URL!,
           E2E_TEST_DB_URL: process.env.E2E_TEST_DB_URL!,
           SKIP_ENV_VALIDATION: "1",
-          PLAYWRIGHT_LOCAL_E2E: "true",
         },
       },
 });

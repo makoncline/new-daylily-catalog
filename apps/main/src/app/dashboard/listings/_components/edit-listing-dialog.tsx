@@ -16,7 +16,7 @@ import { useQueryParamDialogState } from "@/hooks/use-dialog-search-param";
 import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
 import { Button } from "@/components/ui/button";
 import { ErrorFallback } from "@/components/error-fallback";
-import { PageHeader } from "@/components/page-header";
+import { ListingEditorLayout } from "@/components/forms/listing-editor-layout";
 import { ListingSurfaceSaveBar } from "./listing-surface-save-bar";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
@@ -80,22 +80,21 @@ export function EditListingSurface({
   }, []);
 
   return (
-    <section
-      aria-label="Edit listing"
-      className="mx-auto w-full max-w-3xl pb-8"
-    >
-      {isDirty ? (
-        <ListingSurfaceSaveBar
-          title="Unsaved listing"
-          saveLabel="Save"
-          isSaving={isSaving}
-          saveDisabled={false}
-          onDiscard={onClose}
-          onSave={() => void handleSave()}
-        />
-      ) : null}
-
-      <PageHeader heading="Edit Listing" text="Make changes to your listing.">
+    <ListingEditorLayout
+      description="Make changes to your listing."
+      notice={
+        isDirty ? (
+          <ListingSurfaceSaveBar
+            title="Unsaved listing"
+            saveLabel="Save"
+            isSaving={isSaving}
+            saveDisabled={false}
+            onDiscard={onClose}
+            onSave={() => void handleSave()}
+          />
+        ) : null
+      }
+      backAction={
         <Button
           ref={backButtonRef}
           type="button"
@@ -106,8 +105,8 @@ export function EditListingSurface({
           <ArrowLeft aria-hidden="true" data-icon="inline-start" />
           Back to listings
         </Button>
-      </PageHeader>
-
+      }
+    >
       <ErrorBoundary fallback={<ErrorFallback resetErrorBoundary={onClose} />}>
         <Suspense fallback={<ListingFormSkeleton />}>
           <ListingForm
@@ -120,6 +119,6 @@ export function EditListingSurface({
           />
         </Suspense>
       </ErrorBoundary>
-    </section>
+    </ListingEditorLayout>
   );
 }

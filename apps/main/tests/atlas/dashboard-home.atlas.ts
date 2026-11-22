@@ -265,55 +265,35 @@ async function openDashboard(
   return dashboard;
 }
 
-async function captureSetup(
-  page: Page,
-  viewport: typeof desktop,
-  stateId: string,
-) {
+async function checkSetup(page: Page, viewport: typeof desktop) {
   const dashboard = await openDashboard(page, "setup", viewport);
   await expect(dashboard.profileCompletionPercentage).toHaveText("0%");
   await expect(dashboard.catalogProgressPercentage).toHaveText("0%");
   await expect(dashboard.upgradeToProButton).toBeVisible();
-  await captureAtlasState(page, stateId);
 }
 
-async function captureUpgrade(
-  page: Page,
-  viewport: typeof desktop,
-  stateId: string,
-) {
+async function checkUpgrade(page: Page, viewport: typeof desktop) {
   const dashboard = await openDashboard(page, "upgrade", viewport);
   await expect(dashboard.completeProfileCard).toHaveCount(0);
   await expect(dashboard.catalogProgressCard).toHaveCount(0);
   await expect(dashboard.upgradeToProButton).toBeVisible();
   await expect(page.getByTestId("dashboard-billing-alert")).toHaveCount(0);
-  await captureAtlasState(page, stateId);
 }
 
-async function captureBilling(
-  page: Page,
-  viewport: typeof desktop,
-  stateId: string,
-) {
+async function checkBilling(page: Page, viewport: typeof desktop) {
   const dashboard = await openDashboard(page, "billing", viewport);
   await expect(dashboard.completeProfileCard).toHaveCount(0);
   await expect(dashboard.catalogProgressCard).toHaveCount(0);
   await expect(page.getByTestId("dashboard-billing-alert")).toBeVisible();
   await expect(page.getByTestId("dashboard-update-billing")).toBeVisible();
-  await captureAtlasState(page, stateId);
 }
 
-async function captureActivePro(
-  page: Page,
-  viewport: typeof desktop,
-  stateId: string,
-) {
+async function checkActivePro(page: Page, viewport: typeof desktop) {
   const dashboard = await openDashboard(page, "active-pro", viewport);
   await expect(dashboard.completeProfileCard).toHaveCount(0);
   await expect(dashboard.catalogProgressCard).toHaveCount(0);
   await expect(dashboard.proMembershipCard).toHaveCount(0);
   await expect(page.getByTestId("dashboard-billing-alert")).toHaveCount(0);
-  await captureAtlasState(page, stateId);
 }
 
 test.describe.configure({ mode: "serial" });
@@ -321,33 +301,41 @@ test.beforeAll(initializeFixture);
 test.afterAll(restoreRealisticPersona);
 
 test("Desktop setup guidance", async ({ page }) => {
-  await captureSetup(page, desktop, "dashboard-home-desktop-setup");
+  await checkSetup(page, desktop);
+  await captureAtlasState(page, "dashboard-home-desktop-setup");
 });
 
 test("Mobile setup guidance", async ({ page }) => {
-  await captureSetup(page, mobile, "dashboard-home-mobile-setup");
+  await checkSetup(page, mobile);
+  await captureAtlasState(page, "dashboard-home-mobile-setup");
 });
 
 test("Desktop membership upgrade", async ({ page }) => {
-  await captureUpgrade(page, desktop, "dashboard-home-desktop-upgrade");
+  await checkUpgrade(page, desktop);
+  await captureAtlasState(page, "dashboard-home-desktop-upgrade");
 });
 
 test("Mobile membership upgrade", async ({ page }) => {
-  await captureUpgrade(page, mobile, "dashboard-home-mobile-upgrade");
+  await checkUpgrade(page, mobile);
+  await captureAtlasState(page, "dashboard-home-mobile-upgrade");
 });
 
 test("Desktop billing attention", async ({ page }) => {
-  await captureBilling(page, desktop, "dashboard-home-desktop-billing");
+  await checkBilling(page, desktop);
+  await captureAtlasState(page, "dashboard-home-desktop-billing");
 });
 
 test("Mobile billing attention", async ({ page }) => {
-  await captureBilling(page, mobile, "dashboard-home-mobile-billing");
+  await checkBilling(page, mobile);
+  await captureAtlasState(page, "dashboard-home-mobile-billing");
 });
 
 test("Desktop active Pro", async ({ page }) => {
-  await captureActivePro(page, desktop, "dashboard-home-desktop-active-pro");
+  await checkActivePro(page, desktop);
+  await captureAtlasState(page, "dashboard-home-desktop-active-pro");
 });
 
 test("Mobile active Pro", async ({ page }) => {
-  await captureActivePro(page, mobile, "dashboard-home-mobile-active-pro");
+  await checkActivePro(page, mobile);
+  await captureAtlasState(page, "dashboard-home-mobile-active-pro");
 });

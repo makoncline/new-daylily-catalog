@@ -59,7 +59,7 @@ export function createDashboardListingsCsv(listings: ListingData[]) {
         listing.cultivarReferenceNormalizedName ?? ahs?.name ?? null,
       ),
       listing.images.length + (listing.cultivarReferenceImage ? 1 : 0),
-      listing.lists.map((list) => list.title).join(", "),
+      listing.lists.map((list) => list.title).join("\n"),
       listing.status,
       formatAhsListingSummary(ahs) ?? "",
       ahs?.hybridizer ?? "",

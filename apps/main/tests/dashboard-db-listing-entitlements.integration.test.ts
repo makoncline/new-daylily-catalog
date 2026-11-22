@@ -104,58 +104,6 @@ describe("dashboard listing creation entitlements", () => {
     });
   });
 
-  it("imports listing rows once when a batch is retried", async () => {
-    getStripeSubscriptionResult.mockResolvedValue({
-      subscription: { status: "trialing" },
-      confirmed: true,
-    });
-
-    await withTempAppDb(async ({ user }) => {
-      const { caller, db } = await createAuthedCaller(user.id);
-      const rows = [
-        {
-          cultivarReferenceId: null,
-          description: "First import row",
-          importKey: "project-1:source-row-2",
-          price: 12,
-          privateNote: "Front bed",
-          title: "Stella de Oro",
-        },
-        {
-          cultivarReferenceId: null,
-          description: "Second size",
-          importKey: "project-1:source-row-3",
-          price: 10,
-          privateNote: null,
-          title: "Stella de Oro",
-        },
-      ];
-
-      await expect(
-        caller.dashboardV2.listing.importRows({ rows }),
-      ).resolves.toMatchObject({ createdCount: 2, existingCount: 0 });
-      await expect(
-        caller.dashboardV2.listing.importRows({ rows }),
-      ).resolves.toMatchObject({ createdCount: 0, existingCount: 2 });
-
-      const listings = await db.listing.findMany({
-        where: { userId: user.id },
-        orderBy: { slug: "asc" },
-      });
-      expect(listings).toHaveLength(2);
-      expect(listings.map((listing) => listing.slug)).toEqual([
-        "stella-de-oro",
-        "stella-de-oro-1",
-      ]);
-      expect(listings[0]).toMatchObject({
-        description: "First import row",
-        importKey: "project-1:source-row-2",
-        price: 12,
-        privateNote: "Front bed",
-      });
-    });
-  });
-
   it("rejects a free-tier import batch that crosses the listing limit", async () => {
     getStripeSubscriptionResult.mockResolvedValue({
       subscription: { status: "none" },
@@ -169,10 +117,9 @@ describe("dashboard listing creation entitlements", () => {
         user.id,
         APP_CONFIG.LISTING.FREE_TIER_MAX_LISTINGS - 1,
       );
-      const rows = ["First", "Second"].map((title, index) => ({
+      const rows = ["First", "Second"].map((title) => ({
         cultivarReferenceId: null,
         description: null,
-        importKey: `free-tier-batch:${index}`,
         price: null,
         privateNote: null,
         title,
@@ -190,57 +137,163 @@ describe("dashboard listing creation entitlements", () => {
     });
   });
 
-  it("skips exact existing listings and requires a decision for changed ones", async () => {
+  it("still requires Pro to import lists", async () => {
     getStripeSubscriptionResult.mockResolvedValue({
-      subscription: { status: "trialing" },
+      subscription: { status: "none" },
       confirmed: true,
     });
-
     await withTempAppDb(async ({ user }) => {
       const { caller, db } = await createAuthedCaller(user.id);
+      await expect(
+        caller.dashboardV2.listing.importRows({
+          rows: [{ ...importRow("For sale"), lists: ["Sale"] }],
+        }),
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+      expect(await db.listing.count({ where: { userId: user.id } })).toBe(0);
+    });
+  });
+});
+
+function importRow(title: string) {
+  return {
+    title,
+    cultivarReferenceId: null,
+    price: null,
+    description: null,
+    privateNote: null,
+  };
+}
+
+describe("catalog import batches", () => {
+  beforeEach(() => {
+    getStripeSubscriptionResult.mockResolvedValue({
+      subscription: { status: "active" },
+      confirmed: true,
+    });
+  });
+
+  it("skips owned names with the same link without changing their details or lists", async () => {
+    await withTempAppDb(async ({ user }) => {
+      const { caller, db } = await createAuthedCaller(user.id);
+      const reference = await db.cultivarReference.create({
+        data: { normalizedName: "batch bloom" },
+      });
+      const owned = await db.listing.create({
+        data: {
+          userId: user.id,
+          slug: "batch-bloom",
+          title: "Batch Bloom",
+          price: 12,
+          description: "Original",
+          privateNote: "Original note",
+        },
+      });
+      const sale = await db.list.create({
+        data: {
+          userId: user.id,
+          title: "Sale",
+          listings: { connect: { id: owned.id } },
+        },
+      });
+      const otherUser = await db.user.create({
+        data: { clerkUserId: "other-sale-owner" },
+      });
       await db.listing.create({
         data: {
-          description: "Display row",
-          price: 15,
-          privateNote: "Front bed",
-          slug: "happy-returns",
-          title: "Happy Returns",
-          userId: user.id,
+          userId: otherUser.id,
+          title: "Batch Bloom",
+          slug: "batch-bloom",
+          cultivarReferenceId: reference.id,
         },
       });
 
-      const exactRow = {
-        cultivarReferenceId: null,
-        description: "Display row",
-        importKey: "project-2:source-row-2",
-        price: 15,
-        privateNote: "Front bed",
-        title: "Happy Returns",
-      };
+      const rows = [
+        { ...importRow("batch   bloom"), price: 15, lists: ["Unused list"] },
+        {
+          ...importRow("Batch Bloom"),
+          cultivarReferenceId: reference.id,
+          lists: ["sale"],
+        },
+        {
+          ...importRow(" BATCH BLOOM "),
+          cultivarReferenceId: reference.id,
+          price: 66,
+          lists: ["Unused list"],
+        },
+      ];
       await expect(
-        caller.dashboardV2.listing.importRows({ rows: [exactRow] }),
-      ).resolves.toMatchObject({
-        createdCount: 0,
-        skippedExactCount: 1,
+        caller.dashboardV2.listing.importRows({ rows }),
+      ).resolves.toEqual({
+        createdCount: 1,
+        skippedNames: ["batch   bloom", "BATCH BLOOM"],
       });
-
-      const changedRow = {
-        ...exactRow,
-        importKey: "project-2:source-row-3",
-        price: 18,
-      };
+      const stored = await db.listing.findUniqueOrThrow({
+        where: { id: owned.id },
+        include: { lists: true },
+      });
+      expect(stored).toMatchObject({ ...owned, lists: [{ id: sale.id }] });
+      const updatedSale = await db.list.findUniqueOrThrow({
+        where: { id: sale.id },
+        include: { listings: true },
+      });
+      expect(updatedSale.updatedAt.getTime()).toBeGreaterThan(
+        sale.updatedAt.getTime(),
+      );
+      expect(updatedSale.listings).toMatchObject(
+        expect.arrayContaining([
+          { ...owned },
+          expect.objectContaining({
+            title: "Batch Bloom",
+            cultivarReferenceId: reference.id,
+            userId: user.id,
+            slug: "batch-bloom-1",
+          }),
+        ]),
+      );
       await expect(
-        caller.dashboardV2.listing.importRows({ rows: [changedRow] }),
-      ).rejects.toMatchObject({ code: "CONFLICT" });
+        caller.dashboardV2.listing.importRows({ rows }),
+      ).resolves.toEqual({
+        createdCount: 0,
+        skippedNames: ["batch   bloom", "Batch Bloom", "BATCH BLOOM"],
+      });
+      expect(await db.listing.count({ where: { userId: user.id } })).toBe(2);
+      expect(await db.list.findMany({ where: { userId: user.id } })).toEqual([
+        expect.objectContaining({
+          id: sale.id,
+          updatedAt: updatedSale.updatedAt,
+        }),
+      ]);
+    });
+  });
 
+  it("rejects 101 distinct lists before writing and accepts 100", async () => {
+    await withTempAppDb(async ({ user }) => {
+      const { caller, db } = await createAuthedCaller(user.id);
+      const first = {
+        ...importRow("First"),
+        lists: Array.from({ length: 100 }, (_, index) => `List ${index + 1}`),
+      };
+      const second = { ...importRow("Second"), lists: ["List 101"] };
+      await expect(
+        caller.dashboardV2.listing.importRows({ rows: [first, second] }),
+      ).rejects.toMatchObject({
+        code: "BAD_REQUEST",
+        message: "Import at most 100 lists at a time.",
+      });
+      expect(await db.listing.count({ where: { userId: user.id } })).toBe(0);
+      expect(await db.list.count({ where: { userId: user.id } })).toBe(0);
       await expect(
         caller.dashboardV2.listing.importRows({
-          rows: [{ ...changedRow, allowExistingDuplicate: true }],
+          rows: [first, { ...second, lists: [" list   100 "] }],
         }),
-      ).resolves.toMatchObject({ createdCount: 1, skippedExactCount: 0 });
-      await expect(
-        db.listing.count({ where: { userId: user.id } }),
-      ).resolves.toBe(2);
+      ).resolves.toEqual({ createdCount: 2, skippedNames: [] });
+      expect(await db.list.count({ where: { userId: user.id } })).toBe(100);
+      expect(
+        await db.list.findFirstOrThrow({
+          where: { userId: user.id, title: "List 100" },
+          include: { _count: { select: { listings: true } } },
+        }),
+      ).toMatchObject({ _count: { listings: 2 } });
     });
   });
 });
