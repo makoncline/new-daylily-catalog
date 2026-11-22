@@ -165,16 +165,16 @@ test("Profile restores blank fields and saves a cleared garden name", async ({
 
   await profile.gardenNameInput.fill("Saved Garden");
   await profile.saveChangesButton.click();
-  await expect
-    .poll(async () => (await profileRecord()).title)
-    .toBe("Saved Garden");
   await expect(profile.saveChangesButton).toBeDisabled();
+  await expect(profile.gardenNameInput).toBeEnabled();
+  expect((await profileRecord()).title).toBe("Saved Garden");
 
   await profile.gardenNameInput.clear();
   await expect(profile.saveChangesButton).toBeEnabled();
   await profile.saveChangesButton.click();
-  await expect.poll(async () => (await profileRecord()).title).toBeNull();
   await expect(profile.saveChangesButton).toBeDisabled();
+  await expect(profile.gardenNameInput).toBeEnabled();
+  expect((await profileRecord()).title).toBeNull();
   await page.reload();
   await expect(profile.gardenNameInput).toHaveValue("");
   await expect(profile.saveChangesButton).toBeDisabled();
@@ -863,17 +863,15 @@ for (const [device, viewport] of [
     await expect(profile.saveChangesButton).toBeDisabled();
     await profile.fillContent(`Saved content ${device}`);
     await expect(profile.saveChangesButton).toBeEnabled();
+    const contentSaved = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname ===
+        "/api/trpc/dashboardV2.userProfile.updateContent",
+    );
     await profile.gardenNameInput.click();
-    await expect
-      .poll(
-        async () =>
-          (
-            await db.userProfile.findUniqueOrThrow({
-              where: { id: "integration-profile" },
-            })
-          ).content,
-      )
-      .toContain(`Saved content ${device}`);
+    expect((await contentSaved).ok()).toBe(true);
+    await expect(page.getByLabel("Saving content")).toBeHidden();
+    expect((await profileRecord()).content).toContain(`Saved content ${device}`);
     await expect(profile.saveChangesButton).toBeEnabled();
     await profile.saveChangesButton.click();
     await expect(profile.saveChangesButton).toBeDisabled();
