@@ -1,6 +1,10 @@
 import type * as SentryTypes from "@sentry/nextjs";
 import posthog from "posthog-js";
 import {
+  getBrowserRuntimeConfig,
+  type BrowserRuntimeConfig,
+} from "./src/lib/browser-runtime-config";
+import {
   enrichSentryEvent,
   enrichSentryLog,
   installConsoleLogging,
@@ -17,16 +21,7 @@ type RouterTransitionStartArgs = Parameters<
   SentryModule["captureRouterTransitionStart"]
 >;
 
-interface RuntimeConfig {
-  sentry?: {
-    enabled?: boolean;
-    dsn?: string;
-    environment?: string;
-    release?: string | null;
-  };
-}
-
-async function initializeSentry(runtimeConfig: RuntimeConfig) {
+async function initializeSentry(runtimeConfig: BrowserRuntimeConfig) {
   if (!runtimeConfig.sentry?.enabled || !runtimeConfig.sentry.dsn) {
     return false;
   }
@@ -81,24 +76,12 @@ async function initializeSentry(runtimeConfig: RuntimeConfig) {
   return true;
 }
 
-async function initializeObservability() {
-  const response = await fetch("/api/runtime-config", {
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    throw new Error(`Runtime config request failed: ${response.status}`);
-  }
-
-  return initializeSentry((await response.json()) as RuntimeConfig);
-}
-
-const sentryInitializedPromise = initializeObservability().catch(
-  (error: unknown) => {
+const sentryInitializedPromise = getBrowserRuntimeConfig()
+  .then(initializeSentry)
+  .catch((error: unknown) => {
     console.error("Observability initialization failed:", error);
     return false;
-  },
-);
+  });
 
 export function onRouterTransitionStart(...args: RouterTransitionStartArgs) {
   void sentryInitializedPromise.then(async (isInitialized) => {
